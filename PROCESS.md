@@ -108,12 +108,19 @@ balance and the connected campaign.
 
 ## Evidence gaps and the next checkpoint
 
-At this draft, Git contains only the supplied baseline
+The supplied baseline is
 [`60ec68b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/60ec68b).
-The game changes remain uncommitted, so the repository does not yet show commits
-growing with this work. The stage documents help explain decisions but cannot
-replace that missing history. Future reviewed stages should produce genuine
-commits; earlier development should not be presented as an invented sequence.
+The first game checkpoint is
+[`3bda7a0`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/3bda7a0),
+which collects the prototype, tests and Crit 8 documents after author review.
+Earlier stages were not committed individually: the design records explain
+decisions but cannot replace that missing history. Future reviewed stages should
+produce genuine commits, without inventing a retrospective sequence.
+
+Release preparation reran all 161 tests and the evidence check successfully.
+The deployable Docker image also passed the supplied HTTP invariants and the
+course page/asset verification under a 256 MB limit. These local release checks
+do not establish live deployment or sustained multiplayer capacity.
 
 Crit 8 still needs verified Fly deployment, a returning stranger's saved trace
 and public repository status. The [reflection](reflections/crit-8.md) is now
