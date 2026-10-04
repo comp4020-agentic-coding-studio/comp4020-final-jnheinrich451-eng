@@ -1,0 +1,62 @@
+import { test, expect } from '@playwright/test';
+import { createApp } from '../../server.js';
+import { createWorld } from '../../public/world.js';
+import { shipSite } from '../../public/ship.js';
+import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+for(const mobile of [false,true])test(`broadside controls and four-round salvo on ${mobile?'phone':'desktop'}`,async({browser})=>{
+ test.setTimeout(35000);
+ const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-armament-'));let app=createApp({dataDir}),context,other;
+ await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=createWorld(),token=randomUUID();world.terrain=world.terrain.map((_,i)=>i%48<20?0:2);
+ db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');
+ db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',17.5,12.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',30,24,4.5);
+ const ship={...shipSite(world,[],[],17,12,'pilot').ship,id:'ship',angle:0,turret:0,elapsed:4.5,health:300,hurt:0,occupant:'pilot'};db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));db.close();app=createApp({dataDir});
+ try{
+  await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
+  const viewport=mobile?{width:390,height:844}:{width:1920,height:1080};
+  context=await browser.newContext({viewport,isMobile:mobile,hasTouch:mobile});other=await browser.newContext();
+  await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await peer.goto(url);await page.goto(url);await page.bringToFront();const state=()=>peer.evaluate(async()=>await(await fetch('/api/world')).json());
+  await expect(page.locator('#connection')).toContainText('live');
+  const cx=viewport.width/2,cy=viewport.height/2,scale=48*(mobile?.7:.75);
+  const aim=async(x,y)=>{if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.move(x,y);};
+  await aim(cx-3*scale,cy-2.5*scale);await expect(page.locator('#ship-port-status')).toContainText('Ready');
+  const hold=async()=>{if(mobile){const box=await page.locator('#ship-secondary').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();}else await page.mouse.down({button:'right'});};
+  const release=async()=>page.mouse.up({button:mobile?'left':'right'});
+  const sideShots=async()=>(await state()).combat.shots.filter(s=>s.weapon==='NAVAL_APCR');
+  await hold();await expect.poll(async()=>(await sideShots()).length).toBeGreaterThanOrEqual(3);
+  expect((await sideShots()).every(s=>s.owner==='ship:port')).toBe(true);
+  await page.screenshot({path:`docs/previews/ship-side-guns-${mobile?'mobile':'desktop'}.png`});await release();
+  await page.waitForTimeout(200);const stopped=Math.max(0,...(await sideShots()).map(s=>s.id));await page.waitForTimeout(450);expect((await sideShots()).every(s=>s.id<=stopped)).toBe(true);
+  await aim(cx+3*scale,cy-2.5*scale);await expect(page.locator('#ship-starboard-status')).toContainText('Ready');
+  await page.locator('#world-canvas').focus();await page.keyboard.down('j');await expect.poll(async()=>(await sideShots()).some(s=>s.owner==='ship:starboard')).toBe(true);await page.keyboard.up('j');
+  // Focus loss clears held fire; the same key release must not be needed to stop it.
+  await page.keyboard.down('j');await page.waitForTimeout(250);await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.waitForTimeout(200);
+  const blurred=Math.max(0,...(await sideShots()).map(s=>s.id));await page.waitForTimeout(400);expect((await sideShots()).every(s=>s.id<=blurred)).toBe(true);await page.keyboard.up('j');
+  await aim(cx,cy-5*scale);await expect(page.locator('#ship-port-status')).toContainText('Outside arc');await expect(page.locator('#ship-starboard-status')).toContainText('Outside arc');
+  await page.locator('#world-canvas').focus();for(let i=0;i<4;i++)await page.keyboard.press('-');
+  await aim(viewport.width*.8,viewport.height*.28);await expect(page.locator('#ship-fire')).toBeEnabled();await page.waitForTimeout(3000);
+  const mainRequests=[];page.on('request',r=>{if(r.url().endsWith('/api/ships/fire'))mainRequests.push(r.postDataJSON());});
+  const single=async()=>{if(mobile)await page.locator('#ship-fire').tap();else await page.mouse.click(viewport.width*.8,viewport.height*.28);};
+  await single();await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.waitForTimeout(350);
+  expect((await state()).combat.salvos).toHaveLength(0);expect(mainRequests).toHaveLength(0);
+  await single();await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(2);
+  const first=(await state());expect(first.combat.salvos.every(s=>s.mount==='fore')).toBe(true);expect(first.ships[0].mainReloads.aft).toBe(0);
+  await expect(page.locator('#ship-status')).toContainText('AFT READY');
+  await page.screenshot({path:`docs/previews/ship-volley-${mobile?'mobile':'desktop'}.png`});
+  await page.waitForTimeout(300);await single();await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(4);
+  expect((await state()).combat.salvos.filter(s=>s.mount==='aft')).toHaveLength(2);
+  await expect.poll(async()=>(await state()).ships[0].reload,{timeout:7000}).toBe(0);
+  if(mobile){await page.locator('#ship-fire').tap();await page.locator('#ship-fire').tap();}else await page.mouse.dblclick(viewport.width*.8,viewport.height*.28,{delay:70});
+  expect(mainRequests.map(r=>r.mode)).toEqual(['volley','volley','salvo']);
+  await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(4);
+  expect((await state()).ships[0].reload).toBeGreaterThan(5);
+  await page.waitForTimeout(350);await page.screenshot({path:`docs/previews/ship-salvo-${mobile?'mobile':'desktop'}.png`});
+  await expect.poll(async()=>(await state()).combat.salvos.length,{timeout:4000}).toBe(0);
+  if(!mobile){await page.setViewportSize({width:900,height:700});await page.waitForTimeout(150);}
+  expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true);
+ }finally{await context?.close();await other?.close();await app.close();if(!path.resolve(dataDir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-armament-'))throw Error('Bad temp path');await rm(dataDir,{recursive:true,force:true});}
+});

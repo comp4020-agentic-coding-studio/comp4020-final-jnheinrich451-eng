@@ -11,3 +11,9 @@ dist
 mise.local.toml
 *.pem
 .claude
+
+# Local source library; deployed assets must live in the tracked game directory.
+assets/
+.local/
+test-results/
+playwright-report/

@@ -1,0 +1,75 @@
+{
+  "author": "Kenney",
+  "pack": "Topdown Tanks Remastered",
+  "license": "CC0",
+  "source": "https://kenney.nl/assets/topdown-tanks-redux",
+  "export": "Byte-for-byte copy of selected default-size PNGs; run node scripts/prepare-assets.mjs with the local library present.",
+  "files": [
+    {
+      "file": "tileGrass1.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass1.png",
+      "sha256": "d49605aaf5ebc5ae16da54aaf9a958757965d2045008bae6cb856324d4336187",
+      "modified": false
+    },
+    {
+      "file": "tileGrass2.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass2.png",
+      "sha256": "93567fc56428e317d922435f68a0251d43f4a30c91ce1d98041dd44c0a3e99ae",
+      "modified": false
+    },
+    {
+      "file": "tileSand1.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand1.png",
+      "sha256": "63c79252d41515e08ebcdc6a7dbbae437a67536da31c25a93150231b5c573cdb",
+      "modified": false
+    },
+    {
+      "file": "tileSand2.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand2.png",
+      "sha256": "8097e026ae49e78e3af0b99d3d467c4dbcef0865e4f4605f3e3188f01fb8d7d9",
+      "modified": false
+    },
+    {
+      "file": "tankBody_sand.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_sand.png",
+      "sha256": "e58f512c59a932b7bd8fe21f1e38f53d3a7aac5fe8e5d988f85b0cbe52a1d5df",
+      "modified": false
+    },
+    {
+      "file": "tankSand_barrel1.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankSand_barrel1.png",
+      "sha256": "265f632aceae77a156c3c686b24c2512f60d816e50fa450546872fa9835e9d9c",
+      "modified": false
+    },
+    {
+      "file": "tankBody_dark.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_dark.png",
+      "sha256": "92e6c7936ff8a60b7cb5e77226a0a351febff674314e9ca8d5904d32d45a085f",
+      "modified": false
+    },
+    {
+      "file": "tankDark_barrel1.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankDark_barrel1.png",
+      "sha256": "01d3be7c1f4b48ed171261f65f1913ad8e9a656e81195ff7743703089f248b20",
+      "modified": false
+    },
+    {
+      "file": "treeBrown_small.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeBrown_small.png",
+      "sha256": "002999f5df27647a73ad566e34c54af889f8fc650e6015d2c77a0cd1db8b8a17",
+      "modified": false
+    },
+    {
+      "file": "treeGreen_small.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeGreen_small.png",
+      "sha256": "9dbaf12b1b09457b083fea10c0021b9b0894f3dd61dd9b96b03af0cbecf222ef",
+      "modified": false
+    },
+    {
+      "file": "sandbagBeige.png",
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/sandbagBeige.png",
+      "sha256": "78fed1d3029f8b0b6611a83182a5516148f7f370888d5f0fbb0da0ccb12a252f",
+      "modified": false
+    }
+  ]
+}
