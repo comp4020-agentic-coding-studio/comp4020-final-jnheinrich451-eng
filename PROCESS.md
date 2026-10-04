@@ -125,7 +125,9 @@ do not establish live deployment or sustained multiplayer capacity.
 The [first Fly checks](docs/CRIT8_RELEASE.md) exercised two guests, shared
 construction, a returning session and persistence across a machine restart.
 The author approved public release; the repository is now public. Final shipping
-runs public CI and tags the verified deployment. The [reflection](reflections/crit-8.md) is now
+runs public CI and tags the verified deployment.
+Public CI exposed a timing-dependent docking test; it now waits for observed
+arrival, with the correction recorded in CLAUDE. The [reflection](reflections/crit-8.md) is
 drafted from the author's account of turning ideas into stages and learning
 the pipeline. Passing `check:evidence` checks file presence and commit references,
 not the quality of either account. Optional email registration is now planned, with

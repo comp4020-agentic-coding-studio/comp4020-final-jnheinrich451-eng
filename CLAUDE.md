@@ -162,6 +162,9 @@ Hazard visual checks must include aged fields, not only impact flashes or labels
 - Run relevant HTTP/domain tests and inspect the browser at 1920x1080 and 390x844,
   including keyboard use and resize. Inspect screenshots as well as test results.
 - Keep test saves separate from user saves. Do not reset the user's world for tests.
+- In live-tick HTTP tests, wait for observable simulation state before asserting
+  arrival or docking. Fixed-duration movement sleeps depend on runner scheduling;
+  preserve explicit time bounds and assertions on the resulting action.
 - Treat memory/CPU feasibility as unproven until measured under representative
   sustained load. A world preview is not a validated combat-server benchmark.
 - Record implementation evidence without inventing the author's reflection,

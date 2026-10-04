@@ -90,7 +90,13 @@ it('saves orbital arrival, exclusive seat, sailing and ammunition; pauses unused
  expect((await f.post('ships/exit',{})).status).toBe(409);await f.post('ships/ammo',{ammo:'GAS'});const before=await f.state();await f.restart();
  const after=await f.state();expect(after.me.shipId).toBe(id);expect(after.me.x).toBe(after.ships[0].x);expect(after.ships[0].x).toBe(before.ships[0].x);expect(after.ships[0].ammo).toBe('GAS');
  await f.connect();await f.connect(1);
- for(let i=0;i<4;i++){await f.post('input',{x:0,y:1,aim:-Math.PI/2});await new Promise(r=>setTimeout(r,150));}
+ // Return according to observed simulation progress, not a fixed number of
+ // wall-clock sleeps: CI load can change how many movement ticks run.
+ await expect.poll(async()=>{
+  expect((await f.post('input',{x:0,y:1,aim:-Math.PI/2})).status).toBe(200);
+  const ship=(await f.state()).ships[0];
+  return Math.hypot(ship.x-ship.berthX,ship.y-ship.berthY);
+ },{timeout:4000,interval:100}).toBeLessThan(.25);
  await f.post('input',{x:0,y:0,aim:-Math.PI/2});expect((await f.post('ships/exit',{})).status).toBe(200);
  expect((await f.state()).me).toMatchObject({body:'robot',shipId:null,x:20.5,y:12.5});
  await f.post('input',{x:1,y:0,aim:0});await new Promise(r=>setTimeout(r,300));await f.post('input',{x:0,y:0,aim:0});

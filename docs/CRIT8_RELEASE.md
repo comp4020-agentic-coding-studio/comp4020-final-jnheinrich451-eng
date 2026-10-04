@@ -28,6 +28,13 @@ combined-forces load, campaign balance and four-player capacity remain unproven.
 Local screenshots and session-bearing test artifacts stay in ignored
 `.local/release-check/`; no guest cookie is published.
 
+The first public CI run passed 160 of 161 tests. The ship return test assumed
+four timed input packets would always reach the dock; runner scheduling left
+the vessel out of range. The test now refreshes movement input and waits for
+the observed berth distance before checking disembarkation, with a bounded
+timeout. The gameplay docking restriction is unchanged. CLAUDE records this
+correction for future tests that depend on simulation ticks.
+
 ## Publication status
 
 The author explicitly approved publication on 5 October 2026, and the
