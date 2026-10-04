@@ -30,10 +30,13 @@ Local screenshots and session-bearing test artifacts stay in ignored
 
 ## Publication status
 
-The code is committed and pushed to the private course repository. Public
-visibility, the first public CI deployment and the `crit-8` tag remain pending.
-The installed course shipping skill requires explicit confirmation before making
-the source, commit history and CI logs public. The installed plugin reports
+The author explicitly approved publication on 5 October 2026, and the
+[course repository](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng)
+is now public. The final shipping step runs checks and deploys through the
+[checks workflow](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/actions/workflows/checks.yml).
+The `crit-8` tag is created on the deployed commit after successful verification;
+GitHub's run and tag records identify that exact release without inventing
+earlier development history. The installed plugin reports
 version 0.14.23 with 0.14.27 available; update before the next release.
 
 The course secret scan reviewed the publishable worktree and branch/remote/tag

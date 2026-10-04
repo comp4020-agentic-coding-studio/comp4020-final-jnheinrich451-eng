@@ -124,7 +124,8 @@ do not establish live deployment or sustained multiplayer capacity.
 
 The [first Fly checks](docs/CRIT8_RELEASE.md) exercised two guests, shared
 construction, a returning session and persistence across a machine restart.
-Public repository status and the crit tag remain pending. The [reflection](reflections/crit-8.md) is now
+The author approved public release; the repository is now public. Final shipping
+runs public CI and tags the verified deployment. The [reflection](reflections/crit-8.md) is now
 drafted from the author's account of turning ideas into stages and learning
 the pipeline. Passing `check:evidence` checks file presence and commit references,
 not the quality of either account. Optional email registration is now planned, with
