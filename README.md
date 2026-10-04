@@ -46,8 +46,8 @@ state. Accepted construction saves before confirmation; movement uses half-secon
 checkpoints. Enemies, airborne weapons and cosmetic craters are temporary.
 
 These commitments belong in [agent rules](CLAUDE.md) and [automated checks](spec/).
-Local checks cover persistence, conflicting actions, exclusive controls and
-responsive layouts. Live deployment and sustained-load validation remain gates.
+Checks cover persistence, conflicting actions, exclusive controls and
+responsive layouts. Initial Fly checks pass; sustained-load validation remains a gate.
 Enjoyment, readability and useful cooperation need human playtesting; the
 creator's prototype feedback is an initial signal, not independent validation.
 

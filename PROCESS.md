@@ -122,8 +122,9 @@ The deployable Docker image also passed the supplied HTTP invariants and the
 course page/asset verification under a 256 MB limit. These local release checks
 do not establish live deployment or sustained multiplayer capacity.
 
-Crit 8 still needs verified Fly deployment, a returning stranger's saved trace
-and public repository status. The [reflection](reflections/crit-8.md) is now
+The [first Fly checks](docs/CRIT8_RELEASE.md) exercised two guests, shared
+construction, a returning session and persistence across a machine restart.
+Public repository status and the crit tag remain pending. The [reflection](reflections/crit-8.md) is now
 drafted from the author's account of turning ideas into stages and learning
 the pipeline. Passing `check:evidence` checks file presence and commit references,
 not the quality of either account. Optional email registration is now planned, with
