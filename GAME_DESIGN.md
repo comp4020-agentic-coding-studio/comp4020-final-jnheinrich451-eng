@@ -1,6 +1,6 @@
 # Frontier game design harness
 
-Version 0.23, 11 October 2026. This is the central guide for deciding what belongs
+Version 0.24, 11 October 2026. This is the central guide for deciding what belongs
 in the game and what a playable stage must establish. It consolidates agreed
 direction; it does not authorize every future feature or implement new rules.
 
@@ -13,8 +13,10 @@ small alien settlement, anti-air facility, then attack jet. The first
 [environment modifier](docs/ENVIRONMENT_MODIFIER.md) is implemented locally:
 fixed cosmetic alien ground, HE conquest and permanent visual recovery. The
 [small settlement](docs/ALIEN_SETTLEMENT.md) now combines a crown, mortar and root
-with a saved 0/3 checklist and permanent conquest. Anti-air and the attack jet
-remain next; use feedback from each playable stage to refine the next.
+with a saved 0/3 checklist and permanent conquest. The first
+[anti-air outpost](docs/ANTI_AIR.md) now adds warned, fixed-prediction flak bursts,
+bomber HP and recoverable aircraft loss locally. The attack jet remains next;
+use feedback from each playable stage to refine the next.
 New armor, economy and planetary-victory rules are not implied.
 
 The author then selected the [air contaminator](docs/AIR_CONTAMINATOR.md) as the
@@ -143,7 +145,9 @@ other weapon irrelevant.
 a robot, deploy/operate equipment, optionally start ground or naval encounters,
 fight, recover after applicable losses, and return to saved construction and
 presence. Existing core owners and occupied vehicles resume their saves. Clearing
-a drill is not territory capture; the bomber is not yet threatened by anti-air.
+a drill is not territory capture. Spore flak now threatens airborne bombers;
+disabled pilots recover through friendly cores while their airbase replaces the
+lost aircraft.
 
 **Agreed campaign direction, clarified 7 October:** explore a large planet,
 identify hostile sites and objectives on the map, deploy combat support where

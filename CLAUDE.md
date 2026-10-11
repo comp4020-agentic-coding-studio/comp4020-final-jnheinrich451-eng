@@ -53,8 +53,8 @@
   structures reuse crown/mortar/root behaviour and existing global enemy caps.
   Saved membership defines the checklist; missing members never imply completion.
   All three must be permanently destroyed; survivors remain. Add compounds
-  atomically with a backup, preserving terrain and prior progress. Anti-air and
-  attack jet remain subsequent stages; no aircraft damage is implied yet.
+  atomically with a backup, preserving terrain and prior progress. The subsequent
+  anti-air stage below adds aircraft damage; the attack jet remains future work.
 - The author subsequently chose the air contaminator as the next separate stage.
   docs/AIR_CONTAMINATOR.md records fixed opaque fog, surveyed coordinates, HE
   destruction and saved eight-second clearance. Reduced effects must not bypass
@@ -69,7 +69,7 @@
   Only the angle tracks; discard obsolete variable-radius endpoint state while
   preserving phase timers. Sideways escape works; radial retreat can be hit.
   Three/nine-second lethality means cumulative robot/tank beam exposure. Keep the
-  first encounter outside contaminator fog; anti-air and facility armor are later.
+  first encounter outside contaminator fog; facility armor remains later work.
   Distant battery/submarine aim clamps the whole rectangle along its bearing;
   preview and server must agree, retaining minimum range and other fire gates.
 - The 11 October mortar stage is in docs/MORTAR_OUTPOST.md: one additive saved
@@ -121,8 +121,9 @@
   weapons and tanks, rail artillery and missiles, gunships and submarines, and
   the first airbase/HE bomber loop, and isolated host-owned campaigns locally.
   Named campaigns checkpoint combat; legacy combat and cosmetic traces stay transient.
-  First alert-station conquest is local; other objectives, economy and balance
-  remain future work. Stage limitations are recorded below and in docs/.
+  Alert, mortar, root, settlement, contaminator and lance objectives are deployed;
+  anti-air is local. Economy and final balance remain future work. Stage
+  limitations are recorded below and in docs/.
 - The player operates robots and multiple forces. Guests without a core or an
   occupied vehicle begin in orbital core selection, with no ground body. Preserve
   existing identities and owned objects; returning deployments resume saved state.
@@ -142,8 +143,9 @@
 - The 9 October account implementation is in `docs/ACCOUNT_DESIGN.md`: real-email
   and Demo registration/login, private simulated inbox, verification/resend,
   recovery and logout. Preserve guest entry by invitation and visible Demo labels;
-  Demo activation never establishes email ownership. Real SMTP code is tested
-  locally, but Brevo inbox receipt remains unverified and credentials unset here.
+  Demo activation never establishes email ownership. SMTP is configured on Fly;
+  connection, TLS and Brevo authentication passed on 11 October. Actual inbox
+  receipt remains unverified; the connection check did not send an email.
 - Current account defaults preserve guest progress and require explicit takeover
   before replacing another account session. Do not silently merge another guest
   during login. Rotate old guest credentials when attaching an account; expire
@@ -270,6 +272,15 @@ Ordinary curves keep their original routing until explicitly upgraded.
 
 ## Review
 
+The first anti-air stage is in docs/ANTI_AIR.md: airborne-only predicted flak,
+three fixed warned points, six-second reload and a global 12-round reservation
+cap. Preserve permanent HE conquest and already launched attacks after tower
+destruction. Aircraft damage, consumed impacts and pilot loss must checkpoint
+atomically, including disconnected pilots. Bomber replacement takes 20 simulation
+seconds at its original airbase; pilots use existing friendly-core recovery.
+Keep free replacement until economy is agreed. Add encounters with backups and
+safe placement; never reset a campaign for testing. Attack jets remain later work.
+
 The user's compact-rail correction supersedes broad curves for new construction:
 see docs/COMPACT_RAILS.md. Corners and junctions occupy one tile, EW/NS overlays
 merge into J on owned clear track, and WASD chooses connected exits. No separate
@@ -390,4 +401,5 @@ base rearming form the first loop. Preserve friendly immunity, shared barrage
 caps, existing world geometry, full airbase construction reservation and separate
 walkable-runway/solid-hangar collision. Airborne pilots have no ground body or
 ground weapons. Viewer-based pause, offline cruise and saved flight state apply.
-Fuel, anti-air/base damage, other warheads and carriers remain future stages.
+Anti-air and bomber damage/recovery now extend this loop in docs/ANTI_AIR.md.
+Fuel, base damage, other warheads and carriers remain future stages.

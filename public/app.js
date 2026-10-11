@@ -1,3 +1,5 @@
+import { drawFlak } from './anti-air-effects.js';
+import { AIR_HULL, aircraftHealth } from './aircraft.js';
 import { drawLaserBeams } from './laser-tower-effects.js';
 import { beamRay as laserBeamRay } from './sensors.js';
 import { missileAim } from './missile.js';
@@ -120,13 +122,14 @@ function updateAircraft(){
  $('airbase-card').disabled=!connected||me.body!=='robot'||world.airbases.some(b=>b.owner===me.id);
  $('airbase-find').disabled=!world.airbases.some(b=>b.owner===me.id);
  const button=$('aircraft-interact');button.hidden=!alive()||mode==='build'||!!controlledGun()||(!p&&(me.body!=='robot'||!near));
- button.textContent=p?'Disembark / E':near?.aircraft.occupant?'Bomber occupied':'Board + take off / E';
+ button.textContent=p?'Disembark / E':near?.aircraft.state==='destroyed'?'Replacement / '+Math.ceil(near.aircraft.remaining)+'s':near?.aircraft.occupant?'Bomber occupied':'Board + take off / E';
  button.disabled=!connected||airBusy||(p?p.state!=='parked':!!near?.aircraft.occupant||near?.aircraft.state!=='parked'||near?.aircraft.rearm>0);
  for(const button of document.querySelectorAll('[data-direction]')){const key=button.dataset.direction;button.setAttribute('aria-label',(p?{up:'Increase airspeed',down:'Reduce airspeed',left:'Turn left',right:'Turn right'}:{up:'Move north',down:'Move south',left:'Move west',right:'Move east'})[key]);button.textContent=(p?{up:'W +',down:'S -',left:'A <',right:'D >'}:{up:'↑',down:'↓',left:'←',right:'→'})[key];}
  if(!p)return;
  document.querySelector('.mode-dock').hidden=true;$('build-mode').disabled=true;
- $('aircraft-status').textContent=p.releaseRemaining>0?'RELEASING / HOLDING COURSE':p.edgeTurn?'BOUNDARY TURN':p.state.toUpperCase();
- $('aircraft-readout').textContent='SPEED '+p.speed.toFixed(1)+' / '+p.runs+' OF 2 HE RUNS / BASE '+Math.round(Math.hypot(p.x-(base.x+2),p.y-(base.y+7.5)))+' TILES';
+ const threatened=world.sites.some(s=>s.state==='hostile'&&s.aa?.targetId===p.id)||(combat.flakShells||[]).some(s=>!s.impacted&&s.targetId===p.id);
+ $('aircraft-status').textContent=threatened?'INCOMING FLAK / TURN':p.releaseRemaining>0?'RELEASING / HOLDING COURSE':p.edgeTurn?'BOUNDARY TURN':p.state.toUpperCase();
+ $('aircraft-readout').textContent='HULL '+Math.ceil(aircraftHealth(p))+'/'+AIR_HULL.health+' / SPEED '+p.speed.toFixed(1)+' / '+p.runs+' OF 2 HE RUNS / BASE '+Math.round(Math.hypot(p.x-(base.x+2),p.y-(base.y+7.5)))+' TILES';
  const error=bombError(world,p);$('aircraft-bomb').disabled=!connected||airBusy||!!error;
  $('aircraft-launch').hidden=p.state!=='parked';$('aircraft-launch').disabled=!connected||airBusy||p.rearm>0;
  $('aircraft-manual').textContent=p.state==='parked'?(p.rearm>0?'REARMING '+p.rearm.toFixed(1)+'s':'READY / Take off or E disembark'):(error||'LMB drops 6 HE')+' / Slow to 7 or less near base to land';
@@ -363,14 +366,16 @@ function fitOrbitalView() {
 }
 
 function updateSurvival() {
+  const aircraft = currentAircraft();
   const vehicle = currentShip() || world.tanks.find(t=>t.id===me.vehicleId), robot = me.body === 'robot', inactive = !alive();
-  $('robot-health').hidden = !robot && !vehicle;
+  $('robot-health').hidden = !robot && !vehicle && !aircraft;
   $('health-value').textContent = `${Math.ceil(me.health ?? 100)} / ${SURVIVAL.health}`;
   $('health-meter').value = me.health ?? 100;
   $('health-label').textContent = me.shield > 0 ? 'LANDING SHIELD' : inactive ? 'BODY OFFLINE' : 'ROBOT HULL';
   if (me.guarding) $('health-label').textContent = 'ROBOT GUARDING';
   $('health-meter').max=vehicle?VEHICLE[me.shipId?'ship':'tank']:SURVIVAL.health;
   if(vehicle){$('health-label').textContent=me.shipId?'SHIP HULL':'TANK HULL';$('health-value').textContent=Math.ceil(hullHealth(vehicle))+' / '+$('health-meter').max;$('health-meter').value=hullHealth(vehicle);}
+  if(aircraft){$('health-label').textContent='BOMBER HULL';$('health-value').textContent=Math.ceil(aircraftHealth(aircraft))+' / '+AIR_HULL.health;$('health-meter').max=AIR_HULL.health;$('health-meter').value=aircraftHealth(aircraft);}
   document.querySelector('.battlefield').classList.toggle('recovering', inactive);
   $('recovery-panel').hidden = !inactive;
   for (const id of ['build-mode', 'site-button', 'sentry-card', 'start-drill']) $(id).disabled = inactive || !connected || (id === 'start-drill' && combat.status === 'active');
@@ -392,7 +397,7 @@ function updateSurvival() {
   const arriving = me.life === 'arriving';
   if (arriving) select.value = me.reviveCore;
   select.disabled = arriving || recoveryPending;
-  $('recovery-title').textContent = arriving ? 'Replacement incoming' : me.lostVehicle ? (me.lostVehicle === 'ship' ? 'Ship destroyed' : 'Tank destroyed') : 'Robot disabled';
+  $('recovery-title').textContent = arriving ? 'Replacement incoming' : me.lostVehicle ? (me.lostVehicle === 'aircraft' ? 'Bomber shot down' : me.lostVehicle === 'ship' ? 'Ship destroyed' : 'Tank destroyed') : 'Robot disabled';
   $('recovery-message').textContent = recoveryError || (arriving ? 'Pod descending. Controls return on landing.' : me.recovery > .001 ? `Preparing replacement · ${Math.ceil(me.recovery)}s` : 'Choose a friendly core. A clear landing point will be selected within its circle.');
   $('revive-button').disabled = !connected || arriving || me.recovery > .001 || !activeCores.length || recoveryPending;
   $('revive-button').textContent = arriving ? 'Pod incoming…' : recoveryPending ? 'Requesting pod…' : 'Deploy replacement';
@@ -461,7 +466,7 @@ function updateState(state) {
     const previousSites = combat.sites || [];
     combat = state.combat;
     world.sites = combat.sites || [];
-    for (const site of world.sites) if (site.state === 'conquered' && previousSites.some(s => s.id === site.id && s.state === 'hostile')) notify(`${site.settlement ? 'STRUCTURE DESTROYED' : 'REGION CONQUERED'} / ${site.kind === 'laser' ? 'Lance tower silenced' : site.kind === 'contaminator' ? 'Air contaminator destroyed. Fog clearing' : site.kind === 'modifier' ? 'Blight root destroyed. Terrain recovering' : site.kind === 'mortar' ? 'Mortar outpost silenced' : 'Alert station silenced'} permanently. Surviving defenders remain.`);
+    for (const site of world.sites) if (site.state === 'conquered' && previousSites.some(s => s.id === site.id && s.state === 'hostile')) notify(`${site.settlement ? 'STRUCTURE DESTROYED' : 'REGION CONQUERED'} / ${site.kind === 'anti-air' ? 'Spore flak silenced. Airspace clear' : site.kind === 'laser' ? 'Lance tower silenced' : site.kind === 'contaminator' ? 'Air contaminator destroyed. Fog clearing' : site.kind === 'modifier' ? 'Blight root destroyed. Terrain recovering' : site.kind === 'mortar' ? 'Mortar outpost silenced' : 'Alert station silenced'} permanently. Surviving defenders remain.`);
     for (const group of settlements(world.sites)) if (group.state === 'conquered' && settlements(previousSites).some(s => s.id === group.id && s.state === 'hostile')) notify(`SETTLEMENT CONQUERED / ${group.name}. All three structures destroyed. Permanent progress saved.`);
     if(previousContacts===0 && combat.naval?.count>0) notify('SONAR CONTACT / Swimmers approaching ships. Watch their strike circles.');
     stateReceived = performance.now(); effects.ingest(combat, stateReceived);
@@ -480,6 +485,7 @@ function updateState(state) {
   if (combat.objective?.id !== 'landing' && combat.objective) $('objective-health').textContent = `${combat.objective.label} · ${Math.ceil(combat.health)}%`;
   const station = world.sites?.find(s => s.id === selectedSiteId) || world.sites?.[0];
   $('locate-station').hidden = !world.sites?.some(s => s.kind === 'alert');
+  $('locate-anti-air').hidden = !world.sites?.some(s => s.kind === 'anti-air');
   $('locate-laser').hidden = !world.sites?.some(s => s.kind === 'laser');
   $('locate-contaminator').hidden = !world.sites?.some(s => s.kind === 'contaminator');
   $('locate-mortar').hidden = !world.sites?.some(s => s.kind === 'mortar');
@@ -500,12 +506,16 @@ function updateState(state) {
     }
   }
   $('locate-modifier').hidden = !world.sites?.some(s => s.kind === 'modifier');
-  if (station && (combat.status !== 'active' || ['contaminator', 'laser'].includes(station.kind))) {
+  if (station && (combat.status !== 'active' || ['contaminator', 'laser', 'anti-air'].includes(station.kind))) {
     $('combat-status').textContent = station.state === 'conquered' ? 'Region conquered · Crown silenced' : 'Conquer the alert station · Use HE';
     $('objective-health').textContent = station.state === 'conquered' ? 'Permanent progress saved' : `${Math.ceil(station.hp)} / ${station.maxHp} HP · ${station.alarm ? 'Alarm active' : 'Quiet'}`;
     if (station.kind === 'mortar') {
       $('combat-status').textContent = station.state === 'conquered' ? 'Region conquered · Mortar silenced' : 'Conquer the mortar outpost · Use HE';
       if (station.state !== 'conquered') $('objective-health').textContent = `${Math.ceil(station.hp)} / ${station.maxHp} HP · ${station.mortar?.charge ? 'Launching acid' : station.mortar?.nextShot > combat.time ? 'Reloading' : 'Watching'}`;
+    }
+    if (station.kind === 'anti-air') {
+      $('combat-status').textContent=station.state==='conquered'?'Spore flak silenced':'Spore flak / Use HE';
+      $('objective-health').textContent=station.state==='conquered'?'Permanent progress saved':Math.ceil(station.hp)+' / '+station.maxHp+' HP / '+(station.aa?.phase||'watching')+' / Air targets only';
     }
     if (station.kind === 'laser') {
       $('combat-status').textContent = station.state === 'conquered' ? 'Lance tower silenced' : 'Lance tower / Use HE';
@@ -1045,6 +1055,7 @@ function frame(now) {
   drawCombat();
   for(const base of world.airbases)drawAircraft(ctx,base.aircraft,T,camera.zoom,base.aircraft.id===me.aircraftId,connected?(now-stateReceived)/1000:0);
   drawBombRuns(ctx,combat.barrages||[],T,connected?Math.min((now-stateReceived)/1000,.1):0,camera.zoom);
+  drawFlak(ctx, world.sites || [], combat.flakShells || [], combat.time, T, camera.zoom, effects.reduced);
   drawLaserBeams(ctx, world.sites || [], T, camera.zoom, world, buildings, laserBeamRay);
   drawContamination(ctx, world.sites || [], T, combat.time || 0, effects.reduced);
   drawHeavyAim();
@@ -1303,6 +1314,7 @@ function locateSite(kind, id = null) {
 $('locate-station').onclick = () => locateSite('alert');
 $('locate-mortar').onclick = () => locateSite('mortar');
 $('locate-modifier').onclick = () => locateSite('modifier');
+$('locate-anti-air').onclick = () => locateSite('anti-air');
 $('locate-laser').onclick = () => locateSite('laser');
 $('locate-contaminator').onclick = () => locateSite('contaminator');
 $('locate-settlement').onclick = () => {

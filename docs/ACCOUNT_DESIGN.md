@@ -150,11 +150,20 @@ origin for real-mail testing. On Fly, use runtime secrets. No credentials are
 embedded in the client or image. `pnpm dev` and `pnpm start` load `.env` when it
 exists; credentials are not required for Demo testing.
 
-Deployment check, 11 October: the Fly app's secret-name list is empty. The
-checkpoint includes the email backend, but production SMTP delivery remains
-unconfigured. Configure the six variables above as Fly runtime secrets before
-testing real registration; local ignored configuration does not deploy itself.
-No secret values were retrieved and no real email was sent during this check.
+Deployment update, 11 October: the six variables above were configured as Fly
+runtime secrets using the author's supplied local configuration. The existing
+production image was restarted; the live account status reports SMTP configured.
+Brevo initially rejected authentication with `525 unauthorized IP`. After the
+author authorized the Fly machine's outbound IP in Brevo, connection, TLS and
+SMTP authentication passed from that machine. No email was sent by this check;
+sender acceptance, inbox receipt and the complete real registration flow remain
+unverified. The author's subsequent screenshot shows a verified sender with
+DKIM and DMARC configured.
+
+Local ignored configuration does not deploy itself. Keep secrets out of Git and
+sync future configuration changes separately. Fly's default outbound IP can
+change; a later Brevo IP rejection may require updating the allowlist. No paid
+static egress address was allocated in this stage.
 
 ## Reset compatibility and checks
 

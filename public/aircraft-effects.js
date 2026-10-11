@@ -1,4 +1,4 @@
-import { AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
+import { AIR_HULL, aircraftHealth, AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
 
 export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.save();c.translate(b.x*T,b.y*T);c.globalAlpha=ghost?.65:1;
@@ -10,9 +10,10 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.fillStyle='#233b40';c.fillRect(4*T,T,2*T,3*T);c.fillStyle='#758b8b';c.fillRect(4.1*T,1.1*T,1.8*T,2.8*T);
  c.strokeStyle='#b8c6bb';for(let y=1.3;y<3.8;y+=.35){c.beginPath();c.moveTo(4.1*T,y*T);c.lineTo(5.9*T,y*T);c.stroke();}
  c.fillStyle='#96aa98';c.fillRect(4*T,6*T,2*T,3.5*T);c.fillStyle='#f2d693';c.beginPath();c.arc(5.5*T,8.5*T,.27*T,0,Math.PI*2);c.fill();
- c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText('AIRBASE / HE BOMBER',0,-7/zoom);c.restore();
+ c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText(b.aircraft?.state==='destroyed'?'REPLACEMENT / '+Math.ceil(b.aircraft.remaining)+'s':'AIRBASE / HE BOMBER',0,-7/zoom);c.restore();
 }
 export function drawAircraft(c,p,T,zoom,mine,age=0){
+ if(p.state==='destroyed')return;
  const airborne=p.state!=='parked',advance=p.state==='flying'?Math.min(age,.1)*p.speed:0,x=p.x+Math.sin(p.angle)*advance,y=p.y-Math.cos(p.angle)*advance;
  c.save();c.translate(x*T,y*T);c.rotate(p.angle);
  const shape=()=>{c.beginPath();c.moveTo(0,-1.8*T);c.lineTo(.23*T,-.5*T);c.lineTo(2*T,.8*T);c.lineTo(1.9*T,1.1*T);c.lineTo(.25*T,.7*T);c.lineTo(.2*T,1.4*T);c.lineTo(.7*T,1.75*T);c.lineTo(-.7*T,1.75*T);c.lineTo(-.2*T,1.4*T);c.lineTo(-.25*T,.7*T);c.lineTo(-1.9*T,1.1*T);c.lineTo(-2*T,.8*T);c.lineTo(-.23*T,-.5*T);c.closePath();};
@@ -20,7 +21,7 @@ export function drawAircraft(c,p,T,zoom,mine,age=0){
  c.fillStyle=mine?'#afbdc3':'#7897a0';c.strokeStyle=mine?'#f4d18b':'#cbe0df';c.lineWidth=1.3/zoom;shape();c.fill();c.stroke();
  c.fillStyle='#294a5a';c.beginPath();c.ellipse(0,-.8*T,.13*T,.32*T,0,0,Math.PI*2);c.fill();
  for(const side of [-1,1]){c.fillStyle='#344c56';c.fillRect(side*.58*T-.1*T,.25*T,.2*T,.8*T);if(airborne){c.fillStyle='#e9c38e';c.fillRect(side*.58*T-.065*T,1.05*T,.13*T,.26*T);}}
- c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+'BOMBER / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.restore();
+ c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+'BOMBER / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.fillStyle='#273539';c.fillRect((x-1)*T,(y+2.3)*T,2*T,3/zoom);c.fillStyle=aircraftHealth(p)<60?'#ef927e':'#b7dbb1';c.fillRect((x-1)*T,(y+2.3)*T,2*T*aircraftHealth(p)/AIR_HULL.health,3/zoom);c.restore();
 }
 export function drawBombPrediction(c,world,p,base,T,zoom,obscured=point=>false){
  const points=bombPattern(p),valid=!bombError(world,p);c.save();c.strokeStyle=valid?'#efce83':'#de9a8b';c.fillStyle=valid?'#efd38c17':'#df887b12';c.lineWidth=1.2/zoom;

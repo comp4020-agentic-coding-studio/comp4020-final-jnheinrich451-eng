@@ -88,7 +88,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   }
   world.airbases=db.prepare('SELECT value FROM airbases ORDER BY rowid').all().map(row=>{const base=JSON.parse(row.value);base.aircraft.releaseRemaining=0;return base;});
   const writeAirbase=db.prepare('INSERT INTO airbases VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value'),savedAirbases=new Map();
-  const saveAirbase=base=>{const value=JSON.stringify(base);if(savedAirbases.get(base.id)!==value){writeAirbase.run(base.id,value);savedAirbases.set(base.id,value);}};
+  const saveAirbase=base=>{const value=JSON.stringify(base,(key,value)=>key==='damageDirty'?undefined:value);if(savedAirbases.get(base.id)!==value){writeAirbase.run(base.id,value);savedAirbases.set(base.id,value);}};
   const pilotedBase=id=>world.airbases.find(b=>b.aircraft.occupant===id);
   const boardedAircraft=id=>pilotedBase(id)?.aircraft;
   world.cores = db.prepare('SELECT * FROM cores ORDER BY rowid').all();
@@ -193,6 +193,20 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'laser_tower_added_with_backup', count: additions.length, saved: true });
   }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='anti-air-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-anti-air-' + randomUUID() + '.sqlite'));
+    const additions = world.sites.some(s => s.kind === 'anti-air') ? [] : seedConquest(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'anti-air');
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('anti-air-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'anti-air') }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'anti_air_added_with_backup', count: additions.length, saved: true });
+  }
   let revision = 0, closed = false, combatDirty = false;
   const save = db.prepare('UPDATE scouts SET x=?,y=?,angle=? WHERE id=?');
   const saveCore = db.prepare('UPDATE cores SET elapsed=? WHERE id=?');
@@ -213,10 +227,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   const groundPeople = () => [...people.values()].filter(p => playerBody(p) !== 'orbital');
   const isGuarding = p => playerBody(p) === 'robot' && p.life === 'active' && !incomingCore(p.id) && streams.has(p.id) && (controlledBy(p.id)?.lease || 0) > 0;
   const playerView = p => ({ id: p.id, name: p.name, x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, angle: p.angle, aim: p.aim, turret: p.turret, body: playerBody(p), aircraftId: boardedAircraft(p.id)?.id || null, shipId: boardedShip(p.id)?.id || null, vehicleId: boardedTank(p.id)?.id || null, tankWeapon: equipped(p).weapon || 'HE', tankSecondary: equipped(p).secondary || 'APCR', deploying: !!incomingCore(p.id), guarding: isGuarding(p), ...lifeRecord(p) });
-  function persist(person, changedTank = boardedTank(person.id), changedShip = boardedShip(person.id)) {
+  function persist(person, changedTank = boardedTank(person.id), changedShip = boardedShip(person.id), changedBase = pilotedBase(person.id)) {
     db.exec('BEGIN IMMEDIATE');
-    try { if(pilotedBase(person.id))saveAirbase(pilotedBase(person.id)); if (changedShip) saveShip(changedShip); if (changedTank) saveTank(changedTank); save.run(person.x, person.y, person.angle, person.id); saveLife.run(person.id, JSON.stringify(lifeRecord(person))); db.exec('COMMIT'); }
-    catch (error) { db.exec('ROLLBACK'); if(pilotedBase(person.id))savedAirbases.delete(pilotedBase(person.id).id);if(changedShip)savedShips.delete(changedShip.id); throw error; }
+    try { if(changedBase)saveAirbase(changedBase); if (changedShip) saveShip(changedShip); if (changedTank) saveTank(changedTank); save.run(person.x, person.y, person.angle, person.id); saveLife.run(person.id, JSON.stringify(lifeRecord(person))); db.exec('COMMIT'); }
+    catch (error) { db.exec('ROLLBACK'); if(changedBase)savedAirbases.delete(changedBase.id);if(changedShip)savedShips.delete(changedShip.id); throw error; }
     person.dirty = false; person.lifeDirty = false;
   }
   function snapshot() {
@@ -822,7 +836,6 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     for (const robot of robots) robot.guarding = isGuarding(robot);
     const beforeSiteHp = world.sites.map(s => s.hp).join(',');
     if (streams.size && combat.tick(dt, obstacles, robots, groundPeople().filter(p => streams.has(p.id)).map(p => ({ ...p, body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
-    if (options.campaign && beforeSiteHp !== world.sites.map(s => s.hp).join(',')) checkpoint();
     if (!options.campaign) flushCombatEvents();
     // A vehicle loss and its pilot's disabled state are one durable transition.
     for(const v of [...world.tanks,...world.ships]) if(v.damageDirty) {
@@ -838,6 +851,23 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       else if(v.berthX!==undefined)saveShip(v);else saveTank(v);
       changed=true;
     }
+    let aircraftDamaged = false;
+    const disabledPilots = [];
+    for (const base of world.airbases) if (base.aircraft.damageDirty) {
+      const p = base.aircraft; delete p.damageDirty;
+      let pilot;
+      if (p.state === 'destroyed' && p.occupant) {
+        pilot = people.get(p.occupant);
+        if (!pilot) { const row = db.prepare('SELECT * FROM scouts WHERE id=?').get(p.occupant); if (row) pilot = { ...row, ...freshLife(), ...JSON.parse(readLife.get(row.id)?.value || '{}') }; }
+        if (pilot) { pilot.shield = 0; hurtRobot(pilot, Math.max(1, pilot.health)); pilot.lostVehicle = 'aircraft'; pilot.x = p.x; pilot.y = p.y; combat.cancelCharge(pilot.id); releaseGun(pilot.id); }
+        p.occupant = null;
+      }
+      if (pilot) disabledPilots.push(pilot);
+      aircraftDamaged = true; changed = true;
+    }
+    // Impact consumption, aircraft loss and even an offline pilot are committed
+    // together, so a restart cannot replay a hit against already-reduced health.
+    if (aircraftDamaged || options.campaign && beforeSiteHp !== world.sites.map(s => s.hp).join(',')) checkpoint(disabledPilots);
     // Persist damage and recovery transitions before broadcasting; reconnecting
     // or restarting must not revive a disabled body or restore lost health.
     for (const p of people.values()) if (p.lifeDirty) persist(p);
@@ -864,10 +894,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     }
   }, 15000);
   let lastCheckpoint = Date.now();
-  function checkpoint() {
+  function checkpoint(extraPeople = []) {
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const p of people.values()) { save.run(p.x, p.y, p.angle, p.id); saveLife.run(p.id, JSON.stringify(lifeRecord(p))); }
+      for (const p of extraPeople) { save.run(p.x, p.y, p.angle, p.id); saveLife.run(p.id, JSON.stringify(lifeRecord(p))); }
       for (const c of world.cores) saveCore.run(c.elapsed, c.id);
       for (const gun of world.artillery) saveGun(gun);
       for (const tank of world.tanks) saveTank(tank);

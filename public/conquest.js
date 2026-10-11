@@ -1,3 +1,4 @@
+import { ANTI_AIR } from './anti-air.js';
 import { LASER } from './laser-tower.js';
 import { CONTAMINATOR } from './contaminator.js';
 import { canStand, placementError } from './world.js';
@@ -12,26 +13,29 @@ export const siteCenter = site => ({ x: site.x + 1.5, y: site.y + 1.5 });
 export const siteDistance = (site, point) => Math.hypot(Math.max(site.x - point.x, 0, point.x - site.x - 3), Math.max(site.y - point.y, 0, point.y - site.y - 3));
 
 export function makeSite(kind, id, x, y) {
-  const profile = kind === 'laser' ? LASER : kind === 'contaminator' ? CONTAMINATOR : kind === 'mortar' ? MORTAR : kind === 'modifier' ? MODIFIER : ALERT;
-  return { id, kind, name: kind === 'laser' ? 'Lance tower' : kind === 'contaminator' ? 'Air contaminator' : kind === 'mortar' ? 'Bile mortar' : kind === 'modifier' ? 'Blight root' : 'Sensory crown', x, y,
+  const profile = kind === 'anti-air' ? ANTI_AIR : kind === 'laser' ? LASER : kind === 'contaminator' ? CONTAMINATOR : kind === 'mortar' ? MORTAR : kind === 'modifier' ? MODIFIER : ALERT;
+  return { id, kind, name: kind === 'anti-air' ? 'Spore flak' : kind === 'laser' ? 'Lance tower' : kind === 'contaminator' ? 'Air contaminator' : kind === 'mortar' ? 'Bile mortar' : kind === 'modifier' ? 'Blight root' : 'Sensory crown', x, y,
     hp: profile.hp, maxHp: profile.hp, state: 'hostile', awake: false, guardsRemaining: profile.guards,
     alarmUntil: 0, nextCall: 0, pending: null, hitAt: -10000, blockedAt: -10000 };
 }
 
 // One additive encounter, selected once. Existing buildings/players keep their sites.
 export function seedConquest(world, buildings, occupants, kind = 'alert') {
-  if (!['alert', 'mortar', 'modifier', 'contaminator', 'laser'].includes(kind)) return [];
+  if (!['alert', 'mortar', 'modifier', 'contaminator', 'laser', 'anti-air'].includes(kind)) return [];
+  const antiAir = kind === 'anti-air';
   const contaminator = kind === 'contaminator', laser = kind === 'laser';
   const mortar = kind === 'mortar', modifier = kind === 'modifier';
   const candidates = [];
   for (let y = 12; y < world.height - 12; y += 4) for (let x = 60; x < world.width - 12; x += 4) candidates.push({ x, y });
-  const preferred = laser ? { x: 60, y: 28 } : contaminator ? { x: 80, y: 48 } : mortar ? { x: 96, y: 60 } : modifier ? { x: 64, y: 64 } : { x: 80, y: 28 };
+  const preferred = antiAir ? { x: 108, y: 24 } : laser ? { x: 60, y: 28 } : contaminator ? { x: 80, y: 48 } : mortar ? { x: 96, y: 60 } : modifier ? { x: 64, y: 64 } : { x: 80, y: 28 };
   candidates.sort((a, b) => Math.hypot(a.x - preferred.x, a.y - preferred.y) - Math.hypot(b.x - preferred.x, b.y - preferred.y));
   for (const p of candidates) {
+    if (antiAir && (world.sites || []).some(s => Math.hypot(s.x - p.x, s.y - p.y) < (s.kind === 'contaminator' ? CONTAMINATOR.radius + 6 : 12))) continue;
+    if (antiAir && (world.airbases || []).some(b => Math.hypot(b.x + 3 - p.x - 1.5, b.y + 5 - p.y - 1.5) < ANTI_AIR.range + 12)) continue;
     if (laser && (world.sites || []).some(s => Math.hypot(s.x - p.x, s.y - p.y) < (s.kind === 'contaminator' ? CONTAMINATOR.radius + LASER.acquire + 3 : 12))) continue;
     if (contaminator && (world.sites || []).some(s => Math.hypot(s.x - p.x, s.y - p.y) < 18)) continue;
     if ((mortar || modifier) && (world.sites || []).some(s => Math.hypot(s.x - p.x, s.y - p.y) < 30)) continue;
-    if ((mortar || modifier || contaminator || laser) && [...occupants, ...buildings, ...(world.cores || []), ...(world.tanks || []), ...(world.artillery || []), ...(world.airbases || []),
+    if ((mortar || modifier || contaminator || laser || antiAir) && [...occupants, ...buildings, ...(world.cores || []), ...(world.tanks || []), ...(world.artillery || []), ...(world.airbases || []),
       ...(contaminator ? (world.ships || []).flatMap(s => [s, s.dock].filter(Boolean)) : [])]
       .some(o => Math.hypot(o.x - p.x - 1.5, o.y - p.y - 1.5) < (contaminator ? 32 : MORTAR.range + 4))) continue;
     if (occupants.some(o => Math.hypot(o.x - p.x - 1.5, o.y - p.y - 1.5) < ALERT.wake + 4)) continue;
@@ -56,6 +60,7 @@ export function damageSites(sites, x, y, profile, now, blastDamage) {
     site.disturbance = { x, y, until: now + ALERT.grace };
     if (!site.hp) { site.state = 'conquered'; site.conqueredAt = now; site.pending = null; site.alarmUntil = 0; if (site.mortar) site.mortar.charge = null; if (site.laser) { site.laser.phase = 'silent'; site.laser.beam = null; site.laser.targetId = null; } }
     hits.push({ id: site.id, ...siteCenter(site), kind: 'station', angle: 0, killed: site.hp === 0 });
+    if (!site.hp && site.aa) { site.aa.queue = []; site.aa.phase = 'silent'; site.aa.targetId = null; }
   }
   return hits;
 }

@@ -4,6 +4,15 @@ import { angleDelta } from './turret.js';
 export const AIR = Object.freeze({width:6,height:10,max:4,minSpeed:6,maxSpeed:12,acceleration:3,turnSpeed:1.8,count:6,interval:.25,fall:1.8,runs:2,rearm:8,transition:2,landingRange:5});
 export const airbaseGate = base => ({x:base.x+5.5,y:base.y+8.5});
 export const parkingPoint = base => ({x:base.x+2,y:base.y+7.5});
+export const AIR_HULL = Object.freeze({ health: 180, replacement: 20 });
+export const aircraftHealth = p => p.health ?? AIR_HULL.health;
+export const airborne = p => !!p && ['takeoff', 'flying', 'landing'].includes(p.state) && aircraftHealth(p) > 0;
+export function hurtAircraft(p, amount) {
+ if (!airborne(p) || !(amount > 0)) return false;
+ p.health = Math.max(0, aircraftHealth(p) - amount); p.damageDirty = true;
+ if (!p.health) Object.assign(p, { state:'destroyed', remaining:AIR_HULL.replacement, speed:0, releaseRemaining:0, edgeTurn:false });
+ return true;
+}
 export function airbaseError(world,buildings,occupants,x,y,owner){
  if(![x,y].every(Number.isInteger))return 'Choose the top-left tile for the airbase.';
  if(world.airbases?.some(b=>b.owner===owner))return 'One airbase and bomber per scout in this flight test.';
@@ -15,9 +24,9 @@ export function airbaseError(world,buildings,occupants,x,y,owner){
  return null;
 }
 export function newAirbase(id,owner,x,y){
- const base={id,owner,x,y};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,...parkingPoint(base),angle:0,speed:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false}};
+ const base={id,owner,x,y};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,health:AIR_HULL.health,...parkingPoint(base),angle:0,speed:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false}};
 }
-export function launchError(plane){return plane.state!=='parked'?'The bomber is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
+export function launchError(plane){return plane.state==='destroyed'?'Replacement bomber preparing at the airbase.':plane.state!=='parked'?'The bomber is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
 export function launchAircraft(plane){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:AIR.minSpeed,angle:0,leftBase:false});return null;}
 export function bombPattern(plane){
  const dx=Math.sin(plane.angle),dy=-Math.cos(plane.angle);
@@ -41,7 +50,12 @@ export function makeBombRun(plane,id){
 // Positive forward speed only. Bounded substeps keep turns independent of tick rate.
 export function tickAircraft(world,base,input,dt){
  const p=base.aircraft;if(!Number.isFinite(dt)||dt<=0)return false;
- if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm)p.runs=AIR.runs;return true;}
+ if(p.state==='destroyed'){
+  p.remaining=Math.max(0,p.remaining-dt);
+  if(p.remaining<.000001)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y).aircraft});
+  return true;
+ }
+ if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.health=AIR_HULL.health;}return true;}
  const steps=Math.ceil(dt/.025),step=dt/steps;
  for(let i=0;i<steps;i++){
   if(p.state==='landing'){

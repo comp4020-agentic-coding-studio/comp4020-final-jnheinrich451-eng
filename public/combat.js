@@ -1,3 +1,4 @@
+import { tickAntiAir } from './anti-air.js';
 import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
 import { submarineAim } from './submarine.js';
@@ -41,6 +42,7 @@ export function createCombat(world, saved = null, auditContext = null) {
   let serial = 0, now = 0, enemies = [], shells = [], impacts = [], status = 'ready', health = 100, kills = 0;
   let shots = [], marks = [], jets = [], salvos = [], fields = [], barrages = [], charges = [];
   const acidShells = structuredClone(saved?.acidShells || []);
+  const flakShells = structuredClone(saved?.flakShells || []);
   const epoch = `${Date.now()}-${Math.random()}`;
   const causes = new Map(saved?.causes || []), events = [], automatic = new Map();
   let lastAutomaticSummary = 0;
@@ -85,11 +87,11 @@ export function createCombat(world, saved = null, auditContext = null) {
     for (const entry of saved.sentryMounts) sentryMounts.set(...entry);
   }
   const checkpoint = () => JSON.parse(JSON.stringify({ version: 1, serial, now, sites: world.sites,
-    enemies, shells, status, health, kills, jets, salvos, fields, barrages, acidShells, causes: [...causes],
+    enemies, shells, status, health, kills, jets, salvos, fields, barrages, acidShells, flakShells, causes: [...causes],
     navalCooldown, navalStatus, objective, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
   const snapshot = () => ({ sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
     barrages: barrages.map(b => ({ ...b, box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: enemies.map(({ path, reroute, lurePath, ...e }) => e), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
-    acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
+    flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
   function damage(enemy, amount) {
     if (enemy.hp > 0 && amount > 0) reportSectorAttack(world.sites, enemies, enemy.x, enemy.y, now, event => events.push(event));
     enemy.hp = Math.max(0, enemy.hp - amount);
@@ -244,6 +246,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     changed = tickSites(world.sites, world, buildings, weaponSources, enemies, now, () => ++serial, fireBlocked(fields)) || changed;
     changed = tickMortars(world, robots, acidShells, now, dt, () => ++serial, event => events.push(event)) || changed;
     changed = tickLasers(world, buildings, robots, dt, event => events.push(event)) || changed;
+    changed = tickAntiAir(world, flakShells, now, dt, () => ++serial, event => events.push(event)) || changed;
     for (const before of sensorBefore) {
       const site = world.sites.find(s => s.id === before.id);
       if (before.mode && before.mode !== site.sensor.mode) events.push({ event: 'sensor.changed', kind: 'system', sourceId: site.id, targetId: site.sensor.targetId || undefined, cause: site.sensor.mode });

@@ -1,3 +1,5 @@
+import { ANTI_AIR } from './anti-air.js';
+import { drawAntiAirBody } from './anti-air-effects.js';
 import { LASER } from './laser-tower.js';
 import { drawLaserBody } from './laser-tower-effects.js';
 import { drawContaminatorBody } from './contaminator-effects.js';
@@ -36,6 +38,7 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
   }
   for (const site of sites) {
     const center = siteCenter(site), dead = site.state === 'conquered';
+    const antiAir = site.kind === 'anti-air';
     const laser = site.kind === 'laser', mortar = site.kind === 'mortar', modifier = site.kind === 'modifier', region = sectorRadius(site);
     const phase = reduced || dead ? 0 : time / 1000;
     c.save(); c.translate(center.x * tile, center.y * tile);
@@ -45,11 +48,11 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
         c.setLineDash([6 / zoom, 6 / zoom]); c.beginPath(); c.arc(0, 0, region * tile, 0, TAU); c.fill(); c.stroke(); c.setLineDash([]);
       } else if (!overview && view.inspectedId === site.id) {
         c.strokeStyle = '#efcc9688'; c.lineWidth = 1 / zoom; c.setLineDash([3 / zoom, 5 / zoom]);
-        for (const range of laser ? [LASER.acquire] : mortar ? [MORTAR.minRange, MORTAR.range] : modifier ? [MODIFIER.radius] : [SCANNER.range]) {
+        for (const range of antiAir ? [ANTI_AIR.range] : laser ? [LASER.acquire] : mortar ? [MORTAR.minRange, MORTAR.range] : modifier ? [MODIFIER.radius] : [SCANNER.range]) {
           c.beginPath(); c.arc(0, 0, range * tile, 0, TAU); c.stroke();
         }
         c.setLineDash([]); c.font = `${10 / zoom}px monospace`; c.textAlign = 'center';
-        c.fillStyle = '#efcc96'; c.fillText(laser ? 'ACQUISITION / TRACKS TO 40' : mortar ? 'MORTAR RANGE' : modifier ? 'ALTERED TERRAIN' : 'SEARCH RANGE', 0, -(laser ? LASER.acquire : mortar ? MORTAR.range : modifier ? MODIFIER.radius : SCANNER.range) * tile - 5 / zoom);
+        c.fillStyle = '#efcc96'; c.fillText(antiAir ? 'AIRSPACE / FLAK RANGE' : laser ? 'ACQUISITION / TRACKS TO 40' : mortar ? 'MORTAR RANGE' : modifier ? 'ALTERED TERRAIN' : 'SEARCH RANGE', 0, -(antiAir ? ANTI_AIR.range : laser ? LASER.acquire : mortar ? MORTAR.range : modifier ? MODIFIER.radius : SCANNER.range) * tile - 5 / zoom);
       }
       const s = isAlertSite(site) && site.sensor;
       if (s?.mode === 'search') {
@@ -79,7 +82,8 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
       c.strokeStyle = dead ? '#63504c' : '#96634e'; c.lineWidth = .065; c.stroke();
       oval(c, 1.1, .01, .16, .1, dead ? '#554147' : '#9d5c68'); c.restore();
     }
-    if (laser) drawLaserBody(c, site, time, reduced);
+    if (antiAir) drawAntiAirBody(c, site);
+    else if (laser) drawLaserBody(c, site, time, reduced);
     else if (site.kind === 'contaminator') drawContaminatorBody(c, site);
     else if (modifier) drawModifierBody(c, site, time, reduced);
     else if (mortar) drawMortarBody(c, site, time, reduced);
@@ -124,7 +128,7 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
     const font = 10 / zoom, labelY = -1.9 * tile - font;
     c.font = `600 ${font}px monospace`; c.textAlign = 'center';
     const blocked = !dead && time - site.blockedAt < 1800;
-    const label = laser ? (dead ? 'CONQUERED / LANCE SILENCED' : 'LANCE TOWER / ' + (site.laser?.phase || 'watching').toUpperCase()) : site.kind === 'contaminator' ? (dead ? 'CONQUERED / EMITTER SILENCED' : 'AIR CONTAMINATOR / USE HE') : dead ? (mortar ? 'CONQUERED / MORTAR SILENCED' : modifier ? 'CONQUERED / BLIGHT CLEARED' : 'CONQUERED / CROWN SILENCED') : blocked ? 'ARMORED ORGAN / USE HE' : modifier ? 'BLIGHT ROOT / USE HE' : mortar ? (site.mortar?.charge ? 'BILE MORTAR / INCOMING ACID' : 'BILE MORTAR / USE HE') : site.sensor?.mode === 'tracking' ? 'TRACKING / DEFENDERS ALERTED' : site.sensor?.mode === 'lost' ? 'CONTACT LOST / INVESTIGATING' : 'ALERT STATION / SCANNING';
+    const label = antiAir ? (dead ? 'CONQUERED / AIRSPACE CLEAR' : 'SPORE FLAK / ' + (site.aa?.phase || 'watching').toUpperCase()) : laser ? (dead ? 'CONQUERED / LANCE SILENCED' : 'LANCE TOWER / ' + (site.laser?.phase || 'watching').toUpperCase()) : site.kind === 'contaminator' ? (dead ? 'CONQUERED / EMITTER SILENCED' : 'AIR CONTAMINATOR / USE HE') : dead ? (mortar ? 'CONQUERED / MORTAR SILENCED' : modifier ? 'CONQUERED / BLIGHT CLEARED' : 'CONQUERED / CROWN SILENCED') : blocked ? 'ARMORED ORGAN / USE HE' : modifier ? 'BLIGHT ROOT / USE HE' : mortar ? (site.mortar?.charge ? 'BILE MORTAR / INCOMING ACID' : 'BILE MORTAR / USE HE') : site.sensor?.mode === 'tracking' ? 'TRACKING / DEFENDERS ALERTED' : site.sensor?.mode === 'lost' ? 'CONTACT LOST / INVESTIGATING' : 'ALERT STATION / SCANNING';
     const w = c.measureText(label).width;
     c.fillStyle = '#132523e8'; c.fillRect(-w / 2 - font * .5, labelY - font, w + font, font * 1.5);
     c.fillStyle = dead ? '#99d5cc' : '#efb1a0'; c.fillText(label, 0, labelY);

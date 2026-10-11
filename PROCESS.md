@@ -210,3 +210,40 @@ the throttle key, and isolate the timing objective from newly added hostile
 encounters. The final 52 local peer observations peaked at 450 ms; this does not
 establish deployed performance. Fly's email secret list was empty, so actual
 Brevo delivery remains unconfigured and untested.
+
+The author-approved push created
+[45511ea](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/45511eaec6befd8c3967c55247c612bf67972273).
+[Its workflow](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/actions/runs/38108638134)
+passed checks and deployed to Fly on 11 October. Read-only smoke checks returned
+HTTP 200 for `/`, `/readme/` and `/api/auth/status`; the latter reports
+`smtpAvailable: false`. This confirms deployment and missing email configuration,
+not real email receipt or the pending deployed multiplayer/persistence exercise.
+
+## First anti-air encounter, local stage
+
+After that push, the agreed next stage added [Spore flak](docs/ANTI_AIR.md),
+predicted bursts and bomber health/recovery. Fixed warnings make aircraft steering
+matter; long-range HE offers a way to clear the route beforehand. Bomber loss
+reuses friendly-core recovery and prepares a replacement at the original base,
+with economy costs still deferred. The implementation stores consumed impacts,
+plane loss and pilot disablement together, including an offline pilot. Migration
+backs up and adds the outpost without regenerating terrain or earlier objectives.
+
+These anti-air changes follow the deployed checkpoint and are local work. No
+new author playtesting, attack jet or production capacity result is claimed.
+Validation: typecheck, 266 tests across the full run and focused rerun, and four
+desktop/phone browser checks passed. The browser fixture now waits for the
+room-close redirect before re-entering. Screenshots and detailed boundaries are
+retained in the anti-air stage record.
+
+## Production email configuration
+
+On 11 October, the author supplied Brevo configuration in the ignored local
+environment file. Six Fly runtime secrets were applied to the existing deployed
+image, independently of the local anti-air changes. Live account status then
+reported SMTP available. Brevo initially rejected the outbound IP; after the
+author authorized it, a check from the Fly machine verified connection, TLS and
+SMTP authentication without sending mail. The author also supplied a screenshot
+of the verified sender with DKIM and DMARC configured. Real inbox delivery and
+the complete registration flow still need testing. See
+[the account deployment record](docs/ACCOUNT_DESIGN.md).

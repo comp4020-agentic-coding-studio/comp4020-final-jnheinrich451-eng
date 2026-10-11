@@ -50,6 +50,7 @@
 
 .aircraft-controls{padding:12px;width:min(620px,calc(100vw - 24px));font:11px var(--mono)}.aircraft-heading,.aircraft-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}.aircraft-heading span{color:#e9c983}.aircraft-controls p{font:10px/1.6 var(--mono);color:var(--muted);margin:8px 0}.aircraft-actions button{flex:1;min-height:42px;font-size:11px}.aircraft-control .fire-button,.aircraft-control .machine-gun-button,.aircraft-control .ammo-status{display:none!important}.aircraft-control .touch-pad{bottom:270px!important}.aircraft-control .map-hint{font-size:10px;white-space:normal}.aircraft-control .coordinates,.aircraft-control .save-indicator{display:none}@media(max-width:760px){.aircraft-controls{padding:10px}.aircraft-actions{gap:4px}.aircraft-actions button{padding:0 6px;font-size:10px}.aircraft-control .touch-pad{bottom:290px!important}.aircraft-control .objective{display:none}.battlefield:has(#aircraft-interact:not([hidden])):not(.aircraft-control) .touch-pad{bottom:170px}}
 .aircraft-control .touch-pad button{font:600 13px var(--mono);padding:0;white-space:nowrap}
+.aircraft-control .bottom-hud{width:min(620px,calc(100vw - 24px))}
 /* Orbital presence has no body, weapon HUD or ground movement controls. */
 .battlefield.in-orbit .touch-pad,
 .battlefield.in-orbit .weapon-display,

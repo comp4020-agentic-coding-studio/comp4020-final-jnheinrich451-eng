@@ -6,10 +6,44 @@ import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../server.js';
 import { createCombat } from '../public/combat.js';
+import { newAirbase } from '../public/aircraft.js';
 import { resetWorld } from '../world-maintenance.js';
 
 const password = 'a unique campaign password 123!';
 const worldRoute = (id: string, action = 'world') => `/api/campaign-world/${id}/${action}`;
+
+it.each([false, true])('saves flak consumption, aircraft loss and an offline=%s pilot together before reporting damage', async offline => fixture(async h => {
+  const owner = await h.account('flak-save'), id = await h.open(owner);
+  const initial = (await owner.request(worldRoute(id))).data;
+  const pilot = offline ? 'offline-pilot' : initial.me.id;
+  await owner.request('/api/campaigns/leave', {});
+  h.database(id, (db: DatabaseSync) => {
+    const world = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);
+    world.terrain.fill(2); db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
+    if (offline) db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run('offline-token',pilot,'Disconnected',60,50,0);
+    db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('flak-core',pilot,10,10,99);
+    const base = newAirbase('flak-base',pilot,20,66);
+    Object.assign(base.aircraft,{health:40,state:'flying',x:60,y:50,speed:6,angle:0,occupant:pilot,leftBase:true});
+    db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    for(const s of saved.sites)Object.assign(s,{state:'conquered',hp:0,pending:null,conqueredAt:-100000});
+    saved.enemies=[];
+    saved.flakShells=[{id:++saved.serial,sourceId:'saved-aa',targetId:base.aircraft.id,x:60,y:50,fromX:60,fromY:35,at:saved.now-1000,landAt:saved.now+50,impacted:false}];
+    db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+  });
+  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+  await vi.waitFor(async()=>expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.state).toBe('destroyed'));
+  h.database(id,(db:DatabaseSync)=>{
+    const plane = JSON.parse(db.prepare('SELECT value FROM airbases WHERE id=?').get('flak-base')!.value as string).aircraft;
+    const life = JSON.parse(db.prepare('SELECT value FROM robot_states WHERE scout_id=?').get(pilot)!.value as string);
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    expect(plane).toMatchObject({state:'destroyed',health:0,occupant:null});
+    expect(life).toMatchObject({life:'disabled',health:0,lostVehicle:'aircraft'});
+    expect(saved.flakShells[0].impacted).toBe(true);
+  });
+  await h.restart();await owner.request('/api/campaigns/enter',{id});
+  expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft).toMatchObject({state:'destroyed',health:0,occupant:null});
+}),15000);
 
 it('adds the complete settlement once and retains its partial conquest across restart', async () => fixture(async h => {
   const owner = await h.account('colony'), id = await h.open(owner);
@@ -145,8 +179,8 @@ it('adds conquest to a pre-stage campaign once, backing up and preserving occupi
   expect((await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-conquest-'))).toHaveLength(2);
 }), 15000);
 
-it.each(['mortar', 'modifier', 'contaminator', 'laser'])('adds a %s once with a backup, preserving conquered sites and player construction across restart', async kind => fixture(async h => {
-  const marker = kind === 'laser' ? 'laser-tower-v1' : kind === 'contaminator' ? 'air-contaminator-v1' : kind === 'mortar' ? 'mortar-outpost-v1' : 'environment-modifier-v1';
+it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s once with a backup, preserving conquered sites and player construction across restart', async kind => fixture(async h => {
+  const marker = kind === 'anti-air' ? 'anti-air-v1' : kind === 'laser' ? 'laser-tower-v1' : kind === 'contaminator' ? 'air-contaminator-v1' : kind === 'mortar' ? 'mortar-outpost-v1' : 'environment-modifier-v1';
   const owner = await h.account('outpost'), id = await h.open(owner);
   const initial = (await owner.request(worldRoute(id))).data;
   expect(initial.combat.sites.some((s: any) => s.kind === kind && !s.settlement)).toBe(true);
@@ -156,11 +190,15 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser'])('adds a %s once with a 
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
     saved.sites = saved.sites.filter((s: any) => s.kind !== kind || s.settlement);
     // Rehearse older migrations against a save from before the later fog stage.
-    if (kind !== 'laser') {
+    if (kind !== 'anti-air') {
+      saved.sites = saved.sites.filter((s: any) => s.kind !== 'anti-air');
+      db.prepare("DELETE FROM meta WHERE key='anti-air-v1'").run();
+    }
+    if (!['laser', 'anti-air'].includes(kind)) {
       saved.sites = saved.sites.filter((s: any) => s.kind !== 'laser');
       db.prepare("DELETE FROM meta WHERE key='laser-tower-v1'").run();
     }
-    if (!['contaminator', 'laser'].includes(kind)) {
+    if (!['contaminator', 'laser', 'anti-air'].includes(kind)) {
       saved.sites = saved.sites.filter((s: any) => s.kind !== 'contaminator');
       db.prepare("DELETE FROM meta WHERE key='air-contaminator-v1'").run();
     }
