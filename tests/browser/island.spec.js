@@ -6,7 +6,7 @@ test('stabilized turret trails a cursor reversal and shares its actual firing be
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage(), peer = await other.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await peer.goto('/');
+  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
   for (const p of [page, peer]) {
     await expect(p.locator('#connection')).toContainText('Uplink live');
     await p.evaluate(() => {
@@ -49,7 +49,7 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
   const page = await context.newPage(), peer = await other.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await peer.goto('/');
+  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(page.locator('#presence')).toContainText('2 SCOUTS');
   const initial = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
@@ -94,7 +94,7 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
 
 test('touch users can select a site and place a foundation', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/');
+  const page = await context.newPage(); await page.goto('/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.locator('#build-mode').tap();
   await expect(page.locator('#deployment-tray')).toBeVisible();
@@ -117,7 +117,7 @@ test('two browsers see the same shell and enemy damage; drill and firing control
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage(), peer = await other.newPage();
-  await page.goto('/'); await peer.goto('/');
+  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(peer.locator('#connection')).toContainText('Uplink live');
   for (const p of [page, peer]) await p.evaluate(() => {
@@ -154,7 +154,7 @@ test('HE leaves shared cosmetic craters; effects deduplicate and reduced mode pe
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const page = await context.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.bringToFront();
   await page.locator('#zoom-in').click(); await page.locator('#zoom-in').click();
   await page.evaluate(async () => {
@@ -193,7 +193,7 @@ test('mouse weapons are independent; readouts are passive; held fire stops on re
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const page = await context.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.evaluate(() => {
     window.controlShots = new Map(); window.controlEvents = new EventSource('/api/events');
     window.controlEvents.onmessage = e => JSON.parse(e.data).combat.shots.forEach(s => window.controlShots.set(s.id, s));
@@ -240,7 +240,7 @@ test('mouse weapons are independent; readouts are passive; held fire stops on re
 
 test('touch aim does not fire or move; cannon and held machine gun work without mode switches', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  const page = await context.newPage(); await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   const shotRequests = [];
   page.on('request', request => { if (request.url().endsWith('/api/fire')) shotRequests.push(request.postDataJSON()); });
   const initial = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
@@ -266,7 +266,7 @@ test('automatic sentries share gradual traverse and fire along the aligned barre
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage(), peer = await other.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message)); peer.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await peer.goto('/');
+  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(peer.locator('#connection')).toContainText('Uplink live');
   // Earlier tests may have left a drill finishing. Use the same isolated test save.
@@ -308,7 +308,7 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   const other = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(), peer = await other.newPage(), errors = [];
   for (const p of [page, peer]) p.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await peer.goto('/');
+  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(page.locator('#start-drill')).toBeEnabled({ timeout: 35000 });
   for (const p of [page, peer]) await p.evaluate(() => {

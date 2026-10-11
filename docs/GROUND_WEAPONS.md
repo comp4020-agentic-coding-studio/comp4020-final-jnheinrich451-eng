@@ -16,6 +16,10 @@ Tank armor, destruction, repair and resource costs remain later stages.
 - Both weapons follow the actual stabilized turret, including during charge-up.
   The gold marker shows desired aim; the blue diamond shows the current bearing's
   endpoint. Only HE has a blast-radius ring.
+- Since 11 October, aiming beyond a tank weapon's range fires toward that point
+  at maximum range instead of rejecting it. HE still supports shorter aimed
+  bursts; all rounds follow the real turret and can hit an intervening obstacle.
+  Naval and artillery firing envelopes are unchanged.
 
 ## Initial tuning
 

@@ -12,7 +12,7 @@ for (const mobile of [false, true]) test(`shared junction routes, lock and saved
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     other = await browser.newContext(); const page = await context.newPage(), peer = await other.newPage(), errors = [];
     for (const p of [page, peer]) p.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url); await page.goto(url); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     for (const x of [64, 68, 72, 76]) expect((await post(page, 'rails', { x, y: 19, shape: 'EW' })).status).toBe(201);

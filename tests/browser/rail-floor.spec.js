@@ -10,7 +10,7 @@ for (const mobile of [false, true]) test(`rails cross pad and unfolded flooring 
     await new Promise(r => app.server.listen(0, '127.0.0.1', r)); const url = `http://127.0.0.1:${app.server.address().port}`;
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
-    await page.goto(url); await expect(page.locator('#connection')).toContainText('live');
+    await page.goto(url + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (route, data) => page.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     const coordinates = async (x, y) => { await page.locator('#tile-x').fill(String(x)); await page.locator('#tile-y').fill(String(y)); await page.locator('#select-tile').click(); };
@@ -24,7 +24,7 @@ for (const mobile of [false, true]) test(`rails cross pad and unfolded flooring 
     await page.keyboard.press('Escape');
     // The original guest has exited the core, leaving the landing pad empty.
     expect((await post('artillery', { x: 25, y: 17 })).status).toBe(201);
-    other = await browser.newContext(); const peer = await other.newPage(); await peer.goto(url);
+    other = await browser.newContext(); const peer = await other.newPage(); await peer.goto(url + '/?legacy=1');
     const joined = await state(peer), guest = joined.me;
     expect(Math.abs(guest.x - 25.5) >= 1.75 || Math.abs(guest.y - 17.5) >= 1.75).toBe(true);
     await page.bringToFront(); await page.locator('#build-mode').click(); await page.locator('#rail-card').click();

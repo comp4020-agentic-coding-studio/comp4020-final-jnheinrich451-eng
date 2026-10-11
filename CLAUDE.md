@@ -2,26 +2,130 @@
 
 ## Agreed direction
 
-- Follow the published final-project contract and unchanged Fly machine and
-  volume settings. Keep the two supplied spec invariants.
+- Follow the final-project contract and keep the two supplied spec invariants.
+  The current Fly baseline is one shared CPU, 256 MB RAM and the existing volume.
+  On 9 October the user reported that a justified RAM increase can be discussed
+  with the teaching team. Treat 256 MB as the current configuration, not an
+  absolute ceiling; document evidence and the agreed size before changing it.
 - Pure overhead 2D projection with square tiles; no isometric battlefield assets.
+- Use GAME_DESIGN.md as the central game-design guide before proposing a stage.
+  Preserve its agreed boundaries; distinguish current behavior, proposals and
+  open questions. It does not authorize the whole roadmap. Start stage briefs
+  from the player combat loop, success/failure, affected states and saved results.
+  Check later stage records when an older document describes superseded behavior.
+- GAME_DESIGN_WORKSHEET.md is the author's fill-in companion. Accept informal
+  answers and unknown numbers; examples are proposals. Turn the answers into a
+  bounded stage brief rather than treating every filled card as an instruction
+  to build it immediately.
+- The agreed campaign is planetary conquest: a large explorable map, visible
+  hostile sites and permanent objective completion. No site-regeneration timers
+  or enemy recapture. Deployment is globally available subject to existing terrain,
+  footprint and platform rules; conquest does not unlock build permission. Facility
+  loss never reverses conquered sites. Exact map scale and objective rules remain open.
+- Planned facility durability uses HP and numeric armor: enemy penetration below
+  armor deals no damage; equality or greater permits attack damage. Values are
+  untuned, and friendly immunity remains. Do not silently apply this new threshold
+  to existing robot/vehicle damage or change lethal alien hazard behavior. Define
+  occupied-facility and all-core-loss recovery before enabling their destruction.
+- New enemies and facilities need a tactical role and bounded runtime cost.
+  Keep spawn cadence separate from living-population caps; evaluate simultaneous
+  fronts before claiming the large planet fits the configured Fly resource budget.
+- Enemies should give up distant pursuit. Exact ranges and subsequent behavior
+  remain open. Disengagement, sleeping simulation and despawning are separate;
+  do not silently heal enemies, reset sites or drop accepted off-screen attacks.
+- The 10 October scanner/noise proposal is in docs/DETECTION_AND_ALARMS.md.
+  Confirmed: focused tracking stops circular search, marks fade after lost lock,
+  and solid obstacles block the tracking beam. The first scanner/mark/defender
+  stage is implemented locally; noise and neighbor sharing remain future work.
+  Preserve submerged escape, bounded pursuit and permanent
+  conquest. Detection is separate from a unit's ability to reach/attack a contact.
+  Noise/neighbor reports convey last-known positions, not unlimited live tracking;
+  propagation limits, sensor tuning and other medium rules remain proposals.
 - Build and review playable stages. Preserve GAME_IDEAS.md as the larger vision;
   do not treat every brainstormed feature as required for the current stage.
+- The author approved the sequence modifier → settlement → anti-air → attack jet
+  on 11 October, with playable review between stages. docs/ENVIRONMENT_MODIFIER.md
+  records the first implementation: bounded cosmetic ground conversion, initial
+  guards only, HE conquest and saved permanent recovery. Never classify new
+  non-alert site kinds as scanners/reinforcement callers by default. Preserve
+  collision terrain and safe backed-up additions to existing campaigns.
+- The small settlement is implemented in docs/ALIEN_SETTLEMENT.md: three required
+  structures reuse crown/mortar/root behaviour and existing global enemy caps.
+  Saved membership defines the checklist; missing members never imply completion.
+  All three must be permanently destroyed; survivors remain. Add compounds
+  atomically with a backup, preserving terrain and prior progress. Anti-air and
+  attack jet remain subsequent stages; no aircraft damage is implied yet.
+- The author subsequently chose the air contaminator as the next separate stage.
+  docs/AIR_CONTAMINATOR.md records fixed opaque fog, surveyed coordinates, HE
+  destruction and saved eight-second clearance. Reduced effects must not bypass
+  concealment. Ground units/aim and attack warnings stay below the fog; only
+  approved artillery/naval/air aiming stays above it. Preserve physics, sensing,
+  previous conquests and backed-up migration. Blight hatching remains a proposal.
+- The separately authorized lance tower is in docs/LASER_TOWER.md: close acquisition,
+  slow ground tracking, cover, charge, two-second beam and five-second cooldown.
+  Preserve actual-ray damage, crew immunity, bounded logs and saved phase timers.
+  The author's latest refinement restores a full 40-tile beam, clipped by hits
+  and cover. Charge holds its bearing; firing pursues at four degrees/second.
+  Only the angle tracks; discard obsolete variable-radius endpoint state while
+  preserving phase timers. Sideways escape works; radial retreat can be hit.
+  Three/nine-second lethality means cumulative robot/tank beam exposure. Keep the
+  first encounter outside contaminator fog; anti-air and facility armor are later.
+  Distant battery/submarine aim clamps the whole rectangle along its bearing;
+  preview and server must agree, retaining minimum range and other fire gates.
+- The 11 October mortar stage is in docs/MORTAR_OUTPOST.md: one additive saved
+  corrosive outpost, rotating launcher, fixed-point warnings and accepted airborne
+  attacks. Two initial guards only; no reinforcement waves or scanner marks.
+  Acid currently damages robots/tanks once per blast, with existing protection and
+  recovery rules. Ships, aircraft, facility HP and armor changes remain deferred.
+  Preserve completed sites and equipment during migration; back up before placement.
+- docs/ORBITAL_CLEANUP.md records the author's orbitally delivered reclamation
+  unit as future work only. Cleaning visual ruins must retain permanent conquest;
+  costs, radius, salvage and converted-terrain restoration are unresolved.
 - Update README.md at agreed stage checkpoints, not after each gameplay change.
+  The 11 October defensive-sector stage is in docs/DEFENSIVE_SECTORS.md: red
+  shading is overview territory, not detection or weapon range. Attack reports
+  carry impact positions with one-hop/cadence/memory limits; only intact alert
+  stations call warned, capped reinforcements. This implements bounded attack
+  sharing, not the proposed general movement-noise network. Tank distant aim
+  clamps travel to weapon range while retaining actual turret bearing.
   Keep incremental implementation details in the relevant design docs and checks.
+- Crit 9/10 preparation is implemented locally in docs/OBSERVABILITY.md and
+  docs/CRIT_9_10_EVIDENCE.md. Keep structured operational logs, sensitive-field
+  allowlisting and original actor/projectile attribution through combat saves.
+  Log committed named-world outcomes after checkpoint success; never serialize
+  account rows, request bodies, invitation codes or cookies. Retain server-side
+  permission checks and the exceptions in ADR-002. Local peer-display timing is
+  not Fly capacity evidence. Use check:evidence --crit=9/10 for the specific cutoff;
+  write reflections from real author/classroom findings, not anticipated success.
+- Economy design was reopened on 10 October; see `docs/ECONOMY_DESIGN.md` for
+  its combat purpose and pending ownership/source/spending choices. Keep current
+  free deployment until a concrete economy stage is agreed; do not invent prices,
+  balances, income or ownership. Height/physical-behavior proposals are recorded
+  in `docs/ELEVATION_DESIGN.md`: overhead 2D and movement stay, while terrain height
+  may affect trajectories and obstruction. No elevation mechanics are implemented.
+- The first conquest stage is implemented locally in `docs/CONQUEST_STAGE.md`:
+  named campaigns gain one safely placed alert station, with backup and additive
+  checkpoint migration. All HE platforms damage it; destruction permanently
+  removes its hostile overlay/calls while defenders survive. Calls require local
+  presence/recent hits and are capped. Keep drills independent, preserve partial
+  progress and bounded pursuit, and do not add currency rewards. Biological art
+  should be mildly unpleasant, overhead and readable; final textures remain open.
 - README.md is the argument for a solo-playable cooperative campaign: defend,
   build and expand territory, operate facilities and vehicles, and eventually
   secure the planet. Keep current implementation separate from this roadmap.
-- One to four players is the intended range, not an enforced or validated limit.
+- One to four players is the intended range and named rooms enforce four distinct
+  participants; this is not validated sustained-combat capacity on Fly.
   Measure representative sustained battles on the course machine before claiming
   capacity. If the maximum must shrink, retain at least two simultaneous players.
 - Current stage: shared saved construction, robot combat and recovery, ground
   weapons and tanks, rail artillery and missiles, gunships and submarines, and
-  the first airbase/HE bomber loop. Combat and cosmetic traces remain transient.
-  Territorial conquest, economy, host-owned campaigns and balance remain future
-  work. The individual stages and limitations are recorded below and in docs/.
-- The player ultimately operates robots and multiple forces. The rover sprite
-  is a clearly labelled temporary representation, not a settled character design.
+  the first airbase/HE bomber loop, and isolated host-owned campaigns locally.
+  Named campaigns checkpoint combat; legacy combat and cosmetic traces stay transient.
+  First alert-station conquest is local; other objectives, economy and balance
+  remain future work. Stage limitations are recorded below and in docs/.
+- The player operates robots and multiple forces. Guests without a core or an
+  occupied vehicle begin in orbital core selection, with no ground body. Preserve
+  existing identities and owned objects; returning deployments resume saved state.
 
 ## Implementation standards derived from this stage
 
@@ -31,14 +135,54 @@
   world data, not sprite dimensions or what happens to be inside the camera view.
 - Enforce placement and ownership rules on the server. Browser drawings do not
   determine shared outcomes.
-- Guest identity is browser-bound at this stage; do not claim account recovery,
-  private rooms or host ownership. Friendly entities never receive weapon damage.
-- Optional email/password registration is planned, not implemented. Preserve
-  immediate guest entry. SMTP would deliver real verification/recovery emails;
-  a dummy email flow must be visibly labelled as simulated and cannot establish
-  verified ownership of an address. Do not claim portable accounts or recovery
-  until implemented and checked. Define guest-save linking before account work;
-  do not silently replace existing identities or their saved progress.
+- Unlinked guest identity remains browser-bound. Optional accounts now link the
+  same stable player ID after activation, preserving ownership and saved state.
+  Campaign isolation and host ownership are now implemented locally. Friendly entities
+  never receive weapon damage.
+- The 9 October account implementation is in `docs/ACCOUNT_DESIGN.md`: real-email
+  and Demo registration/login, private simulated inbox, verification/resend,
+  recovery and logout. Preserve guest entry by invitation and visible Demo labels;
+  Demo activation never establishes email ownership. Real SMTP code is tested
+  locally, but Brevo inbox receipt remains unverified and credentials unset here.
+- Current account defaults preserve guest progress and require explicit takeover
+  before replacing another account session. Do not silently merge another guest
+  during login. Rotate old guest credentials when attaching an account; expire
+  sessions, stop held inputs and revoke live streams on logout/reset/takeover.
+  Keep private account data out of game snapshots. Authentication changes need
+  save-retention, token-replay, inbox-isolation and live-control checks.
+- Accounts adapt Crit 7's real/Demo separation, not its ANU-only addresses or
+  academic schema. Keep SMTP secrets server-only; local .env is ignored and loaded
+  by pnpm dev/start. Never copy credentials from another repo automatically.
+- `docs/ENEMY_DESIGN_DISCUSSION.md` records the filled worksheet's new site,
+  behavior and art requests. Do not silently resolve the armor-model conflict
+  or remove existing fire avoidance/burning panic. Only alert stations are
+  requested to call reinforcements; guards and patrols are separate concepts.
+- The agreed entry/campaign plan is in `docs/ENTRY_AND_CAMPAIGNS.md`: one planet
+  template first, owned campaigns or join a friend, and no ground operator until
+  initial core deployment. Returning players resume saved state. Accounts alone
+  do not themselves create a campaign. `/` and `/campaigns/` provide the Caldera
+  selector and explicit create/join/resume flow; retain the labelled legacy shared
+  world at `/?legacy=1`. Optional video is deferred. A new planet needs a server
+  generator/migration as well as catalogue metadata; never remap an existing save.
+- `docs/CAMPAIGN_STAGE.md` records the implemented local campaign foundation:
+  Email/Demo accounts may host, unregistered guests may only join, and
+  owner exit saves/closes the room and returns members to the lobby. Invited
+  accounts retain membership for future owner-opened sessions. Departing guests'
+  contributions persist and the host can manage their buildings. Guest-session
+  visits survive refresh/disconnection for 30 seconds, then expire; owner loss
+  freezes the room for the agreed 30-second grace. Solo pause resumes with a warning
+  on admission of a teammate. Preserve per-runtime authorization and recheck delayed
+  commands against their original visit/runtime. Campaign combat checkpoints retain
+  accepted attacks across closure/restart; legacy combat remains transient. Keep
+  root and per-campaign maintenance locks, additive migration backups and the
+  shared account store. Never silently erase legacy guests.
+- Temporary reset tooling is local/operator-only in this stage, with a SQLite
+  backup before clearing and the server stopped. It clears the entire current
+  legacy test world, retaining named campaigns and their membership. Do not expose a public reset endpoint or
+  apply it to Fly without an explicit request. Retain the maintenance lock when
+  opening a world. Reset preserves accounts and linked/pending player IDs, clears
+  their world progress, deletes unlinked guests and signs out account sessions.
+  Unknown future schemas require a deliberate reset-retention update.
 - Keep the battlefield visible on phones. Deployment uses a card tray and site
   confirmation overlay; page scrolling must not be required to play.
 - Desktop: WASD/arrows move, mouse aims, LMB fires HE, held RMB fires the machine
@@ -53,8 +197,12 @@
 - Source assets/ stays local and ignored. Track selected runtime assets, licenses,
   and provenance so Docker builds need none of the local source library.
 
-The first core deployment is implemented in docs/CORE_DEPLOYMENT.md: an opt-in
-orbital survey, saved 57-tile cross footprint, staggered unfolding and robot exit.
+The first core deployment is implemented in docs/CORE_DEPLOYMENT.md, with the
+9 October automatic orbital entry update in docs/ENTRY_AND_CAMPAIGNS.md. Guests
+without a deployment automatically survey a core site. They cannot act as ground
+units or block placement before landing; the server enforces this. The old helipad
+artwork and placement reservation are removed. Keep the saved 57-tile cross
+footprint, staggered unfolding and robot exit.
 Keep occupied footprints reserved until completion; flooring must affect server
 collision as well as appearance. Preserve existing saves. The temporary limit
 is one core per scout and eight per world, not an implemented resource economy.

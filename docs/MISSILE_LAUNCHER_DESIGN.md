@@ -22,7 +22,8 @@ Terrain and friendlies remain unchanged. Existing 48-mark/64-impact caps apply.
 
 One battery per scout, four per world, and two whole volleys in flight globally
 are temporary prototype limits. Cannon limits remain separate. Full capacity,
-invalid placement or a target rectangle outside map/range rejects the action.
+invalid placement or no legal strike rectangle on the selected bearing rejects
+the action. Distant aim moves the complete rectangle inward to range/map bounds.
 Rejected fire does not consume reload. A whole accepted volley continues after
 control handoff; its assignments cannot be changed by later aim or ammo requests.
 The 4-by-4 footprint blocks walking, weapons, construction and carriage travel.
@@ -170,9 +171,9 @@ looking identical without completely random clusters leaving huge gaps.
   missiles must not replenish an exhausted barrage. Keep the barrage reservation
   until its last impact, even if capacity was consumed earlier. No gas timeout.
 
-Friendly players, vehicles and structures remain immune. Reject a target whose
-full rectangle is outside map/range before committing reload; do not silently
-clip an accepted salvo at the map edge. Damage and hazard contact cannot extend
+Friendly players, vehicles and structures remain immune. Resolve the preview's
+whole rectangle within map/range before committing reload; do not clip an
+accepted salvo at the map edge. Reject unresolved or too-close areas. Damage and hazard contact cannot extend
 beyond their advertised coverage. Cosmetic crater halos may overlap the rectangle
 edge. Existing protection rules remain server-authoritative.
 
@@ -229,3 +230,8 @@ visuals on desktop/phone and under the actual 256 MiB CPU/memory contract. Prior
 small artillery workloads do not validate missile capacity. The short HE check
 above supports the HE stage; sustained combined-force performance
 and balance still require measurement and playtesting.
+
+
+11 October update: distant aim now clamps the full strike rectangle along its
+bearing to maximum range/map bounds, shared by preview and server. Close-range
+exclusion and budgets remain. See [the stage record](LASER_TOWER.md).

@@ -6,6 +6,8 @@ import { turnTurret, angleDelta } from '../public/turret.js';
 import { createWorld } from '../public/world.js';
 import { createCombat } from '../public/combat.js';
 import { createApp } from '../server.js';
+import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 
 it('turns at 180 degrees/second, takes the short route across angle wrap and never overshoots', () => {
   expect(turnTurret(0, Math.PI, .1)).toBeCloseTo(Math.PI / 10);
@@ -39,13 +41,19 @@ it('mount speed is configurable without changing player traverse or angle wrappi
 
 it('the HTTP server owns traverse and ignores forged firing angles while the hull turns independently', async () => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'frontier-turret-'));
-  const app = createApp({ dataDir }), stream = new AbortController();
+  let app = createApp({ dataDir });
+  await app.close();
+  const token = randomUUID(), db = new DatabaseSync(path.join(dataDir, 'world.sqlite'));
+  db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token, 'tank-pilot', 'Pilot', 24.5, 18.5, 0);
+  db.prepare('INSERT INTO tanks VALUES (?,?)').run('test-tank', JSON.stringify({ id: 'test-tank', owner: 'tank-pilot', occupant: 'tank-pilot', podX: 24, podY: 18, x: 24.5, y: 18.5, angle: 0, turret: 0, elapsed: 4.5, weapon: 'HE', secondary: 'APCR' }));
+  db.close(); app = createApp({ dataDir });
+  const stream = new AbortController();
   try {
     await new Promise<void>(resolve => app.server.listen(0, '127.0.0.1', resolve));
     const address = app.server.address();
     if (!address || typeof address === 'string') throw new Error('No server address');
     const base = `http://127.0.0.1:${address.port}`;
-    const guest = await fetch(`${base}/api/world`), cookie = guest.headers.get('set-cookie')!.split(';')[0];
+    const cookie = `frontier=${token}`, guest = await fetch(`${base}/api/world`, { headers: { Cookie: cookie } });
     const initial = await guest.json();
     const events = await fetch(`${base}/api/events`, { headers: { Cookie: cookie }, signal: stream.signal });
     // Keep the simulated browser connection alive through the final shot.

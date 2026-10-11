@@ -1,6 +1,7 @@
-import { airbaseAt } from './footprints.js';
+import { clampStrike } from './strike-aim.js';
+import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
-import { tileAt, isLanding } from './world.js';
+import { tileAt } from './world.js';
 import { tankBlocks } from './tank.js';
 import { coreBlocks } from './core.js';
 import { artilleryBlocks, railCorridor } from './footprints.js';
@@ -14,14 +15,16 @@ export function targetBox(target, rotated = false) {
   const width = rotated ? MISSILE.height : MISSILE.width, height = rotated ? MISSILE.width : MISSILE.height;
   return { x: target.x - width / 2, y: target.y - height / 2, width, height };
 }
+export const missileAim = (gun, world, target, rotated = false) => clampStrike(batteryCenter(gun), world, target, rotated ? MISSILE.height : MISSILE.width, rotated ? MISSILE.width : MISSILE.height, MISSILE.range);
 export const inTargetBox = (box, x, y) => x >= box.x && y >= box.y && x <= box.x + box.width && y <= box.y + box.height;
 export function missileTargetError(gun, world, target, rotated = false) {
   if (!target || ![target.x, target.y].every(Number.isFinite)) return 'Choose a bombardment area.';
+  target = missileAim(gun, world, target, rotated);
   const b = targetBox(target, rotated), origin = batteryCenter(gun);
   if (b.x < 0 || b.y < 0 || b.x + b.width > world.width || b.y + b.height > world.height) return 'The whole 12 x 18 target area must fit inside the map.';
   const nearest = Math.hypot(Math.max(b.x - origin.x, 0, origin.x - b.x - b.width), Math.max(b.y - origin.y, 0, origin.y - b.y - b.height));
   const farthest = Math.max(...[b.x, b.x + b.width].flatMap(x => [b.y, b.y + b.height].map(y => Math.hypot(x - origin.x, y - origin.y))));
-  if (nearest < MISSILE.minRange || farthest > MISSILE.range) return 'Keep the whole target area between 15 and 100 tiles from the battery.';
+  if (nearest < MISSILE.minRange || farthest > MISSILE.range + 1e-8) return 'Keep the whole target area between 15 and 100 tiles from the battery.';
   return null;
 }
 export function missileFireError(gun, world, target = gun.target, rotated = gun.rotated, volleys = [], fields = [], salvos = []) {
@@ -35,13 +38,14 @@ export function missilePlacementError(world, buildings, occupants, x, y, owner) 
   if (world.artillery?.some(g => isMissile(g) && g.owner === owner)) return 'One missile battery per scout in this field test.';
   if ((world.artillery || []).filter(isMissile).length >= MISSILE.maxBatteries) return 'This field test allows four missile batteries.';
   for (let cy = y; cy < y + 4; cy++) for (let cx = x; cx < x + 4; cx++) {
+    if (hostileAt(world, cx, cy)) return 'An alien station occupies the battery footprint.';
     if(airbaseAt(world,cx,cy))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,cx,cy))return 'Keep the shoreline dock clear.';
     if (tankBlocks(world, cx + .5, cy + .5, .5)) return 'A tank or incoming pod occupies this footprint.';
     if (cx < 0 || cy < 0 || cx >= world.width || cy >= world.height) return 'The full 4 x 4 battery must fit inside the map.';
     if (tileAt(world, cx, cy) === 0) return 'Ocean is restricted. All 16 battery tiles need solid ground.';
     if (tileAt(world, cx, cy) === 3) return 'The full 4 x 4 battery needs clear land.';
-    if (isLanding(cx, cy) || world.cores?.some(c => coreBlocks(c, cx, cy)) || buildings.some(b => b.x === cx && b.y === cy)) return 'Keep landing space and solid machinery clear.';
+    if (world.cores?.some(c => coreBlocks(c, cx, cy)) || buildings.some(b => b.x === cx && b.y === cy)) return 'Keep solid machinery clear.';
     if (railCorridor(world, cx, cy) || artilleryBlocks(world, cx, cy)) return 'Rails or another facility occupy this footprint.';
     if (occupants.some(p => p.life !== 'disabled' && Math.abs(p.x - cx - .5) < .75 && Math.abs(p.y - cy - .5) < .75)) return 'A unit occupies the battery footprint.';
   }

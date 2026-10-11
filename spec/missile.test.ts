@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { createWorld, canStand } from '../public/world.js';
-import { MISSILE, missilePlacementError, missileTargetError, missileFireError, targetBox, makeBarrage, tickBattery } from '../public/missile.js';
+import { MISSILE, missileAim, missilePlacementError, missileTargetError, missileFireError, targetBox, makeBarrage, tickBattery } from '../public/missile.js';
 import { gunCells, artilleryBlocks } from '../public/footprints.js';
 import { railError } from '../public/rail.js';
 import { createCombat } from '../public/combat.js';
@@ -24,10 +24,10 @@ it('validates the entire 12x18 target rectangle, including rotated corners and n
   expect(targetBox(gun.target)).toEqual({ x: 84, y: 41, width: 12, height: 18 });
   expect(targetBox(gun.target, true)).toEqual({ x: 81, y: 44, width: 18, height: 12 });
   expect(missileTargetError(gun, world, gun.target)).toBeNull();
-  expect(missileTargetError(gun, world, { x: 122, y: 50 }, true)).toContain('inside');
+  expect(missileTargetError(gun, world, { x: 122, y: 50 }, true)).toBeNull();
   expect(missileTargetError(gun, world, { x: 70, y: 22 })).toContain('15 and 100');
   expect(missileTargetError(gun, world, { x: NaN, y: 50 })).toContain('Choose');
-  expect(missileTargetError({ ...gun, x: 0, y: 0 }, world, { x: 95, y: 20 })).toContain('15 and 100');
+  expect(missileTargetError({ ...gun, x: 0, y: 0 }, world, { x: 95, y: 20 })).toBeNull();
 });
 
 it('commits twelve repeatable distributed impact assignments with a 2.75s launch sequence', () => {

@@ -26,15 +26,26 @@ combat satisfying. Players must still recognise threats, intended targets,
 actual weapon direction, damage areas and reload states. Survival should reward
 positioning and preparation, with understandable recovery after defeat.
 
-**Control without unnecessary friction.** A newcomer should reach the battlefield
-without registration or an introductory video. Movement, deployment, boarding
+**Control without unnecessary friction.** An invited teammate should reach the
+battlefield without registration or an introductory video. A host creates an
+Email or clearly labelled Demo account to keep ownership of their campaign.
+Movement, deployment, boarding
 and facility handoffs should explain possibilities and rejected actions.
 Desktop and phone controls should keep the battlefield usable.
 
-**Progress with consequences.** Expansion should create defensible positions and
-new opportunities. The campaign should make building and returning meaningful;
-the current prototype does not yet implement territorial capture or planetary
-victory.
+**Progress with consequences.** Conquering hostile sites should permanently clear
+their influence from the map, leaving positions worth defending and revisiting.
+Enemies do not recapture completed sites. Construction is available wherever the
+terrain and placement rules permit it; conquest is progress, not a building
+permission gate. Local objectives now include alert stations, bile mortars,
+blight roots, a small settlement, air contaminators and lance towers. Their
+permanent conquest is implemented; planetary victory remains future work.
+
+Military behavior should make choices understandable: a turret takes time to
+turn, heavy weapons reload, and vehicles need room to operate. Physical detail
+supports satisfying combat within overhead 2D and the server budget. Economy,
+armor and height are separate design stages; their unresolved rules are not
+implemented balance promises.
 
 ## The shared-world contract
 
@@ -42,19 +53,35 @@ The [course brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studi
 requires distinct people acting on shared state, changes reaching other open
 sessions within about a second, and persistent consequences across sessions,
 restarts and redeploys. Frontier's saved trace is its constructions and vehicle
-state. Accepted construction saves before confirmation; movement uses half-second
-checkpoints. Enemies, airborne weapons and cosmetic craters are temporary.
+state and permanently conquered sites. Accepted construction saves before
+confirmation; movement uses half-second checkpoints. Named campaigns retain
+enemies, committed airborne weapons and hazard state across closure/restart;
+cosmetic craters remain temporary. The labelled legacy field keeps its earlier
+transient-combat behavior.
+
+The owner chooses when their campaign runs. Explicit owner departure saves and
+closes the room; a lost connection freezes it for up to 30 seconds to reconnect.
+Solo menus can pause the battle; admitting a teammate resumes it with a warning.
+[The multiplayer decision](docs/decisions/001-owner-present-campaigns.md) explains
+the alternatives and the cost of preventing play while the owner is absent.
 
 These commitments belong in [agent rules](CLAUDE.md) and [automated checks](spec/).
 Checks cover persistence, conflicting actions, exclusive controls and
-responsive layouts. Initial Fly checks pass; sustained-load validation remains a gate.
+responsive layouts. [Crit 8 Fly checks](docs/CRIT8_RELEASE.md) verified the earlier
+shared-world baseline. The newer accounts, campaigns, conquest and operational
+logs are a local checkpoint; [current evidence](docs/CRIT_9_10_EVIDENCE.md) separates
+local checks from the pending Fly update and classroom rehearsal. Sustained-load
+validation remains a gate.
 Enjoyment, readability and useful cooperation need human playtesting; the
 creator's prototype feedback is an initial signal, not independent validation.
 
 ## Scope and development path
 
-The 1–4-player range is a design target, **not an enforced or validated capacity**.
-The course provides one shared CPU and 256 MB RAM. Representative multiplayer
+Rooms enforce **one to four participants**, but four-player sustained combat
+capacity is not yet validated on Fly. The current deployment configuration is
+one shared CPU and 256 MB RAM. The author reports that a justified RAM increase
+can be discussed with the teaching team; measurement should motivate that request.
+Representative multiplayer
 battles must determine the supported maximum; reduce it if necessary while
 retaining at least two simultaneous players. Entity limits and affordable visual
 effects matter alongside player count.
@@ -62,15 +89,17 @@ effects matter alongside player count.
 Development proceeds through a saved shared world, reusable ground/naval/air
 components, then the connected defense-and-expansion campaign, followed by
 balance, performance, textures and sound. The prototype already has construction,
-ground combat, artillery, ships and an HE bomber. It currently shares one guest
-world; host-owned campaigns remain planned. In-game help provides controls;
-[design notes](docs/AIR_FORCE.md) document stages.
+ground combat, artillery, ships and an HE bomber. Local host-owned campaigns add
+invitations, remembered account membership, orbital landing and the first
+permanent conquest objective. In-game help provides controls;
+[GAME_DESIGN.md](GAME_DESIGN.md) holds the boundaries and stage roadmap.
 
-Optional email/password registration is planned, with SMTP for real verification
-and recovery emails, or a clearly labelled dummy email flow for prototyping.
-Neither is implemented; simulated delivery cannot verify an address. Guest entry
-remains available. Private rooms, multiple planets and cinematic introductions
-are deferred.
+Email/password registration, verification and recovery are implemented locally,
+with SMTP for real delivery or a private simulated Demo inbox. Actual Brevo inbox
+receipt still needs testing. Guests join by invitation and keep their contributions
+in the host's world; only accounts host. [The permission decision](docs/decisions/002-identity-and-permissions.md)
+explains server-enforced ownership, shared equipment and the guest lifetime.
+Multiple planets, cinematic introductions, final textures and sound are deferred.
 
 ## Influences and choices
 

@@ -1,4 +1,4 @@
-import { airbaseAt, hangarBlocks } from './footprints.js';
+import { airbaseAt, hangarBlocks, hostileAt } from './footprints.js';
 import { dockAt, shipBlocks } from './ship.js';
 // World coordinates are measured in tiles; artwork never determines collision.
 import { CORE, coreCell, coreBlocks } from './core.js';
@@ -42,10 +42,6 @@ export function tileAt(world, x, y) {
   return x < 0 || y < 0 || x >= world.width || y >= world.height ? 0 : world.terrain[y * world.width + x];
 }
 
-export function isLanding(x, y) {
-  return x >= 23 && x <= 25 && y >= 17 && y <= 19;
-}
-
 /** @param {string|null} [ignoreTank] */
 export function canStand(world, buildings, x, y, ignoreTank = null, radius = .21) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -55,12 +51,13 @@ export function canStand(world, buildings, x, y, ignoreTank = null, radius = .21
   for (const dx of [-radius, radius]) for (const dy of [-radius, radius]) {
     const tx = Math.floor(x + dx), ty = Math.floor(y + dy);
     const tile = tileAt(world, tx, ty);
+    if (hostileAt(world, tx, ty)) return false;
     if (hangarBlocks(world,tx,ty) || tile === 0 || tile === 3 || world.cores?.some(c => coreBlocks(c, tx, ty)) || buildings.some(b => b.x === tx && b.y === ty)) return false;
   }
   return true;
 }
 
-// Rails may cross the landing pad. Find nearby clear ground if a carriage parks there.
+// Find clear fallback ground for a saved body if its former position is blocked.
 export function clearSpawn(world, buildings) {
   if (canStand(world, buildings, world.spawn.x, world.spawn.y)) return { ...world.spawn };
   const sx = Math.floor(world.spawn.x), sy = Math.floor(world.spawn.y);
@@ -75,6 +72,7 @@ export function clearSpawn(world, buildings) {
 }
 
 export function placementError(world, buildings, players, x, y) {
+  if (hostileAt(world, x, y)) return 'Destroy the alien station before building on its footprint.';
   if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= world.width || y >= world.height) return 'Select a tile inside the survey area.';
   if(airbaseAt(world,x,y))return 'Keep the airbase runway and apron clear.';
   if (dockAt(world,x,y)) return 'Keep the shoreline boarding point clear.';
@@ -82,7 +80,6 @@ export function placementError(world, buildings, players, x, y) {
   if (tankBlocks(world, x + .5, y + .5, .5)) return 'A tank or incoming pod occupies this site.';
   if (tile === 0) return 'Open water. Sentries need solid ground.';
   if (tile === 3) return 'Rock obstructs this site.';
-  if (isLanding(x, y)) return 'Keep the landing pad clear.';
   if (railCorridor(world, x, y) || artilleryBlocks(world, x, y)) return 'Keep the railway carriage corridor clear.';
   if (world.cores?.some(c => coreCell(c, x, y))) return 'Keep core machinery, exits and panels clear in this field test.';
   if (buildings.some(b => b.x === x && b.y === y)) return 'This tile is already occupied.';

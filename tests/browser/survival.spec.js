@@ -33,7 +33,7 @@ for (const mobile of [false, true]) test(`robot survival and shared-core recover
     await context.addCookies([{ name: 'frontier', value: token, url }]); await other.addCookies([{ name: 'frontier', value: friendToken, url }]);
     const page = await context.newPage(), peer = await other.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); peer.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url); await page.goto(url); await page.bringToFront();
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront();
     await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (route, data) => page.evaluate(async ({ route, data }) => (await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).status, { route, data });

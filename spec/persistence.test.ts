@@ -26,6 +26,13 @@ it('preserves committed buildings across a database reopen and enforces ownershi
   try {
     const a = await guest(), b = await guest();
     expect(a.state.me.id).not.toBe(b.state.me.id);
+    // The ownership race concerns deployed players, not orbital visitors.
+    await app.close();
+    const seed = new DatabaseSync(path.join(dataDir, 'world.sqlite'));
+    seed.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('a-core', a.state.me.id, 29, 13, 4.5);
+    seed.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('b-core', b.state.me.id, 70, 24, 4.5);
+    seed.close(); app = createApp({ dataDir }); base = await listen();
+    for (const visitor of [a, b]) visitor.state = await (await fetch(`${base}/api/world`, { headers: { Cookie: visitor.cookie } })).json();
     const results = await Promise.all([post('buildings', a.cookie, { x: 28, y: 18 }), post('buildings', b.cookie, { x: 28, y: 18 })]);
     expect(results.map(r => r.status).sort()).toEqual([201, 409]);
     const winnerIndex = results.findIndex(r => r.status === 201);

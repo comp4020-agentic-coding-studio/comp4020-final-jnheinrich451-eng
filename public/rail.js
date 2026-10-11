@@ -1,4 +1,4 @@
-import { airbaseAt } from './footprints.js';
+import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
 import { tileAt } from './world.js';
 import { tankBlocks } from './tank.js';
@@ -47,6 +47,7 @@ export function railSegment(x, y, shape, length = 5) {
   return Array.from({ length }, (_, i) => ({ x: x + (shape === 'EW' ? i - Math.floor(length / 2) : 0), y: y + (shape === 'NS' ? i - Math.floor(length / 2) : 0), shape }));
 }
 function groundError(world, buildings, x, y) {
+  if (hostileAt(world, x, y)) return 'An alien station blocks the carriage corridor.';
   if(airbaseAt(world,x,y))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,x,y))return 'Keep the shoreline dock clear.';
   if (tankBlocks(world, x + .5, y + .5, .5)) return 'A tank or incoming pod blocks the carriage corridor.';

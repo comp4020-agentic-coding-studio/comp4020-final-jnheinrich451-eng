@@ -10,6 +10,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 // each crit's cutoff reads its own; any one passes here
 const REFLECTIONS = ["crit-8.md", "crit-9.md", "crit-10.md"];
+const requested = process.argv.slice(2);
+if (requested.length && (requested.length !== 1 || !/^--crit=(8|9|10)$/.test(requested[0]))) {
+  console.error('Usage: pnpm check:evidence [--crit=8|--crit=9|--crit=10]');
+  process.exit(1);
+}
+const required = requested[0]?.replace('--crit=', 'crit-') + '.md';
 
 let failed = false;
 const fail = (msg: string): void => {
@@ -28,6 +34,7 @@ for (const f of reflections) {
   }
 }
 const found = REFLECTIONS.filter((name) => reflections.includes(name));
+if (requested.length && !reflections.includes(required)) fail(`missing reflections/${required} for the requested cutoff`);
 if (found.length > 0) {
   console.log(`✓ reflections/${found.join(", reflections/")}`);
 } else {

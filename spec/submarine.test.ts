@@ -15,9 +15,9 @@ it('permits one submarine alongside a legacy gunship while retaining four total 
 });
 it('validates the full compact rectangle, not just its center, for both orientations',()=>{
  const {w,s}=fixture();expect(submarineTargetError(s,w,{x:90,y:20})).toBeNull();expect(submarineTargetError(s,w,{x:90,y:20},true)).toBeNull();
- expect(submarineTargetError(s,w,{x:s.x+12,y:s.y})).toContain('12 to 80');expect(submarineTargetError(s,w,{x:90,y:2})).toContain('inside');
+ expect(submarineTargetError(s,w,{x:s.x+12,y:s.y})).toContain('12 to 80');expect(submarineTargetError(s,w,{x:90,y:2})).toBeNull();
  expect(submarineTargetError(s,w,{x:NaN,y:20})).toBeTruthy();
- s.x=5;expect(submarineTargetError(s,w,{x:85,y:20})).toContain('12 to 80');
+ s.x=5;expect(submarineTargetError(s,w,{x:85,y:20})).toBeNull();
 });
 it('commits six staggered hatch origins and scattered sectors without mutating the land missile pattern',()=>{
  const {s}=fixture(),target={x:90,y:30};const b=makeSubmarineBarrage(s,target,false,42);

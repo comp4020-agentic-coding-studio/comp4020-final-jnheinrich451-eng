@@ -18,7 +18,7 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`,viewport=mobile?{width:390,height:844}:{width:1920,height:1080};
   context=await browser.newContext({viewport,isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
-  const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url);await page.goto(url);await page.bringToFront();
+  const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json()),sub=async()=>(await state(peer)).ships.find(s=>s.kind==='submarine');
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Navy');
   await expect(page.locator('#ship-card')).toBeDisabled();await expect(page.locator('#submarine-card')).toBeEnabled();await page.locator('#submarine-card').click();

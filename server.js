@@ -1,6 +1,9 @@
+import { seedSettlement } from './public/settlement.js';
 import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft } from './public/aircraft.js';
+import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
 import http from 'node:http';
+import { createAudit } from './observability.js';
 import { isSubmarine } from './public/submarine.js';
 import { VEHICLE, hullHealth, operational } from './public/vehicle.js';
 import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
@@ -12,6 +15,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { lockWorld } from './world-maintenance.js';
+import { createAccounts } from './accounts/service.js';
+import { smtpMailer } from './accounts/mail.js';
+import { createCampaigns } from './campaigns/service.js';
 import { createWorld, canStand, clearSpawn, findPath, placementError, SPEED } from './public/world.js';
 import { createCombat } from './public/combat.js';
 import { turnTurret } from './public/turret.js';
@@ -24,7 +31,7 @@ import { ARTILLERY_HE, ARTILLERY_SHELLS } from './public/weapons.js';
 import { expandWorld } from './public/expansion.js';
 import { switchAt, switchLocked, switchConnectionError } from './public/switches.js';
 import { isCurve, joinedShape, curveBounds, insideBounds } from './public/track.js';
-import { MISSILE, isMissile, missilePlacementError, missileFireError, tickBattery } from './public/missile.js';
+import { MISSILE, missileAim, isMissile, missilePlacementError, missileFireError, tickBattery } from './public/missile.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, 'public');
@@ -34,7 +41,26 @@ for (const name of readdirSync(publicDir).filter(name => /\.(js|css|html)$/.test
 const clientBuild = buildHash.digest('hex').slice(0, 16);
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.local', 'data') } = {}) {
+export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.local', 'data'), emailDelivery = smtpMailer(), logSink = line => console.log(line) } = {}) {
+  const release = lockWorld(dataDir);
+  const audit = createAudit(logSink);
+  try {
+    let campaigns;
+    const app = createWorldApp(dataDir, emailDelivery, { audit, onRevoke: (...args) => campaigns?.revoke(...args) });
+    campaigns = createCampaigns({ dataDir, legacy: app, audit, createRuntime: (dir, options) => createWorldApp(dir, emailDelivery, { ...options, audit }) });
+    const handler = app.server.listeners('request')[0];
+    app.server.removeListener('request', handler);
+    app.server.on('request', (req, res) => audit.run(req, res, () => campaigns.route(req, res, handler)));
+    let closing;
+    return { server: app.server, close: () => closing ??= campaigns.close().then(() => app.close()).finally(() => { audit.close(); release(); }) };
+  } catch (error) {
+    audit.emit("server.start_failed", { reason: error.code || "initialization_failed" }); audit.close(); release();
+    throw error;
+  }
+}
+
+function createWorldApp(dataDir, emailDelivery, options = {}) {
+  const audit = options.audit, campaignId = options.campaignId || 'legacy';
   mkdirSync(dataDir, { recursive: true });
   const db = new DatabaseSync(path.join(dataDir, 'world.sqlite'));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=3000;
@@ -82,8 +108,91 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
   const equipment = new Map(db.prepare('SELECT * FROM equipment').all().map(row => [row.id, JSON.parse(row.value)]));
   const equip = (id, value) => { db.prepare('INSERT INTO equipment VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').run(id, JSON.stringify(value)); equipment.set(id, value); };
   const people = new Map(), streams = new Map();
-  const combat = createCombat(world);
   let buildings = db.prepare('SELECT * FROM buildings ORDER BY created').all();
+  const savedCombat = options.campaign ? JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()?.value || 'null') : null;
+  const introduceConquest = options.campaign && !savedCombat?.sites;
+  if (introduceConquest) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-conquest-${randomUUID()}.sqlite`));
+    world.sites = seedConquest(world, buildings, [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])]);
+  }
+  const combat = createCombat(world, savedCombat, () => audit.context());
+  function flushCombatEvents() {
+    for (const { event, ...details } of combat.drainEvents()) audit.emit(event, { ...details, campaignId, saved: !!options.campaign });
+  }
+  if (introduceConquest) {
+    db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+    audit.emit('campaign.migrated', { campaignId, cause: 'conquest_checkpoint_added_with_backup', count: world.sites.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='mortar-outpost-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-mortar-${randomUUID()}.sqlite`));
+    const additions = world.sites.some(s => s.kind === 'mortar' && !s.settlement) ? [] : seedConquest(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'mortar');
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('mortar-outpost-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'mortar' && !s.settlement) }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'mortar_outpost_added_with_backup', count: additions.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='environment-modifier-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-modifier-${randomUUID()}.sqlite`));
+    const additions = world.sites.some(s => s.kind === 'modifier' && !s.settlement) ? [] : seedConquest(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'modifier');
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('environment-modifier-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'modifier' && !s.settlement) }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'environment_modifier_added_with_backup', count: additions.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='alien-settlement-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-settlement-' + randomUUID() + '.sqlite'));
+    const additions = seedSettlement(world, buildings, [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])]);
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('alien-settlement-v1', JSON.stringify({ placed: world.sites.some(s => s.settlement) }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'alien_settlement_added_with_backup', count: additions.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='air-contaminator-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-contaminator-' + randomUUID() + '.sqlite'));
+    const additions = world.sites.some(s => s.kind === 'contaminator') ? [] : seedConquest(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'contaminator');
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('air-contaminator-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'contaminator') }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'air_contaminator_added_with_backup', count: additions.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='laser-tower-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-laser-' + randomUUID() + '.sqlite'));
+    const additions = world.sites.some(s => s.kind === 'laser') ? [] : seedConquest(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'laser');
+    world.sites.push(...additions);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('laser-tower-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'laser') }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'laser_tower_added_with_backup', count: additions.length, saved: true });
+  }
   let revision = 0, closed = false, combatDirty = false;
   const save = db.prepare('UPDATE scouts SET x=?,y=?,angle=? WHERE id=?');
   const saveCore = db.prepare('UPDATE cores SET elapsed=? WHERE id=?');
@@ -96,13 +205,14 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     if (savedGuns.get(gun.id) !== value) { writeGun.run(gun.id, value); savedGuns.set(gun.id, value); }
   };
   const controlledBy = id => world.artillery.find(g => g.operator === id);
+  const canManage = (owner, pilot) => owner === pilot || !!options.canManage?.(owner, pilot);
   const releaseGun = id => { const gun = controlledBy(id); if (gun) { gun.operator = null; gun.lease = 0; gun.input = null; gun.inputTime = 0; } };
   const allBuildings = () => [...buildings, ...coreSentries(world.cores)].map(b => ({ ...b, weapon: equipment.get('sentry:' + b.id)?.weapon || 'APCR' }));
   const incomingCore = id => world.cores.find(c => c.owner === id && c.elapsed < CORE.duration);
-  const playerBody = p => boardedAircraft(p.id) ? 'aircraft' : boardedShip(p.id) ? 'ship' : !boardedTank(p.id) && world.cores.some(c => c.owner === p.id) ? 'robot' : 'rover';
+  const playerBody = p => boardedAircraft(p.id) ? 'aircraft' : boardedShip(p.id) ? 'ship' : boardedTank(p.id) ? 'rover' : world.cores.some(c => c.owner === p.id) ? 'robot' : 'orbital';
+  const groundPeople = () => [...people.values()].filter(p => playerBody(p) !== 'orbital');
   const isGuarding = p => playerBody(p) === 'robot' && p.life === 'active' && !incomingCore(p.id) && streams.has(p.id) && (controlledBy(p.id)?.lease || 0) > 0;
   const playerView = p => ({ id: p.id, name: p.name, x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, angle: p.angle, aim: p.aim, turret: p.turret, body: playerBody(p), aircraftId: boardedAircraft(p.id)?.id || null, shipId: boardedShip(p.id)?.id || null, vehicleId: boardedTank(p.id)?.id || null, tankWeapon: equipped(p).weapon || 'HE', tankSecondary: equipped(p).secondary || 'APCR', deploying: !!incomingCore(p.id), guarding: isGuarding(p), ...lifeRecord(p) });
-  const log = (event, details = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), event, ...details }));
   function persist(person, changedTank = boardedTank(person.id), changedShip = boardedShip(person.id)) {
     db.exec('BEGIN IMMEDIATE');
     try { if(pilotedBase(person.id))saveAirbase(pilotedBase(person.id)); if (changedShip) saveShip(changedShip); if (changedTank) saveTank(changedTank); save.run(person.x, person.y, person.angle, person.id); saveLife.run(person.id, JSON.stringify(lifeRecord(person))); db.exec('COMMIT'); }
@@ -110,7 +220,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     person.dirty = false; person.lifeDirty = false;
   }
   function snapshot() {
-    return { clientBuild, revision, airbases:world.airbases, ships: world.ships, tanks: world.tanks, cores: world.cores, rails: world.rails, switches: world.switches, artillery: world.artillery, buildings: allBuildings(), combat: combat.snapshot(), players: [...people.values()].filter(p => streams.has(p.id)).map(playerView) };
+    return { clientBuild, revision, room: options.roomView?.() || null, airbases:world.airbases, ships: world.ships, tanks: world.tanks, cores: world.cores, rails: world.rails, switches: world.switches, artillery: world.artillery, buildings: allBuildings(), combat: combat.snapshot(), players: [...people.values()].filter(p => streams.has(p.id)).map(playerView) };
   }
   function broadcast() {
     revision++;
@@ -120,18 +230,54 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
       if (response.writableLength > 64 * 1024) response.destroy(); else response.write(message);
     }
   }
-  function session(req, res) {
+  function guestRow(req, res) {
     const token = req.headers.cookie?.match(/(?:^|;\s*)frontier=([a-f0-9-]{36})(?:;|$)/)?.[1];
     let row = token ? db.prepare('SELECT * FROM scouts WHERE token=?').get(token) : null;
     if (!row) {
       const count = db.prepare('SELECT COUNT(*) AS n FROM scouts').get().n;
       if (count >= 2000) throw Object.assign(new Error('This prototype has reached its guest limit.'), { status: 503 });
-      const spawn = clearSpawn(world, allBuildings());
-      if (!spawn) throw Object.assign(new Error('No clear arrival space. Wait for a carriage to move.'), { status: 503 });
+      // An orbital identity has no ground collision or spawn-space requirement.
+      const spawn = world.spawn;
       row = { token: randomUUID(), id: randomUUID(), name: `Scout ${String(count + 1).padStart(2, '0')}`, ...spawn, angle: 0 };
       db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(row.token, row.id, row.name, row.x, row.y, row.angle);
-      res.setHeader('Set-Cookie', `frontier=${row.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`);
+      const prior = res.getHeader('Set-Cookie') || [];
+      res.setHeader('Set-Cookie', [...(Array.isArray(prior) ? prior : [prior]), `frontier=${row.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`]);
     }
+    return row;
+  }
+  function endPlayerAccess(id, message, details) {
+    options.onRevoke?.(id, message, details);
+    const person = people.get(id);
+    combat.cancelCharge(id); releaseGun(id);
+    if (person) { person.path = []; person.input = { x: 0, y: 0 }; person.inputUntil = 0; persist(person); }
+    const old = streams.get(id); streams.delete(id); people.delete(id);
+    for (const response of old || []) {
+      response.write(`event: ${options.campaign ? 'room-ended' : 'session-ended'}\ndata: ${JSON.stringify({ message })}\n\n`); response.end();
+      setTimeout(() => response.destroy(), 1000).unref();
+    }
+  }
+  const accounts = options.accounts || createAccounts(db, { mailer: emailDelivery, guest: guestRow, revokePlayer: endPlayerAccess, audit });
+  function identity(req, res) {
+    const account = accounts.account(req);
+    if (accounts.hasCookie(req) && !account) throw Object.assign(new Error('Your account session has ended. Sign in again.'), { status: 401 });
+    const row = account ? db.prepare('SELECT * FROM scouts WHERE id=?').get(account.player_id) : guestRow(req, res);
+    if (!row) throw Object.assign(new Error('Your saved player is unavailable.'), { status: 409 });
+    const actor = { id: row.id, name: row.name, accountId: account?.id || null, kind: account?.kind || 'guest', credential: account?.session_hash || row.token };
+    audit.actor(actor); return actor;
+  }
+  function validIdentity(actor, req) {
+    if (actor.accountId) { const current = accounts.account(req); return current?.id === actor.accountId && current.session_hash === actor.credential; }
+    return !accounts.hasCookie(req) && db.prepare('SELECT token FROM scouts WHERE id=?').get(actor.id)?.token === actor.credential;
+  }
+  function session(req, res) {
+    const account = accounts.account(req);
+    if (accounts.hasCookie(req) && !account) throw Object.assign(new Error('Your account session has ended. Sign in again or choose Play as guest.'), { status: 401 });
+    const actor = options.campaign ? req.campaignIdentity : null;
+    if (options.campaign && !actor) throw Object.assign(new Error('Enter this campaign through the lobby.'), { status: 403 });
+    if (actor) db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name').run(actor.id, actor.id, actor.name, world.spawn.x, world.spawn.y, 0);
+    const row = actor ? db.prepare('SELECT * FROM scouts WHERE id=?').get(actor.id) : account ? db.prepare('SELECT * FROM scouts WHERE id=?').get(account.player_id) : guestRow(req, res);
+    if (!row) throw Object.assign(new Error('Your saved player is unavailable.'), { status: 409 });
+    if (!options.campaign) audit.actor({ id: row.id, name: row.name, kind: account?.kind || 'guest' });
     if (!people.has(row.id)) {
       const vehicle = boardedAircraft(row.id) || boardedShip(row.id) || boardedTank(row.id);
       people.set(row.id, { ...row, ...freshLife(), ...JSON.parse(readLife.get(row.id)?.value || '{}'), aim: vehicle?.turret ?? row.angle, turret: vehicle?.turret ?? row.angle, input: { x: 0, y: 0 }, inputUntil: 0, path: [], dirty: false, touched: Date.now() });
@@ -141,14 +287,14 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     if (vehicle) Object.assign(person, { x: vehicle.x, y: vehicle.y, angle: vehicle.angle });
     const incoming = incomingCore(person.id);
     if (incoming) Object.assign(person, coreExit(incoming));
-    else if (!plane && !ship && person.life === 'active' && !canStand(world, allBuildings(), person.x, person.y, vehicle?.id, vehicle ? TANK.radius : .21)) {
+    else if (playerBody(person) !== 'orbital' && !plane && !ship && person.life === 'active' && !canStand(world, allBuildings(), person.x, person.y, vehicle?.id, vehicle ? TANK.radius : .21)) {
       const spawn = clearSpawn(world, allBuildings());
       if (!spawn) throw Object.assign(new Error('No clear arrival space. Wait for a carriage to move.'), { status: 503 });
       Object.assign(person, spawn); persist(person);
     }
     return person;
   }
-  const json = (res, status, body) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
+  const json = (res, status, body) => { if (options.campaign && status < 300 && res.req.method === 'POST') checkpoint(); audit.result(status, body); if (!options.campaign) flushCombatEvents(); res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
   async function body(req) {
     let text = '';
     for await (const chunk of req) { text += chunk; if (text.length > 4096) throw Object.assign(new Error('Request is too large.'), { status: 413 }); }
@@ -164,17 +310,31 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     try {
       const url = new URL(req.url, 'http://localhost');
+      if (url.pathname.startsWith('/api/auth/')) {
+        res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
+        const action = url.pathname.slice('/api/auth/'.length);
+        if (req.method === 'GET' && ['status', 'inbox'].includes(action)) return json(res, 200, await accounts.handle(action, req, res));
+        if (req.method !== 'POST' || ['status', 'inbox'].includes(action)) return json(res, 405, { error: 'Method not allowed.' });
+        const expected = process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).origin : `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+        if (!req.headers.origin || req.headers.origin !== expected || req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Use the Frontier account page to make this change.' });
+        if (!req.headers['content-type']?.startsWith('application/json')) return json(res, 415, { error: 'JSON is required.' });
+        return json(res, 200, await accounts.handle(action, req, res, await body(req)));
+      }
       if (url.pathname.startsWith('/api/')) {
         if (req.method !== 'GET' && (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host))) return json(res, 403, { error: 'Use the game page to change this world.' });
         if (req.method !== 'GET' && !req.headers['content-type']?.startsWith('application/json')) return json(res, 415, { error: 'JSON is required.' });
         const player = session(req, res);
-        if (req.method === 'GET' && url.pathname === '/api/world') return json(res, 200, { world, ...snapshot(), me: playerView(player) });
+        if (req.method === 'GET' && url.pathname === '/api/world') return json(res, 200, { world, ...snapshot(), me: playerView(player), accountKind: accounts.account(req)?.kind || null });
         if (req.method === 'GET' && url.pathname === '/api/events') {
           if ([...streams.values()].reduce((n, set) => n + set.size, 0) >= 16) return json(res, 503, { error: 'The test world is full. Try again shortly.' });
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
           res.write('retry: 2000\n\n');
+          res.accountSessionHash = accounts.sessionHash(req);
+          const wasDisconnected = !streams.get(player.id)?.size;
           if (!streams.has(player.id)) streams.set(player.id, new Set());
-          streams.get(player.id).add(res); broadcast();
+          streams.get(player.id).add(res);
+          if (wasDisconnected) audit.emit('participant.connected', { ...audit.context(), cause: 'event_stream_opened' });
+          broadcast();
           req.on('close', () => {
             if (closed) return;
             streams.get(player.id)?.delete(res);
@@ -185,9 +345,19 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
         }
         if (req.method === 'POST') {
           const data = await body(req);
+          audit.bind({ targetId: typeof data.id === 'string' ? data.id : undefined });
+          // A slow request body can finish after logout, takeover or guest
+          // attachment. Recheck authority immediately before mutating the world.
+          const stillAuthorized = options.campaign ? options.authorized(req) && !options.frozen() : accounts.hasCookie(req)
+            ? accounts.account(req)?.player_id === player.id
+            : db.prepare('SELECT token FROM scouts WHERE id=?').get(player.id)?.token === player.token;
+          if (options.campaign && options.authorized(req) && options.frozen()) return json(res, 409, { error: 'The campaign is paused or waiting for its owner.' });
+          if (!stillAuthorized) return json(res, options.campaign ? 403 : 401, { error: 'Your session or room changed. Return to the lobby before controlling this player.' });
+          if (playerBody(player) === 'orbital' && url.pathname !== '/api/cores') return json(res, 409, { error: 'You are in orbit. Choose a landing site and deploy your core first.' });
+          if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
           if (url.pathname === '/api/revive') {
             if (!streams.has(player.id)) return json(res, 409, { error: 'Connect to the battlefield before requesting recovery.' });
-            const error = beginRecovery(player, world, allBuildings(), [...people.values(), ...combat.snapshot().enemies], data.coreId);
+            const error = beginRecovery(player, world, allBuildings(), [...groundPeople(), ...combat.snapshot().enemies], data.coreId);
             if (error) return json(res, 409, { error });
             persist(player); broadcast(); return json(res, 200, { me: playerView(player), saved: true });
           }
@@ -202,7 +372,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             if (!['tank','ship'].includes(data.kind) || !old) return json(res,404,{error:'Choose your own destroyed vehicle.'});
             if (!old.destroyed) return json(res,200,{saved:true,vehicle:old});
             if (old.replacement>.001) return json(res,409,{error:'Replacement cargo is still preparing.'});
-            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...people.values(),...combat.snapshot().enemies];
+            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople(),...combat.snapshot().enemies];
             let next,error;
             if (naval) {
               const site=shipSite(filtered,allBuildings(),occupants,Math.floor(old.berthX),Math.floor(old.berthY),player.id,shipKind(old));error=site.error;
@@ -224,7 +394,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             const kind=data.kind??'gunship';if(!['gunship','submarine'].includes(kind))return json(res,400,{error:'Choose a gunship or submarine.'});
             const old=world.ships.find(s=>s.owner===player.id&&shipKind(s)===kind);
             if(old&&old.berthX===data.x+.5&&old.berthY===data.y+.5)return json(res,200,{ship:old,saved:true});
-            const site=shipSite(world,allBuildings(),[...people.values(),...combat.snapshot().enemies],data.x,data.y,player.id,kind);
+            const site=shipSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,kind);
             if(site.error)return json(res,409,{error:site.error});
             const vessel={...site.ship,id:randomUUID(),health:VEHICLE.ship,hurt:0};resetDepth(vessel);saveShip(vessel);world.ships.push(vessel);broadcast();return json(res,201,{ship:vessel,saved:true});
           }
@@ -239,7 +409,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             if(!surfaced(ship))return json(res,409,{error:'Surface fully before operating the shore ramp.'});
             if(typeof data.deployed!=='boolean')return json(res,400,{error:'Choose deploy or retract.'});
             if(data.deployed&&!ship.ramp){
-              const point=shoreRampSite(world,allBuildings(),[...people.values(),...combat.snapshot().enemies],ship);
+              const point=shoreRampSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],ship);
               if(!point)return json(res,409,{error:'No clear shore within two tiles of the hull. Sail closer to an open beach.'});
               ship.ramp={...point,shipX:ship.x,shipY:ship.y,shipAngle:ship.angle};
             }else if(!data.deployed)ship.ramp=null;
@@ -256,7 +426,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
           if(url.pathname==='/api/ships/exit') {
             if(!ship)return json(res,200,{saved:true});
             if(!surfaced(ship))return json(res,409,{error:'Surface fully before disembarking.'});const dock=boardingPoint(world,ship,allBuildings());
-            if(!dock||!canStand(world,allBuildings(),dock.x,dock.y)||[...people.values(),...combat.snapshot().enemies].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&Math.hypot(p.x-dock.x,p.y-dock.y)<.8))return json(res,409,{error:'Return to a dock or deploy the shore ramp near clear land. Keep the shore exit clear.'});
+            if(!dock||!canStand(world,allBuildings(),dock.x,dock.y)||[...groundPeople(),...combat.snapshot().enemies].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&Math.hypot(p.x-dock.x,p.y-dock.y)<.8))return json(res,409,{error:'Return to a dock or deploy the shore ramp near clear land. Keep the shore exit clear.'});
             ship.occupant=null;ship.speed=0;Object.assign(player,{x:dock.x,y:dock.y,inputUntil:0,path:[],vx:0,vy:0});persist(player,null,ship);broadcast();return json(res,200,{saved:true});
           }
           if(url.pathname==='/api/ships/secondary') {
@@ -282,7 +452,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
           if(url.pathname==='/api/airbases'){
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Deploy an airbase from your active robot.'});
             const old=world.airbases.find(b=>b.owner===player.id);if(old&&old.x===data.x&&old.y===data.y)return json(res,200,{saved:true,airbase:old});
-            const error=airbaseError(world,allBuildings(),[...people.values(),...combat.snapshot().enemies],data.x,data.y,player.id);if(error)return json(res,409,{error});
+            const error=airbaseError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id);if(error)return json(res,409,{error});
             const base=newAirbase(randomUUID(),player.id,data.x,data.y);saveAirbase(base);world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
           }
           if(url.pathname==='/api/aircraft/board'){
@@ -300,7 +470,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             if(!plane)return json(res,200,{saved:true});
             if(!streams.has(player.id)||plane.state!=='parked')return json(res,409,{error:'Return slowly to your airbase and land before disembarking.'});
             const base=pilotedBase(player.id),gate=airbaseGate(base);
-            if(!canStand(world,allBuildings(),gate.x,gate.y)||[...people.values(),...combat.snapshot().enemies].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&!boardedAircraft(p.id)&&Math.hypot(p.x-gate.x,p.y-gate.y)<.8))return json(res,409,{error:'Keep the boarding apron clear before disembarking.'});
+            if(!canStand(world,allBuildings(),gate.x,gate.y)||[...groundPeople(),...combat.snapshot().enemies].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&!boardedAircraft(p.id)&&Math.hypot(p.x-gate.x,p.y-gate.y)<.8))return json(res,409,{error:'Keep the boarding apron clear before disembarking.'});
             // Keep the occupied seat until persist has atomically saved both records.
             Object.assign(player,{...gate,angle:0,inputUntil:0,path:[]});
             db.exec('BEGIN IMMEDIATE');try{plane.occupant=null;saveAirbase(base);save.run(player.x,player.y,player.angle,player.id);saveLife.run(player.id,JSON.stringify(lifeRecord(player)));db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');savedAirbases.delete(base.id);plane.occupant=player.id;throw e;}
@@ -310,7 +480,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             if (!streams.has(player.id) || incomingCore(player.id) || controlledBy(player.id) || playerBody(player) !== 'robot') return json(res, 409, { error: 'Deploy your core and return to your active robot before calling a tank.' });
             const old = world.tanks.find(t => t.owner === player.id);
             if (old && old.podX === data.x && old.podY === data.y) return json(res, 200, { tank: old, saved: true });
-            const error = tankPlacementError(world, allBuildings(), [...people.values(), ...combat.snapshot().enemies], data.x, data.y, player.id);
+            const error = tankPlacementError(world, allBuildings(), [...groundPeople(), ...combat.snapshot().enemies], data.x, data.y, player.id);
             if (error) return json(res, 409, { error });
             const tank = { health:VEHICLE.tank,hurt:0,id: randomUUID(), owner: player.id, podX: data.x, podY: data.y, elapsed: 0, x: data.x + .5, y: data.y + .5, angle: Math.PI / 2, turret: Math.PI / 2, occupant: null, weapon: 'HE', secondary: 'APCR' };
             saveTank(tank); world.tanks.push(tank); broadcast(); return json(res, 201, { tank, saved: true });
@@ -327,7 +497,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
           }
           if (url.pathname === '/api/tanks/exit') {
             if (!vehicle) return json(res, 200, { saved: true });
-            const occupants = [...people.values()].filter(p => p.id !== player.id).concat(combat.snapshot().enemies.filter(e => e.hp > 0));
+            const occupants = groundPeople().filter(p => p.id !== player.id).concat(combat.snapshot().enemies.filter(e => e.hp > 0));
             const offsets = [[1.1,0],[-1.1,0],[0,1.1],[0,-1.1],[1.1,1.1],[-1.1,1.1],[1.1,-1.1],[-1.1,-1.1]];
             const exitBuildings = allBuildings();
             const clearPassage = p => Array.from({length:16},(_,i)=>(i+1)/16).every(t => canStand(world,exitBuildings,vehicle.x+(p.x-vehicle.x)*t,vehicle.y+(p.y-vehicle.y)*t,vehicle.id));
@@ -339,12 +509,12 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
           if (url.pathname.startsWith('/api/rail') || url.pathname.startsWith('/api/artillery') || url.pathname === '/api/missiles') {
             if (!streams.has(player.id) || incomingCore(player.id)) return json(res, 409, { error: 'Connect with an active body before using the railway.' });
             if (controlledBy(player.id) && ['/api/rails', '/api/rails/remove', '/api/artillery', '/api/missiles'].includes(url.pathname)) return json(res, 409, { error: 'Release the facility before building or removing rails.' });
-            const occupants = [...people.values(), ...combat.snapshot().enemies];
+            const occupants = [...groundPeople(), ...combat.snapshot().enemies];
             if (url.pathname === '/api/rails/switch') {
               const rail = world.rails.find(r => r.x === data.x && r.y === data.y && isCurve(r));
               if (!rail) return json(res, 404, { error: 'Select an existing broad curve.' });
               const state = switchAt(world, rail);
-              if (!state && rail.owner !== player.id) return json(res, 403, { error: 'Only the curve owner can install its junction switch.' });
+              if (!state && !canManage(rail.owner, player.id)) return json(res, 403, { error: 'Only the curve owner can install its junction switch.' });
               if (!['curve', 'straight'].includes(data.route)) return json(res, 400, { error: 'Choose straight or curve.' });
               if (state?.route === data.route) return json(res, 200, { saved: true });
               if (switchLocked(world, rail)) return json(res, 409, { error: 'Junction locked. Move every cannon completely clear of its turning apron first.' });
@@ -369,7 +539,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             }
             if (url.pathname === '/api/rails/remove') {
               const rail = world.rails.find(r => r.x === data.x && r.y === data.y);
-              if (!rail || rail.owner !== player.id) return json(res, 403, { error: 'Only the rail owner can remove it.' });
+              if (!rail || !canManage(rail.owner, player.id)) return json(res, 403, { error: 'Only the rail owner can remove it.' });
               if (world.rails.some(r => isCurve(r) && switchAt(world, r) && insideBounds(curveBounds(r), rail.x, rail.y) && switchLocked(world, r))) return json(res, 409, { error: 'Junction locked. Clear its turning apron before removing track.' });
               if (artilleryBlocks(world, rail.x, rail.y)) return json(res, 409, { error: 'Move the carriage clear before removing this rail.' });
               db.exec('BEGIN IMMEDIATE');
@@ -399,10 +569,10 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             const gun = world.artillery.find(g => g.id === data.id);
             if (!gun) return json(res, 404, { error: 'Select a railway cannon.' });
             if (url.pathname === '/api/artillery/control') {
-              if (data.release) { if (gun.operator === player.id) releaseGun(player.id); }
+              if (data.release) { audit.bind({ reason: gun.operator === player.id ? 'control_released' : 'already_released' }); if (gun.operator === player.id) releaseGun(player.id); }
               else {
                 if (gun.operator && gun.operator !== player.id) return json(res, 409, { error: 'Another scout is operating this cannon.' });
-                releaseGun(player.id); gun.operator = player.id; gun.lease = RAIL.leaseTime; player.inputUntil = 0; player.path = []; player.vx = 0; player.vy = 0;
+                audit.bind({ reason: 'control_acquired' }); releaseGun(player.id); gun.operator = player.id; gun.lease = RAIL.leaseTime; player.inputUntil = 0; player.path = []; player.vx = 0; player.vy = 0;
               }
               broadcast(); return json(res, 200, { ok: true });
             }
@@ -419,7 +589,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
                 if (typeof rotated !== 'boolean') return json(res, 400, { error: 'Choose a target-area orientation.' });
                 const error = missileFireError(gun, world, target, rotated, combat.snapshot().barrages, combat.snapshot().fields, combat.snapshot().salvos);
                 if (error) return json(res, 409, { error });
-                gun.target = { x: target.x, y: target.y }; gun.rotated = rotated;
+                gun.target = missileAim(gun, world, target, rotated); gun.rotated = rotated;
                 gun.reload = MISSILE.reload + (MISSILE.count - 1) * MISSILE.interval;
                 saveGun(gun); combat.barrage(gun, gun.target, rotated);
               } else if (url.pathname === '/api/artillery/ammo' && ['HE', 'INCENDIARY', 'GAS'].includes(data.ammo)) gun.ammo = data.ammo;
@@ -456,7 +626,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
             // A retry after a lost acknowledgement returns the existing core.
             const existing = world.cores.find(c => c.owner === player.id);
             if (existing && existing.x === data.x && existing.y === data.y) return json(res, 200, { core: existing, saved: true });
-            const occupants = [...people.values(), ...combat.snapshot().enemies];
+            const occupants = [...groundPeople(), ...combat.snapshot().enemies];
             const error = corePlacementError(world, allBuildings(), occupants, data.x, data.y, player.id);
             if (error) return json(res, 409, { error });
             const core = { id: randomUUID(), owner: player.id, x: data.x, y: data.y, elapsed: 0 };
@@ -507,22 +677,22 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
           }
           if (url.pathname === '/api/sentry-mode') {
             const sentry = allBuildings().find(b => b.id === data.id);
-            if (!sentry || sentry.owner !== player.id) return json(res, 403, { error: 'Only the sentry owner can change its mode.' });
+            if (!sentry || !canManage(sentry.owner, player.id)) return json(res, 403, { error: 'Only the sentry owner can change its mode.' });
             if (!['APCR', 'HEAVY_FLAME'].includes(data.weapon)) return json(res, 400, { error: 'Choose machine gun or flamethrower.' });
             equip('sentry:' + sentry.id, { weapon: data.weapon }); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname === '/api/buildings') {
-            const error = placementError(world, allBuildings(), [...people.values()].filter(p => streams.has(p.id) || p.id === player.id), data.x, data.y)
+            const error = placementError(world, allBuildings(), groundPeople().filter(p => streams.has(p.id) || p.id === player.id), data.x, data.y)
               || (combat.snapshot().enemies.some(e => Math.abs(e.x - data.x - .5) < .75 && Math.abs(e.y - data.y - .5) < .75) ? 'An enemy is too close to this site.' : null);
             if (error) return json(res, 409, { error });
             const building = { id: randomUUID(), x: data.x, y: data.y, owner: player.id, created: new Date().toISOString() };
             db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run(building.id, building.x, building.y, building.owner, building.created);
-            buildings.push(building); log('foundation.placed', { actor: player.id, x: data.x, y: data.y }); broadcast();
+            buildings.push(building); broadcast();
             return json(res, 201, { building, saved: true });
           }
           if (url.pathname === '/api/dismantle') {
             const building = buildings.find(b => b.id === data.id);
-            if (!building || building.owner !== player.id) return json(res, 403, { error: 'Only the scout who placed this foundation can remove it.' });
+            if (!building || !canManage(building.owner, player.id)) return json(res, 403, { error: 'Only the scout who placed this foundation can remove it.' });
             db.exec('BEGIN');
             try {
               db.prepare('DELETE FROM buildings WHERE id=?').run(building.id);
@@ -530,7 +700,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
               db.exec('COMMIT');
             } catch (error) { db.exec('ROLLBACK'); throw error; }
             equipment.delete('sentry:' + building.id); buildings = buildings.filter(b => b.id !== building.id);
-            log('foundation.removed', { actor: player.id, x: building.x, y: building.y }); broadcast();
+            broadcast();
             return json(res, 200, { saved: true });
           }
         }
@@ -542,13 +712,17 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
         const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>About Frontier</title><link rel="stylesheet" href="/style.css"><body class="readme-page"><main><a href="/">← Return to the island</a><h1>About this field test</h1><pre>${escapeHtml(readme)}</pre></main></body></html>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(req.method === 'HEAD' ? '' : html);
       }
-      const relative = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+      const accountPage = /^\/(login|register|account|demo-inbox|verify|forgot-password|reset-password)\/?$/.test(url.pathname);
+      if (accountPage) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
+      const lobbyPage = ['/campaigns', '/campaigns/'].includes(url.pathname) ||
+        (url.pathname === '/' && !url.searchParams.has('campaign') && url.searchParams.get('legacy') !== '1');
+      const relative = decodeURIComponent(accountPage ? '/account.html' : lobbyPage ? '/campaigns.html' : url.pathname === '/' ? '/index.html' : url.pathname);
       const filename = path.resolve(publicDir, `.${relative}`);
       if (!filename.startsWith(publicDir + path.sep)) return json(res, 403, { error: 'Forbidden.' });
       const info = await stat(filename);
       if (!info.isFile()) return json(res, 404, { error: 'Not found.' });
       const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json' }[path.extname(filename)] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': mime.startsWith('image/') ? 'public, max-age=3600' : 'no-cache' });
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': accountPage ? 'no-store' : mime.startsWith('image/') ? 'public, max-age=3600' : 'no-cache' });
       const content = req.method === 'HEAD' ? '' : await readFile(filename);
       res.end(path.basename(filename) === 'index.html' ? content.toString().replace('FRONTIER_CLIENT_BUILD', clientBuild) : content);
     } catch (error) {
@@ -558,9 +732,11 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
       json(res, status, { error: status === 500 ? 'The server could not complete that action. Your last saved changes are safe.' : error.message });
     }
   });
-  let lastTick = Date.now(), lastSave = Date.now();
+  let lastTick = Date.now(), lastSave = Date.now(), lastSlowTick = 0;
   const tick = setInterval(() => {
+    const tickStarted = performance.now();
     const now = Date.now(), dt = Math.min((now - lastTick) / 1000, 0.15); lastTick = now;
+    if (options.frozen?.()) return;
     let changed = combatDirty; combatDirty = false;
     if (streams.size) for (const core of world.cores) if (core.elapsed < CORE.duration) {
       core.elapsed = Math.min(CORE.duration, core.elapsed + dt); changed = true;
@@ -592,12 +768,12 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
       const input=pilot&&streams.has(pilot.id)&&pilot.inputUntil>now?{steer:pilot.input.x,throttle:-pilot.input.y}:null;
       if(tickAircraft(world,base,input,dt)){changed=true;if(before!==plane.state)saveAirbase(base);}
     }
-    const recoveryOccupants = [...people.values(), ...combat.snapshot().enemies];
+    const recoveryOccupants = [...groundPeople(), ...combat.snapshot().enemies];
     for (const p of people.values()) {
       if (p.vx || p.vy) changed = true;
       p.vx = 0; p.vy = 0;
       if (!streams.has(p.id)) { if (now - p.touched > 60000) { if (p.dirty || p.lifeDirty) persist(p); people.delete(p.id); } continue; }
-      if (incomingCore(p.id)) continue;
+      if (playerBody(p) === 'orbital' || incomingCore(p.id)) continue;
       if (tickLife(p, dt, world, obstacles, recoveryOccupants)) changed = true;
       if (p.life !== 'active' || controlledBy(p.id)) continue;
       if (p.aimDirty) { p.aimDirty = false; changed = true; }
@@ -633,7 +809,7 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
       const nx = p.x + dx * SPEED * dt, ny = p.y + dy * SPEED * dt;
       const oldX = p.x, oldY = p.y;
       let moved = false;
-      const driveClear = (x, y) => canStand(world, obstacles, x, y, vehicle?.id, vehicle ? TANK.radius : .21) && (!vehicle || ![...people.values()].some(other => other.id !== p.id && streams.has(other.id) && !boardedTank(other.id) && other.life === 'active' && Math.abs(other.x-x) < .65 && Math.abs(other.y-y) < .65));
+      const driveClear = (x, y) => canStand(world, obstacles, x, y, vehicle?.id, vehicle ? TANK.radius : .21) && (!vehicle || !groundPeople().some(other => other.id !== p.id && streams.has(other.id) && !boardedTank(other.id) && other.life === 'active' && Math.abs(other.x-x) < .65 && Math.abs(other.y-y) < .65));
       if (driveClear(nx, p.y)) { moved ||= nx !== p.x; p.x = nx; }
       if (driveClear(p.x, ny)) { moved ||= ny !== p.y; p.y = ny; }
       if (!moved) p.path = [];
@@ -644,7 +820,10 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     if (now - lastSave >= 500) { for(const base of world.airbases)saveAirbase(base); for (const p of people.values()) if (p.dirty) persist(p); for (const c of world.cores) if (c.elapsed < CORE.duration) saveCore.run(c.elapsed, c.id); for (const t of world.tanks) if (t.elapsed < TANK.duration) saveTank(t); for(const s of world.ships){saveShip(s);delete s.timerDirty;} for(const v of world.tanks)if(v.timerDirty){saveTank(v);delete v.timerDirty;} lastSave = now; }
     const robots = [...people.values()].filter(p => streams.has(p.id) && playerBody(p) === 'robot' && !incomingCore(p.id));
     for (const robot of robots) robot.guarding = isGuarding(robot);
-    if (streams.size && combat.tick(dt, obstacles, robots, [...people.values()].filter(p => streams.has(p.id)).map(p => ({ ...p, body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
+    const beforeSiteHp = world.sites.map(s => s.hp).join(',');
+    if (streams.size && combat.tick(dt, obstacles, robots, groundPeople().filter(p => streams.has(p.id)).map(p => ({ ...p, body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
+    if (options.campaign && beforeSiteHp !== world.sites.map(s => s.hp).join(',')) checkpoint();
+    if (!options.campaign) flushCombatEvents();
     // A vehicle loss and its pilot's disabled state are one durable transition.
     for(const v of [...world.tanks,...world.ships]) if(v.damageDirty) {
       delete v.damageDirty;
@@ -665,16 +844,56 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     for (const gun of world.artillery) {
       if (gun.operator && (!streams.has(gun.operator) || people.get(gun.operator)?.life !== 'active')) { gun.operator = null; gun.lease = 0; changed = true; }
       if (streams.size && !isMissile(gun) && gun.operator && gun.input?.mode === 'pointer' && gun.inputTime > 0 && gun.lease > 0) {
-        const error = !gun.move && (gun.input.x || gun.input.y) ? driveCarriage(gun, gun.input.x, gun.input.y, world, obstacles, [...people.values()].filter(p => streams.has(p.id)).concat(combat.snapshot().enemies)) : null;
+        const error = !gun.move && (gun.input.x || gun.input.y) ? driveCarriage(gun, gun.input.x, gun.input.y, world, obstacles, groundPeople().filter(p => streams.has(p.id)).concat(combat.snapshot().enemies)) : null;
         if ((gun.driveBlocked || null) !== error) { gun.driveBlocked = error; changed = true; }
         if (gun.move) { saveGun(gun); changed = true; }
       }
       if (streams.size && (isMissile(gun) ? tickBattery(gun, dt) : tickCarriage(gun, dt))) { saveGun(gun); changed = true; }
     }
+    if (options.campaign && now - lastCheckpoint >= 500) checkpoint();
+    const durationMs = Math.round(performance.now() - tickStarted);
+    if (durationMs > 100 && now - lastSlowTick > 30000) {
+      audit.emit('simulation.slow_tick', { campaignId, durationMs, count: streams.size, cause: 'tick_exceeded_100ms' }); lastSlowTick = now;
+    }
     if (changed) broadcast();
   }, 100);
-  const heartbeat = setInterval(() => { for (const set of streams.values()) for (const res of set) res.write(': heartbeat\n\n'); }, 15000);
+  const heartbeat = setInterval(() => {
+    for (const [id, set] of streams) {
+      if ([...set].some(res => res.accountSessionHash && !accounts.sessionByHash(res.accountSessionHash))) endPlayerAccess(id, 'Session expired. Sign in again.');
+      else for (const res of set) res.write(': heartbeat\n\n');
+    }
+  }, 15000);
+  let lastCheckpoint = Date.now();
+  function checkpoint() {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const p of people.values()) { save.run(p.x, p.y, p.angle, p.id); saveLife.run(p.id, JSON.stringify(lifeRecord(p))); }
+      for (const c of world.cores) saveCore.run(c.elapsed, c.id);
+      for (const gun of world.artillery) saveGun(gun);
+      for (const tank of world.tanks) saveTank(tank);
+      for (const base of world.airbases) saveAirbase(base);
+      for (const ship of world.ships) saveShip(ship);
+      if (options.campaign) db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); savedGuns.clear(); savedShips.clear(); savedAirbases.clear(); audit.emit('checkpoint.failed', { campaignId, reason: error.code || 'storage_error' }); throw error; }
+    flushCombatEvents();
+    for (const p of people.values()) { p.dirty = false; p.lifeDirty = false; }
+    lastCheckpoint = Date.now();
+  }
+  function stopInputs(pilot = null) {
+    for (const p of people.values()) if (!pilot || p.id === pilot) {
+      p.input = { x: 0, y: 0 }; p.inputUntil = 0; p.path = []; p.vx = 0; p.vy = 0; combat.cancelCharge(p.id);
+      const gun = controlledBy(p.id); if (gun) { gun.input = null; gun.inputTime = 0; }
+    }
+  }
+  function abandon(id) {
+    endPlayerAccess(id, 'Guest visit ended. Contributions remain with the host.');
+    for (const vehicle of [...world.tanks, ...world.ships]) if (vehicle.occupant === id) { vehicle.occupant = null; vehicle.speed = 0; }
+    for (const base of world.airbases) if (base.aircraft.occupant === id) base.aircraft.occupant = null;
+    checkpoint();
+  }
   async function close() {
+    if (options.campaign) { stopInputs(); checkpoint(); }
     closed = true; clearInterval(tick); clearInterval(heartbeat);
     for (const p of people.values()) if (p.dirty || p.lifeDirty) persist(p);
     for (const c of world.cores) saveCore.run(c.elapsed, c.id);
@@ -683,14 +902,26 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     for (const base of world.airbases) saveAirbase(base);
     for (const ship of world.ships) saveShip(ship);
     for (const set of streams.values()) for (const res of set) res.end();
-    server.closeIdleConnections(); await new Promise(resolve => server.close(resolve)); db.close();
+    server.closeIdleConnections(); await new Promise(resolve => server.close(resolve)); if (!options.accounts) await accounts.close(); db.close();
   }
-  return { server, close };
+  return { server, close, db, accounts, identity, validIdentity, endPlayerAccess, checkpoint, stopInputs, abandon, broadcast, connected: id => !!streams.get(id)?.size };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const app = createApp();
   const port = Number(process.env.PORT || 8080);
-  app.server.listen(port, '0.0.0.0', () => console.log(`Frontier is ready at http://localhost:${port}`));
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => app.close().then(() => process.exit(0)));
+  try {
+    const app = createApp();
+    app.server.once('error', async error => {
+      console.error(error.code === 'EADDRINUSE'
+        ? `Frontier cannot start: port ${port} is already in use. Stop the existing server before running pnpm dev again. If Frontier is already running, open http://localhost:${port}. Your saved world has not been reset.`
+        : `Frontier cannot start: ${error.message}`);
+      await app.close();
+      process.exitCode = 1;
+    });
+    app.server.listen(port, '0.0.0.0', () => console.log(`Frontier is ready at http://localhost:${port}`));
+    for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => app.close().then(() => process.exit(0)));
+  } catch (error) {
+    console.error(`Frontier cannot start: ${error.message}`);
+    process.exitCode = 1;
+  }
 }

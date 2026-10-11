@@ -1,5 +1,7 @@
 // Pure geometry shared by movement, construction, ray tests and presentation.
 import { isCurve, isCompact, curveBounds, insideBounds } from './track.js';
+// Hostile machinery has its own geometry; it never rewrites terrain cells.
+export const hostileAt = (world, x, y) => world.sites?.find(s => s.state === 'hostile' && x >= s.x && x < s.x + 3 && y >= s.y && y < s.y + 3);
 export const isCompactTurn = gun => !!gun.move?.fromShape && gun.move.fromShape !== gun.shape && !gun.move.curve;
 // Circle against the translating/rotating 3x3 body, matching gunPosition rendering.
 // Half-step padding bounds the motion between samples, so fast corner motion cannot tunnel.

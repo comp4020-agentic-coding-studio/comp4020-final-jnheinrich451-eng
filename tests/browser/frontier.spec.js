@@ -12,7 +12,7 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
     await new Promise(r => app.server.listen(0, '127.0.0.1', r)); const port = app.server.address().port, url = `http://127.0.0.1:${port}`;
     context = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1920, height: 1080 } });
     peerContext = await browser.newContext(); const peer = await peerContext.newPage(), page = await context.newPage(), errors = [];
-    page.on('pageerror', e => errors.push(e.message)); await peer.goto(url); await page.goto(url); await page.bringToFront();
+    page.on('pageerror', e => errors.push(e.message)); await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront();
     await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });

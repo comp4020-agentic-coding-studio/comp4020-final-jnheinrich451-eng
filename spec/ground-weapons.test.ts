@@ -1,7 +1,30 @@
 import { expect, it } from 'vitest';
 import { createCombat } from '../public/combat.js';
 import { createWorld } from '../public/world.js';
-import { loadout, FLAME, HEAVY_FLAME } from '../public/weapons.js';
+import { loadout, FLAME, HEAVY_FLAME, WEAPONS } from '../public/weapons.js';
+
+it.each(['HE', 'APCR', 'MAGNETIC', 'HEAVY_FLAME'] as const)('accepts distant tank aim for %s while preserving range and actual turret bearing', weapon => {
+  const w = world(), c = createCombat(w), p = { ...tank(), turret: Math.PI / 2 };
+  expect(c.shoot(p, 45, 25, weapon)).toBeNull();
+  if (weapon === 'MAGNETIC') {
+    c.tick(1, [], [], [p]);
+    const shot = c.snapshot().shots.find(s => s.weapon === weapon)!;
+    expect(shot.endX).toBeCloseTo(p.x + WEAPONS[weapon].range); expect(shot.endY).toBeCloseTo(p.y);
+  } else {
+    const projectile = (weapon === 'HEAVY_FLAME' ? c.snapshot().jets : c.snapshot().shells)[0];
+    expect(projectile.remaining).toBe(WEAPONS[weapon].range); expect(projectile.dx).toBeCloseTo(1); expect(projectile.dy).toBeCloseTo(0);
+    for (let i = 0; i < 15; i++) c.tick(.1, []);
+    expect(c.snapshot().shells).toEqual([]); expect(c.snapshot().jets).toEqual([]);
+    if (weapon === 'HE') expect(c.snapshot().marks[0].x).toBeCloseTo(p.x + WEAPONS.HE.range);
+  }
+});
+
+it('retains short HE shots and lets solid obstacles intercept distant tank fire', () => {
+  const w = world(), p = { ...tank(), turret: Math.PI / 2 }, c = createCombat(w);
+  c.shoot(p, p.x + 3, p.y); c.tick(.4, []); expect(c.snapshot().marks[0].x).toBeCloseTo(p.x + 3);
+  c.tick(1, []); w.terrain[10 * 48 + 16] = 3;
+  c.shoot(p, 45, p.y); c.tick(1, []); expect(c.snapshot().marks[1].x).toBeLessThan(16.2);
+});
 
 const world = () => ({ ...createWorld(), terrain: Array(48 * 36).fill(2) });
 const tank = () => ({ id:'tank', x:10.5,y:10.5,turret:0,life:'active',body:'rover',tankWeapon:'MAGNETIC' });

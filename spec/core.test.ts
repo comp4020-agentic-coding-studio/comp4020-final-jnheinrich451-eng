@@ -29,12 +29,12 @@ it('reserves exactly 57 tiles, converts covered rocks to walkable floor and leav
   expect(placementError(world, [], [], 33, 14)).toContain('panels');
 });
 
-it('rejects water, reserved land, occupied panels and duplicate ownership but permits natural rocks', () => {
+it('rejects water, occupied panels and duplicate ownership but permits the former helipad and natural rocks', () => {
   const world = { ...createWorld(), cores: [] as Array<{ id: string; owner: string; x: number; y: number; elapsed: number }> };
   expect(corePlacementError(world, [], [], 29, 13, 'a')).toBeNull();
   expect(corePlacementError(world, [], [], 0, 0, 'a')).toBeTruthy();
   expect(corePlacementError(world, [], [], 8, 8, 'a')).toContain('land');
-  expect(corePlacementError(world, [], [], 24, 18, 'a')).toContain('pad');
+  expect(corePlacementError(world, [], [], 24, 18, 'a')).toBeNull();
   expect(corePlacementError(world, [{ x: 33, y: 14 }], [], 29, 13, 'a')).toContain('facility');
   expect(corePlacementError(world, [], [{ x: 33.5, y: 14.5 }], 29, 13, 'a')).toContain('unit');
   world.cores.push({ id: 'one', owner: 'a', x: 29, y: 13, elapsed: 0 });
@@ -60,7 +60,11 @@ it('saves a deployment once, locks controls while incoming, resumes after reopen
     };
     const post = (route: string, data: unknown) => fetch(`${base}/api/${route}`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     const state = async () => (await fetch(`${base}/api/world`, { headers: { Cookie: cookie } })).json();
-    await post('buildings', { x: 28, y: 21 });
+    expect(original.me.body).toBe('orbital');
+    expect((await post('buildings', { x: 28, y: 21 })).status).toBe(409);
+    expect((await post('input', { x: 1, y: 0 })).status).toBe(409);
+    expect((await post('fire', { x: 30, y: 18 })).status).toBe(409);
+    expect((await post('drill', {})).status).toBe(409);
     await connect();
     const drops = await Promise.all([post('cores', { x: 29, y: 13 }), post('cores', { x: 29, y: 13 })]);
     expect(drops.map(r => r.status).sort()).toEqual([200, 201]);
@@ -76,6 +80,7 @@ it('saves a deployment once, locks controls while incoming, resumes after reopen
     await new Promise(resolve => setTimeout(resolve, 180)); expect((await state()).cores[0].elapsed).toBe(paused);
     stream = new AbortController(); await connect();
     await expect.poll(async () => (await state()).me.deploying, { timeout: 6500 }).toBe(false);
+    expect((await post('buildings', { x: 28, y: 21 })).status).toBe(201);
     const landed = await state(); expect(landed.me.body).toBe('robot'); expect(landed.me.x).toBeCloseTo(32.6);
     expect(landed.cores[0].elapsed).toBe(CORE.duration);
     expect(landed.buildings).toHaveLength(2); expect(landed.buildings.some((b: { coreId?: string }) => b.coreId === first.cores[0].id)).toBe(true);

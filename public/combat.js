@@ -1,4 +1,13 @@
+import { tickLasers } from './laser-tower.js';
+import { missileAim } from './missile.js';
+import { submarineAim } from './submarine.js';
 import { AIR, bombError, makeBombRun } from './aircraft.js';
+import { fogRadius } from './contaminator.js';
+import { ALERT, damageSites, siteDistance, tickSites } from './conquest.js';
+import { SCANNER } from './sensors.js';
+import { tickMortars } from './mortar.js';
+import { reportSectorAttack, investigationPoint } from './sector-defense.js';
+import { hostileAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
 import { mainSalvo, MAIN_MOUNTS, mainReload, readyMainMounts, SIDE_MOUNTS, sideSolution } from './ship-armament.js';
 import { SHIP } from './ship.js';
@@ -26,10 +35,34 @@ export function blastDamage(distance, profile = HE) {
 }
 
 // Transient combat simulation. Only enemy entities can receive weapon damage.
-export function createCombat(world) {
+/** @param {any} world @param {any} [saved] @param {null | (() => Record<string, any>)} [auditContext] */
+export function createCombat(world, saved = null, auditContext = null) {
+  world.sites = saved?.sites || world.sites || [];
   let serial = 0, now = 0, enemies = [], shells = [], impacts = [], status = 'ready', health = 100, kills = 0;
   let shots = [], marks = [], jets = [], salvos = [], fields = [], barrages = [], charges = [];
+  const acidShells = structuredClone(saved?.acidShells || []);
   const epoch = `${Date.now()}-${Math.random()}`;
+  const causes = new Map(saved?.causes || []), events = [], automatic = new Map();
+  let lastAutomaticSummary = 0;
+  const drainEvents = () => events.splice(0);
+  function track(fn) {
+    return (...args) => {
+      const before = serial, result = fn(...args);
+      if (auditContext) for (const p of [...shells.filter(s => s.weapon === 'HE'), ...salvos, ...barrages]) if (p.id > before) {
+        const context = { ...auditContext(), projectileId: p.id, sourceId: args[0].id, weapon: p.weapon };
+        causes.set(p.id, context); events.push({ event: 'weapon.launched', ...context });
+      }
+      return result;
+    };
+  }
+  function objectiveHits(projectile, hits) {
+    for (const hit of hits) if (hit.kind === 'station') {
+      const site = world.sites.find(s => s.id === hit.id);
+      events.push({ event: hit.killed ? 'objective.conquered' : 'objective.damaged',
+        ...(causes.get(projectile.id) || { kind: 'system', cause: 'unattributed_saved_projectile', projectileId: projectile.id }),
+        targetId: hit.id, hp: site.hp, weapon: projectile.weapon });
+    }
+  }
   let navalCooldown = 0, navalStatus = 'ready';
   function contact(ship) {
     if (!operational(ship)) return 'Board a ready ship first.';
@@ -43,18 +76,36 @@ export function createCombat(world) {
   }
   let objective = { ...world.spawn, id: 'landing', label: 'Caldera landing' };
   const cooldowns = new Map(), sentryMounts = new Map(), guards = new Map();
-  const snapshot = () => ({ naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
+  // Campaign checkpoints use simulation time, never wall-clock catch-up. Cosmetic
+  // history and held charges are deliberately not resumed as fresh attacks.
+  if (saved) {
+    if (saved.version !== 1) throw new Error('Unsupported combat checkpoint.');
+    ({ serial, now, enemies, shells, status, health, kills, jets, salvos, fields, barrages, navalCooldown, navalStatus, objective } = saved);
+    for (const entry of saved.cooldowns) cooldowns.set(...entry);
+    for (const entry of saved.sentryMounts) sentryMounts.set(...entry);
+  }
+  const checkpoint = () => JSON.parse(JSON.stringify({ version: 1, serial, now, sites: world.sites,
+    enemies, shells, status, health, kills, jets, salvos, fields, barrages, acidShells, causes: [...causes],
+    navalCooldown, navalStatus, objective, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
+  const snapshot = () => ({ sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
     barrages: barrages.map(b => ({ ...b, box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: enemies.map(({ path, reroute, lurePath, ...e }) => e), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
-    jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
+    acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
   function damage(enemy, amount) {
+    if (enemy.hp > 0 && amount > 0) reportSectorAttack(world.sites, enemies, enemy.x, enemy.y, now, event => events.push(event));
     enemy.hp = Math.max(0, enemy.hp - amount);
     if (!enemy.hp) enemy.behavior = 'dead';
     return { id: enemy.id, x: enemy.x, y: enemy.y, angle: enemy.angle, kind:enemy.kind, killed: enemy.hp === 0 };
   }
   function impact(weapon, x, y, hits, radius = 0, craterSize = 1.9, minorBlast = false) {
+    for (const hit of hits) if (hit.kind === 'station') reportSectorAttack(world.sites, enemies, hit.x, hit.y, now, event => events.push(event));
+    if (weapon !== 'HE') for (const site of world.sites) if (site.state === 'hostile' && siteDistance(site, { x, y }) <= Math.max(.03, radius)) {
+      reportSectorAttack(world.sites, enemies, x, y, now, event => events.push(event));
+      site.blockedAt = now; site.blockedWeapon = weapon; site.alarmUntil = Math.max(site.alarmUntil || 0, now + ALERT.grace); site.awake = true;
+      site.disturbance = { x, y, until: now + ALERT.grace };
+    }
     const event = { id: ++serial, weapon, x, y, at: now, ttl: weapon === 'HE' || minorBlast ? 1.6 : .45, minorBlast, radius, surface: tileAt(world, x, y), hits };
     if ((weapon === 'HE' || minorBlast) && event.surface !== 0) marks.push({ id: event.id, kind: 'crater', x, y, size: craterSize, at: now });
-    for (const hit of hits) if (hit.killed) marks.push({ ...hit, kind: 'remains', charred: ['FLAME', 'BURN', 'INCENDIARY'].includes(weapon), at: now });
+    for (const hit of hits) if (hit.killed && hit.kind !== 'station') marks.push({ ...hit, kind: 'remains', charred: ['FLAME', 'BURN', 'INCENDIARY'].includes(weapon), at: now });
     marks = marks.slice(-48); impacts.push(event); impacts = impacts.slice(-64);
   }
   function shoot(source, x, y, weapon = 'HE', buildings = []) {
@@ -63,7 +114,8 @@ export function createCombat(world) {
     if(weapon==='NAVAL_APCR' && source.mount!=='naval-secondary')return 'Use an eligible ship side mount.';
     if (![x, y].every(Number.isFinite) || x < 0 || y < 0 || x >= world.width || y >= world.height) return 'Aim inside the battlefield.';
     const distance = Math.hypot(x - source.x, y - source.y);
-    if (distance < .2 || (['HE', 'APCR', 'NAVAL_APCR'].includes(weapon) && distance > profile.range)) return 'Aim between 0.2 and 14 tiles away.';
+    if (distance < .2) return 'Aim at least 0.2 tiles away.';
+    if (weapon === 'NAVAL_APCR' && distance > profile.range) return 'Side gun target is beyond its range.';
     const cooldownKey = `${source.id}:${weapon}`;
     if (weapon === 'MAGNETIC' && charges.some(c => c.owner === source.id)) return 'Magnetic cannon charging.';
     if ((cooldowns.get(cooldownKey) || 0) > now) return 'Weapon reloading.';
@@ -95,7 +147,11 @@ export function createCombat(world) {
     } else if (['FLAME', 'HEAVY_FLAME'].includes(weapon)) {
       const muzzle = source.mount === 'sentry' ? .5 / Math.max(Math.abs(dx), Math.abs(dy)) + .02 : 0;
       jets.push({ id, owner: source.id, weapon, speed: profile.speed, width: profile.width, x: source.x + dx * muzzle, y: source.y + dy * muzzle, dx, dy, remaining: profile.range - muzzle, at: now });
-    } else shells.push({ id, weapon, speed: profile.speed, x: source.x, y: source.y, dx, dy, remaining: weapon === 'HE' ? distance : profile.range, blast: weapon === 'HE' ? { ...profile } : null, owner: source.id });
+    } else shells.push({ id, weapon, speed: profile.speed, x: source.x, y: source.y, dx, dy, remaining: weapon === 'HE' ? Math.min(distance, profile.range) : profile.range, blast: weapon === 'HE' ? { ...profile } : null, owner: source.id });
+    if (auditContext && (source.mount === 'sentry' || source.guarding)) {
+      const key = source.id + ':' + weapon, previous = automatic.get(key);
+      automatic.set(key, { sourceId: source.id, weapon, count: (previous?.count || 0) + 1, kind: 'system', cause: source.mount === 'sentry' ? 'sentry_targeting' : 'robot_guarding' });
+    }
     shots.push(shot);
     shots = shots.slice(-64);
     return null;
@@ -159,7 +215,7 @@ export function createCombat(world) {
     }
     // Favor the north approach to keep the first drill easy to find on a phone.
     candidates.sort((a, b) => a.y - b.y || Math.abs(a.x - spawn.x) - Math.abs(b.x - spawn.x));
-    const swimmers = enemies.filter(e=>e.kind==='swimmer');
+    const swimmers = enemies.filter(e=>e.kind==='swimmer' || e.siteId);
     enemies = [];
     for (const candidate of candidates) {
       if (!canStand(world, buildings, candidate.x, candidate.y)) continue;
@@ -168,17 +224,32 @@ export function createCombat(world) {
       if (path) enemies.push({ id: ++serial, ...candidate, hp: 60, angle: 0, path, reroute: now + 1000 });
       if (enemies.length === 3) break;
     }
-    if (!enemies.length) { enemies=swimmers; return 'No clear approach to the landing pad. Clear a route first.'; }
+    if (!enemies.length) { enemies=swimmers; return 'No clear approach to the drill beacon. Clear a route first.'; }
     enemies.push(...swimmers);
     objective = { ...front };
-    shells = []; jets = []; impacts = []; kills = 0; health = 100; status = 'active';
+    if (!world.sites.length) { shells = []; jets = []; impacts = []; }
+    kills = 0; health = 100; status = 'active';
     for (const e of enemies) e.reroute = 0;
     return null;
   }
   function tick(dt, buildings, robots = [], weaponSources = robots) {
     now += dt * 1000;
     const wasNaval = navalCooldown>0 || enemies.some(e=>e.kind==='swimmer'); navalCooldown=Math.max(0,navalCooldown-dt);
-    let changed = wasNaval || charges.length > 0 || status === 'active' || barrages.length > 0 || fields.some(f => f.weapon === 'INCENDIARY') || salvos.length > 0 || shells.length > 0 || jets.length > 0 || impacts.length > 0 || shots.length > 0;
+    let changed = wasNaval || enemies.length > 0 || charges.length > 0 || status === 'active' || barrages.length > 0 || fields.some(f => f.weapon === 'INCENDIARY') || salvos.length > 0 || shells.length > 0 || jets.length > 0 || impacts.length > 0 || shots.length > 0;
+    // Keep broadcasting/checkpointing through the last clearing tick even when
+    // this was the final hostile site and the room is otherwise idle.
+    changed ||= world.sites.some(s => s.state === 'conquered' && fogRadius(s, now - dt * 1000) > 0);
+    const sensorBefore = auditContext ? world.sites.map(s => ({ id: s.id, mode: s.sensor?.mode, pending: s.pending?.at })) : [];
+    const beforeArrivals = serial;
+    changed = tickSites(world.sites, world, buildings, weaponSources, enemies, now, () => ++serial, fireBlocked(fields)) || changed;
+    changed = tickMortars(world, robots, acidShells, now, dt, () => ++serial, event => events.push(event)) || changed;
+    changed = tickLasers(world, buildings, robots, dt, event => events.push(event)) || changed;
+    for (const before of sensorBefore) {
+      const site = world.sites.find(s => s.id === before.id);
+      if (before.mode && before.mode !== site.sensor.mode) events.push({ event: 'sensor.changed', kind: 'system', sourceId: site.id, targetId: site.sensor.targetId || undefined, cause: site.sensor.mode });
+      if (before.pending !== site.pending?.at) events.push({ event: 'reinforcement.changed', kind: 'system', sourceId: site.id,
+        cause: site.pending ? 'warning' : 'resolved_or_cancelled', count: enemies.filter(e => e.siteId === site.id && e.id > beforeArrivals).length });
+    }
     for (const charge of charges) {
       const source = weaponSources.find(p => p.id === charge.owner && p.life === 'active' && !p.deploying && !p.operating && p.body !== 'robot' && p.tankWeapon === 'MAGNETIC');
       if (!source) { charge.cancelled = true; continue; }
@@ -194,6 +265,12 @@ export function createCombat(world) {
     let expiredSector = false;
     for (const f of fields) expiredSector = tickField(f, dt) || expiredSector;
     fields = fields.filter(keepField);
+    if (now - lastAutomaticSummary >= 5000) {
+      for (const detail of automatic.values()) events.push({ event: 'defense.activity', ...detail });
+      automatic.clear(); lastAutomaticSummary = now;
+    }
+    const pendingIds = new Set([...shells, ...salvos, ...barrages].map(p => p.id));
+    for (const id of causes.keys()) if (!pendingIds.has(id)) causes.delete(id);
     if (expiredSector || previousCount !== fields.length) for (const e of enemies) e.reroute = 0;
     const blockedByFire = fireBlocked(fields);
     function fieldContact(e) {
@@ -210,7 +287,7 @@ export function createCombat(world) {
     for (const b of buildings) if (!sentryMounts.has(b.id)) {
       sentryMounts.set(b.id, { angle: SENTRY_TURRET.restAngle, aim: SENTRY_TURRET.restAngle, targetId: null }); changed = true;
     }
-    if (status === 'active' || enemies.some(e=>e.kind==='swimmer')) {
+    if (status === 'active' || enemies.length) {
       for (const e of enemies) {
         if (e.hp <= 0) continue;
         if (fieldContact(e)) continue;
@@ -222,10 +299,20 @@ export function createCombat(world) {
         }
         if (e.kind === 'swimmer') { swimStep(world,e,world.ships||[],fields,now,dt); fieldContact(e); continue; }
         if (e.behavior === 'fleeing' && e.burnUntil <= now) { e.behavior = 'attacking'; e.reroute = 0; e.path = []; }
-        const available = robots.filter(p => p.life === 'active' && p.health > 0 && !p.deploying && p.shield <= 0).concat((world.tanks||[]).filter(operational).map(v=>({id:'vehicle:'+v.id,x:v.x,y:v.y,health:hullHealth(v),life:'active',vehicle:v})));
+        const station = world.sites.find(s => s.id === e.siteId);
+        const reports = (station?.sensor?.marks || []).filter(m => m.ground && m.until > now);
+        const report = reports.find(m => m.targetId === e.targetId) || reports[0];
+        const leash = report ? SCANNER.pursuit : ALERT.pursuit;
+        const withinHome = p => !e.siteId || Math.hypot(p.x - e.homeX, p.y - e.homeY) <= leash;
+        const investigation = withinHome(e) && [report, e.investigation, station?.defenseReport, station?.disturbance].find(p => p && p.until > now && withinHome(p));
+        const available = robots.filter(p => p.life === 'active' && p.health > 0 && !p.deploying && p.shield <= 0).concat((world.tanks||[]).filter(operational).map(v=>({id:'vehicle:'+v.id,x:v.x,y:v.y,health:hullHealth(v),life:'active',vehicle:v})))
+          .filter(p => withinHome(p) && withinHome(e));
         const distanceTo = p => p.vehicle ? hullDistance(p.vehicle,e) : Math.hypot(p.x-e.x,p.y-e.y);
         let victim = available.find(p => p.id === e.targetId && distanceTo(p) < SURVIVAL.aggro + 2);
         if (!victim) victim = available.filter(p => distanceTo(p) < SURVIVAL.aggro).sort((a,b)=>distanceTo(a)-distanceTo(b))[0];
+        // Only a fresh beam report grants remote knowledge. Lost lock routes to
+        // the saved point; ordinary local sensing still works on arrival.
+        if (!victim && report && station.state === 'hostile' && report.seenAt === now) victim = available.find(p => p.id === report.targetId);
         if (now >= e.reroute && e.behavior !== 'fleeing') {
           const lure = lureRoute(world, buildings, e, fields, blockedByFire);
           e.lureId = lure?.id ?? null; e.lurePath = lure?.path;
@@ -272,7 +359,10 @@ export function createCombat(world) {
             for(let y=Math.floor(v.y)-2;y<=Math.floor(v.y)+2;y++)for(let x=Math.floor(v.x)-2;x<=Math.floor(v.x)+2;x++)if(hullDistance(v,{x:x+.5,y:y+.5})<=SURVIVAL.reach&&canStand(world,buildings,x+.5,y+.5))goals.push({x:x+.5,y:y+.5});
             goals.sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));
             for(const goal of goals){const route=findPath(world,buildings,e,goal,blockedByFire);if(route){e.path=route;break;}}
-          } else e.path = findPath(world, buildings, e, victim || objective, blockedByFire) || [];
+          } else {
+            const ground = investigation && investigationPoint(investigation, e, (x, y) => withinHome({ x, y }) && canStand(world, buildings, x, y) && !blockedByFire(x, y));
+            e.path = findPath(world, buildings, e, victim || ground || (e.siteId ? { x: e.homeX, y: e.homeY } : objective), blockedByFire) || [];
+          }
           e.reroute = now + (e.behavior === 'fleeing' ? 750 : 1000);
         }
         const target = e.path[0];
@@ -286,7 +376,7 @@ export function createCombat(world) {
           }
         }
         if (fieldContact(e)) continue;
-        if (!victim && !['fleeing', 'lured'].includes(e.behavior) && Math.hypot(e.x - objective.x, e.y - objective.y) < .8) health = Math.max(0, health - dt * 10);
+        if (!e.siteId && !victim && !['fleeing', 'lured'].includes(e.behavior) && Math.hypot(e.x - objective.x, e.y - objective.y) < .8) health = Math.max(0, health - dt * 10);
       }
       for (const robot of robots) if (robot.guarding) {
         if (!guards.has(robot.id)) guards.set(robot.id, { search: guards.size % 5 * .1 });
@@ -326,6 +416,8 @@ export function createCombat(world) {
           const amount = blastDamage(Math.hypot(e.x - m.x, e.y - m.y), MISSILE_HE);
           if (amount) hits.push(damage(e, amount));
         }
+        hits.push(...damageSites(world.sites, m.x, m.y, MISSILE_HE, now, blastDamage));
+        objectiveHits(barrage, hits);
         impact('HE', m.x, m.y, hits, MISSILE_HE.radius, m.craterSize ?? MISSILE_HE.craterSize);
       }
     }
@@ -344,6 +436,8 @@ export function createCombat(world) {
         const amount = blastDamage(Math.hypot(e.x - salvo.targetX, e.y - salvo.targetY), salvo.profile);
         if (amount) hits.push(damage(e, amount));
       }
+      hits.push(...damageSites(world.sites, salvo.targetX, salvo.targetY, salvo.profile, now, blastDamage));
+      objectiveHits(salvo, hits);
       impact('HE', salvo.targetX, salvo.targetY, hits, salvo.profile.radius, salvo.profile.craterSize);
     }
     salvos = salvos.filter(s => s.elapsed < s.duration);
@@ -374,7 +468,7 @@ export function createCombat(world) {
         const step = Math.min(travel, .12); travel -= step; s.remaining -= step; s.x += s.dx * step; s.y += s.dy * step;
         const enemy = enemies.find(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < .38);
         // Terrain takes priority when an enemy is next to the blocking tile.
-        if (tileAt(world, s.x, s.y) === 3 || artilleryBlocks(world, s.x, s.y)) hit = true;
+        if (tileAt(world, s.x, s.y) === 3 || artilleryBlocks(world, s.x, s.y) || hostileAt(world, s.x, s.y)) hit = true;
         else if (enemy) { hit = true; directTarget = enemy; }
       }
       if (hit || s.remaining < .001) {
@@ -387,6 +481,8 @@ export function createCombat(world) {
           const amount = s.weapon === 'HE' ? blastDamage(Math.hypot(enemy.x - s.x, enemy.y - s.y), s.blast) : enemy === directTarget ? WEAPONS[s.weapon].damage : 0;
           if (amount) hits.push(damage(enemy, amount));
         }
+        if (s.weapon === 'HE') hits.push(...damageSites(world.sites, s.x, s.y, s.blast, now, blastDamage));
+        objectiveHits(s, hits);
         impact(s.weapon, s.x, s.y, hits, s.blast?.radius || 0);
       }
     }
@@ -394,10 +490,10 @@ export function createCombat(world) {
     fields = fields.filter(keepField);
     for(const v of [...(world.tanks||[]),...(world.ships||[])]) if(v.lossPending){delete v.lossPending;impact('HE',v.x,v.y,[],v.berthX!==undefined?2:1.2,2.2,true);}
     kills += enemies.filter(e => e.hp <= 0).length; enemies = enemies.filter(e => e.hp > 0);
-    if (status === 'active' && health <= 0) { status = 'failed'; enemies = enemies.filter(e=>e.kind==='swimmer'); }
-    else if (status === 'active' && !enemies.some(e=>e.kind!=='swimmer')) status = 'cleared';
+    if (status === 'active' && health <= 0) { status = 'failed'; enemies = enemies.filter(e=>e.kind==='swimmer' || e.siteId); }
+    else if (status === 'active' && !enemies.some(e=>e.kind!=='swimmer' && !e.siteId)) status = 'cleared';
     if(navalStatus==='active'&&!enemies.some(e=>e.kind==='swimmer'))navalStatus='cleared';
-    if (status !== 'active' && !enemies.some(e=>e.kind==='swimmer')) for (const mount of sentryMounts.values()) { mount.targetId = null; mount.aim = mount.angle; }
+    if (status !== 'active' && !enemies.length) for (const mount of sentryMounts.values()) { mount.targetId = null; mount.aim = mount.angle; }
     return changed;
   }
   function barrage(gun, target, rotated) {
@@ -405,13 +501,13 @@ export function createCombat(world) {
     const weapon = gun.ammo || 'HE';
     if (!['HE', 'INCENDIARY', 'GAS'].includes(weapon)) return 'Choose HE, incendiary or gas.';
     const limit = fieldCapacityError(fields, salvos, weapon, MISSILE.width * MISSILE.height); if (limit) return limit;
-    const volley = makeBarrage(gun, target, rotated, ++serial);
+    const volley = makeBarrage(gun, missileAim(gun, world, target, rotated), rotated, ++serial);
     if (weapon !== 'HE') fields.push(makeBarrageField(volley, now));
     barrages.push(volley); return null;
   }
   function submarineStrike(ship,target,rotated=false){
     const error=submarineFireError(ship,world,target,rotated,barrages,fields,salvos);if(error)return error;
-    const volley=makeSubmarineBarrage(ship,target,rotated,++serial);
+    const volley=makeSubmarineBarrage(ship,submarineAim(ship,world,target,rotated),rotated,++serial);
     if(volley.weapon!=='HE')fields.push(makeBarrageField(volley,now));
     barrages.push(volley);ship.launchRemaining=(SUBMARINE.count-1)*SUBMARINE.interval;ship.reload=SUBMARINE.reload+ship.launchRemaining;return null;
   }
@@ -420,5 +516,5 @@ export function createCombat(world) {
     if(barrages.length>=MISSILE.maxVolleys)return 'Two bombardments are already in flight.';
     barrages.push(makeBombRun(plane,++serial));plane.runs--;plane.releaseRemaining=(AIR.count-1)*AIR.interval;return null;
   }
-  return { bombRun, snapshot, shoot, lob, navalSalvo, navalSecondary, submarineStrike, barrage, start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
+  return { checkpoint, drainEvents, bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
 }

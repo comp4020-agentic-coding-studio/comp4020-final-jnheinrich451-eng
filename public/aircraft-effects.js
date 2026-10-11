@@ -22,13 +22,13 @@ export function drawAircraft(c,p,T,zoom,mine,age=0){
  for(const side of [-1,1]){c.fillStyle='#344c56';c.fillRect(side*.58*T-.1*T,.25*T,.2*T,.8*T);if(airborne){c.fillStyle='#e9c38e';c.fillRect(side*.58*T-.065*T,1.05*T,.13*T,.26*T);}}
  c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+'BOMBER / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.restore();
 }
-export function drawBombPrediction(c,world,p,base,T,zoom){
+export function drawBombPrediction(c,world,p,base,T,zoom,obscured=point=>false){
  const points=bombPattern(p),valid=!bombError(world,p);c.save();c.strokeStyle=valid?'#efce83':'#de9a8b';c.fillStyle=valid?'#efd38c17':'#df887b12';c.lineWidth=1.2/zoom;
  for(const b of points){c.beginPath();c.arc(b.x*T,b.y*T,2*T,0,Math.PI*2);c.fill();c.stroke();}
  c.setLineDash([5/zoom,5/zoom]);c.beginPath();c.moveTo(p.x*T,p.y*T);c.lineTo(points.at(-1).x*T,points.at(-1).y*T);c.stroke();
- const park=parkingPoint(base);c.strokeStyle='#9bdec799';c.beginPath();c.arc(park.x*T,park.y*T,AIR.landingRange*T,0,Math.PI*2);c.stroke();c.setLineDash([]);
+ const park=parkingPoint(base);if(!obscured(park)){c.strokeStyle='#9bdec799';c.beginPath();c.arc(park.x*T,park.y*T,AIR.landingRange*T,0,Math.PI*2);c.stroke();}c.setLineDash([]);
  c.fillStyle='#ebd9a3';c.font=`bold ${10/zoom}px monospace`;c.fillText('6 HE / PREDICTED IMPACTS',points[0].x*T,points[0].y*T-2*T-5/zoom);
- const gate=airbaseGate(base);c.fillStyle='#a7ddc8';c.fillText('SLOW APPROACH / AUTO LAND',gate.x*T,gate.y*T);c.restore();
+ const gate=airbaseGate(base);if(!obscured(gate)){c.fillStyle='#a7ddc8';c.fillText('SLOW APPROACH / AUTO LAND',gate.x*T,gate.y*T);}c.restore();
 }
 export function drawBombRuns(c,runs,T,elapsed,zoom){
  for(const run of runs)if(run.kind==='bomber')for(const b of run.missiles){const t=(run.age+elapsed-b.launch)/b.flight;if(b.landed||t<0||t>=1)continue;

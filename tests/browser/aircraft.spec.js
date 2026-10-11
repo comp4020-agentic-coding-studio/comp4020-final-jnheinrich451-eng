@@ -16,7 +16,7 @@ for(const mobile of [false,true])test(`airbase, forward flight, HE run and retur
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
-  const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url);await page.goto(url);await page.bringToFront();
+  const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json()),plane=async()=>(await state(peer)).airbases[0]?.aircraft;
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Air force');await expect(page.locator('#airbase-card')).toBeVisible();await expect(page.locator('#ship-card')).toBeHidden();
   await page.locator('#airbase-card').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();
@@ -25,7 +25,7 @@ for(const mobile of [false,true])test(`airbase, forward flight, HE run and retur
   await expect.poll(async()=>(await plane()).state,{timeout:5000}).toBe('flying');await page.locator('#world-canvas').focus();
   if(mobile){const box=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(450);await page.mouse.up();}
   else{await page.keyboard.down('w');await page.waitForTimeout(450);await page.keyboard.up('w');}
-  await expect.poll(async()=>(await plane()).speed).toBeGreaterThan(6);await page.keyboard.down('s');await page.waitForTimeout(550);await page.keyboard.up('s');await expect.poll(async()=>(await plane()).speed).toBe(6);
+  await expect.poll(async()=>(await plane()).speed).toBeGreaterThan(6);await page.locator('#world-canvas').focus();await page.keyboard.down('s');await expect.poll(async()=>(await plane()).speed).toBe(6);await page.keyboard.up('s');
   const before=await plane();await page.mouse.move(100,150);await page.waitForTimeout(100);expect((await plane()).angle).toBe(before.angle);
   await page.screenshot({path:`docs/previews/bomber-aim-${mobile?'mobile':'desktop'}.png`});await expect(page.locator('#aircraft-bomb')).toBeEnabled();
   if(mobile)await page.locator('#aircraft-bomb').click();else await page.mouse.click(960,540);

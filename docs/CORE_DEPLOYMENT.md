@@ -3,6 +3,11 @@
 Implemented 2026-10-01 after the user confirmed the 3-by-3 core and four outward
 3-by-4 panels, and requested a heavy landing with distinct panel ground strikes.
 
+Updated 9 October: [automatic orbital entry](ENTRY_AND_CAMPAIGNS.md) supersedes
+the opt-in training-rover entry below. Undeployed guests start in site selection;
+existing core owners and occupied vehicles resume saved state. The old helipad
+and its construction reservation are removed.
+
 ## Try it
 
 Open Ground forces, choose Orbital core, inspect the orbital survey and confirm a

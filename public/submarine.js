@@ -1,3 +1,4 @@
+import { clampStrike } from './strike-aim.js';
 import { surfaced } from './submarine-depth.js';
 import { operational } from './vehicle.js';
 import { shipKind } from './ship.js';
@@ -6,14 +7,16 @@ import { fieldCapacityError } from './hazards.js';
 
 export const SUBMARINE=Object.freeze({count:6,width:6,height:8,interval:.25,reload:18,minRange:12,range:80,gasCapacity:9});
 export const isSubmarine = ship => shipKind(ship)==='submarine';
+export const submarineAim = (ship, world, target, rotated = false) => clampStrike(ship, world, target, rotated ? SUBMARINE.height : SUBMARINE.width, rotated ? SUBMARINE.width : SUBMARINE.height, SUBMARINE.range);
 export function submarineBox(target,rotated=false){const width=rotated?SUBMARINE.height:SUBMARINE.width,height=rotated?SUBMARINE.width:SUBMARINE.height;return{x:target.x-width/2,y:target.y-height/2,width,height};}
 export function submarineTargetError(ship,world,target,rotated=false){
  if(!target||![target.x,target.y].every(Number.isFinite))return 'Choose a missile strike area.';
+ target=submarineAim(ship,world,target,rotated);
  const b=submarineBox(target,rotated);
  if(b.x<0||b.y<0||b.x+b.width>world.width||b.y+b.height>world.height)return 'Keep the whole 6 x 8 strike area inside the map.';
  const near=Math.hypot(Math.max(b.x-ship.x,0,ship.x-b.x-b.width),Math.max(b.y-ship.y,0,ship.y-b.y-b.height));
  const far=Math.max(...[b.x,b.x+b.width].flatMap(x=>[b.y,b.y+b.height].map(y=>Math.hypot(x-ship.x,y-ship.y))));
- return near<SUBMARINE.minRange||far>SUBMARINE.range?'Keep the whole strike area 12 to 80 tiles from the submarine.':null;
+ return near<SUBMARINE.minRange||far>SUBMARINE.range+1e-8?'Keep the whole strike area 12 to 80 tiles from the submarine.':null;
 }
 export function submarineFireError(ship,world,target,rotated=false,barrages=[],fields=[],salvos=[]){
  if(!isSubmarine(ship)||!operational(ship))return 'Board an operational missile submarine.';

@@ -7,7 +7,7 @@ it('validates fire, imposes cooldowns, and resolves shell damage only against ho
   const world = createWorld(), combat = createCombat(world);
   const friendly = { id: 'scout', ...world.spawn };
   expect(combat.shoot(friendly, NaN, 0)).toBeTruthy();
-  expect(combat.shoot(friendly, 0, 0)).toBeTruthy();
+  expect(combat.shoot(friendly, -1, 0)).toBeTruthy();
   expect(combat.start([])).toBeNull();
   expect(combat.start([])).toContain('already');
   const enemy = combat.snapshot().enemies[0];

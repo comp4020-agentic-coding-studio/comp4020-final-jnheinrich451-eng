@@ -1,4 +1,4 @@
-import { airbaseAt } from './footprints.js';
+import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
 // Deployment geometry and simulation timing, shared by server and presentation.
 import { artilleryBlocks, railCorridor } from './footprints.js';
@@ -31,13 +31,13 @@ export function corePlacementError(world, buildings, occupants, x, y, owner) {
   if (cores.some(c => c.owner === owner)) return 'Your core is already deployed. This field test provides one per scout.';
   if (cores.length >= CORE.max) return 'This island has reached its core limit.';
   for (const cell of coreCells(x, y)) {
+    if (hostileAt(world, cell.x, cell.y)) return 'An alien station occupies the deployment footprint.';
     if(airbaseAt(world,cell.x,cell.y))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,cell.x,cell.y))return 'Keep the shoreline dock clear.';
     if (tankBlocks(world, cell.x + .5, cell.y + .5, .5) || world.tanks?.some(t => tankPodCell(t, cell.x, cell.y))) return 'A tank or cargo pod occupies the deployment footprint.';
     if (railCorridor(world, cell.x, cell.y) || artilleryBlocks(world, cell.x, cell.y)) return 'A railway corridor occupies the deployment footprint.';
     if (cell.x < 0 || cell.y < 0 || cell.x >= world.width || cell.y >= world.height) return 'All four panels must fit inside the island map.';
     if (world.terrain[cell.y * world.width + cell.x] === 0) return 'The full cross-shaped footprint needs land.';
-    if (cell.x >= 23 && cell.x <= 25 && cell.y >= 17 && cell.y <= 19) return 'Keep the original landing pad clear.';
     if (cores.some(c => coreCell(c, cell.x, cell.y))) return 'Another core or its panels occupy this site.';
     if (buildings.some(b => b.x === cell.x && b.y === cell.y)) return 'An existing facility occupies the deployment footprint.';
     if (occupants.some(p => Math.abs(p.x - cell.x - .5) < .75 && Math.abs(p.y - cell.y - .5) < .75)) return 'A unit is inside the deployment footprint.';

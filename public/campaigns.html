@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Campaigns · Frontier</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/campaigns.css"><script type="module" src="/campaigns.js"></script></head>
+<body><main class="lobby">
+  <header><a class="wordmark" href="/campaigns/">FRONTIER</a><nav><a href="/account/">Account</a><a href="/readme/">About</a></nav></header>
+  <p class="eyebrow">ORBITAL COMMAND / PLANET SELECTION</p><h1>Your next foothold.</h1>
+  <p id="identity">Connecting to command…</p><p class="message" id="message" role="status" aria-live="polite"></p>
+  <section id="active" hidden><h2>Current room</h2><p>Leaving your own room saves it and returns your teammates to the lobby.</p><a id="resume" class="button">Return to battlefield</a> <button id="leave">Leave room</button></section>
+  <section class="planet-section" aria-labelledby="planet-heading">
+    <div class="planet-heading"><div><p class="eyebrow">AVAILABLE WORLDS / 01</p><h2 id="planet-heading">Choose your destination</h2></div><button id="motion" class="quiet" aria-pressed="false">Pause rotation</button></div>
+    <div id="planet-list"></div>
+    <p class="fine">Choose a planet to create a saved campaign. Returning commanders can resume below; an invitation takes you to your friend's world.</p>
+  </section>
+  <section id="create-panel" hidden aria-labelledby="create-heading"><h2 id="create-heading">Establish a campaign</h2><p id="create-detail"></p><form id="create"><input type="hidden" name="template"><label>Campaign name<input name="name" required maxlength="48" placeholder="Operation First Light"></label><button>Create saved campaign</button></form><p class="fine">Play solo or invite teammates into the same save. Creating a save does not open a room; open it below when you are ready.</p></section>
+  <section id="register-panel" hidden><h2>Host your own world</h2><p>Email and Demo accounts can create campaigns and return to their progress. Guests can join a friend below.</p><a class="button" href="/login/">Sign in</a> <a href="/register/?mode=demo">Create a Demo account</a></section>
+  <div class="columns"><section><h2>Saved campaigns</h2><p>Your progress lives in each campaign. The owner must be playing for members to join.</p><div id="campaign-list"></div><button id="refresh">Refresh rooms</button></section>
+  <section><h2>Join a friend</h2><p>Enter the single-use code from your host. It works only while their room is open.</p><form id="join"><label>Invitation code<input name="code" autocomplete="off" spellcheck="false" maxlength="40" required placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX"></label><button>Join campaign</button></form><p class="fine">No account? You can join as a guest. Your contributions stay in the host's world, but your personal visit ends when you leave.</p></section></div>
+  <p class="fine">To invite someone, open your campaign, then choose <strong>Room → Create invitation code</strong> on the battlefield.</p>
+  <footer><a href="/?legacy=1">Legacy shared field test</a><p>This earlier shared world is preserved separately. Named campaigns do not copy its equipment.</p></footer>
+</main></body></html>

@@ -1,0 +1,338 @@
+{
+  "environment": "local loopback, headless Chrome, ready fixture; excludes cold startup; not Fly capacity evidence",
+  "summaries": [
+    {
+      "players": 2,
+      "samples": 13,
+      "medianMs": 25,
+      "p95Ms": 389,
+      "maxMs": 389
+    },
+    {
+      "players": 4,
+      "samples": 39,
+      "medianMs": 32,
+      "p95Ms": 436,
+      "maxMs": 437
+    }
+  ],
+  "samples": [
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 32
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 17
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 25
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 22
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 26
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 23
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 32
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 23
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 25
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 24
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 387
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 387
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 389
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 32
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 34
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 27
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 28
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 28
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 31
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 34
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 29
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 29
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 30
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 29
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 29
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 30
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 25
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 31
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 29
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 30
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 30
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 32
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 26
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 26
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 27
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 31
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 32
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 33
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 416
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 417
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 417
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 346
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 346
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 347
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 436
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 436
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 437
+    }
+  ],
+  "recordedDate": "2026-10-10",
+  "node": "v26.5.1",
+  "status": "local uncommitted checkpoint; not deployed evidence",
+  "visiblePeers": true,
+  "method": "One Node monotonic clock; authorized HTTP command to visible peer HUD then two requestAnimationFrame callbacks. All peers observed. HE includes intended flight. Reinforcements disabled; ready tank and flat terrain; guests perform core landing before measurement."
+}

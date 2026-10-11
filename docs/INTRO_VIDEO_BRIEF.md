@@ -148,6 +148,28 @@ shot in a preview. You pick by ear. The Kenney files are short game effects, so
 the long atmospheric layers (the hum and drone) would be generated or layered in
 code.
 
+For each sound, answer whichever of these three you can:
+
+1. **When:** the visual moment it belongs to ("as the red light comes on",
+   "the frame the pod hits").
+2. **Like what:** a comparison or a made-up word ("like a fluorescent tube
+   starting", "a deep *thoom*", "a car door slam, but much bigger").
+3. **Feel:** pick a side from any of these pairs: low / high, heavy / light,
+   sharp / soft, close / far, short / long, loud / quiet, clean / gritty.
+
+Also say which kind of sound it is:
+
+- **Background:** runs through a whole shot (hum, wind, engine).
+- **Event:** one hit tied to an action (beep, impact, footstep).
+- **Music:** a drone or tune under everything, or none.
+
+Silence also counts as a choice. A moment of near-silence just before the pod
+hits makes the impact feel bigger.
+
+Example, shot 1a: "Background: almost silent, a faint low hum. Event: when the
+red light comes on, a short electric buzz, like a fluorescent tube starting.
+Low, gritty, close."
+
 Kenney packs on disk that fit (`<pack>/Audio/*.ogg`):
 
 - Sci-Fi Sounds: computerNoise, forceField, spaceEngine*, thrusterFire,

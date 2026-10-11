@@ -13,7 +13,7 @@ for (const mobile of [false, true]) test(`HE battery placement, volley, handoff 
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     other = await browser.newContext(); const peer = await other.newPage(), page = await context.newPage(), errors = [];
     for (const p of [page, peer]) p.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url); await page.goto(url); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     await page.locator('#build-mode').click(); await page.locator('#missile-card').click(); await page.locator('#coordinate-details summary').click();
@@ -32,7 +32,7 @@ for (const mobile of [false, true]) test(`HE battery placement, volley, handoff 
     expect((await post(peer, 'artillery/fire', { id: gun.id, target: { x: 100, y: 50 }, rotated: false })).status).toBe(403);
     expect((await post(page, 'artillery/move', { id: gun.id, step: 1 })).status).toBe(409);
     expect((await post(page, 'artillery/ammo', { id: gun.id, ammo: 'INVALID' })).status).toBe(409);
-    expect((await post(page, 'artillery/fire', { id: gun.id, target: { x: 127, y: 50 } })).status).toBe(409);
+    expect((await post(page, 'artillery/fire', { id: gun.id, target: { x: gun.x + 2, y: gun.y + 2 } })).status).toBe(409);
     expect((await state(page)).artillery[0].reload).toBe(0);
     if (mobile) await page.locator('#missile-rotate').click(); else { await page.locator('#world-canvas').focus(); await page.keyboard.press('r'); }
     await expect.poll(async () => (await state(peer)).artillery[0].rotated).toBe(true);

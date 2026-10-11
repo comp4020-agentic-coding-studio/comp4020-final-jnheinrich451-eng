@@ -6,15 +6,19 @@ import path from 'node:path';
 import { aimOverview } from './aim-helper.js';
 
 for (const mobile of [false, true]) test(`pointer cannon, directional drive and context manual on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }) => {
+  test.setTimeout(60000);
   const dataDir = await mkdtemp(path.join(tmpdir(), 'frontier-controls-')); const app = createApp({ dataDir }); let context;
   try {
     await new Promise(r => app.server.listen(0, '127.0.0.1', r)); const url = `http://127.0.0.1:${app.server.address().port}`;
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
-    const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message)); await page.goto(url);
+    const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message)); await page.goto(url + '/?legacy=1');
     const state = () => page.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (route, data) => page.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
-    for (const x of [20, 24]) expect((await post('rails', { x, y: 13, shape: 'EW' })).status).toBe(201);
-    const gun = (await post('artillery', { x: 20, y: 13 })).data.gun;
+    await expect(page.locator('#connection')).toContainText('live');
+    expect((await post('cores', { x: 70, y: 50 })).status).toBe(201);
+    await expect.poll(async () => (await state()).me.deploying, { timeout: 12000 }).toBe(false);
+    for (const x of [20, 24]) expect((await post('rails', { x, y: 23, shape: 'EW' })).status).toBe(201);
+    const gun = (await post('artillery', { x: 20, y: 23 })).data.gun;
     expect((await post('artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#facility-controls')).toBeVisible(); await expect(page.locator('.mode-dock')).toBeHidden();
     await expect(page.locator('.battlefield')).toHaveClass(/artillery-orbit/);
@@ -24,18 +28,18 @@ for (const mobile of [false, true]) test(`pointer cannon, directional drive and 
       await expect.poll(async () => (await state()).artillery[0].ammo).toBe(ammo);
       expect((await state()).artillery[0].operator).toBe((await state()).me.id);
     }
-    await aimOverview(page, 30.5, 13.5, mobile);
+    await aimOverview(page, 30.5, 23.5, mobile);
     await expect.poll(async () => (await state()).artillery[0].elevation).toBeGreaterThan(84);
     await page.locator('#world-canvas').focus(); await page.keyboard.down('w');
     await expect.poll(async () => (await state()).artillery[0].input?.y).toBe(-1);
     expect((await state()).artillery[0].move).toBeNull(); await page.keyboard.up('w');
-    const point = await aimOverview(page, 20.5, 24.5, mobile);
+    const point = await aimOverview(page, 20.5, 34.5, mobile);
     if (mobile) { expect((await state()).combat.salvos).toHaveLength(0); await page.locator('#artillery-fire').tap(); }
     else await page.mouse.click(point.x, point.y);
     await expect.poll(async () => (await state()).combat.salvos.length).toBe(1);
     const shot = (await state()).combat.salvos[0];
     // Immediate click fires the old physical bearing, not an instantaneous cursor snap.
-    expect(Math.hypot(shot.targetX - 20.5, shot.targetY - 24.5)).toBeGreaterThan(5);
+    expect(Math.hypot(shot.targetX - 20.5, shot.targetY - 34.5)).toBeGreaterThan(5);
     await page.locator('#world-canvas').focus(); await page.keyboard.down('d');
     await expect.poll(async () => (await state()).artillery[0].move).toBeTruthy(); await page.keyboard.up('d');
     const pause = route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });

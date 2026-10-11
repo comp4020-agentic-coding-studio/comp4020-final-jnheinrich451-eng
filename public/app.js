@@ -1,4 +1,17 @@
+import { drawLaserBeams } from './laser-tower-effects.js';
+import { beamRay as laserBeamRay } from './sensors.js';
+import { missileAim } from './missile.js';
+import { submarineAim } from './submarine.js';
+import { CONTAMINATOR, concealed, fogRadius } from './contaminator.js';
+import { drawContamination, drawContaminationMap } from './contaminator-effects.js';
+import { settlements } from './settlement.js';
 import { AIR, airbaseError, airbaseGate, bombError } from './aircraft.js';
+import { drawConquest, drawConquestMap } from './conquest-effects.js';
+import { drawConvertedGround } from './modifier-effects.js';
+import { MODIFIER } from './modifier.js';
+import { detectionFor } from './sensors.js';
+import { drawAcid } from './mortar-effects.js';
+import { MORTAR } from './mortar.js';
 import { drawAirbase, drawAircraft, drawBombPrediction, drawBombRuns } from './aircraft-effects.js';
 import { depthState, surfaced, diveBattery, depthError } from './submarine-depth.js';
 import { isSubmarine, SUBMARINE, submarineBox, submarineTargetError } from './submarine.js';
@@ -11,7 +24,7 @@ import { TANK, tankPlacementError, tankArrivalPosition } from './tank.js';
 import { switchAt, switchLocked, switchConnectionError } from './switches.js';
 import { drawHazards } from './hazard-effects.js';
 import { fieldCapacityError } from './hazards.js';
-import { tileAt, LABELS, isLanding, placementError } from './world.js';
+import { tileAt, LABELS, placementError } from './world.js';
 import { CombatEffects, drawCrawler } from './effects.js';
 import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
 import { CORE, corePlacementError } from './core.js';
@@ -28,6 +41,24 @@ import { drawBattery, drawTargetBox, drawBarrages } from './missile-effects.js';
 import { isCurve, isCompact, joinedShape, curveBounds, curveEnds } from './track.js';
 
 const $ = id => document.getElementById(id);
+const campaignId = new URLSearchParams(location.search).get('campaign');
+const worldAPI = campaignId ? `/api/campaign-world/${encodeURIComponent(campaignId)}/` : '/api/';
+let roomState = null, roomNotice = '';
+let selectedSiteId = null;
+const canManageOwner = owner => owner === me?.id || roomState?.ownerPilot === me?.id && roomState.abandoned.includes(owner);
+async function roomRequest(action, extra = {}) {
+  const response = await fetch('/api/campaigns/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: campaignId, ...extra }) });
+  const result = await response.json(); if (!response.ok) throw new Error(result.error);
+  if (result.room) updateRoom(result.room); return result;
+}
+function updateRoom(room) {
+  roomState = room;
+  $('room-name').textContent = room.name;
+  $('room-status').textContent = room.notice || (room.paused ? 'Battle paused.' : `${room.players} / ${room.limit} players · battle running`);
+  $('room-owner-controls').hidden = me?.id !== room.ownerPilot;
+  if (room.notice && room.notice !== roomNotice) notify(room.notice);
+  roomNotice = room.notice;
+}
 const clientBuild = document.querySelector('meta[name="frontier-build"]')?.content;
 let updatingClient = false;
 const canvas = $('world-canvas'), ctx = canvas.getContext('2d');
@@ -59,24 +90,27 @@ let selectedGunId = '', lastControlledId = null, gunBusy = false;
 let orbitalView = false, bodyCamera = null;
 const controlledGun = () => world?.artillery?.find(g => g.operator === me?.id);
 const alive = () => !me || !me.life || me.life === 'active';
+const inOrbit = () => me?.body === 'orbital';
+const groundPlayers = () => players.filter(p => p.body !== 'orbital');
 function stopFiring() { cancelShipClick(); heldGun.clear(); heldPrimary.clear(); if (connected && combat.charges?.some(c => c.owner === me?.id)) void api('charge/cancel', {}).catch(() => {}); }
-function combatInputAllowed() { return connected && world && alive() && !controlledGun() && !me.deploying && mode !== 'build' && $('deployment-tray').hidden && $('site-panel').hidden && !$('help-dialog').open && !document.hidden; }
+function combatInputAllowed() { return connected && world && !roomState?.paused && !$('room-dialog').open && !inOrbit() && alive() && !controlledGun() && !me.deploying && mode !== 'build' && $('deployment-tray').hidden && $('site-panel').hidden && !$('help-dialog').open && !document.hidden; }
 
 function deploymentError(x, y) {
+  if (inOrbit() && deploymentKind !== 'core') return 'Deploy your core before using ground equipment.';
   if(me.aircraftId)return 'Land and disembark before building.';
-  if(deploymentKind==='airbase')return me.body!=='robot'?'Deploy your core first, then build from your robot.':airbaseError(world,buildings,[...players,...combat.enemies],x,y,me.id);
+  if(deploymentKind==='airbase')return me.body!=='robot'?'Deploy your core first, then build from your robot.':airbaseError(world,buildings,[...groundPlayers(),...combat.enemies],x,y,me.id);
   if (me.shipId) return 'Disembark at a dock before building.';
-  if (deploymentKind === 'ship') return me.body !== 'robot' ? 'Deploy your orbital core first, then call a ship with your robot.' : shipSite(world, buildings, [...players, ...combat.enemies], x, y, me.id,deploymentShipKind).error;
+  if (deploymentKind === 'ship') return me.body !== 'robot' ? 'Deploy your orbital core first, then call a ship with your robot.' : shipSite(world, buildings, [...groundPlayers(), ...combat.enemies], x, y, me.id,deploymentShipKind).error;
   if (me.vehicleId) return 'Exit your tank before building.';
-  if (deploymentKind === 'tank') return me.body !== 'robot' ? 'Deploy your orbital core first, then call a tank with your robot.' : tankPlacementError(world, buildings, [...players, ...combat.enemies], x, y, me.id);
-  if (deploymentKind === 'missile') return missilePlacementError(world, buildings, [...players, ...combat.enemies], x, y, me.id);
-  if (deploymentKind === 'core') return corePlacementError(world, buildings, [...players, ...combat.enemies], x, y, me.id);
+  if (deploymentKind === 'tank') return me.body !== 'robot' ? 'Deploy your orbital core first, then call a tank with your robot.' : tankPlacementError(world, buildings, [...groundPlayers(), ...combat.enemies], x, y, me.id);
+  if (deploymentKind === 'missile') return missilePlacementError(world, buildings, [...groundPlayers(), ...combat.enemies], x, y, me.id);
+  if (deploymentKind === 'core') return corePlacementError(world, buildings, [...groundPlayers(), ...combat.enemies], x, y, me.id);
   if (deploymentKind === 'rail') return railError(world, buildings, x, y, $('rail-shape').value, Number($('rail-length').value), me.id);
   if (deploymentKind === 'artillery') {
     if (world.artillery.some(g => !isMissile(g) && g.owner === me.id)) return 'Your railway cannon is already deployed.';
-    return carriageError(world, buildings, [...players, ...combat.enemies], x, y, world.rails.find(r => r.x === x && r.y === y)?.shape);
+    return carriageError(world, buildings, [...groundPlayers(), ...combat.enemies], x, y, world.rails.find(r => r.x === x && r.y === y)?.shape);
   }
-  return placementError(world, buildings, players, x, y);
+  return placementError(world, buildings, groundPlayers(), x, y);
 }
 let airBusy=false;
 function nearbyAirbase(){return world?.airbases?.find(b=>Math.hypot(me.x-airbaseGate(b).x,me.y-airbaseGate(b).y)<=1.8);}
@@ -131,7 +165,7 @@ function updateShips() {
   updateReplacement('ship',world.ships);updateReplacement('tank',world.tanks);
   $('build-mode').disabled ||= !!ship;
   if (!ship) { rampPreview=null; return; }
-  rampPreview=ship.ramp?null:shoreRampSite(world,buildings,[...players,...combat.enemies],ship);
+  rampPreview=ship.ramp?null:shoreRampSite(world,buildings,[...groundPlayers(),...combat.enemies],ship);
   $('ship-ramp').disabled=!connected||shipBusy;
   $('ship-ramp').textContent=ship.ramp?'G / Retract ramp':'G / Shore ramp';
   $('ship-ramp').setAttribute('aria-pressed',String(!!ship.ramp));
@@ -229,7 +263,7 @@ function findShip(dock = false) {
 }
 function drawShipAim(ship) {
   if(isSubmarine(ship)){
-    const b=submarineBox(aim,subRotated),valid=surfaced(ship)&&!submarineTargetError(ship,world,aim,subRotated);
+    const b=submarineBox(submarineAim(ship,world,aim,subRotated),subRotated),valid=surfaced(ship)&&!submarineTargetError(ship,world,aim,subRotated);
     ctx.save();ctx.strokeStyle=valid?'#f5d48c':'#ed977c';ctx.fillStyle=valid?'#f5d48c14':'#ed977c18';ctx.lineWidth=1.5/camera.zoom;
     ctx.fillRect(b.x*T,b.y*T,b.width*T,b.height*T);ctx.strokeRect(b.x*T,b.y*T,b.width*T,b.height*T);ctx.setLineDash([5/camera.zoom,6/camera.zoom]);
     const cols=subRotated?3:2,rows=subRotated?2:3;
@@ -374,8 +408,10 @@ function notify(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('visible'), 3600);
 }
 async function api(route, data) {
-  const response = await fetch(`/api/${route}`, data === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  const response = await fetch(`${worldAPI}${route}`, data === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   const result = await response.json();
+  if (campaignId && response.status === 403 && /room|session|lobby/i.test(result.error || '')) { eventStream?.close(); location.assign('/campaigns/'); }
+  if (response.status === 401) { eventStream?.close(); keys.clear(); stopFiring(); location.assign('/login/'); }
   if (!response.ok) throw new Error(result.error || 'Could not reach the outpost.');
   return result;
 }
@@ -394,7 +430,9 @@ function connection(ok) {
 function subscribe() {
   eventStream?.close();
   if (!navigator.onLine) { connection(false); return; }
-  eventStream = new EventSource('/api/events');
+  eventStream = new EventSource(worldAPI + 'events');
+  eventStream.addEventListener('room-ended', () => { eventStream.close(); keys.clear(); stopFiring(); location.assign('/campaigns/'); });
+  eventStream.addEventListener('session-ended', () => { eventStream.close(); keys.clear(); stopFiring(); location.assign('/login/'); });
   eventStream.onopen = () => { seenRevision = -1; connection(true); };
   eventStream.onmessage = event => updateState(JSON.parse(event.data));
   eventStream.onerror = () => connection(false);
@@ -402,6 +440,7 @@ function subscribe() {
 window.addEventListener('offline', () => { eventStream?.close(); connection(false); });
 window.addEventListener('online', () => { if (world) subscribe(); });
 function updateState(state) {
+  if (state.room) updateRoom(state.room);
   if (updatingClient) return;
   if (clientBuild && state.clientBuild && clientBuild !== state.clientBuild) {
     updatingClient = true; stopFiring(); keys.clear(); eventStream?.close();
@@ -419,31 +458,93 @@ function updateState(state) {
   const nextFloorKey = [...world.cores, ...world.tanks].filter(c => c.elapsed >= CORE.duration).map(c => c.id).join(',');
   if (floorKey !== nextFloorKey) { floorKey = nextFloorKey; paintTerrain(); }
   if (state.combat) {
+    const previousSites = combat.sites || [];
     combat = state.combat;
+    world.sites = combat.sites || [];
+    for (const site of world.sites) if (site.state === 'conquered' && previousSites.some(s => s.id === site.id && s.state === 'hostile')) notify(`${site.settlement ? 'STRUCTURE DESTROYED' : 'REGION CONQUERED'} / ${site.kind === 'laser' ? 'Lance tower silenced' : site.kind === 'contaminator' ? 'Air contaminator destroyed. Fog clearing' : site.kind === 'modifier' ? 'Blight root destroyed. Terrain recovering' : site.kind === 'mortar' ? 'Mortar outpost silenced' : 'Alert station silenced'} permanently. Surviving defenders remain.`);
+    for (const group of settlements(world.sites)) if (group.state === 'conquered' && settlements(previousSites).some(s => s.id === group.id && s.state === 'hostile')) notify(`SETTLEMENT CONQUERED / ${group.name}. All three structures destroyed. Permanent progress saved.`);
     if(previousContacts===0 && combat.naval?.count>0) notify('SONAR CONTACT / Swimmers approaching ships. Watch their strike circles.');
     stateReceived = performance.now(); effects.ingest(combat, stateReceived);
     if (lastEffectEpoch !== combat.epoch) { lastEffectEpoch = combat.epoch; lastFeedback = -1; monsterPositions.clear(); sentryPositions.clear(); }
     for (const impact of combat.impacts) if (impact.id > lastFeedback) {
       lastFeedback = impact.id;
-      if (!impact.hits?.length || combat.time - impact.at > 500) continue;
+      if (!impact.hits?.length || combat.time - impact.at > 500 || concealed(world.sites, impact, combat.time)) continue;
       const killed = impact.hits.filter(h => h.killed).length;
       $('hit-feedback').textContent = killed ? `${killed} NEUTRALIZED` : 'HIT';
       $('hit-feedback').classList.add('visible');
       clearTimeout(feedbackTimer); feedbackTimer = setTimeout(() => $('hit-feedback').classList.remove('visible'), 1100);
     }
   }
-  $('combat-status').textContent = ({ ready: 'Establish a foothold.', active: `Defend the pad · ${combat.enemies.length} hostiles`, cleared: 'Sector clear. Good work.', failed: 'Pad overrun. Try again.' })[combat.status];
-  $('objective-health').textContent = `Landing pad · ${Math.ceil(combat.health)}%`;
+  $('combat-status').textContent = ({ ready: 'Establish a foothold.', active: `Defend the beacon · ${combat.enemies.length} hostiles`, cleared: 'Sector clear. Good work.', failed: 'Beacon overrun. Try again.' })[combat.status];
+  $('objective-health').textContent = `Drill beacon · ${Math.ceil(combat.health)}%`;
   if (combat.objective?.id !== 'landing' && combat.objective) $('objective-health').textContent = `${combat.objective.label} · ${Math.ceil(combat.health)}%`;
+  const station = world.sites?.find(s => s.id === selectedSiteId) || world.sites?.[0];
+  $('locate-station').hidden = !world.sites?.some(s => s.kind === 'alert');
+  $('locate-laser').hidden = !world.sites?.some(s => s.kind === 'laser');
+  $('locate-contaminator').hidden = !world.sites?.some(s => s.kind === 'contaminator');
+  $('locate-mortar').hidden = !world.sites?.some(s => s.kind === 'mortar');
+  const colony = settlements(world.sites)[0];
+  $('locate-settlement').hidden = !colony;
+  $('settlement-objective').hidden = !colony || !station?.settlement;
+  if (colony) {
+    $('settlement-progress').textContent = colony.name + ' · ' + colony.cleared + '/3' + (colony.state === 'conquered' ? ' · Permanently conquered' : ' · Destroy all structures');
+    const key = colony.members.map(s => s?.id + ':' + s?.state).join(',');
+    if ($('settlement-targets').dataset.key !== key) {
+      $('settlement-targets').dataset.key = key;
+      $('settlement-targets').replaceChildren(...colony.members.map((site, i) => {
+        const button = document.createElement('button');
+        button.textContent = (site?.state === 'conquered' ? '✓ ' : '○ ') + ['Crown', 'Mortar', 'Root'][i];
+        button.setAttribute('aria-label', 'Locate colony ' + ['crown', 'mortar', 'root'][i]);
+        button.disabled = !site; button.onclick = () => locateSite(null, site.id); return button;
+      }));
+    }
+  }
+  $('locate-modifier').hidden = !world.sites?.some(s => s.kind === 'modifier');
+  if (station && (combat.status !== 'active' || ['contaminator', 'laser'].includes(station.kind))) {
+    $('combat-status').textContent = station.state === 'conquered' ? 'Region conquered · Crown silenced' : 'Conquer the alert station · Use HE';
+    $('objective-health').textContent = station.state === 'conquered' ? 'Permanent progress saved' : `${Math.ceil(station.hp)} / ${station.maxHp} HP · ${station.alarm ? 'Alarm active' : 'Quiet'}`;
+    if (station.kind === 'mortar') {
+      $('combat-status').textContent = station.state === 'conquered' ? 'Region conquered · Mortar silenced' : 'Conquer the mortar outpost · Use HE';
+      if (station.state !== 'conquered') $('objective-health').textContent = `${Math.ceil(station.hp)} / ${station.maxHp} HP · ${station.mortar?.charge ? 'Launching acid' : station.mortar?.nextShot > combat.time ? 'Reloading' : 'Watching'}`;
+    }
+    if (station.kind === 'laser') {
+      $('combat-status').textContent = station.state === 'conquered' ? 'Lance tower silenced' : 'Lance tower / Use HE';
+      $('objective-health').textContent = station.state === 'conquered' ? 'Permanent progress saved' : Math.ceil(station.hp) + ' / ' + station.maxHp + ' HP / ' + (station.laser?.phase || 'watching') + ' / Keep moving; use cover';
+    }
+    if (station.kind === 'modifier') {
+      $('combat-status').textContent = station.state === 'conquered' ? 'Region conquered · Blight cleared' : 'Destroy the environment modifier · Use HE';
+      $('objective-health').textContent = station.state === 'conquered' ? (combat.time - station.conqueredAt < MODIFIER.recovery ? 'Terrain recovering · Progress saved' : 'Natural terrain restored · Progress saved') : `${Math.ceil(station.hp)} / ${station.maxHp} HP · Alien terrain`;
+    }
+    if (station.state === 'hostile' && station.defenseReport?.until > combat.time) $('objective-health').textContent += ' · Sector alerted';
+    if (station.kind === 'contaminator') {
+      $('combat-status').textContent = station.state === 'conquered' ? 'Contaminator destroyed' : 'Air contaminator / Use HE';
+      $('objective-health').textContent = 'Surveyed center: ' + (station.x + 1.5) + ', ' + (station.y + 1.5) + (station.state === 'conquered' ? (fogRadius(station, combat.time) > 0 ? ' / Fog clearing' : ' / Air clear, progress saved') : ' / Live status obscured');
+    } else if (concealed(world.sites, { x: station.x + 1.5, y: station.y + 1.5 }, combat.time) && station.state !== 'conquered') {
+      $('objective-health').textContent = 'Live status obscured by contamination';
+    }
+    if (station.settlement && station.state === 'conquered') $('combat-status').textContent = `${station.name} destroyed · ${colony.cleared}/3 objectives`;
+  }
   $('drill-front').disabled = combat.status === 'active' || !connected;
   $('start-drill').textContent = combat.status === 'active' ? 'Drill live' : combat.status === 'ready' ? 'Start drill' : 'Retry drill';
   $('start-drill').disabled = !connected || combat.status === 'active';
   const mine = players.find(p => p.id === me.id);
+  const threats = (world.sites || []).filter(s => s.state === 'hostile' && s.mortar?.charge).map(s => s.mortar.charge).concat((combat.acidShells || []).filter(s => !s.impacted));
+  const position = mine || me;
+  const fogged = position.body !== 'orbital' && concealed(world.sites, position, combat.time);
+  $('fog-status').hidden = !fogged;
+  $('coordinates').hidden = fogged;
+  $('acid-warning').hidden = fogged || !['robot', 'rover'].includes(position.body) || position.life !== 'active' || !threats.some(s => Math.hypot(s.x - position.x, s.y - position.y) <= MORTAR.radius + .5);
+  const detected = detectionFor(world.sites || [], me.id, combat.time);
+  $('detection-status').hidden = !detected;
+  if (detected) $('detection-status').textContent = combat.time - detected.seenAt <= 150
+    ? 'DETECTED · Break the tracking beam with cover'
+    : `CONTACT LOST · Detected ${Math.ceil((detected.until - combat.time) / 1000)}s`;
   if (mine) {
     if (mine.aircraftId !== me.aircraftId || mine.vehicleId !== me.vehicleId || mine.shipId !== me.shipId) { keys.clear(); stopFiring(); positions.delete(me.id); lastInput = '0,0'; lastAim = null; }
-    if (mine.deploying && !me.deploying) { deploymentFocus = world.cores.find(c => c.owner === me.id)?.id; positions.delete(me.id); keys.clear(); stopFiring(); setMode('explore'); }
+    const startedLanding = mine.deploying && !me.deploying;
     const previousLife = me.life;
     me = { ...me, ...mine };
+    if (startedLanding) { deploymentFocus = world.cores.find(c => c.owner === me.id)?.id; positions.delete(me.id); keys.clear(); stopFiring(); lastInput = '0,0'; lastAim = null; setMode('explore'); canvas.focus({ preventScroll: true }); }
     if (previousLife !== me.life) {
       recoveryError = '';
       keys.clear(); stopFiring(); positions.delete(me.id); setMode('explore');
@@ -453,7 +554,9 @@ function updateState(state) {
     }
     if (Math.hypot(me.x - world.spawn.x, me.y - world.spawn.y) > 0.8) moved = true;
   }
-  $('presence').textContent = `${players.length || 1} ${(players.length || 1) === 1 ? 'SCOUT' : 'SCOUTS'} IN THIS WORLD`;
+  $('presence').textContent = roomState ? `${roomState.players} / ${roomState.limit} · ${roomState.paused ? 'PAUSED' : 'CAMPAIGN'}` : `${players.length || 1} SCOUTS · LEGACY WORLD`;
+  document.querySelector('.battlefield').classList.toggle('in-orbit', inOrbit());
+  $('explore-mode').disabled = inOrbit();
   $('building-count').textContent = `${buildings.length} ${buildings.length === 1 ? 'FOUNDATION' : 'FOUNDATIONS'}`;
   $('task-explore').classList.toggle('done', moved);
   $('task-build').classList.toggle('done', buildings.some(b => b.owner === me.id));
@@ -480,6 +583,7 @@ function updateState(state) {
 }
 function setMode(next) {
   stopFiring();
+  if (inOrbit()) { next = 'build'; deploymentKind = 'core'; }
   mode = next;
   document.querySelector('.battlefield').classList.toggle('surveying', next === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind));
   $('fire-button').disabled = !connected || next === 'build';
@@ -491,6 +595,7 @@ function setMode(next) {
   $('map-hint').textContent = next === 'build' ? 'Choose clear ground · Confirm deployment' : matchMedia('(pointer:coarse)').matches ? 'Tap to aim · Buttons fire · Pad moves' : 'WASD move · Mouse aim · Middle-drag pan';
   toggleTray(false); toggleSite(false);
   updateSelection(); if (world) { updateTankControl(); updateShips(); updateAircraft(); }
+  if (inOrbit()) { following = false; $('map-hint').textContent = 'In orbit / Choose a core landing site / Confirm orbital drop'; toggleSite(true); }
 }
 function beginCoreSurvey(kind = 'core') {
   if (!world || me.deploying || !alive()) return;
@@ -506,6 +611,7 @@ function beginCoreSurvey(kind = 'core') {
   toggleSite(true); canvas.focus({ preventScroll: true });
 }
 function toggleTray(open) {
+  if (inOrbit()) { if (open) beginCoreSurvey(); return; }
   if (open && (controlledGun() || me.vehicleId || me.shipId || me.aircraftId)) { notify('Release the cannon before building.'); return; }
   $('deployment-tray').hidden = !open;
   $('build-mode').setAttribute('aria-expanded', String(open));
@@ -513,6 +619,7 @@ function toggleTray(open) {
   if (open) { stopFiring(); toggleSite(false); }
 }
 function toggleSite(open) {
+  if (inOrbit()) open = true;
   if (open) $('artillery-panel').hidden = true;
   else if (controlledGun()) $('artillery-panel').hidden = false;
   $('site-panel').hidden = !open;
@@ -555,10 +662,10 @@ function updateSelection() {
   if (!world) return;
   const { x, y } = selected, terrain = tileAt(world, x, y), building = buildings.find(b => b.x === x && b.y === y);
   const coreMode = mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind);
-  const error = mode === 'build' ? deploymentError(x, y) : placementError(world, buildings, players, x, y);
+  const error = mode === 'build' ? deploymentError(x, y) : placementError(world, buildings, groundPlayers(), x, y);
   $('rail-options').hidden = !(mode === 'build' && deploymentKind === 'rail');
   $('tile-coordinate').textContent = `${String(x).padStart(2, '0')} : ${String(y).padStart(2, '0')}`;
-  $('terrain-name').textContent = building ? (building.weapon === 'HEAVY_FLAME' ? 'Flamethrower sentry' : 'APCR sentry') : isLanding(x, y) ? 'Landing pad' : LABELS[terrain];
+  $('terrain-name').textContent = building ? (building.weapon === 'HEAVY_FLAME' ? 'Flamethrower sentry' : 'APCR sentry') : LABELS[terrain];
   $('terrain-swatch').style.backgroundColor = ['#31585b', '#d2c6a1', '#93a57a', '#7b8371', '#647071'][terrain];
   $('terrain-description').textContent = building ? (building.owner === me.id ? 'Placed by you' : 'Placed by another scout') : terrain === 0 ? 'Naval territory · not walkable' : terrain === 3 ? 'Obstructed terrain' : 'Ground territory · walkable';
   $('site-title').textContent = coreMode ? 'Orbital landing site' : deploymentKind === 'rail' && mode === 'build' ? 'Lay railway track' : deploymentKind === 'artillery' && mode === 'build' ? 'Railway cannon site' : 'Deployment site';
@@ -577,10 +684,10 @@ function updateSelection() {
   const selectedCurve = world.rails.find(r => r.x === x && r.y === y && isCurve(r));
   $('enable-switch').hidden = !selectedCurve || selectedCurve.owner !== me.id || !!switchAt(world, selectedCurve);
   $('enable-switch').disabled = !connected || !!controlledGun() || (selectedCurve && switchLocked(world, selectedCurve));
-  $('remove-rail').hidden = !world.rails?.some(r => r.x === x && r.y === y && r.owner === me.id);
-  $('remove-building').hidden = !building || building.owner !== me.id || !!building.coreId;
+  $('remove-rail').hidden = !world.rails?.some(r => r.x === x && r.y === y && canManageOwner(r.owner));
+  $('remove-building').hidden = !building || !canManageOwner(building.owner) || !!building.coreId;
   $('remove-building').disabled = pending || !connected;
-  $('sentry-options').hidden = !building; $('sentry-weapon').value = building?.weapon || 'APCR'; $('sentry-weapon').disabled = !building || building.owner !== me.id || !connected || pending;
+  $('sentry-options').hidden = !building; $('sentry-weapon').value = building?.weapon || 'APCR'; $('sentry-weapon').disabled = !building || !canManageOwner(building.owner) || !connected || pending;
 }
 async function place() {
   if (pending || $('place-building').disabled) return;
@@ -627,7 +734,7 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (orbitalView && world) fitOrbitalView();
 }
-function recenter() { if (me) { const point = controlledGun() ? gunPosition(controlledGun()) : me; camera.x = point.x * T; camera.y = point.y * T; following = !controlledGun(); } }
+function recenter() { if (inOrbit()) { beginCoreSurvey(); return; } if (me) { const point = controlledGun() ? gunPosition(controlledGun()) : me; camera.x = point.x * T; camera.y = point.y * T; following = !controlledGun(); } }
 function zoom(factor) {
   camera.zoom = Math.max(orbitalView || currentAircraft() || isSubmarine(currentShip()) || (mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind)) ? .035 : 0.35, Math.min(1.8, camera.zoom * factor));
   $('zoom-label').textContent = `${Math.round(camera.zoom * 100)}%`;
@@ -698,14 +805,6 @@ function makeTerrainChunk(cx, cy) {
       else { const yy = py + (dy > 0 ? T - 1 : 1); c.moveTo(px, yy); c.lineTo(px + T, yy); } c.stroke();
     }
   }
-  // The arrival pad is map scenery, with an explicit reserved construction footprint.
-  c.fillStyle = '#acb3a0'; c.fillRect(23 * T, 17 * T, 3 * T, 3 * T);
-  c.strokeStyle = '#748775'; c.lineWidth = 2;
-  for (let i = 0; i <= 3; i++) { c.beginPath(); c.moveTo((23 + i) * T, 17 * T); c.lineTo((23 + i) * T, 20 * T); c.moveTo(23 * T, (17 + i) * T); c.lineTo(26 * T, (17 + i) * T); c.stroke(); }
-  c.strokeStyle = '#e6dfb9'; c.lineWidth = 3; c.setLineDash([12, 8]); c.strokeRect(23 * T + 8, 17 * T + 8, 3 * T - 16, 3 * T - 16); c.setLineDash([]);
-  c.strokeStyle = '#d7dac7'; c.lineWidth = 5; c.beginPath(); c.arc(24.5 * T, 18.5 * T, 33, 0, Math.PI * 2); c.stroke();
-  c.fillStyle = '#d7dac7'; c.font = 'bold 29px monospace'; c.textAlign = 'center'; c.fillText('H', 24.5 * T, 18.5 * T + 10);
-  c.fillStyle = '#dce4cc'; c.font = '10px monospace'; c.fillText('LANDING ZONE', 24.5 * T, 20 * T + 19);
   return tileCanvas;
 }
 function drawBuilding(building, ghost = false, dt = 0, now = performance.now()) {
@@ -727,6 +826,7 @@ function drawBuilding(building, ghost = false, dt = 0, now = performance.now()) 
   ctx.fillStyle = building.weapon === 'HEAVY_FLAME' ? '#f17739' : '#dcb26f'; ctx.fillRect(-3, -2, 6, 4); ctx.restore();
 }
 function drawScout(player, dt, now) {
+  if (player.body === 'orbital') return;
   if (player.aircraftId || player.shipId || player.body === 'ship' || (player.life==='disabled' && player.lostVehicle==='ship')) return;
   if (player.life === 'arriving') { drawReplacement(ctx, player, T, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, effects.reduced); positions.delete(player.id); return; }
   const arrival = world.cores?.find(c => c.owner === player.id && c.elapsed < CORE.duration);
@@ -766,15 +866,17 @@ function drawMinimap() {
   if (!world) return;
   const sx = mini.width / world.width, sy = mini.height / world.height;
   mctx.drawImage(terrainCanvas, 0, 0, mini.width, mini.height);
+  drawConquestMap(mctx, world.sites || [], sx, sy);
   for (const b of buildings) { mctx.fillStyle = '#273c31'; mctx.fillRect(b.x * sx, b.y * sy, sx, sy); }
   for (const ship of world.ships || []) { mctx.fillStyle = '#a7e4df'; mctx.fillRect(ship.x*sx-2,ship.y*sy-2,4,4); mctx.strokeStyle = '#e7c58c'; mctx.strokeRect(ship.dock.x*sx-2,ship.dock.y*sy-2,4,4); }
   for (const e of combat.enemies) { mctx.fillStyle = '#f28e63'; mctx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4); }
   mctx.strokeStyle = '#f4edd099'; mctx.lineWidth = 1;
   mctx.strokeRect((camera.x - width / 2 / camera.zoom) / T * sx, (camera.y - height / 2 / camera.zoom) / T * sy, width / camera.zoom / T * sx, height / camera.zoom / T * sy);
-  mctx.fillStyle = '#f4aa66'; mctx.beginPath(); mctx.arc(me.x * sx, me.y * sy, 3.2, 0, Math.PI * 2); mctx.fill();
+  if (!inOrbit()) { mctx.fillStyle = '#f4aa66'; mctx.beginPath(); mctx.arc(me.x * sx, me.y * sy, 3.2, 0, Math.PI * 2); mctx.fill(); }
+  drawContaminationMap(mctx, world.sites || [], sx, sy, combat.time || 0);
 }
 function drawCombat() {
-  const clock = performance.now(), elapsed = Math.min((clock - stateReceived) / 1000, .1);
+  const clock = roomState?.paused ? stateReceived : performance.now(), elapsed = Math.min((clock - stateReceived) / 1000, .1);
   if (combat.objective?.id && combat.objective.id !== 'landing') {
     const point = combat.objective; ctx.save(); ctx.strokeStyle = '#efcf84'; ctx.lineWidth = 2 / camera.zoom; ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
     ctx.beginPath(); ctx.arc(point.x * T, point.y * T, 1.5 * T, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
@@ -790,7 +892,15 @@ function drawCombat() {
     if (!position) { position = { x: e.x, y: e.y }; monsterPositions.set(e.id, position); }
     position.x += (e.x - position.x) * .3; position.y += (e.y - position.y) * .3;
     if(e.kind==='swimmer')drawSwimmer(ctx,{...e,x:position.x,y:position.y},clock/1000,T,effects.reduced,effects.hit(e.id,clock));
-    else drawCrawler(ctx, { ...e, x: position.x * T, y: position.y * T }, clock / 1000, effects.hit(e.id, clock));
+    else {
+      const emerging = Math.max(0, Math.min(1, ((combat.time + elapsed * 1000) - (e.emergedAt ?? -10000)) / 650));
+      ctx.save();
+      if (emerging < 1 && !effects.reduced) {
+        ctx.translate(position.x * T, position.y * T); ctx.scale(.5 + emerging * .5, .5 + emerging * .5); ctx.translate(-position.x * T, -position.y * T);
+        ctx.globalAlpha = .4 + emerging * .6;
+      }
+      drawCrawler(ctx, { ...e, x: position.x * T, y: position.y * T }, clock / 1000, effects.hit(e.id, clock)); ctx.restore();
+    }
     if (camera.zoom < .3) { ctx.fillStyle = '#ff6d52'; ctx.beginPath(); ctx.arc(e.x * T, e.y * T, 2.5 / camera.zoom, 0, Math.PI * 2); ctx.fill(); }
     if (e.hp < 60) {
       ctx.fillStyle = '#352e29'; ctx.fillRect(position.x * T - 16, position.y * T - 39, 32, 3);
@@ -811,21 +921,10 @@ function drawCombat() {
   effects.draw(ctx, clock);
   drawSalvos(ctx, combat.salvos, T, elapsed, effects.reduced);
   drawBarrages(ctx, combat.barrages, T, elapsed, effects.reduced, camera.zoom);
-  if (isMissile(controlledGun()) && (aim || controlledGun().target)) drawTargetBox(ctx, aim || controlledGun().target, controlledGun().rotated, T, camera.zoom, !missileTargetError(controlledGun(), world, aim || controlledGun().target, controlledGun().rotated), controlledGun().ammo);
-  if (controlledGun() && !isMissile(controlledGun())) {
-    const gun = controlledGun(), p = gunPosition(gun, elapsed), target = artillerySolution(gun), cross = 9 / camera.zoom;
-    const desired = aim || gun.target || target, desiredState = artilleryAim(gun, desired);
-    ctx.save(); ctx.strokeStyle = desiredState.inRange ? '#f2d39a' : '#ed9178'; ctx.lineWidth = 1.5 / camera.zoom;
-    ctx.beginPath(); ctx.moveTo(desired.x * T - cross, desired.y * T); ctx.lineTo(desired.x * T + cross, desired.y * T); ctx.moveTo(desired.x * T, desired.y * T - cross); ctx.lineTo(desired.x * T, desired.y * T + cross); ctx.stroke(); ctx.restore();
-    ctx.save(); ctx.strokeStyle = artilleryFireError(gun, world) ? '#efb17d' : '#b9e8f2'; ctx.lineWidth = 1.5 / camera.zoom;
-    ctx.setLineDash([6 / camera.zoom, 6 / camera.zoom]); ctx.beginPath(); ctx.arc(target.x * T, target.y * T, ARTILLERY_SHELLS[gun.ammo || 'HE'].radius * T, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(target.x * T, target.y * T - cross); ctx.lineTo(target.x * T + cross, target.y * T); ctx.lineTo(target.x * T, target.y * T + cross); ctx.lineTo(target.x * T - cross, target.y * T); ctx.closePath(); ctx.stroke();
-    ctx.globalAlpha = .4; ctx.beginPath(); ctx.moveTo(p.x * T, p.y * T); ctx.lineTo(target.x * T, target.y * T); ctx.stroke(); ctx.restore();
-  }
   if (!controlledGun() && !me.aircraftId && !me.shipId && alive() && mode !== 'build' && aim) {
     const x = aim.x * T, y = aim.y * T;
     const equipment = loadout(me.body, me.tankWeapon, me.tankSecondary), weapon = WEAPONS[heldGun.size ? equipment.secondary : equipment.primary];
-    ctx.strokeStyle = me.body !== 'robot' && Math.hypot(aim.x - me.x, aim.y - me.y) > weapon.range ? '#f89770' : '#ffe1a2'; ctx.lineWidth = 1.5 / camera.zoom;
+    ctx.strokeStyle = '#ffe1a2'; ctx.lineWidth = 1.5 / camera.zoom;
     ctx.beginPath(); ctx.arc(x, y, 13 / camera.zoom, 0, Math.PI * 2); ctx.moveTo(x - 20 / camera.zoom, y); ctx.lineTo(x + 20 / camera.zoom, y); ctx.moveTo(x, y - 20 / camera.zoom); ctx.lineTo(x, y + 20 / camera.zoom); ctx.stroke();
     const position = positions.get(me.id);
     if (position) {
@@ -841,6 +940,20 @@ function drawCombat() {
       ctx.beginPath(); ctx.moveTo(tx, ty - r); ctx.lineTo(tx + r, ty); ctx.lineTo(tx, ty + r); ctx.lineTo(tx - r, ty); ctx.closePath(); ctx.stroke();
       ctx.globalAlpha = .65; ctx.beginPath(); ctx.moveTo(position.x * T + dx * 35, position.y * T + dy * 35); ctx.lineTo(position.x * T + dx * 60, position.y * T + dy * 60); ctx.stroke(); ctx.globalAlpha = 1;
     }
+  }
+}
+function drawHeavyAim() {
+  const elapsed = connected && !roomState?.paused ? Math.min((performance.now() - stateReceived) / 1000, .1) : 0;
+  if (isMissile(controlledGun()) && (aim || controlledGun().target)) drawTargetBox(ctx, missileAim(controlledGun(), world, aim || controlledGun().target, controlledGun().rotated), controlledGun().rotated, T, camera.zoom, !missileTargetError(controlledGun(), world, aim || controlledGun().target, controlledGun().rotated), controlledGun().ammo);
+  if (controlledGun() && !isMissile(controlledGun())) {
+    const gun = controlledGun(), p = gunPosition(gun, elapsed), target = artillerySolution(gun), cross = 9 / camera.zoom;
+    const desired = aim || gun.target || target, desiredState = artilleryAim(gun, desired);
+    ctx.save(); ctx.strokeStyle = desiredState.inRange ? '#f2d39a' : '#ed9178'; ctx.lineWidth = 1.5 / camera.zoom;
+    ctx.beginPath(); ctx.moveTo(desired.x * T - cross, desired.y * T); ctx.lineTo(desired.x * T + cross, desired.y * T); ctx.moveTo(desired.x * T, desired.y * T - cross); ctx.lineTo(desired.x * T, desired.y * T + cross); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = artilleryFireError(gun, world) ? '#efb17d' : '#b9e8f2'; ctx.lineWidth = 1.5 / camera.zoom;
+    ctx.setLineDash([6 / camera.zoom, 6 / camera.zoom]); ctx.beginPath(); ctx.arc(target.x * T, target.y * T, ARTILLERY_SHELLS[gun.ammo || 'HE'].radius * T, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(target.x * T, target.y * T - cross); ctx.lineTo(target.x * T + cross, target.y * T); ctx.lineTo(target.x * T, target.y * T + cross); ctx.lineTo(target.x * T - cross, target.y * T); ctx.closePath(); ctx.stroke();
+    ctx.globalAlpha = .4; ctx.beginPath(); ctx.moveTo(p.x * T, p.y * T); ctx.lineTo(target.x * T, target.y * T); ctx.stroke(); ctx.restore();
   }
 }
 function frame(now) {
@@ -873,6 +986,7 @@ function frame(now) {
   for (const tank of world.tanks || []) { const pod = { ...tank, x: tank.podX, y: tank.podY }; const offset = tankEffects.shake(pod, tankEffects.time(pod, stateReceived, now, connected), camera, effects.reduced, effects.shakeEnabled); shake.x += offset.x; shake.y += offset.y; }
   ctx.save(); ctx.translate(width / 2 + shake.x, height / 2 + shake.y); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
   drawTerrain();
+  drawConvertedGround(ctx, world, T, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced);
   if (mode === 'build' && ['missile', 'tank', 'airbase'].includes(deploymentKind) && oceanRestrictionCanvas) {
     ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(oceanRestrictionCanvas, 0, 0, world.width * T, world.height * T); ctx.restore();
   }
@@ -883,6 +997,8 @@ function frame(now) {
   for (const tank of world.tanks || []) { const pod = { ...tank, x: tank.podX, y: tank.podY }; tankEffects.draw(ctx, pod, tankEffects.time(pod, stateReceived, now, connected), effects.reduced); }
   for (const ship of world.ships || []) { shipEffects.dock(ctx, ship, camera.zoom); if(!ship.destroyed)shipEffects.ramp(ctx,ship,ship.ramp|| (ship.id===me.shipId?rampPreview:null),camera.zoom,!ship.ramp); shipEffects.drawPod(ctx, ship, shipEffects.time(ship, stateReceived, now, connected), effects.reduced); }
   for(const base of world.airbases)drawAirbase(ctx,base,T,camera.zoom);
+  drawConquest(ctx, world.sites || [], T, camera.zoom, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced, world, buildings, { orbital: inOrbit(), inspectedId: following ? null : selectedSiteId });
+  drawAcid(ctx, combat, T, camera.zoom, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced);
   for (const rail of world.rails) drawRail(ctx, rail, T);
   for (const state of world.switches || []) { const rail = world.rails.find(r => r.x === state.x && r.y === state.y); if (rail) drawSwitch(ctx, rail, state, switchLocked(world, rail), T, camera.zoom); }
   if (mapGrid || mode === 'build') {
@@ -900,11 +1016,11 @@ function frame(now) {
   for (const gun of world.artillery) { if (isMissile(gun)) drawBattery(ctx, gun, T, gun.id === controlledGun()?.id); else drawRailGun(ctx, gun, T, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, effects.recoil(gun.id, now, gun.ammo || 'HE'), gun.id === controlledGun()?.id); }
   const target = mode === 'build' && hover && $('site-panel').hidden ? hover : selected;
   const coreMode = mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind);
-  const error = mode === 'build' ? deploymentError(target.x, target.y) : placementError(world, buildings, players, target.x, target.y);
+  const error = mode === 'build' ? deploymentError(target.x, target.y) : placementError(world, buildings, groundPlayers(), target.x, target.y);
   ctx.fillStyle = mode === 'build' ? error ? '#d284642c' : '#eddfa03d' : '#e8d8a518';
   ctx.strokeStyle = mode === 'build' && error ? '#ef9c76' : '#efdbad'; ctx.lineWidth = 1.5 / camera.zoom;
   if(coreMode&&deploymentKind==='airbase')drawAirbase(ctx,target,T,camera.zoom,true,!error);
-  else if (coreMode && deploymentKind === 'ship') shipEffects.preview(ctx, shipSite(world, buildings, [...players, ...combat.enemies], target.x, target.y, me.id,deploymentShipKind), target.x, target.y, camera.zoom);
+  else if (coreMode && deploymentKind === 'ship') shipEffects.preview(ctx, shipSite(world, buildings, [...groundPlayers(), ...combat.enemies], target.x, target.y, me.id,deploymentShipKind), target.x, target.y, camera.zoom);
   else if (coreMode) (deploymentKind === 'tank' ? tankEffects : coreEffects).preview(ctx, target.x, target.y, !error, camera.zoom);
   else { ctx.fillRect(target.x * T, target.y * T, T, T); ctx.strokeRect(target.x * T + 1, target.y * T + 1, T - 2, T - 2); }
   if (mode === 'build' && deploymentKind === 'rail') for (const rail of railSegment(target.x, target.y, $('rail-shape').value, Number($('rail-length').value))) {
@@ -926,11 +1042,14 @@ function frame(now) {
   }
   for (const p of visible) drawScout(p, dt, now);
   for(const v of [...world.tanks,...world.ships]) if(v.elapsed>=TANK.exit)drawVehicleState(ctx,v,T,camera.zoom,now,effects.reduced);
-  if (currentShip() && aim && mode !== 'build') drawShipAim(currentShip());
   drawCombat();
   for(const base of world.airbases)drawAircraft(ctx,base.aircraft,T,camera.zoom,base.aircraft.id===me.aircraftId,connected?(now-stateReceived)/1000:0);
-  if(currentAircraft())drawBombPrediction(ctx,world,currentAircraft(),currentAirbase(),T,camera.zoom);
   drawBombRuns(ctx,combat.barrages||[],T,connected?Math.min((now-stateReceived)/1000,.1):0,camera.zoom);
+  drawLaserBeams(ctx, world.sites || [], T, camera.zoom, world, buildings, laserBeamRay);
+  drawContamination(ctx, world.sites || [], T, combat.time || 0, effects.reduced);
+  drawHeavyAim();
+  if (currentShip() && aim && mode !== 'build') drawShipAim(currentShip());
+  if (currentAircraft()) drawBombPrediction(ctx,world,currentAircraft(),currentAirbase(),T,camera.zoom, p => concealed(world.sites, p, combat.time));
   for (const id of positions.keys()) if (!visible.some(p => p.id === id)) positions.delete(id);
   ctx.restore();
   if (coreMode) {
@@ -1005,7 +1124,7 @@ $('start-drill').onclick = async () => {
       if (controlledGun()) setOrbitalView(true);
       else { camera.x = front.x * T; camera.y = front.y * T; camera.zoom = .65; following = false; }
     }
-    notify(`Crawlers approaching ${front?.label || 'the landing pad'} from the north.`);
+    notify(`Crawlers approaching ${front?.label || 'the drill beacon'} from the north.`);
   }
   catch (error) { notify(error.message); }
 };
@@ -1084,7 +1203,19 @@ $('remove-building').onclick = async () => {
 $('select-tile').onclick = () => { const x = Number($('tile-x').value), y = Number($('tile-y').value); if (world && Number.isFinite(x) && Number.isFinite(y)) select(x, y, true); };
 $('zoom-in').onclick = () => zoom(1.2); $('zoom-out').onclick = () => zoom(1 / 1.2); $('center').onclick = recenter;
 $('grid-toggle').onclick = () => { mapGrid = !mapGrid; $('grid-toggle').setAttribute('aria-pressed', String(mapGrid)); };
-$('help-button').onclick = () => { stopFiring(); keys.clear(); $('help-dialog').showModal(); };
+$('help-button').onclick = () => { stopFiring(); keys.clear(); $('help-dialog').showModal(); if (campaignId) roomRequest('pause', { paused: true }).catch(e => notify(e.message)); };
+$('help-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: false }).catch(e => notify(e.message)); });
+$('room-button').hidden = !campaignId;
+$('campaign-link').hidden = !!campaignId;
+$('room-button').onclick = async () => {
+  keys.clear(); stopFiring(); $('room-dialog').showModal();
+  try { await roomRequest('pause', { paused: true }); } catch (e) { $('room-status').textContent = e.message; }
+};
+$('room-resume').onclick = () => $('room-dialog').close();
+$('room-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: false }).catch(e => notify(e.message)); canvas.focus({ preventScroll: true }); });
+$('room-invite').onclick = async () => { try { const invite = await roomRequest('invite'); $('room-code').value = invite.code; $('room-code').select(); } catch (e) { $('room-status').textContent = e.message; } };
+$('room-revoke').onclick = async () => { try { await roomRequest('revoke-invites'); $('room-code').value = ''; $('room-status').textContent = 'Unused invitation codes revoked.'; } catch (e) { $('room-status').textContent = e.message; } };
+$('room-leave').onclick = async () => { try { await roomRequest('leave'); eventStream?.close(); location.assign('/campaigns/'); } catch (e) { $('room-status').textContent = e.message; } };
 $('help-dialog').addEventListener('click', event => { if (event.target === $('help-dialog')) { const r = event.target.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) event.target.close(); } });
 // Desktop combat uses mouse buttons; middle-drag is the distinct pan gesture.
 canvas.addEventListener('contextmenu', event => event.preventDefault());
@@ -1162,9 +1293,26 @@ canvas.addEventListener('wheel', event => { if (!world) return; event.preventDef
 mini.addEventListener('pointerdown', event => {
   if (!world) return; const r = mini.getBoundingClientRect(); camera.x = (event.clientX - r.left) / r.width * world.width * T; camera.y = (event.clientY - r.top) / r.height * world.height * T; following = false;
 });
+function locateSite(kind, id = null) {
+  const site = world?.sites?.find(s => id ? s.id === id : s.kind === kind); if (!site) return;
+  selectedSiteId = site.id;
+  following = false; camera.x = (site.x + 1.5) * T; camera.y = (site.y + 1.5) * T;
+  camera.zoom = Math.max(.45, camera.zoom); canvas.focus();
+  if (kind === 'contaminator') camera.zoom = Math.min(.45, (width - 40) / (CONTAMINATOR.radius * 2.4 * T), (height - 180) / (CONTAMINATOR.radius * 2.4 * T));
+}
+$('locate-station').onclick = () => locateSite('alert');
+$('locate-mortar').onclick = () => locateSite('mortar');
+$('locate-modifier').onclick = () => locateSite('modifier');
+$('locate-laser').onclick = () => locateSite('laser');
+$('locate-contaminator').onclick = () => locateSite('contaminator');
+$('locate-settlement').onclick = () => {
+  const colony = settlements(world?.sites)[0]; if (!colony) return;
+  selectedSiteId = (colony.members.find(s => s?.state === 'hostile') || colony.members.find(Boolean)).id;
+  following = false; camera.x = colony.x * T; camera.y = colony.y * T; camera.zoom = .35; canvas.focus();
+};
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright']);
 window.addEventListener('keydown', event => {
-  if (!world || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || $('help-dialog').open) return;
+  if (!world || roomState?.paused || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || $('room-dialog').open || $('help-dialog').open) return;
   const key = event.key.toLowerCase();
   if(key==='e'&&!event.repeat&&!$('aircraft-interact').hidden){event.preventDefault();if(!$('aircraft-interact').disabled)void aircraftAction(currentAircraft()?'exit':'board');return;}
   if(currentAircraft()&&key===' '&&event.target===canvas){event.preventDefault();return;}
@@ -1194,7 +1342,7 @@ for (const button of document.querySelectorAll('[data-direction]')) {
   button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release); button.addEventListener('lostpointercapture', release);
 }
 setInterval(async () => {
-  if (!connected || inputBusy || !world || !alive() || me.deploying || (mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind))) return;
+  if (!connected || inputBusy || !world || roomState?.paused || $('room-dialog').open || inOrbit() || !alive() || me.deploying || (mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind))) return;
   if (controlledGun()) {
     if (document.hidden || gunBusy) return;
     inputBusy = true;
@@ -1227,6 +1375,8 @@ async function start() {
       const img = new Image(); img.onload = () => { images[name] = img; resolve(); }; img.onerror = () => reject(new Error(`Could not load ${name}. Reload to try again.`)); img.src = `/assets/kenney/${name}`;
     }))]);
     world = data.world; me = data.me; buildings = data.buildings; players = data.players;
+    $('account-link').textContent = data.accountKind === 'demo' ? 'DEMO' : 'ID';
+    $('account-link').title = data.accountKind === 'demo' ? 'Demo account / simulated email verification' : data.accountKind ? 'Player account' : 'Sign in or link this guest';
     $('drill-front').replaceChildren(...(world.fronts || [{ id: 'landing', label: 'Caldera landing' }]).map(f => Object.assign(document.createElement('option'), { value: f.id, textContent: f.label })));
     if (me.deploying) deploymentFocus = world.cores.find(c => c.owner === me.id)?.id;
     initialFoundations = buildings.filter(b => b.owner === me.id).length;
@@ -1238,6 +1388,7 @@ async function start() {
     if(currentAircraft())following=true;zoom(1); select(Math.floor(me.x), Math.floor(me.y)); aim = { x: me.x, y: Math.max(.5, me.y - 5) }; updateState(data); setMode('explore'); drawMinimap();
     $('loading').classList.add('hidden'); requestAnimationFrame(frame);
     subscribe();
+    if (inOrbit()) beginCoreSurvey();
     if (initialFoundations && alive()) notify('Welcome back. Your outpost is right where you left it.');
   } catch (error) {
     $('loading').querySelector('strong').textContent = 'Uplink unavailable'; $('loading').querySelector('p').textContent = `${error.message} Refresh to reconnect.`;

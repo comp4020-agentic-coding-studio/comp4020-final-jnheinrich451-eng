@@ -7,7 +7,7 @@ test('a mismatched page build refreshes once and keeps the same guest', async ({
     if (++documents === 1) html = html.replace(/name="frontier-build" content="[^"]+"/, 'name="frontier-build" content="old-renderer"');
     await route.fulfill({ response, body: html });
   });
-  await page.goto('/');
+  await page.goto('/?legacy=1');
   await expect.poll(() => documents).toBe(2);
   await expect(page.locator('#connection')).toContainText('live');
   const meta = await page.locator('meta[name="frontier-build"]').getAttribute('content');
@@ -18,7 +18,7 @@ test('a mismatched page build refreshes once and keeps the same guest', async ({
 });
 
 for (const reduced of [false, true]) test(`aged fire and gas stay visible over craters (${reduced ? 'reduced' : 'normal'} effects)`, async ({ page }) => {
-  await page.goto('/'); await expect(page.locator('#connection')).toContainText('live');
+  await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('live');
   const counts = await page.evaluate(async reduced => {
     const { CombatEffects } = await import('/effects.js');
     const { drawHazards } = await import('/hazard-effects.js');

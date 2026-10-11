@@ -24,7 +24,7 @@ for (const mobile of [false, true]) test(`south turn clears the nearby scout on 
     other = await browser.newContext(); await context.addCookies([{ name: 'frontier', value: token, url }]); await other.addCookies([{ name: 'frontier', value: peerToken, url }]);
     const peer = await other.newPage(), page = await context.newPage(), errors = [];
     for (const p of [page, peer]) p.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url); await page.goto(url); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const status = await page.evaluate(async id => (await fetch('/api/artillery/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })).status, id);
     expect(status).toBe(200); await expect(page.locator('#facility-controls')).toBeVisible();

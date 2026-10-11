@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js",
-    "start": "node server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js",
+    "start": "node --env-file-if-exists=.env server.js",
+    "world:reset": "node scripts/reset-world.mjs",
     "test:browser": "playwright test",
     "assets:prepare": "node scripts/prepare-assets.mjs",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
@@ -24,5 +25,8 @@
   "engines": {
     "node": ">=24.2.0",
     "pnpm": ">=11"
+  },
+  "dependencies": {
+    "nodemailer": "^10.0.16"
   }
 }

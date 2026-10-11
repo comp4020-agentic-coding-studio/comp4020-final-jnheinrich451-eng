@@ -18,7 +18,7 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();
   await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),peer=await other.newPage(),errors=[];
-  page.on('pageerror',e=>errors.push(e.message));await peer.goto(url);await page.goto(url);await page.bringToFront();
+  page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json());
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Navy');
   await expect(page.locator('#ship-card')).toBeVisible();await page.locator('#ship-card').click();

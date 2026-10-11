@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172925"><title>Account — Frontier</title>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/account.css">
+  <script type="module" src="/account.js"></script>
+</head>
+<body>
+  <main>
+    <a class="brand" href="/">F <span>FRONTIER<small>ORBITAL COMMAND</small></span></a>
+    <section class="card">
+      <p class="eyebrow">PLAYER ACCESS</p><h1 id="title">Connect your player.</h1>
+      <p id="intro">Keep your player and return from another device.</p>
+      <nav id="modes" aria-label="Account mode"><a id="email-mode">Email account</a><a id="demo-mode">Demo account</a></nav>
+      <p id="mode-help" class="help"></p><p id="mail-status" class="help" hidden></p>
+      <p id="message" role="status" aria-live="polite"></p>
+      <form id="register-form" data-action="register" hidden>
+        <label>Display name<input name="name" required maxlength="32" autocomplete="nickname"></label>
+        <label>Email<input name="email" type="email" required maxlength="254" autocomplete="email"></label>
+        <label>Password<input name="password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label>
+        <p class="help">15–128 characters. Your existing guest player and equipment stay with this account after activation.</p>
+        <button>Create account</button>
+      </form>
+      <form id="login-form" data-action="login" hidden>
+        <label>Email<input name="email" type="email" required maxlength="254" autocomplete="username"></label>
+        <label>Password<input name="password" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <button>Sign in</button><button id="takeover" type="button" class="secondary" hidden>Take over and disconnect previous session</button>
+        <p class="help">Signing in resumes this account's player. A different guest's progress is kept separately and is not merged.</p>
+      </form>
+      <form id="verify-form" data-action="verify" hidden><p>Confirm this account only if you requested it. This connects the registering guest's saved player.</p><button>Confirm account</button></form>
+      <form id="reset-form" data-action="reset" hidden>
+        <label>New password<input name="password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label>
+        <p class="help">Changing the password signs out all old sessions and keeps your player and progress.</p><button>Save new password</button>
+      </form>
+      <form id="recover-form" data-action="recover" hidden>
+        <label>Email<input name="email" type="email" required maxlength="254" autocomplete="username"></label>
+        <p class="help">Demo recovery needs your private inbox or an existing signed-in session. A fake address alone cannot recover a lost account.</p><button>Request reset link</button>
+      </form>
+      <details id="resend" hidden><summary>Resend verification</summary><form data-action="resend">
+        <label>Email<input name="email" type="email" required maxlength="254" autocomplete="email"></label><button class="secondary">Resend verification</button>
+      </form></details>
+      <div id="profile" hidden><p id="identity"></p><p>Your player is linked to this account. The current battlefield is shared with other players.</p>
+        <a class="button" href="/">Return to battlefield</a><button id="open-inbox" class="secondary" hidden>Open private Demo inbox</button><a id="reset-link" href="/forgot-password/">Change or recover password</a><button id="logout" class="secondary">Sign out</button>
+      </div>
+      <div id="inbox" hidden><p class="notice">SIMULATED EMAIL · No messages are sent to a real mailbox.</p><p id="inbox-address"></p><div id="messages"></div><button id="refresh-inbox" class="secondary">Refresh inbox</button></div>
+      <a id="next" class="button" hidden>Continue</a>
+      <nav class="links"><a id="login-link" href="/login/">Sign in</a><a id="register-link" href="/register/">Create account</a><a id="forgot-link" href="/forgot-password/">Forgot password?</a><a id="inbox-link" href="/demo-inbox/" hidden>Demo inbox</a></nav>
+      <button id="guest" class="secondary guest">Play as guest</button>
+      <p class="footnote">Guest progress belongs to this browser until linked to an account. Registering does not create a private world.</p>
+      <noscript>Account forms need JavaScript in this prototype. Enable it to register or sign in.</noscript>
+    </section>
+  </main>
+</body>
+</html>

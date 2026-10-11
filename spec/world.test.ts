@@ -12,9 +12,9 @@ it('starts on reachable ground and keeps water and rocks impassable', () => {
   expect(findPath(world, [], world.spawn, { x: 7, y: 8 })).toBeNull();
 });
 
-it('protects the landing area, water, occupied tiles, and nearby players', () => {
+it('allows building on the former helipad while protecting water, occupied tiles and nearby players', () => {
   const world = createWorld();
-  expect(placementError(world, [], [], 24, 18)).toContain('landing');
+  expect(placementError(world, [], [], 24, 18)).toBeNull();
   expect(placementError(world, [], [], 0, 0)).toContain('water');
   expect(placementError(world, [{ x: 28, y: 18 }], [], 28, 18)).toContain('occupied');
   expect(placementError(world, [], [{ x: 28.5, y: 18.5 }], 28, 18)).toContain('scout');

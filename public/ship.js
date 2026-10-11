@@ -1,7 +1,7 @@
 import { airbaseAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
 import { POD } from './pod.js';
-import { tileAt, canStand, isLanding } from './world.js';
+import { tileAt, canStand } from './world.js';
 import { artilleryBlocks, railCorridor } from './footprints.js';
 import { angleDelta } from './turret.js';
 import { hullPoint, operational } from './vehicle.js';
@@ -45,7 +45,7 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship') {
   if(x<0||y<0||x>=world.width||y>=world.height||tileAt(world,x,y)!==0)return fail('The ship needs open water. Choose a coastal water tile.');
   for(let distance=3;distance<=5;distance++)for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]) {
     const dock={x:x+.5+dx*distance,y:y+.5+dy*distance,angle:Math.atan2(-dx,dy)};
-    if(airbaseAt(world,dock.x,dock.y)||!canStand(world,buildings,dock.x,dock.y)||isLanding(Math.floor(dock.x),Math.floor(dock.y))||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
+    if(airbaseAt(world,dock.x,dock.y)||!canStand(world,buildings,dock.x,dock.y)||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
     if(occupants.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&Math.hypot(p.x-dock.x,p.y-dock.y)<.8))continue;
     let clear=true;for(let step=1;step<distance;step++)if(tileAt(world,x+dx*step,y+dy*step)!==0)clear=false;
     if(!clear)continue;
@@ -80,7 +80,7 @@ export function shoreRampSite(world,buildings,occupants,ship) {
   if(!surfaced(ship)||!operational(ship)||!canSail(world,ship))return null;
   const candidates=[],r=SHIP.length/2+SHORE_RAMP.reach+1;
   for(let y=Math.max(0,Math.floor(ship.y-r));y<Math.min(world.height,ship.y+r);y++)for(let x=Math.max(0,Math.floor(ship.x-r));x<Math.min(world.width,ship.x+r);x++){
-    if(airbaseAt(world,x,y)||tileAt(world,x,y)===0||isLanding(x,y)||dockAt(world,x,y)||railCorridor(world,x,y))continue;
+    if(airbaseAt(world,x,y)||tileAt(world,x,y)===0||dockAt(world,x,y)||railCorridor(world,x,y))continue;
     const p={x:x+.5,y:y+.5};
     if(occupants.some(v=>v.id!==ship.occupant&&v.life!=='disabled'&&(v.hp===undefined||v.hp>0)&&Math.hypot(v.x-p.x,v.y-p.y)<.8)||!rampClear(world,buildings,ship,p))continue;
     candidates.push(p);

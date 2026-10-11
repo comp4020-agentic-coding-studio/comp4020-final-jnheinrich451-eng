@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      nodemailer:
+        specifier: ^10.0.16
+        version: 10.0.16
     devDependencies:
       '@playwright/test':
         specifier: ^1.63.0
@@ -557,6 +561,10 @@ packages:
     resolution: {integrity: sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+
+  nodemailer@10.0.16:
+    resolution: {integrity: sha512-VL9xKErxN+el77o8eBOuYKUPMyEx7F9hfnDCuiUKJRp9v3wnWMOudYgP/SWbwSHy8rUL4cylobuXtki1LpQS7A==}
+    engines: {node: '>=20.0.0'}
 
   obug@2.2.1:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
@@ -1170,6 +1178,8 @@ snapshots:
   mdn-data@2.27.1: {}
 
   nanoid@3.3.19: {}
+
+  nodemailer@10.0.16: {}
 
   obug@2.2.1: {}
 
