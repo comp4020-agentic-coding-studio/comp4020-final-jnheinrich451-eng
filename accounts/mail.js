@@ -28,8 +28,11 @@ export function smtpMailer(env = process.env) {
       try {
         const action = purpose === 'verify' ? 'Verify your Frontier email' : 'Reset your Frontier password';
         const url = `${origin}/${purpose === 'verify' ? 'verify' : 'reset-password'}/#token=${token}`;
+        const request = purpose === 'verify'
+          ? 'We received a request to register a Frontier account using this email address. To verify that you control this address and activate your account, open the link below and confirm on the page.'
+          : 'We received a request to reset the password for your Frontier account. To choose a new password, open the link below and follow the instructions on the page.';
         const result = await transport.sendMail({ from, to: email, subject: action,
-          text: `${action}\n\n${url}\n\nThis link expires in 30 minutes and works once. Opening the link does not change your account; confirm on the page. If you did not request this, ignore this email.` });
+          text: `Hello,\n\nFrontier is a multiplayer game developed as a COMP8020 student project.\n\n${request}\n\n${url}\n\nThis link expires in 30 minutes and can be used once. Opening it alone does not change your account.\n\nIf you did not request this, you can ignore this email. No action is required.\n\nFrontier student project` });
         if (!result.accepted?.length) throw new Error('Mail not accepted');
       } finally { sending--; }
     },

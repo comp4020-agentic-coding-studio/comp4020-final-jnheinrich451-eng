@@ -144,8 +144,10 @@
   and Demo registration/login, private simulated inbox, verification/resend,
   recovery and logout. Preserve guest entry by invitation and visible Demo labels;
   Demo activation never establishes email ownership. SMTP is configured on Fly;
-  connection, TLS and Brevo authentication passed on 11 October. Actual inbox
-  receipt remains unverified; the connection check did not send an email.
+  connection, TLS and Brevo authentication passed on 11 October without sending
+  mail. On 12 October the author reported receipt in ANU Junk and a Brevo account
+  suspension; its cause is unconfirmed. Do not treat SMTP configuration as proof
+  of current delivery availability or revised wording as a suspension fix.
 - Current account defaults preserve guest progress and require explicit takeover
   before replacing another account session. Do not silently merge another guest
   during login. Rotate old guest credentials when attaching an account; expire

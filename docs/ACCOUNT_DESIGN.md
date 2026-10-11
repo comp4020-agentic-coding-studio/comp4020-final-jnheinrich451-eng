@@ -165,6 +165,15 @@ sync future configuration changes separately. Fly's default outbound IP can
 change; a later Brevo IP rejection may require updating the allowlist. No paid
 static egress address was allocated in this stage.
 
+Update, 12 October: the author reports that their registration email reached
+their ANU mailbox in Junk, and that Brevo suspended the account. Receipt is now
+user-reported; completing verification and the reason for suspension remain
+unconfirmed. The mail copy now identifies Frontier as a COMP8020 student project,
+explains the registration or password-reset request, and retains the single-use
+30-minute link and unsolicited-request guidance. The revised wording alone
+does not establish improved deliverability or reactivate Brevo. No further
+real email was sent as part of the copy change.
+
 ## Reset compatibility and checks
 
 The local world-reset tool backs up the complete database, clears world progress
