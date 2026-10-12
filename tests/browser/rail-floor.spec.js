@@ -16,7 +16,7 @@ for (const mobile of [false, true]) test(`rails cross pad and unfolded flooring 
     const coordinates = async (x, y) => { await page.locator('#tile-x').fill(String(x)); await page.locator('#tile-y').fill(String(y)); await page.locator('#select-tile').click(); };
     expect((await post('cores', { x: 29, y: 13 })).status).toBe(201);
     await expect.poll(async () => (await state(page)).me.deploying, { timeout: 8000 }).toBe(false);
-    await page.locator('#build-mode').click(); await page.locator('#rail-card').click(); await page.locator('#coordinate-details summary').click();
+    await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#rail-card').click(); await page.locator('#coordinate-details summary').click();
     await coordinates(25, 16); await page.locator('#rail-shape').selectOption('NS');
     await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
     await expect.poll(async () => (await state(page)).rails.length).toBe(5);
@@ -26,8 +26,10 @@ for (const mobile of [false, true]) test(`rails cross pad and unfolded flooring 
     expect((await post('artillery', { x: 25, y: 17 })).status).toBe(201);
     other = await browser.newContext(); const peer = await other.newPage(); await peer.goto(url + '/?legacy=1');
     const joined = await state(peer), guest = joined.me;
-    expect(Math.abs(guest.x - 25.5) >= 1.75 || Math.abs(guest.y - 17.5) >= 1.75).toBe(true);
-    await page.bringToFront(); await page.locator('#build-mode').click(); await page.locator('#rail-card').click();
+    // Since orbital entry a joining guest has no ground body until its core lands, so it
+    // cannot be placed onto the cannon; any ground arrival must still be clear of it.
+    expect(guest.body === 'orbital' || Math.abs(guest.x - 25.5) >= 1.75 || Math.abs(guest.y - 17.5) >= 1.75).toBe(true);
+    await page.bringToFront(); await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#rail-card').click();
     await coordinates(34, 14); await page.locator('#rail-shape').selectOption('EW');
     await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
     await expect.poll(async () => (await state(peer)).rails.length).toBe(10);

@@ -33,6 +33,9 @@ import { drawHazards } from './hazard-effects.js';
 import { fieldCapacityError } from './hazards.js';
 import { tileAt, LABELS, placementError } from './world.js';
 import { hudState, coreSiteAnalysis, orbitStep, landingLog } from './hud.js';
+import { TABS, ASSETS, assetByCard, assetsIn, orbitalPrice, specRows } from './catalogue.js';
+import { BINDINGS, SCOPES, POINTER, keyOf } from './keymap.js';
+import { drawGraticule, drawScaleBar, telemetry } from './instruments.js';
 import { CombatEffects, drawCrawler } from './effects.js';
 import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
 import { CORE, corePlacementError } from './core.js';
@@ -114,6 +117,45 @@ function updateHud() {
     }));
   }
 }
+// Deployment catalogue: one tab at a time; specs and prices come from catalogue.js.
+let forceTab = 'ground', specCard = null;
+function setForceTab(tab, focus = false) {
+  forceTab = tab;
+  for (const button of document.querySelectorAll('[data-force-tab]')) {
+    const active = button.dataset.forceTab === tab;
+    button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
+    if (active) { $('tray-panel').setAttribute('aria-labelledby', button.id); if (focus) button.focus(); }
+  }
+  for (const element of document.querySelectorAll('[data-force]')) element.hidden = !element.dataset.force.split(' ').includes(tab);
+  if (world) { $('switches-open').hidden = tab !== 'rail' || !world.rails.some(isCurve); updateShips(); updateAircraft(); }
+  showSpec(assetsIn(tab)[0]?.card);
+  updateCatalogue();
+}
+function showSpec(cardId) {
+  const asset = assetByCard(cardId); if (!asset) return;
+  specCard = cardId;
+  const art = $(cardId).querySelector('.unit-art')?.cloneNode(true);
+  const title = Object.assign(document.createElement('div'), { className: 'spec-title' });
+  title.append(Object.assign(document.createElement('span'), { className: 'asset-code', textContent: asset.code }), Object.assign(document.createElement('strong'), { textContent: asset.name }));
+  const list = document.createElement('dl');
+  for (const [term, value] of specRows(asset)) list.append(Object.assign(document.createElement('dt'), { textContent: term }), Object.assign(document.createElement('dd'), { textContent: value }));
+  $('asset-spec').replaceChildren(...(art ? [art] : []), title, list);
+}
+function updateCatalogue() {
+  if (!world || !me) return;
+  const supplies = Math.floor(world.logistics?.supplies ?? 0), allowed = connected && me.life === 'active' && me.body === 'robot';
+  $('tray-supplies').textContent = 'SUP ' + supplies;
+  const mine = list => (list || []).filter(o => o.owner === me.id && !o.destroyed);
+  const owned = { 'core-card': mine(world.cores).length, 'tank-card': mine(world.tanks).length, 'ship-card': mine(world.ships).filter(s => shipKind(s) === 'gunship').length, 'submarine-card': mine(world.ships).filter(s => shipKind(s) === 'submarine').length, 'airbase-card': mine(world.airbases).length };
+  const firstCore = !world.logistics?.deployments?.[me.id] || !world.cores.length;
+  for (const asset of ASSETS) {
+    const card = $(asset.card), price = asset.card === 'core-card' && firstCore ? 0 : orbitalPrice(asset), short = price > supplies;
+    card.classList.toggle('short', short); card.classList.toggle('in-field', !!owned[asset.card]);
+    card.querySelector('.asset-cost').textContent = (price ? price + ' SUP' : 'FREE') + (short ? ' · short ' + (price - supplies) : '') + (owned[asset.card] ? ' · IN FIELD' : '');
+    if (asset.tab === 'logistics') card.disabled = !allowed || short;
+  }
+}
+const deployLogistics = (kind, emergency = false) => { emergencyDeployment = emergency; $('construction-method').value = 'orbital'; beginCoreSurvey(kind); };
 function noteLocated() { locatedSite = true; try { sessionStorage.setItem('frontier-located', '1'); } catch {} updateHud(); }
 // Site analysis for an orbital core: measured footprint facts plus the client preview's verdict.
 function renderSiteAnalysis(a, error) {
@@ -191,7 +233,7 @@ function deploymentError(x,y){
 }
 const logistics=logisticsUI({state:()=>({world,me,connected,canManage:canManageOwner}),api,notify,
   stop:()=>{keys.clear();stopFiring();},locate:p=>{camera.x=p.x*T;camera.y=p.y*T;camera.zoom=width<760?.45:.7;following=false;},
-  deploy:(kind,emergency=false)=>{emergencyDeployment=emergency;$('construction-method').value='orbital';beginCoreSurvey(kind);}
+  deploy:(kind,emergency=false)=>deployLogistics(kind,emergency)
 });
 let airBusy=false;
 let deploymentAircraftKind='bomber', nextStrafe=0;
@@ -345,7 +387,7 @@ async function shipSecondary() {
   try{await api('ships/secondary',aim);}catch(e){stopFiring();notify(e.message);}finally{sideBusy=false;}
 }
 function updateReplacement(kind,list) {
-  const v=kind==='ship'?selectedVessel():list.find(v=>v.owner===me.id),b=$(kind+'-replace');b.hidden=!v?.destroyed || $('force-category').value!==(kind==='ship'?'Navy':'Ground forces');
+  const v=kind==='ship'?selectedVessel():list.find(v=>v.owner===me.id),b=$(kind+'-replace');b.hidden=!v?.destroyed || forceTab!==(kind==='ship'?'navy':'ground');
   b.disabled=!connected || !alive() || me.body!=='robot' || (v?.replacement||0)>.001;
   b.textContent=(v?.replacement||0)>.001 ? 'Replacement ready in '+Math.ceil(v.replacement)+'s' : 'Replace destroyed '+kind+' / Original drop site';
 }
@@ -554,7 +596,7 @@ function updateState(state) {
   world.airbases=state.airbases||[];world.cores = state.cores || []; world.tanks = state.tanks || []; world.ships = state.ships || [];
   for (const tank of world.tanks) if (players.some(p => p.vehicleId === tank.id)) positions.delete(tank.id);
   world.rails = state.rails || []; world.switches = state.switches || []; world.artillery = state.artillery || [];
-  $('switches-open').hidden = $('force-category').value !== 'Ground forces' || !world.rails.some(isCurve);
+  $('switches-open').hidden = forceTab !== 'rail' || !world.rails.some(isCurve);
   $('facility-switches').hidden = !world.switches.length;
   const nextFloorKey = [...world.cores, ...world.tanks].filter(c => c.elapsed >= CORE.duration).map(c => c.id).join(',');
   if (floorKey !== nextFloorKey) { floorKey = nextFloorKey; paintTerrain(); }
@@ -667,7 +709,7 @@ function updateState(state) {
   $('task-explore').classList.toggle('done', moved);
   $('task-build').classList.toggle('done', buildings.some(b => b.owner === me.id));
   $('task-save').classList.toggle('done', initialFoundations > 0);
-  logistics.update();
+  logistics.update(); updateCatalogue();
   updateSelection();
   if(inOrbit()&&mode!=='build')beginCoreSurvey('core');
   $('core-card').disabled = !!world.cores.find(c => c.owner === me.id) || !connected;
@@ -701,7 +743,8 @@ function setMode(next) {
     $(`${name}-mode`).classList.toggle('active', name === next);
     $(`${name}-mode`).setAttribute('aria-pressed', String(name === next));
   }
-  $('map-hint').textContent = next === 'build' ? 'Choose clear ground · Confirm deployment' : matchMedia('(pointer:coarse)').matches ? 'Tap to aim · Buttons fire · Pad moves' : 'WASD move · Mouse aim · Middle-drag pan';
+  const coarse = matchMedia('(pointer:coarse)').matches;
+  $('map-hint').textContent = next === 'build' ? (coarse ? 'Tap a clear site · Confirm below' : 'Click a site · Enter confirm · Shift+Enter keep placing' + (deploymentKind === 'rail' ? ' · R shape · T length' : '') + ' · Esc cancel') : coarse ? 'Tap to aim · Buttons fire · Pad moves' : 'WASD move · Mouse aim · B deploy · F1 keys';
   toggleTray(false); toggleSite(false);
   updateSelection(); if (world) { updateTankControl(); updateShips(); updateAircraft(); }
   if (inOrbit()) { following = false; $('map-hint').textContent = 'In orbit / Choose a core landing site / Confirm orbital drop'; toggleSite(true); }
@@ -727,7 +770,7 @@ function toggleTray(open) {
   $('deployment-tray').hidden = !open;
   $('build-mode').setAttribute('aria-expanded', String(open));
   if (open && !alive()) { $('deployment-tray').hidden = true; return; }
-  if (open) { stopFiring(); toggleSite(false); }
+  if (open) { stopFiring(); toggleSite(false); updateCatalogue(); }
 }
 function toggleSite(open) {
   if (inOrbit()) open = true;
@@ -847,9 +890,9 @@ async function place() {
     if (!buildings.some(b => b.id === building.id)) buildings.push(building);
     $('task-build').classList.add('done');
     notify('Sentry placed and saved. Ready to defend.');
-    setMode('explore');
+    if (!keepPlacing) setMode('explore');
   } catch (error) { notify(error.message); }
-  finally { pending = false; updateSelection(); }
+  finally { pending = false; keepPlacing = false; updateSelection(); }
 }
 function resize() {
   const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
@@ -1195,7 +1238,17 @@ function frame(now) {
     const cloud = ctx.createLinearGradient(0, 100, 0, height * .65); cloud.addColorStop(0, '#d6e4d000'); cloud.addColorStop(.4, '#d6e4d018'); cloud.addColorStop(.6, '#d6e4d028'); cloud.addColorStop(1, '#d6e4d000');
     ctx.fillStyle = cloud; ctx.fillRect(drift - width * .2, 100, width * 1.4, height * .55);
   }
-  if (now - lastMini > 250) { drawMinimap(); lastMini = now; $('coordinates').textContent = `SECTOR ${String(Math.floor(me.x)).padStart(2, '0')} / ${String(Math.floor(me.y)).padStart(2, '0')}`; }
+  // Survey instruments: graticule and scale bar, then cursor telemetry from you (or your facility).
+  if (width > 760 || inOrbit() || overviewReturn || orbitalView) {
+    drawGraticule(ctx, { camera, width, height, T, world, top: width > 760 ? 92 : 80, left: width > 760 ? 10 : 6 });
+    if (width > 760) drawScaleBar(ctx, { camera, T, x: 22, y: height - 50 });
+  }
+  const gun = controlledGun(), cursor = hover ? { x: hover.x + .5, y: hover.y + .5 } : aim && mode !== 'build' ? aim : null;
+  const readout = telemetry(cursor || me, cursor && !inOrbit() ? (gun ? gunPosition(gun) : me) : null);
+  if ($('coordinates').textContent !== readout) $('coordinates').textContent = readout;
+  const zoomText = Math.round(camera.zoom * 100) + '%'; // camera animations change zoom too
+  if ($('zoom-label').textContent !== zoomText) $('zoom-label').textContent = zoomText;
+  if (now - lastMini > 250) { drawMinimap(); lastMini = now; }
 }
 
 $('explore-mode').onclick = () => { releaseArtillery(); setMode('explore'); };
@@ -1324,12 +1377,18 @@ $('ship-recall').onclick = async () => {
   catch(e){notify(e.message);}finally{shipBusy=false;updateShips();}
 };
 for (const button of document.querySelectorAll('[data-ship-shell]')) button.onclick = () => shipAmmo(button.dataset.shipShell);
-$('force-category').onchange = () => {
-  const category=$('force-category').value,force=category==='Navy'?'navy':category==='Air force'?'air':'ground';
-  for(const row of document.querySelectorAll('[data-force]'))row.hidden=row.dataset.force!==force;
-  $('switches-open').hidden=force!=='ground'||!world.rails.some(isCurve);
-  $('build-mode').querySelector('span').textContent=category;updateShips();updateAircraft();
-};
+for (const button of document.querySelectorAll('[data-force-tab]')) button.onclick = () => setForceTab(button.dataset.forceTab);
+// Arrow keys move between tabs (WAI-ARIA tabs) without also moving the robot.
+$('force-tabs').addEventListener('keydown', event => {
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key]; if (!step) return;
+  event.preventDefault(); event.stopPropagation();
+  const index = TABS.findIndex(t => t.id === forceTab);
+  setForceTab(TABS[(index + step + TABS.length) % TABS.length].id, true);
+});
+for (const asset of ASSETS) { const card = $(asset.card); card.addEventListener('pointerenter', () => showSpec(asset.card)); card.addEventListener('focus', () => showSpec(asset.card)); }
+for (const kind of ['factory', 'uplink', 'recycler']) $(kind + '-card').onclick = () => deployLogistics(kind);
+$('logistics-open').onclick = () => { toggleTray(false); $('supplies-button').click(); };
+setForceTab('ground');
 $('close-deployment').onclick = () => { toggleTray(false); $('build-mode').focus(); };
 $('close-site').onclick = () => { toggleSite(false); canvas.focus({ preventScroll: true }); };
 $('site-button').onclick = () => toggleSite($('site-panel').hidden);
@@ -1339,7 +1398,7 @@ $('fullscreen').onclick = async () => {
 };
 if (!document.fullscreenEnabled) $('fullscreen').hidden = true;
 document.addEventListener('fullscreenchange', () => $('fullscreen').setAttribute('aria-label', document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen'));
-$('place-building').onclick = place;
+$('place-building').onclick = event => { keepPlacing = event.shiftKey; void place(); };
 $('remove-building').onclick = async () => {
   const building = buildings.find(b => b.x === selected.x && b.y === selected.y);
   if (!building || pending) return;
@@ -1351,6 +1410,9 @@ $('select-tile').onclick = () => { const x = Number($('tile-x').value), y = Numb
 $('zoom-in').onclick = () => zoom(1.2); $('zoom-out').onclick = () => zoom(1 / 1.2); $('center').onclick = recenter;
 $('grid-toggle').onclick = () => { mapGrid = !mapGrid; $('grid-toggle').setAttribute('aria-pressed', String(mapGrid)); };
 $('help-button').onclick = () => { stopFiring(); keys.clear(); $('help-dialog').showModal(); if (campaignId) roomRequest('pause', { paused: true }).catch(e => notify(e.message)); };
+$('keys-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: false }).catch(e => notify(e.message)); canvas.focus({ preventScroll: true }); });
+$('keys-open').onclick = () => { $('help-dialog').close(); openKeys(); };
+$('overview-button').onclick = () => toggleOverview();
 $('help-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: false }).catch(e => notify(e.message)); });
 $('room-button').hidden = !campaignId;
 $('campaign-link').hidden = !!campaignId;
@@ -1461,27 +1523,106 @@ $('locate-settlement').onclick = () => {
   following = false; camera.x = colony.x * T; camera.y = colony.y * T; camera.zoom = .35; canvas.focus();
 };
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright']);
+// Keyboard: BINDINGS (keymap.js) fixes precedence and labels; KEY_ACTIONS supplies
+// each binding's guard and effect. The first matching binding whose guard passes wins.
+let keepPlacing = false, overviewReturn = null, objectiveIndex = -1;
+const onCanvas = event => event.target === canvas;
+const trayOpen = () => !$('deployment-tray').hidden;
+const choosingSite = event => mode === 'build' && !$('site-panel').hidden && (event.target === canvas || event.target === document.body);
+const inTank = () => me.body === 'rover' && !!me.vehicleId && !controlledGun();
+const shellFor = event => ['HE', 'INCENDIARY', 'GAS'][Number(keyOf(event)) - 1];
+const once = run => event => { if (!event.repeat) run(event); };
+const KEY_ACTIONS = {
+  'aircraft-board': { when: event => !event.repeat && !$('aircraft-interact').hidden, run: () => { if (!$('aircraft-interact').disabled) void aircraftAction(currentAircraft() ? 'exit' : 'board'); } },
+  'aircraft-space': { when: event => !!currentAircraft() && onCanvas(event), run: () => {} },
+  'sub-depth': { when: event => isSubmarine(currentShip()) && onCanvas(event), run: once(event => { if (combatInputAllowed()) void shipDepth(keyOf(event) === ' ' ? 'surface' : 'dive'); }) },
+  'missile-rotate': { when: () => isMissile(controlledGun()), run: once(() => $('missile-rotate').click()) },
+  'catalogue-prev': { when: trayOpen, run: once(() => cycleTab(-1)) },
+  'catalogue-next': { when: trayOpen, run: once(() => cycleTab(1)) },
+  'catalogue-pick': { when: trayOpen, run: once(event => { const card = assetsIn(forceTab).map(a => $(a.card))[Number(keyOf(event)) - 1]; if (card && !card.disabled) { card.click(); if (mode === 'build' && $('site-panel').hidden) toggleSite(true); } }) },
+  'gun-ammo': { when: () => !!controlledGun(), run: once(event => void gunAction('ammo', { ammo: shellFor(event) })) },
+  'ship-ammo': { when: () => !!me.shipId, run: once(event => void shipAmmo(shellFor(event))) },
+  'tank-primary': { when: inTank, run: once(event => setTankWeapon('tank-primary', ['HE', 'MAGNETIC'][Number(keyOf(event)) - 1])) },
+  'tank-secondary': { when: inTank, run: once(() => setTankWeapon('tank-secondary', $('tank-secondary').value === 'APCR' ? 'HEAVY_FLAME' : 'APCR')) },
+  'ship-board': { when: event => !event.repeat && !$('ship-interact').hidden, run: () => void shipInteract() },
+  'tank-board': { when: event => !event.repeat && !$('tank-interact').hidden, run: () => void tankInteract() },
+  'place-confirm': { when: choosingSite, run: once(() => { keepPlacing = false; void place(); }) },
+  'place-repeat': { when: choosingSite, run: once(() => { keepPlacing = true; void place(); }) },
+  'rail-shape': { when: () => mode === 'build' && deploymentKind === 'rail', run: once(() => cycleSelect('rail-shape')) },
+  'rail-length': { when: () => mode === 'build' && deploymentKind === 'rail' && !$('rail-length').disabled, run: once(() => cycleSelect('rail-length')) },
+  deploy: { when: () => true, prevent: false, run: () => { toggleTray($('deployment-tray').hidden); if (trayOpen()) (assetsIn(forceTab).map(a => $(a.card)).find(card => !card.disabled) || $('close-deployment')).focus(); } },
+  secondary: { when: event => onCanvas(event) && combatInputAllowed(), run: once(() => { heldGun.add('keyboard'); fire('APCR'); }) },
+  primary: { when: onCanvas, run: once(() => { if (controlledGun()) { heavyFire(); return; } if ((me.body === 'robot' || isAttackJet(currentAircraft())) && combatInputAllowed()) heldPrimary.add('keyboard'); fire('HE'); }) },
+  back: { when: () => true, prevent: false, run: () => { releaseArtillery(); setMode('explore'); } },
+  'sub-rotate': { when: event => isSubmarine(currentShip()) && !event.repeat, run: () => { subRotated = !subRotated; updateShips(); } },
+  recenter: { when: () => true, prevent: false, run: () => { overviewReturn = null; recenter(); } },
+  'ship-ramp': { when: event => !!currentShip() && !event.repeat, run: () => void shipRamp() },
+  grid: { when: event => !event.repeat, prevent: false, run: () => $('grid-toggle').click() },
+  logistics: { when: event => !event.repeat, run: () => $('supplies-button').click() },
+  overview: { when: event => !event.repeat, run: () => toggleOverview() },
+  'objective-next': { when: event => !event.repeat, run: () => cycleObjective(1) },
+  'objective-prev': { when: event => !event.repeat, run: () => cycleObjective(-1) },
+  room: { when: event => !event.repeat, run: () => { if ($('room-button').hidden || $('room-button').disabled) notify('The room menu is available in named campaigns.'); else $('room-button').click(); } },
+  keys: { when: event => !event.repeat, run: () => openKeys() },
+  'zoom-in': { when: () => true, prevent: false, run: () => zoom(1.1) },
+  'zoom-out': { when: () => true, prevent: false, run: () => zoom(1 / 1.1) },
+};
+function cycleTab(step) { const index = TABS.findIndex(t => t.id === forceTab); setForceTab(TABS[(index + step + TABS.length) % TABS.length].id, true); }
+function cycleSelect(id) { const select = $(id); select.selectedIndex = (select.selectedIndex + 1) % select.options.length; select.dispatchEvent(new Event('change')); }
+function setTankWeapon(id, value) { if ($(id).value === value) return; $(id).value = value; $(id).dispatchEvent(new Event('change')); }
+// M: whole-map survey overview, returning to the previous camera on the second press.
+function toggleOverview() {
+  if (controlledGun()) { setOrbitalView(!orbitalView); return; }
+  if (overviewReturn) { camera = overviewReturn.camera; following = overviewReturn.following; overviewReturn = null; }
+  else {
+    overviewReturn = { camera: { ...camera }, following }; following = false;
+    camera = { x: world.width * T / 2, y: world.height * T / 2, zoom: Math.min((width - 24) / (world.width * T), (height - 210) / (world.height * T)) };
+  }
+  $('zoom-label').textContent = Math.round(camera.zoom * 100) + '%';
+}
+// O / Shift+O: hostile sites ordered by distance from you.
+function cycleObjective(step) {
+  const from = me || world.spawn, distance = s => Math.hypot(s.x + 1.5 - from.x, s.y + 1.5 - from.y);
+  const hostile = (world.sites || []).filter(s => s.state === 'hostile').sort((a, b) => distance(a) - distance(b));
+  if (!hostile.length) { notify('No hostile sites surveyed in this world.'); return; }
+  objectiveIndex = objectiveIndex < 0 ? (step > 0 ? 0 : hostile.length - 1) : (objectiveIndex + step + hostile.length) % hostile.length;
+  const site = hostile[objectiveIndex]; overviewReturn = null; locateSite(null, site.id);
+  notify(`Hostile site ${objectiveIndex + 1}/${hostile.length} · ${site.name || site.kind} · ${distance(site).toFixed(1)} t`);
+}
+// F1: the bindings valid right now, grouped by scope, plus the always-on pointer controls.
+function openKeys() {
+  stopFiring(); keys.clear();
+  const groups = new Map();
+  for (const binding of BINDINGS) {
+    if (binding.id === 'aircraft-space') continue;
+    const probe = { target: canvas, repeat: false, shiftKey: !!binding.shift };
+    if (binding.scope !== 'global' && !KEY_ACTIONS[binding.id]?.when(probe)) continue;
+    if (!groups.has(binding.scope)) groups.set(binding.scope, []);
+    groups.get(binding.scope).push(binding);
+  }
+  const section = (title, rows) => {
+    const list = document.createElement('dl');
+    for (const [key, text] of rows) list.append(Object.assign(document.createElement('dt'), { textContent: key }), Object.assign(document.createElement('dd'), { textContent: text }));
+    return [Object.assign(document.createElement('h2'), { textContent: title }), list];
+  };
+  const ordered = [...groups.entries()].sort(([a], [b]) => (a === 'global') - (b === 'global'));
+  $('keys-now').replaceChildren(...ordered.flatMap(([scope, list]) => section(SCOPES[scope], list.map(b => [b.label, b.text]))), ...section('Pointer and movement', POINTER));
+  $('keys-dialog').showModal();
+  if (campaignId) roomRequest('pause', { paused: true }).catch(e => notify(e.message));
+}
 window.addEventListener('keydown', event => {
-  if (!world || roomState?.paused || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || $('logistics-dialog').open || $('room-dialog').open || $('help-dialog').open) return;
-  const key = event.key.toLowerCase();
-  if(key==='e'&&!event.repeat&&!$('aircraft-interact').hidden){event.preventDefault();if(!$('aircraft-interact').disabled)void aircraftAction(currentAircraft()?'exit':'board');return;}
-  if(currentAircraft()&&key===' '&&event.target===canvas){event.preventDefault();return;}
-  if(isSubmarine(currentShip())&&event.target===canvas&&(event.code==='ControlLeft'||key===' ')){event.preventDefault();if(!event.repeat&&combatInputAllowed())void shipDepth(key===' '?'surface':'dive');return;}
-  if (key === 'r' && isMissile(controlledGun())) { event.preventDefault(); if (!event.repeat) $('missile-rotate').click(); return; }
-  if (movementKeys.has(key)) { event.preventDefault(); if (alive() && !me.deploying && !(mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind))) { keys.add(key); if (!controlledGun()) { following = true; path = []; } } }
-  if (controlledGun() && ['1', '2', '3'].includes(key)) { event.preventDefault(); if (!event.repeat) void gunAction('ammo', { ammo: ['HE', 'INCENDIARY', 'GAS'][Number(key) - 1] }); return; }
-  if (me.shipId && ['1','2','3'].includes(key)) { event.preventDefault(); if (!event.repeat) void shipAmmo(['HE','INCENDIARY','GAS'][Number(key)-1]); return; }
-  if (key === 'e' && !event.repeat && !$('ship-interact').hidden) { event.preventDefault(); void shipInteract(); return; }
-  if (key === 'e' && !event.repeat && !$('tank-interact').hidden) { event.preventDefault(); void tankInteract(); return; }
-  if (key === 'b') { toggleTray($('deployment-tray').hidden); if (!$('deployment-tray').hidden) $('sentry-card').focus(); }
-  if (key === 'j' && event.target === canvas && combatInputAllowed()) { event.preventDefault(); if (!event.repeat) { heldGun.add('keyboard'); fire('APCR'); } }
-  if (key === ' ' && event.target === canvas) { event.preventDefault(); if (!event.repeat) { if (controlledGun()) { heavyFire(); return; } if ((me.body === 'robot'||isAttackJet(currentAircraft())) && combatInputAllowed()) heldPrimary.add('keyboard'); fire('HE'); } }
-  if ((!controlledGun() && key === '1') || key === 'escape') { releaseArtillery(); setMode('explore'); }
-  if(key==='r'&&isSubmarine(currentShip())&&!event.repeat){event.preventDefault();subRotated=!subRotated;updateShips();return;}
-  if (key === 'c') recenter(); if (key === 'g' && !event.repeat) { if(currentShip())void shipRamp();else $('grid-toggle').click(); }
-  if (event.key === '+' || event.key === '=') zoom(1.1); if (event.key === '-') zoom(1 / 1.1);
+  if (!world || roomState?.paused || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName) || ['logistics-dialog', 'room-dialog', 'help-dialog', 'keys-dialog'].some(id => $(id).open)) return;
+  const key = keyOf(event);
+  if (movementKeys.has(key)) { event.preventDefault(); if (alive() && !me.deploying && !(mode === 'build' && ['core', 'tank', 'ship', 'airbase'].includes(deploymentKind))) { keys.add(key); if (!controlledGun()) { following = true; path = []; overviewReturn = null; } } return; }
+  for (const binding of BINDINGS) {
+    if (!binding.keys.includes(key) || (binding.shift !== undefined && binding.shift !== event.shiftKey)) continue;
+    const action = KEY_ACTIONS[binding.id];
+    if (!action?.when(event)) continue;
+    if (action.prevent !== false) event.preventDefault();
+    action.run(event); return;
+  }
 });
-window.addEventListener('keyup', event => { keys.delete(event.key.toLowerCase()); if (event.key.toLowerCase() === 'j') heldGun.delete('keyboard'); if (event.key === ' ') heldPrimary.delete('keyboard'); });
+window.addEventListener('keyup', event => { const key = keyOf(event); keys.delete(key); if (key === 'j') heldGun.delete('keyboard'); if (key === ' ') heldPrimary.delete('keyboard'); });
 window.addEventListener('blur', () => { keys.clear(); stopFiring(); cancelPointer(); });
 window.addEventListener('blur', releaseArtillery);
 document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); stopFiring(); cancelPointer(); releaseArtillery(); } });

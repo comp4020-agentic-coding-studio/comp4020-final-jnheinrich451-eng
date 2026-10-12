@@ -18,7 +18,7 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url+'/?legacy=1');await page.goto(url+'/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json()),plane=async()=>(await state(peer)).airbases[0]?.aircraft;
-  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Air force');await page.locator('#attack-jet-card').click();
+  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await page.locator('#attack-jet-card').click();
   await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
   await expect.poll(plane).toMatchObject({kind:'attack-jet',state:'delivering'});await expect(page.locator('#aircraft-interact')).toBeDisabled();
   await page.waitForTimeout(1600);await page.screenshot({path:`docs/previews/jet-delivery-${mobile?'mobile':'desktop'}.png`});

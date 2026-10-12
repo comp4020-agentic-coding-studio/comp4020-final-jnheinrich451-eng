@@ -15,6 +15,9 @@ for (const mobile of [false, true]) test(`shared junction routes, lock and saved
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
+    // Orbital entry: both scouts land before building; the first core supports the facility.
+    expect((await post(page, 'cores', { x: 60, y: 30 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
+    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const x of [64, 68, 72, 76]) expect((await post(page, 'rails', { x, y: 19, shape: 'EW' })).status).toBe(201);
     for (const y of [22, 26]) expect((await post(page, 'rails', { x: 71, y, shape: 'NS' })).status).toBe(201);
     expect((await post(page, 'rails', { x: 68, y: 22, shape: 'NE' })).status).toBe(201);

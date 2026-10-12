@@ -15,9 +15,12 @@ for (const mobile of [false, true]) test(`one-tile junction builds, branches and
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
+    // Orbital entry: both scouts land before building; the first core supports the facility.
+    expect((await post(page, 'cores', { x: 60, y: 30 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
+    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const x of [64, 68, 72]) expect((await post(page, 'rails', { x, y: 22, shape: 'EW' })).status).toBe(201);
     expect((await post(peer, 'rails', { x: 68, y: 22, shape: 'NS', length: 1 })).status).toBe(409);
-    await page.locator('#build-mode').click(); await page.locator('#rail-card').click(); await page.locator('#coordinate-details summary').click();
+    await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#rail-card').click(); await page.locator('#coordinate-details summary').click();
     const coordinates = async (x, y) => { await page.locator('#tile-x').fill(String(x)); await page.locator('#tile-y').fill(String(y)); await page.locator('#select-tile').click(); };
     await coordinates(68, 22); await page.locator('#rail-shape').selectOption('NS'); await page.locator('#place-building').click();
     await expect.poll(async () => (await state(peer)).rails.find(r => r.x === 68 && r.y === 22)?.shape).toBe('J');

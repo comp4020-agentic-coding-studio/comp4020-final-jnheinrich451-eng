@@ -23,15 +23,15 @@ for(const mobile of [false,true])test(`construction, recycler and orbital cargo 
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
     const state=()=>page.evaluate(async()=>await(await fetch('/api/world')).json());
     const choose=async(x,y)=>{await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();};
-    const deploy=async(kind,x,y)=>{await page.locator('#supplies-button').click();await page.locator(`[data-logistics-deploy="${kind}"]`).click();await choose(x,y);await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();};
+    const deploy=async(kind,x,y)=>{await page.locator('#build-mode').click();await page.locator('[data-force-tab="logistics"]').click();await page.locator(`#${kind}-card`).click();await choose(x,y);await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();};
     await deploy('factory',48,24);await deploy('uplink',50,40);await deploy('recycler',55,37);
     await expect.poll(async()=>(await state()).logistics.facilities.find(f=>f.kind==='factory')?.remaining,{timeout:12000}).toBe(0);
     const factory=(await state()).logistics.facilities.find(f=>f.kind==='factory');
-    await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Air force');await page.locator('#airbase-card').click();await choose(88,60);
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await page.locator('#airbase-card').click();await choose(88,60);
     await expect(page.locator('#place-building')).toBeDisabled();await expect(page.locator('#site-reason')).toContainText('24 tiles');
     await page.screenshot({path:`docs/previews/construction-support-${mobile?'mobile':'desktop'}.png`});
     await page.locator('#world-canvas').focus();await page.keyboard.press('Escape');
-    await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Ground forces');await page.locator('#missile-card').click();await choose(58,30);await page.locator('#construction-method').selectOption(factory.id);
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="strike"]').click();await page.locator('#missile-card').click();await choose(58,30);await page.locator('#construction-method').selectOption(factory.id);
     await expect(page.locator('#deployment-cost')).toContainText('132 supplies');await page.locator('#place-building').click();
     await expect.poll(async()=>Object.keys((await state()).logistics.jobs).length).toBe(1);
     await page.locator('#supplies-button').click();await expect(page.locator('#logistics-cancel')).toBeEnabled();await page.locator('#logistics-cancel').click();await expect.poll(async()=>(await state()).artillery.length).toBe(0);

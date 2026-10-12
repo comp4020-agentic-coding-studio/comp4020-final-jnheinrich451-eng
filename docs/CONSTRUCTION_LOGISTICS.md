@@ -10,9 +10,10 @@ to orbit -> spend supplies on more equipment. Place factories to extend support 
 trade deployment speed for lower cost. Losing facilities costs equipment and time;
 permanent conquest never reverses.
 
-Open **Supplies / Logistics** in the combat objective panel to deploy a factory,
-launch station or recycler, command collection/delivery, launch cargo, cancel
-factory orders or rebuild a dock/airbase. The recycler uses destination commands
+Deploy a factory, launch station or recycler from **Deploy (B) → Logistics**
+(L-01 to L-03; see docs/UI_REFINEMENT.md). Open the **SUP** header readout (or
+press L) to command collection/delivery, launch cargo, cancel factory orders or
+rebuild a dock/airbase. The recycler uses destination commands
 in this first version; it is not a second player body or a WASD-controlled vehicle.
 It stops if newly placed objects obstruct its route; issue a new command to replan.
 A rocket launch closes the menu and centers the camera on the station.

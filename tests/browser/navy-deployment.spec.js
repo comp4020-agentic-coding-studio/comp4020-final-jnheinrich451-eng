@@ -20,7 +20,7 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),peer=await other.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json());
-  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Navy');
+  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();
   await expect(page.locator('#ship-card')).toBeVisible();await page.locator('#ship-card').click();
   await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('17');await page.locator('#tile-y').fill('12');await page.locator('#select-tile').click();
   await expect(page.locator('#place-building')).toBeEnabled();await page.screenshot({path:`docs/previews/navy-survey-${mobile?'mobile':'desktop'}.png`});

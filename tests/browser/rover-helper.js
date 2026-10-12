@@ -40,8 +40,8 @@ export async function isolatedField(prefix, rovers = []) {
 
 // Lands this page's orbital core through the normal API and waits for the robot.
 export async function landCore(page, x = 29, y = 13) {
-  const status = await page.evaluate(async ({ x, y }) => (await fetch('/api/cores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x, y }) })).status, { x, y });
-  if (status !== 201) throw new Error(`Core landing rejected: ${status}`);
+  const result = await page.evaluate(async ({ x, y }) => { const r = await fetch('/api/cores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x, y }) }); return { status: r.status, error: (await r.json()).error }; }, { x, y });
+  if (result.status !== 201) throw new Error(`Core landing at ${x}, ${y} rejected: ${result.status} ${result.error}`);
   const deadline = Date.now() + 12000;
   while (true) {
     const me = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);

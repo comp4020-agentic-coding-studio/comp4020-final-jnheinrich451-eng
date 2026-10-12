@@ -15,7 +15,10 @@ for (const mobile of [false, true]) for (const ammo of ['INCENDIARY', 'GAS']) te
     page.on('pageerror', e => errors.push(e.message)); await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
-    await page.locator('#build-mode').click(); await page.locator('#missile-card').click(); await page.locator('#coordinate-details summary').click();
+    // Orbital entry: both scouts land before building; the first core supports the facility.
+    expect((await post(page, 'cores', { x: 60, y: 30 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
+    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    await page.locator('#build-mode').click(); await page.locator('[data-force-tab="strike"]').click(); await page.locator('#missile-card').click(); await page.locator('#coordinate-details summary').click();
     await page.locator('#tile-x').fill('64'); await page.locator('#tile-y').fill('24'); await page.locator('#select-tile').click(); await page.locator('#place-building').click();
     await expect(page.locator('.facility-heading strong')).toHaveText('MISSILE BATTERY');
     if (mobile) await page.locator(`[data-shell="${ammo}"]`).click(); else { await page.locator('#world-canvas').focus(); await page.keyboard.press(ammo === 'GAS' ? '3' : '2'); }

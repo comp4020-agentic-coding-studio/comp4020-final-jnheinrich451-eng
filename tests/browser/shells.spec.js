@@ -16,6 +16,11 @@ for (const mobile of [false, true]) test(`incendiary and gas artillery on ${mobi
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
+    // Orbital entry: both scouts land before building; the operator's core supports the cannon.
+    // Cores carry automatic sentries and a guarding robot fires its laser, so the gas test
+    // below uses the eastern drill sector, out of their reach, rather than the island beacon.
+    expect((await post(page, 'cores', { x: 24, y: 24 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
+    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     expect((await post(page, 'rails', { x: 20, y: 13, shape: 'EW' })).status).toBe(201);
     const { data: { gun } } = await post(page, 'artillery', { x: 20, y: 13 });
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
@@ -32,9 +37,11 @@ for (const mobile of [false, true]) test(`incendiary and gas artillery on ${mobi
     expect((await state(peer)).combat.salvos[0].weapon).toBe('INCENDIARY');
     await expect.poll(async () => (await state(peer)).combat.fields[0]?.weapon, { timeout: 7000 }).toBe('INCENDIARY');
     await page.screenshot({ path: `docs/previews/incendiary-${mobile ? 'mobile' : 'desktop'}.png` });
-    // Move the second landing point south, keeping both fields visible near the island.
-    await aimOverview(page, 27.5, 21.5, mobile);
-    await expect.poll(async () => (await state(page)).artillery[0].angle, { intervals: [100] }).toBeGreaterThan(2.3);
+    // Move the second landing point east onto the Eastern plain drill sector.
+    await aimOverview(page, 72.5, 22.5, mobile);
+    await expect.poll(async () => (await state(page)).artillery[0].angle, { intervals: [100] }).toBeGreaterThan(1.68);
+    // A 52-tile shot uses the higher arc near 60 degrees; let elevation converge before firing.
+    await expect.poll(async () => (await state(page)).artillery[0].elevation, { timeout: 8000, intervals: [100] }).toBeLessThan(62);
     await expect(page.locator('#artillery-fire')).toBeEnabled({ timeout: 8000 }); await page.locator('#artillery-fire').click();
     await expect.poll(async () => (await state(peer)).combat.fields.some(f => f.weapon === 'GAS'), { timeout: 7000 }).toBe(true);
     await expect(page.locator('#artillery-ammo-info')).toContainText('6 kills');
@@ -45,7 +52,7 @@ for (const mobile of [false, true]) test(`incendiary and gas artillery on ${mobi
     await page.screenshot({ path: `docs/previews/gas-${mobile ? 'mobile' : 'desktop'}.png` });
     await expect.poll(async () => (await state(peer)).combat.fields.some(f => f.weapon === 'INCENDIARY'), { timeout: 20000 }).toBe(false);
     expect((await state(peer)).combat.fields.find(f => f.id === gas.id).capacity).toBe(6);
-    expect((await post(page, 'drill', {})).status).toBe(200);
+    expect((await post(page, 'drill', { frontId: 'east' })).status).toBe(200);
     await expect.poll(async () => (await state(peer)).combat.fields.find(f => f.id === gas.id)?.capacity ?? 0, { timeout: 18000 }).toBeLessThan(6);
     // Selection is durable; transient fields and operator ownership are not.
     await app.close(); app = createApp({ dataDir }); await new Promise(r => app.server.listen(port, '127.0.0.1', r)); await page.reload();

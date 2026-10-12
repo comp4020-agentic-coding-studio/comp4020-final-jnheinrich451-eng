@@ -17,16 +17,19 @@ for (const mobile of [false, true]) test(`railway cannon placement, shared contr
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
     const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
+    // Orbital entry: both scouts land before building; the first core supports the facility.
+    expect((await post(page, 'cores', { x: 29, y: 13 })).status).toBe(201); expect((await post(peer, 'cores', { x: 24, y: 24 })).status).toBe(201);
+    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     const coordinates = async (x, y) => {
       if (!(await page.locator('#site-panel').isVisible())) await page.locator('#site-button').click();
       if ((await page.locator('#coordinate-details').getAttribute('open')) === null) await page.locator('#coordinate-details summary').click();
       await page.locator('#tile-x').fill(String(x)); await page.locator('#tile-y').fill(String(y)); await page.locator('#select-tile').click();
     };
-    await page.locator('#build-mode').click(); await page.locator('#rail-card').click(); await coordinates(20, 13);
+    await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#rail-card').click(); await coordinates(20, 13);
     await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
     await expect.poll(async () => (await state(page)).rails.length).toBe(5);
     await page.screenshot({ path: `docs/previews/rail-track-${mobile ? 'mobile' : 'desktop'}.png` });
-    await page.keyboard.press('Escape'); await page.locator('#build-mode').click(); await page.locator('#artillery-card').click(); await coordinates(20, 13);
+    await page.keyboard.press('Escape'); await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#artillery-card').click(); await coordinates(20, 13);
     await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
     await expect(page.locator('#facility-controls')).toBeVisible();
     await expect.poll(async () => (await state(page)).artillery[0]?.operator).toBe((await state(page)).me.id);
@@ -62,7 +65,7 @@ for (const mobile of [false, true]) test(`railway cannon placement, shared contr
     await expect.poll(async () => (await state(page)).players.length).toBe(2);
     expect((await post(peer, 'rails/remove', { x: 18, y: 13 })).status).toBe(403);
     await expect.poll(async () => (await state(page)).artillery[0].move).toBeNull();
-    await page.locator('#build-mode').click(); await page.locator('#artillery-open').click(); await page.locator('#artillery-control-button').click();
+    await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#artillery-open').click(); await page.locator('#artillery-control-button').click();
     expect((await post(page, 'artillery/move', { id: gun.id, step: 1 })).status).toBe(409);
     await page.locator('#facility-exit').click();
     expect((await post(page, 'rails/remove', { x: 18, y: 13 })).status).toBe(200);

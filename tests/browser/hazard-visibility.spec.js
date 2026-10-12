@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test('a mismatched page build refreshes once and keeps the same guest', async ({ page }) => {
   let documents = 0;
-  await page.route('http://localhost:8082/', async route => {
+  // Match the page document by path; the legacy field is loaded as /?legacy=1.
+  await page.route(url => url.pathname === '/', async route => {
     const response = await route.fetch(); let html = await response.text();
     if (++documents === 1) html = html.replace(/name="frontier-build" content="[^"]+"/, 'name="frontier-build" content="old-renderer"');
     await route.fulfill({ response, body: html });

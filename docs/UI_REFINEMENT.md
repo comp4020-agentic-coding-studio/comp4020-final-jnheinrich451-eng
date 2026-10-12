@@ -1,7 +1,7 @@
-# UI refinement — survey-instrument interface (proposal)
+# UI refinement — survey-instrument interface
 
-Status: **proposal agreed by the author, 12 October** (decisions in §9).
-Stage 1 (visual system) is implemented locally; see §10. It changes
+Status: **agreed by the author, 12 October** (decisions in §9). All five
+stages are implemented; see §10 (stage 1) and §11 (stages 2–5). It changes
 presentation and input mapping only: no server rule, price, range, collision or
 permission changes. Prices and specs shown in the UI must come from
 `public/logistics.js` and the existing weapon/footprint modules, never from
@@ -364,3 +364,109 @@ fail identically on the unmodified commit `6ce4c67`. They fail on gameplay
 expectations such as sentry deployment refused, test shots rejected and 409
 conflicts, which look like effects of the 12 October construction/economy
 rules, not of this stage. They are still failing and need their own fix.
+
+## 11. Stages 2–5 implementation record (12 October, local)
+
+**Stage 2: state-aware HUD and guided landing** (`public/hud.js`, unit-tested)
+- A header banner names one state: orbit, descent, on foot, placing *asset*,
+  tank, operating *facility*, ship, aircraft or disabled. `.battlefield` gets a
+  matching `data-state` for CSS. The banner hides below 900 px width, where
+  phones keep the orbit steps and the existing `#core-status` banner.
+- Orbit replaces the bottom dock with Survey / Select site / Confirm drop.
+  The core site panel becomes a measured readout: 57-cell footprint terrain,
+  covered rocks, nearest hostile site and whether the site is inside red
+  territory (the same `sectorRadius` as the map shading), cost and balance,
+  and preview checks. The client's existing verdict is shown last, and the
+  server still decides.
+- The objective panel is renamed Operations. On foot it shows a first-landing
+  log (core landed, sentry placed, hostile site located) ticked from state. A
+  core's built-in sentry doesn't count. Supplies moved to a `SUP` header
+  readout (▲ while refilling below the reserve), which opens logistics.
+
+**Stage 3: deployment catalogue** (`public/catalogue.js`, unit-tested)
+- Six tabs: Ground, Rail, Strike, Logistics, Naval, Air. There are 13 coded
+  cards (G-01 to A-02). Each shows its code, name, footprint and price, in red
+  with the shortfall when unaffordable and green with `IN FIELD` when one is
+  owned. Card IDs and click handlers are unchanged.
+- The desktop spec pane shows footprint, weapon ranges, reload, HP, limit,
+  placement rule and cost. Every number comes from `logistics.js`, `weapons.js`,
+  `missile.js`, `ship.js` and the other owning modules. Factory prices are
+  shown only for kinds the factory can order (airbase, ship, cannon, battery).
+  The first core is quoted as free, matching the server.
+- Factory, launch station and recycler deploy from the Logistics tab. The
+  Supplies dialog keeps the operations and links back. The finder and recall
+  buttons moved into a per-tab IN FIELD row.
+- Phones get a bottom sheet of at most 46 % height. Cards scroll sideways
+  inside it, the spec pane is hidden, and there is no page scroll.
+
+**Stage 4: keymap** (`public/keymap.js`)
+- One ordered `BINDINGS` table defines precedence, labels and scopes.
+  `app.js` maps each id to a guard and an action. The first binding whose key
+  matches and whose guard passes wins, which preserves the old if-chain order.
+  Letters and digits match `event.code`.
+- New keys:
+  - `L` logistics, `M` survey overview (in a facility it toggles the cannon
+    overview), `O` / `Shift+O` locate hostile sites by distance, `P` room menu.
+  - `F1` / `?` opens a key reference listing only the keys valid in the
+    current state.
+  - Catalogue: `Z` / `X` switch tabs, `1–9` pick a card. Picking by key also
+    opens the site panel, so keyboard-only players reach the coordinate picker.
+  - Placing: `Enter` confirms; `Shift+Enter` (or Shift-click) keeps placing
+    sentries. Rails: `R` cycles the shape, `T` toggles the length.
+  - Tank: `1` / `2` select HE or Magnetic; `Q` cycles the secondary weapon.
+- `1` no longer returns to Combat. `Esc` does, and the Combat button shows
+  `Esc`. Held fire still stops on key release, blur, menus and disconnects.
+
+**Stage 5: survey instruments** (`public/instruments.js`, unit-tested)
+- Edge graticule labels use power-of-two spacing that stays at least 70 px
+  apart, plus a scale bar (desktop always; phones in orbit or overview). Both
+  are drawn in screen space with a dark halo over the unchanged terrain.
+- The coordinates readout is now cursor telemetry:
+  `X 088 · Y 060 · BRG 042° · RNG 12.4 t`, measured from you or your
+  facility. It is hidden in contaminated air, as before.
+- The zoom label now follows camera animations; it used to go stale after
+  landing.
+
+**Not done as designed:**
+- Vehicle and facility panels keep their own layouts (restyled), not one
+  merged context strip. Merging them would mean rewriting every vehicle
+  control's handlers.
+- Range rings are not labelled.
+- The visual-effects settings stay in the help dialog, because the legacy
+  field has no room menu.
+- Older stage docs still describe "Ground forces / Navy / Air force" menus.
+  This record supersedes those paths.
+
+**Test repair alongside these stages:**
+- 36 browser tests in 14 spec files were already failing on `6ce4c67`. They
+  predated orbital entry, construction support, the unfolding dock, the
+  economy's request-based aircraft replacement or the `?legacy=1` entry URL.
+- The specs repaired are island, frontier, cannon-controls, compact-rail,
+  switches, rail, rail-floor, missile, missile-fields, submarine, shells,
+  turn-clearance, anti-air and hazard-visibility.
+- The setups now land cores first (or seed completed cores), keep facilities
+  inside support, seat rover-weapon tests in a tank
+  (`tests/browser/rover-helper.js`) and use the three-tiles-from-shore dock
+  site.
+- The shells gas check moved to the Eastern plain drill sector. Since cores
+  carry automatic sentries and guarding robots fire, crawlers near the island
+  beacon die before reaching the gas.
+- Assertions were only changed where the rule itself changed: the core's
+  built-in sentry counts as a foundation, joining guests have no ground body,
+  and aircraft replacement is ordered after the cargo timer.
+- `tests/browser/catalogue-keys.spec.js` covers stages 3–4. orbital-entry
+  covers stage 2.
+
+**Results (12 October, local):**
+- `pnpm typecheck` passed, and `pnpm test` passed 300/300.
+- The full Playwright run had 76/87 passing before the last spec repairs. Each
+  repaired spec was then re-run and passes; campaigns' one failure was a timing
+  flake under load and passes alone.
+- Three tests still fail exactly as they do on `6ce4c67` (verified in a
+  separate worktree). They are gameplay checks this UI work did not change:
+  - scanner (desktop and phone): the DETECTED warning does not clear after
+    escaping behind the ridge;
+  - ship-armament on phone: after the touch aim at (312, 236) the main-gun
+    fire button stays disabled (no in-range solution). On `6ce4c67` it fails
+    one step earlier, on the side-arc readout. The cause is not yet diagnosed.
+- Screenshots were checked at 1920×1080 (plus a resize) and 390×844.

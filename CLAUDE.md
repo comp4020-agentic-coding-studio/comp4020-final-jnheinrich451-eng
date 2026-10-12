@@ -40,11 +40,12 @@
   conquest. Detection is separate from a unit's ability to reach/attack a contact.
   Noise/neighbor reports convey last-known positions, not unlimited live tracking;
   propagation limits, sensor tuning and other medium rules remain proposals.
-- The 12 October UI refinement is agreed in docs/UI_REFINEMENT.md (stage 1
-  visual system implemented locally): survey-instrument HUD/menus over the unchanged natural terrain,
+- The 12 October UI refinement is agreed in docs/UI_REFINEMENT.md (all five
+  stages implemented locally): survey-instrument HUD/menus over the unchanged natural terrain,
   one deploy catalogue including logistics buildings, a single keymap table and
   client-only asset codes shown beside names. Presentation/input only; never
-  alter server rules, prices or save formats. Build its five stages separately.
+  alter server rules, prices or save formats. Add keys to keymap.js BINDINGS
+  (precedence, labels, F1) and catalogue entries to catalogue.js; never reuse codes.
 - Build and review playable stages. Preserve GAME_IDEAS.md as the larger vision;
   do not treat every brainstormed feature as required for the current stage.
 - The author approved the sequence modifier → settlement → anti-air → attack jet

@@ -31,7 +31,7 @@ for(const mobile of [false,true])test(`swimmers, ship loss, core recovery and re
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
   expect((await state(page)).ships[0].health).toBe(0);await expect(page.locator('#recovery-title')).toHaveText('Ship destroyed');
   await expect(page.locator('#revive-button')).toBeEnabled({timeout:5000});await page.locator('#revive-button').click();await expect.poll(async()=>(await state(page)).me.life).toBe('active');
-  await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Navy');await expect(page.locator('#ship-replace')).toBeVisible();await expect(page.locator('#ship-replace')).toBeEnabled({timeout:15000});
+  await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-replace')).toBeVisible();await expect(page.locator('#ship-replace')).toBeEnabled({timeout:15000});
   await page.locator('#ship-replace').click();await expect.poll(async()=>(await state(peer)).ships[0].elapsed,{timeout:7000}).toBe(4.5);
   expect((await state(page)).ships).toHaveLength(1);expect((await state(page)).ships[0]).toMatchObject({health:300,destroyed:false,occupant:null});
   await page.screenshot({path:`docs/previews/naval-replacement-${mobile?'mobile':'desktop'}.png`});

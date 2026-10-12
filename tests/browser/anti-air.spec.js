@@ -75,6 +75,9 @@ for (const mobile of [false, true]) test(`flak warning, steering escape and save
     await page.goto(origin+'/?campaign='+id);await expect(page.locator('#recovery-panel')).toBeVisible();
     await page.locator('#recovery-core').selectOption('recovery-core');await expect(page.locator('#revive-button')).toBeEnabled({timeout:5000});await page.locator('#revive-button').click();
     await expect(page.locator('#recovery-panel')).toBeHidden({timeout:5000});expect((await state()).me).toMatchObject({body:'robot',life:'active',health:100});
+    // Since the 12 Oct economy, the owner orders the replacement once the 20 s cargo timer ends.
+    await expect.poll(async()=>(await plane()).remaining,{timeout:22000}).toBeLessThan(.001);expect((await plane()).state).toBe('destroyed');
+    await post(owner,route+'/aircraft/deliver',{id:(await state()).airbases[0].id,kind:'bomber'});
     await expect.poll(async()=>(await plane()).state,{timeout:22000}).toBe('parked');expect(await plane()).toMatchObject({health:180,runs:2,occupant:null,x:22,y:73.5});
     if(!mobile){await page.setViewportSize({width:900,height:700});}
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true);expect(errors).toEqual([]);

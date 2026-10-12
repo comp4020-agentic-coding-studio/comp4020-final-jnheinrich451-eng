@@ -18,6 +18,8 @@ for (const mobile of [false, true]) test(`south turn clears the nearby scout on 
     for (let x = 19; x <= 24; x++) db.prepare('INSERT INTO rails VALUES (?,?,?,?)').run(x, 13, 'EW', owner);
     db.prepare('INSERT INTO rails VALUES (?,?,?,?)').run(25, 13, 'CSW', owner);
     for (let y = 14; y <= 18; y++) db.prepare('INSERT INTO rails VALUES (?,?,?,?)').run(25, y, 'NS', owner);
+    // Since orbital entry a scout needs a landed core to have a ground body; keep both at their reported positions.
+    for (const [core, who, x] of [['core-a', owner, 30], ['core-b', peerId, 40]]) db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run(core, who, x, 22, 4.5);
     db.prepare('INSERT INTO artillery VALUES (?,?)').run(id, JSON.stringify({ id, owner, x: 25, y: 13, shape: 'EW', heading: 1, angle: Math.PI / 2, aim: Math.PI / 2, brace: 0, reload: 0, move: null }));
     db.close(); app = createApp({ dataDir }); await new Promise(r => app.server.listen(0, '127.0.0.1', r)); const url = `http://127.0.0.1:${app.server.address().port}`;
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });

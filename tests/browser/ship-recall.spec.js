@@ -18,7 +18,7 @@ for(const mobile of [false,true])test(`recall legacy dock and redeploy unfolding
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});peerContext=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),peer=await peerContext.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url+'/?legacy=1');await page.goto(url+'/?legacy=1');await page.bringToFront();
   const state=async()=>(await peer.request.get(url+'/api/world')).json();
-  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('#force-category').selectOption('Navy');await expect(page.locator('#ship-recall')).toBeEnabled();
+  await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-recall')).toBeEnabled();
   await page.screenshot({path:`docs/previews/navy-recall-${mobile?'mobile':'desktop'}.png`});
   page.once('dialog',d=>d.dismiss());if(mobile)await page.locator('#ship-recall').click();else{await page.locator('#ship-recall').focus();await page.keyboard.press('Enter');}expect((await state()).ships).toHaveLength(1);
   page.once('dialog',async d=>{expect(d.message()).toContain('Both will be removed');await d.accept();});await page.locator('#ship-recall').click();await expect.poll(async()=>(await state()).ships.length).toBe(0);

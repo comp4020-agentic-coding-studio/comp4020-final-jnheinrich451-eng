@@ -116,3 +116,63 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 }
 @media(max-width:900px){.state-banner{display:none}}
 @media(max-width:650px){.hud-header .supply-readout{padding:0 6px;font-size:10px!important}.hud-header .session-info #presence{display:none}}
+/* Stage 3: deployment catalogue. Tabs, coded asset cards, in-field list and spec sheet. */
+.deployment-tray{width:min(880px,calc(100% - 32px));max-width:none;padding:10px 14px 14px;max-height:calc(100dvh - 230px);display:flex;flex-direction:column}
+.tray-heading{gap:12px}
+.force-tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.force-tabs button{flex-shrink:0;min-height:38px;padding:0 12px;border:0;border-bottom:2px solid transparent;border-radius:0;font:500 11px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.force-tabs button[aria-selected=true]{color:var(--intent);border-bottom-color:var(--intent);background:#f0c44c0d}
+.tray-supplies{font:500 11px var(--mono);letter-spacing:1px;white-space:nowrap}
+.tray-body{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-top:10px;min-height:0}
+.tray-panel{overflow:auto;min-height:0;scrollbar-width:thin}
+.unit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.unit-grid .unit-card{width:100%;margin:0;padding:10px;gap:10px;align-items:flex-start}
+.unit-body{display:flex;flex-direction:column;min-width:0}
+.asset-code{font:500 9px var(--mono);letter-spacing:1.4px;color:var(--muted)}
+.unit-grid .unit-card strong{margin-top:2px;font-size:13px}
+.unit-grid .unit-card .asset-line{margin-top:4px}
+.unit-grid .unit-card .asset-cost{margin-top:8px;color:var(--ink);font-size:10px;letter-spacing:.6px}
+.unit-grid .unit-card.in-field .asset-cost{color:var(--valid)}
+.unit-grid .unit-card.short .asset-cost{color:var(--hostile)}
+.unit-grid .unit-card:hover:not(:disabled){border-color:#f0c44c88}
+.in-field{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--rule)}
+.in-field .eyebrow{flex-basis:100%}
+.in-field .secondary-button{width:auto;flex:1 1 200px;margin:0;min-height:40px}
+.in-field label{display:flex;gap:8px;align-items:center;font-size:11px}
+.in-field select{min-height:40px;padding:0 8px}
+.in-field p{flex-basis:100%;margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
+.asset-spec{border-left:1px solid var(--rule);padding-left:14px;overflow:auto;font:10px/1.5 var(--mono);scrollbar-width:thin}
+.asset-spec .unit-art{width:76px;height:76px;background-size:19px 19px,19px 19px,auto}
+.asset-spec .unit-art svg.i{width:52px;height:52px}
+.spec-title{margin:10px 0 8px}
+.spec-title strong{display:block;margin-top:2px;font:600 15px var(--sans)}
+.asset-spec dl{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin:0}
+.asset-spec dt{color:var(--muted);text-transform:uppercase;font-size:9px;letter-spacing:1px;padding-top:1px}
+.asset-spec dd{margin:0}
+@media(max-width:760px){
+.deployment-tray{bottom:96px;width:calc(100% - 20px);max-height:46dvh;padding:8px 10px 10px}
+.tray-heading .eyebrow{display:none}
+.force-tabs button{padding:0 9px;font-size:10px;min-height:40px}
+.tray-body{grid-template-columns:minmax(0,1fr)}
+.asset-spec{display:none}
+.unit-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(168px,64%);overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.unit-grid .unit-card{scroll-snap-align:start}
+.in-field .secondary-button{flex-basis:140px}
+}
+@media(max-height:520px) and (orientation:landscape){.deployment-tray{max-height:calc(100dvh - 120px)}}
+@media(max-width:760px){body:has(.deployment-tray:not([hidden])) .toast{top:76px;bottom:auto}}
+/* Stage 4: key caps from the keymap, and the F1 key reference. */
+.asset-code{display:flex;align-items:center;gap:6px}
+.asset-key{font-size:9px;padding:0 4px;line-height:1.5}
+.tab-keys{display:flex;gap:3px;flex-shrink:0}
+.tab-keys kbd{font-size:9px}
+.keys-dialog{max-width:620px}
+.keys-dialog h2{font:500 10px var(--mono);letter-spacing:1.6px;text-transform:uppercase;color:var(--actual);margin:20px 0 8px}
+.keys-dialog dl{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:6px 14px;margin:0}
+.keys-dialog dt{margin:0;font:500 11px/1.6 var(--mono);color:var(--intent);letter-spacing:.5px;text-transform:none}
+.keys-dialog dd{margin:0;font-size:12px;line-height:1.6;color:var(--ink)}
+#keys-open{width:auto;padding:0 14px;margin:4px 0 8px}
+#keys-open kbd{margin-left:8px}
+@media(max-width:760px),(pointer:coarse){.asset-key,.tab-keys,.mode-dock kbd{display:none}}
+/* Phones in cannon/battery overview: keep the objective line, drop drill and hull rows to free the map. */
+@media(max-width:760px){.artillery-orbit .objective .robot-health,.artillery-orbit .objective .front-label,.artillery-orbit #drill-front,.artillery-orbit .objective-bottom,.artillery-orbit .landing-log{display:none}}
