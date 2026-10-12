@@ -944,8 +944,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if (!filename.startsWith(publicDir + path.sep)) return json(res, 403, { error: 'Forbidden.' });
       const info = await stat(filename);
       if (!info.isFile()) return json(res, 404, { error: 'Not found.' });
-      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json' }[path.extname(filename)] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': accountPage ? 'no-store' : mime.startsWith('image/') ? 'public, max-age=3600' : 'no-cache' });
+      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json', '.woff2': 'font/woff2' }[path.extname(filename)] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': accountPage ? 'no-store' : /^(image|font)\//.test(mime) ? 'public, max-age=3600' : 'no-cache' });
       const content = req.method === 'HEAD' ? '' : await readFile(filename);
       res.end(path.basename(filename) === 'index.html' ? content.toString().replace('FRONTIER_CLIENT_BUILD', clientBuild) : content);
     } catch (error) {
