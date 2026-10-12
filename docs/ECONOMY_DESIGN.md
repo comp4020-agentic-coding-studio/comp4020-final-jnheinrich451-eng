@@ -68,13 +68,20 @@ it does not place equipment inside an enemy or overwrite the map.
 ## Salvage and shipment
 
 Each permanently conquered hostile structure contains 180 salvage, including
-structures already conquered in an existing save. A remotely commanded recycler
-carries 180, drives along a server-validated land route, and takes eight seconds to
-collect. Depletion is saved by site ID. It removes the central ruin artwork but
+structures already conquered in an existing save. A recycler carries 180 and takes
+eight seconds parked near a ruin to collect. Drive it with E/WASD, or issue a remote
+route command while it is empty. Depletion is saved by site ID. It removes the central ruin artwork but
 retains the objective, conquest state and checklist. No direct conquest payment is
 also granted for the same material.
 
-The recycler must unload at a stationary launch station; launching takes five
+New ground alien deaths leave eight units of reclaimable remains. Nearby corpses
+merge within two tiles; their saved piles share the 64-object cargo-crate budget.
+At the cap, further corpses yield no new salvage unless they merge nearby. Swimmers
+do not leave land salvage, and old cosmetic corpses are not retroactively credited.
+Park within two tiles to pick up loose remains/cargo. Moving cancels ruin collection;
+parked unloading has priority over collection. No direct kill payment is also given.
+
+The recycler automatically unloads while parked at a stationary launch station; launching takes five
 seconds and visibly sends a rocket upward. Supplies are credited only on launch
 completion. The station stores up to four recycler loads. Destroyed recyclers and
 stations leave unshipped cargo in recoverable crates. Cargo already shipped is

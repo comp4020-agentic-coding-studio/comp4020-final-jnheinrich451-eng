@@ -2,7 +2,7 @@
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
-  factoryDiscount: .6, factoryTime: 20, maxFacilities: 12, maxRecyclers: 4 });
+  factoryDiscount: .6, factoryTime: 20, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ core: 120, sentry: 25, tank: 100, ship: 240,
   submarine: 280, airbase: 300, artillery: 180, missile: 220, factory: 150,
   uplink: 100, recycler: 60, aircraft: 100, dockRepair: 90, baseRepair: 150 });
@@ -43,6 +43,15 @@ export function collectSalvage(state, site, truck, dt) {
   const amount = Math.min(remaining, ECONOMY.cargo - truck.cargo);
   state.salvage[site.id] = remaining - amount; truck.cargo += amount; truck.collecting = 0; truck.task = null;
   return true;
+}
+// Corpse salvage is bounded and durable. Merge nearby piles first; once the
+// shared 64-pile budget is full, further bodies are cosmetic and grant no cargo.
+export function addRemains(state, enemy, id) {
+  if (!state || enemy.kind === 'swimmer') return;
+  const near=state.crates.find(c=>c.kind==='remains'&&Math.hypot(c.x-enemy.x,c.y-enemy.y)<2);
+  if(near){near.amount+=ECONOMY.remainsValue;return;}
+  if(state.crates.length>=64)return;
+  state.crates.push({id,kind:'remains',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount:ECONOMY.remainsValue});
 }
 export function tickLaunch(state, station, dt) {
   if (!(station.launch > 0)) return false;

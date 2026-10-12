@@ -1,3 +1,4 @@
+import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from './public/recycler.js';
 import { seedSettlement } from './public/settlement.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
@@ -115,6 +116,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if(world.logistics.version!==1){db.close();throw new Error('Unsupported logistics save version. Preserve this save and update the server.');}
   const saveLogistics = () => db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('logistics-v1', JSON.stringify(world.logistics));
   saveLogistics();
+  for(const r of world.logistics.recyclers)Object.assign(r,{speed:0,idle:0});
+  const boardedRecycler = id => world.logistics.recyclers.find(r=>r.occupant===id);
   const constructing = id => !!world.logistics.jobs[id];
   // The same transaction pays for an accepted placement and saves its object.
   function purchase(kind, data, object, write) {
@@ -292,6 +295,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(cancelled){world.ships=world.ships.filter(s=>s.id!==o.id);pendingDeletes.push(['ships',o.id]);savedShips.delete(o.id);}
       else o.dockDestroyed=true;
     }else if(f.kind==='recycler'){
+      if(o.occupant){
+        let pilot=people.get(o.occupant);if(!pilot){const row=db.prepare('SELECT * FROM scouts WHERE id=?').get(o.occupant);if(row)pilot={...row,...freshLife(),...JSON.parse(readLife.get(row.id)?.value||'{}')};}
+        if(pilot){pilot.shield=0;hurtRobot(pilot,Math.max(1,pilot.health));pilot.lostVehicle='recycler';pilot.x=o.x;pilot.y=o.y;pilot.dirty=true;pendingLives.set(pilot.id,lifeRecord(pilot));combat.cancelCharge(pilot.id);}
+      }
       dropCargo(o.x,o.y,o.cargo);l.recyclers=l.recyclers.filter(r=>r.id!==o.id);
     }else{
       const p=facilityCenter(o);dropCargo(p.x,p.y,o.cargo);l.facilities=l.facilities.filter(v=>v.id!==o.id);
@@ -303,7 +310,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   }
   function tickLogistics(dt){
     const l=world.logistics,before=l.supplies,wasEmergency=l.emergency;
-    const active=l.facilities.some(f=>f.remaining>0||f.launch>0)||Object.keys(l.jobs).length>0||l.recyclers.some(r=>r.remaining>0||r.path?.length||r.task&&!r.blocked);
+    const active=l.facilities.some(f=>f.remaining>0||f.launch>0)||Object.keys(l.jobs).length>0||l.recyclers.some(r=>r.remaining>0||r.occupant||r.path?.length||r.task&&!r.blocked);
     tickSupplies(l,dt);
     for(const f of l.facilities){f.remaining=Math.max(0,f.remaining-dt);const before=l.shipments;if(!f.remaining)tickLaunch(l,f,dt);if(l.shipments>before)logisticsEvents.push({event:'supply.shipped',sourceId:f.id,kind:'system',count:l.shipments});}
     for(const [id,job]of Object.entries(l.jobs)){
@@ -319,7 +326,17 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     }
     for(const truck of l.recyclers){
       if(truck.remaining>0){truck.remaining=Math.max(0,truck.remaining-dt);continue;}
-      if(truck.path?.length){
+      if(truck.occupant){
+        const driver=people.get(truck.occupant);truck.speed=0;
+        if(!driver||!streams.has(driver.id)||driver.life!=='active'){truck.idle=0;continue;}
+        const input=driver.inputUntil>Date.now()?driver.input:null;
+        recyclerStep(world,allBuildings(),truck,input,dt,groundPeople().filter(p=>streams.has(p.id)&&!boardedRecycler(p.id)));
+        if(truck.idle<RECYCLER.idleTime)continue;
+        const task=parkedTask(world,truck);
+        if(truck.task?.id!==task?.id||truck.task?.action!==task?.action)truck.collecting=0;
+        truck.task=task;truck.blocked=false;
+      }
+      if(!truck.occupant&&truck.path?.length){
         const next=truck.path[0],distance=Math.hypot(next.x-truck.x,next.y-truck.y),step=Math.min(distance,2.5*dt);
         if(distance<.01){truck.path.shift();continue;}
         const x=truck.x+(next.x-truck.x)*step/distance,y=truck.y+(next.y-truck.y)*step/distance;
@@ -337,16 +354,16 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         truck.task=null;
       }else if(action==='recover'){
         const crate=l.crates.find(c=>c.id===id);
-        if(crate&&Math.hypot(truck.x-crate.x,truck.y-crate.y)<=4){const amount=Math.min(crate.amount,ECONOMY.cargo-truck.cargo);truck.cargo+=amount;crate.amount-=amount;l.crates=l.crates.filter(c=>c.amount>0);}
+        if(crate&&Math.hypot(truck.x-crate.x,truck.y-crate.y)<=(truck.occupant?RECYCLER.pickupRange:4)){const amount=Math.min(crate.amount,ECONOMY.cargo-truck.cargo);truck.cargo+=amount;crate.amount-=amount;l.crates=l.crates.filter(c=>c.amount>0);}
         truck.task=null;
       }
     }
     return active||before!==l.supplies||wasEmergency!==l.emergency;
   }
-  const playerBody = p => boardedAircraft(p.id) ? 'aircraft' : boardedShip(p.id) ? 'ship' : boardedTank(p.id) ? 'rover' : (p.deployed || world.cores.some(c => c.owner === p.id)) ? 'robot' : 'orbital';
+  const playerBody = p => boardedAircraft(p.id) ? 'aircraft' : boardedShip(p.id) ? 'ship' : boardedTank(p.id) ? 'rover' : boardedRecycler(p.id) ? 'recycler' : (p.deployed || world.cores.some(c => c.owner === p.id)) ? 'robot' : 'orbital';
   const groundPeople = () => [...people.values()].filter(p => playerBody(p) !== 'orbital');
   const isGuarding = p => playerBody(p) === 'robot' && p.life === 'active' && !incomingCore(p.id) && streams.has(p.id) && (controlledBy(p.id)?.lease || 0) > 0;
-  const playerView = p => ({ id: p.id, name: p.name, x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, angle: p.angle, aim: p.aim, turret: p.turret, body: playerBody(p), aircraftId: boardedAircraft(p.id)?.id || null, shipId: boardedShip(p.id)?.id || null, vehicleId: boardedTank(p.id)?.id || null, tankWeapon: equipped(p).weapon || 'HE', tankSecondary: equipped(p).secondary || 'APCR', deploying: !!incomingCore(p.id), guarding: isGuarding(p), ...lifeRecord(p) });
+  const playerView = p => ({ id: p.id, name: p.name, x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, angle: p.angle, aim: p.aim, turret: p.turret, body: playerBody(p), recyclerId: boardedRecycler(p.id)?.id || null, aircraftId: boardedAircraft(p.id)?.id || null, shipId: boardedShip(p.id)?.id || null, vehicleId: boardedTank(p.id)?.id || null, tankWeapon: equipped(p).weapon || 'HE', tankSecondary: equipped(p).secondary || 'APCR', deploying: !!incomingCore(p.id), guarding: isGuarding(p), ...lifeRecord(p) });
   function persist(person, changedTank = boardedTank(person.id), changedShip = boardedShip(person.id), changedBase = pilotedBase(person.id)) {
     db.exec('BEGIN IMMEDIATE');
     try { if(changedBase)saveAirbase(changedBase); if (changedShip) saveShip(changedShip); if (changedTank) saveTank(changedTank); save.run(person.x, person.y, person.angle, person.id); saveLife.run(person.id, JSON.stringify(lifeRecord(person))); db.exec('COMMIT'); }
@@ -413,12 +430,12 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     if (!row) throw Object.assign(new Error('Your saved player is unavailable.'), { status: 409 });
     if (!options.campaign) audit.actor({ id: row.id, name: row.name, kind: account?.kind || 'guest' });
     if (!people.has(row.id)) {
-      const vehicle = boardedAircraft(row.id) || boardedShip(row.id) || boardedTank(row.id);
+      const vehicle = boardedAircraft(row.id) || boardedShip(row.id) || boardedTank(row.id) || boardedRecycler(row.id);
       people.set(row.id, { ...row, ...freshLife(), ...JSON.parse(readLife.get(row.id)?.value || '{}'), aim: vehicle?.turret ?? row.angle, turret: vehicle?.turret ?? row.angle, input: { x: 0, y: 0 }, inputUntil: 0, path: [], dirty: false, touched: Date.now() });
     }
     const person = people.get(row.id); person.touched = Date.now();
     if(world.cores.some(c=>c.owner===person.id))person.deployed=true;
-    const plane=boardedAircraft(person.id), ship = boardedShip(person.id), vehicle = plane || ship || boardedTank(person.id);
+    const plane=boardedAircraft(person.id), ship = boardedShip(person.id), vehicle = plane || ship || boardedTank(person.id) || boardedRecycler(person.id);
     if (vehicle) Object.assign(person, { x: vehicle.x, y: vehicle.y, angle: vehicle.angle });
     const incoming = incomingCore(person.id);
     if (incoming) Object.assign(person, coreExit(incoming));
@@ -492,6 +509,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||player.life!=='disabled'||world.cores.length)return json(res,409,{error:'Emergency orbital recovery is available after all cores are lost.'});
             Object.assign(player,freshLife(),{deployed:false,inputUntil:0,path:[]});persist(player);broadcast();return json(res,200,{saved:true});
           }
+          if(boardedRecycler(player.id)&&!['/api/input','/api/logistics/exit','/api/logistics/launch','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Exit your recycler before building or using weapons. Park to collect or unload.'});
           if (playerBody(player) === 'orbital' && url.pathname !== '/api/cores') return json(res, 409, { error: 'You are in orbit. Choose a landing site and deploy your core first.' });
           if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
           if (url.pathname === '/api/revive') {
@@ -601,8 +619,19 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           const vehicle = boardedTank(player.id);
           if (vehicle && !['/api/fire', '/api/input', '/api/drill', '/api/charge/cancel', '/api/tank-weapon', '/api/tanks/board', '/api/tanks/exit'].includes(url.pathname)) return json(res, 409, { error: 'Exit your tank before building or operating a facility.' });
           if(url.pathname.startsWith('/api/logistics/')){
-            if(!streams.has(player.id)||playerBody(player)!=='robot'||controlledBy(player.id))return json(res,409,{error:'Use logistics from your connected robot.'});
+            if(!streams.has(player.id)||!['robot','recycler'].includes(playerBody(player))||controlledBy(player.id))return json(res,409,{error:'Use logistics from your connected robot or recycler.'});
             const l=world.logistics;
+            if(url.pathname==='/api/logistics/board'){
+              const truck=l.recyclers.find(r=>r.id===data.id);
+              if(playerBody(player)!=='robot'||!truck||truck.remaining>0||truck.occupant||Math.hypot(player.x-truck.x,player.y-truck.y)>RECYCLER.boardRange)return json(res,409,{error:'Approach an unoccupied, ready recycler within 1.8 tiles.'});
+              truck.occupant=player.id;truck.path=[];truck.task=null;truck.collecting=0;truck.idle=0;truck.blocked=false;
+              Object.assign(player,{x:truck.x,y:truck.y,angle:truck.angle,inputUntil:0,path:[],dirty:true});combat.cancelCharge(player.id);checkpoint();broadcast();return json(res,200,{saved:true});
+            }
+            if(url.pathname==='/api/logistics/exit'){
+              const truck=boardedRecycler(player.id);if(!truck)return json(res,409,{error:'You are not driving a recycler.'});
+              const point=recyclerExit(world,allBuildings(),truck,[...groundPeople(),...combat.snapshot().enemies]);if(!point)return json(res,409,{error:'No clear exit. Drive to open ground first.'});
+              truck.occupant=null;truck.speed=0;truck.task=null;truck.collecting=0;truck.idle=0;Object.assign(player,point,{inputUntil:0,path:[],dirty:true});checkpoint();broadcast();return json(res,200,{saved:true});
+            }
             if(url.pathname==='/api/logistics/deploy'){
               const kind=data.kind,size=LOGISTICS_SIZE[kind];
               if(!Object.hasOwn(LOGISTICS_SIZE,kind))return json(res,400,{error:'Choose a factory, launch station or recycler.'});
@@ -621,7 +650,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             if(url.pathname==='/api/logistics/command'){
               const truck=l.recyclers.find(r=>r.id===data.id&&canManage(r.owner,player.id));
-              if(!truck||truck.remaining>0)return json(res,409,{error:'Choose your ready recycler.'});
+              if(!truck||truck.remaining>0||truck.occupant)return json(res,409,{error:'Choose your ready, unoccupied recycler. Exit before issuing remote orders.'});
               if(data.action==='stop'){truck.path=[];truck.task=null;truck.collecting=0;checkpoint();broadcast();return json(res,200,{saved:true});}
               const target=data.action==='collect'?(world.sites||[]).find(s=>s.id===data.targetId&&s.state==='conquered')
                 :data.action==='deliver'?l.facilities.find(f=>f.id===data.targetId&&f.kind==='uplink'&&f.remaining<=0)
@@ -1014,6 +1043,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         Object.assign(p,{x:ship.x,y:ship.y,angle:ship.angle,turret:ship.turret,vx:(ship.x-before.x)/dt,vy:(ship.y-before.y)/dt});
         if(Object.keys(before).some(k=>before[k]!==ship[k])){p.dirty=true;changed=true;}continue;
       }
+      const truck=boardedRecycler(p.id);
+      if(truck){Object.assign(p,{x:truck.x,y:truck.y,angle:truck.angle,turret:truck.angle,vx:Math.sin(truck.angle)*(truck.speed||0),vy:-Math.cos(truck.angle)*(truck.speed||0),dirty:true});continue;}
       const vehicle = boardedTank(p.id);
       const robot = playerBody(p) === 'robot';
       const turret = turnTurret(p.turret, p.aim, dt, loadout(playerBody(p)).turnSpeed);
@@ -1140,7 +1171,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   }
   function abandon(id) {
     endPlayerAccess(id, 'Guest visit ended. Contributions remain with the host.');
-    for (const vehicle of [...world.tanks, ...world.ships]) if (vehicle.occupant === id) { vehicle.occupant = null; vehicle.speed = 0; }
+    for (const vehicle of [...world.tanks, ...world.ships, ...world.logistics.recyclers]) if (vehicle.occupant === id) { vehicle.occupant = null; vehicle.speed = 0; }
     for (const base of world.airbases) if (base.aircraft.occupant === id) base.aircraft.occupant = null;
     checkpoint();
   }

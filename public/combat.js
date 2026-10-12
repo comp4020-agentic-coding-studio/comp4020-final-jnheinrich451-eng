@@ -1,4 +1,4 @@
-import { facilityTargets, facilityPoint, facilityDistance, hurtFacility } from './logistics.js';
+import { addRemains, facilityTargets, facilityPoint, facilityDistance, hurtFacility } from './logistics.js';
 import { tickAntiAir } from './anti-air.js';
 import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
@@ -109,7 +109,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     }
     const event = { id: ++serial, weapon, x, y, at: now, ttl: weapon === 'HE' || minorBlast ? 1.6 : .45, minorBlast, radius, surface: tileAt(world, x, y), hits };
     if ((weapon === 'HE' || minorBlast) && event.surface !== 0) marks.push({ id: event.id, kind: 'crater', x, y, size: craterSize, at: now });
-    for (const hit of hits) if (hit.killed && hit.kind !== 'station') marks.push({ ...hit, kind: 'remains', charred: ['FLAME', 'BURN', 'INCENDIARY'].includes(weapon), at: now });
+    for (const hit of hits) if (hit.killed && hit.kind !== 'station' && !world.logistics) marks.push({ ...hit, kind: 'remains', charred: ['FLAME', 'BURN', 'INCENDIARY'].includes(weapon), at: now });
     marks = marks.slice(-48); impacts.push(event); impacts = impacts.slice(-64);
   }
   function shoot(source, x, y, weapon = 'HE', buildings = []) {
@@ -502,6 +502,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     shells = shells.filter(s => s.remaining > 0);
     fields = fields.filter(keepField);
     for(const v of [...(world.tanks||[]),...(world.ships||[])]) if(v.lossPending){delete v.lossPending;impact('HE',v.x,v.y,[],v.berthX!==undefined?2:1.2,2.2,true);}
+    for(const e of enemies)if(e.hp<=0&&tileAt(world,e.x,e.y)!==0)addRemains(world.logistics,e,epoch+':'+e.id);
     kills += enemies.filter(e => e.hp <= 0).length; enemies = enemies.filter(e => e.hp > 0);
     if (status === 'active' && health <= 0) { status = 'failed'; enemies = enemies.filter(e=>e.kind==='swimmer' || e.siteId); }
     else if (status === 'active' && !enemies.some(e=>e.kind!=='swimmer' && !e.siteId)) status = 'cleared';

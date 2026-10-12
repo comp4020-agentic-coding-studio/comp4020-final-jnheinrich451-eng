@@ -1,3 +1,5 @@
+import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from '../public/recycler.js';
+import { addRemains } from '../public/logistics.js';
 import { expect, it } from 'vitest';
 import { createApp } from '../server.js';
 import { createWorld, canStand } from '../public/world.js';
@@ -153,4 +155,52 @@ it('repairs a saved airbase without replacing its airborne aircraft or taking a 
 },16000);
 it('rejects unknown prototype properties as deployment kinds without corrupting supplies',async()=>{
   const f=await fixture();try{await f.connect();expect((await f.post('logistics/deploy',{kind:'__proto__',x:50,y:50})).status).toBe(400);expect((await f.state()).logistics.supplies).toBe(1200);}finally{await f.close();}
+});
+
+
+it('drives the recycler at bounded speed, blocks terrain and bodies, and requires a safe exit',()=>{
+  const w=flat(),r:any={id:'r',x:20.5,y:20.5,angle:0,occupant:'a',cargo:0,remaining:0,path:[]};w.logistics.recyclers=[r];
+  recyclerStep(w,[],r,{x:1,y:1},.1);expect(Math.hypot(r.x-20.5,r.y-20.5)).toBeCloseTo(RECYCLER.speed*.1);
+  w.terrain.fill(0);const before={x:r.x,y:r.y};expect(recyclerStep(w,[],r,{x:1,y:0},.1)).toBe(false);expect({x:r.x,y:r.y}).toEqual(before);expect(recyclerExit(w,[],r)).toBeNull();
+  w.terrain.fill(2);expect(recyclerExit(w,[],r)).not.toBeNull();const other={id:'b',x:r.x+.5,y:r.y,life:'active'};
+  expect(recyclerStep(w,[],r,{x:1,y:0},.1,[other])).toBe(false);
+});
+it('chooses unloading before salvage and preserves bounded corpse cargo through a save',()=>{
+  const w=flat(),l=w.logistics,r={x:20,y:20,cargo:40};l.facilities=[{id:'u',kind:'uplink',x:21,y:20,remaining:0,cargo:0}];
+  addRemains(l,{x:19,y:20,angle:0},'dead1');addRemains(l,{x:19.5,y:20},'dead2');expect(l.crates).toHaveLength(1);expect(l.crates[0].amount).toBe(16);
+  expect(parkedTask(w,r)).toEqual({action:'deliver',id:'u'});r.cargo=0;expect(parkedTask(w,r)).toEqual({action:'recover',id:'dead1'});
+  expect(JSON.parse(JSON.stringify(l)).crates[0].amount).toBe(16);addRemains(l,{x:19,y:20,kind:'swimmer'},'fish');expect(l.crates[0].amount).toBe(16);
+  for(let i=0;i<100;i++)addRemains(l,{x:i*3,y:50},'body'+i);expect(l.crates).toHaveLength(64);
+});
+it('boards one recycler seat, drives, rejects weapons and remote takeover, and restores the seat after restart',async()=>{
+  const f=await fixture((db,w,l)=>{l.recyclers=[{id:'r',owner:'a',x:33.5,y:42.5,remaining:0,cargo:0,path:[],angle:0}];});try{
+    await f.connect();await f.connect(1);
+    expect((await f.post('logistics/board',{id:'r'})).status).toBe(200);expect((await f.state()).me).toMatchObject({body:'recycler',recyclerId:'r'});
+    expect((await f.post('logistics/board',{id:'r'},1)).status).toBe(409);
+    expect((await f.post('logistics/command',{id:'r',action:'stop'})).status).toBe(409);expect((await f.post('fire',{x:40,y:42})).status).toBe(409);
+    expect((await f.post('input',{x:1,y:0})).status).toBe(200);await expect.poll(async()=>(await f.state()).logistics.recyclers[0].x).toBeGreaterThan(33.7);
+    await f.post('input',{x:0,y:0});await f.restart();expect((await f.state()).me).toMatchObject({body:'recycler',recyclerId:'r'});
+    await f.connect();expect((await f.post('logistics/exit')).status).toBe(200);expect((await f.state()).me.body).toBe('robot');expect((await f.state()).logistics.recyclers[0].occupant).toBeNull();
+  }finally{await f.close();}
+});
+it('automatically collects ruins and loose remains while parked, unloads, and credits a launch once',async()=>{
+  const f=await fixture((db,w,l)=>{
+    l.recyclers=[{id:'r',owner:'a',x:33.5,y:42.5,remaining:0,cargo:0,path:[],angle:0}];
+    l.facilities=[{id:'u',owner:'a',kind:'uplink',x:33,y:38,remaining:0,cargo:0,launch:0}];
+    l.crates=[{id:'dead',kind:'remains',x:33.5,y:43.5,amount:8}];w.sites=[{...makeSite('alert','ruin',35,42),state:'conquered',hp:0}];
+  });try{
+    await f.connect();await f.post('logistics/board',{id:'r'});
+    await expect.poll(async()=>(await f.state()).logistics.crates.length).toBe(0);
+    await expect.poll(async()=>(await f.state()).logistics.salvage.ruin,{timeout:12000}).toBe(0);
+    await expect.poll(async()=>(await f.state()).logistics.facilities[0].cargo).toBe(188);
+    expect((await f.post('logistics/launch',{id:'u'})).status).toBe(200);await f.post('logistics/launch',{id:'u'});
+    await expect.poll(async()=>(await f.state()).logistics.shipments,{timeout:7000}).toBe(1);expect((await f.state()).logistics.supplies).toBe(1388);
+    await f.restart();expect((await f.state()).logistics.salvage.ruin).toBe(0);expect((await f.state()).logistics.crates).toHaveLength(0);
+  }finally{await f.close();}
+},22000);
+it('losing an occupied recycler disables its driver and drops its cargo, including across restart',async()=>{
+  const f=await fixture((db,w,l)=>{l.recyclers=[{id:'r',owner:'a',x:33.5,y:42.5,remaining:0,cargo:33,path:[],angle:0,occupant:'a'}];l.durability['recycler:r']={health:0,max:160,armor:1};});try{
+    await f.connect();await expect.poll(async()=>(await f.state()).me.life).toBe('disabled');const s=await f.state();expect(s.me.recyclerId).toBeNull();expect(s.logistics.crates[0].amount).toBe(33);
+    await f.restart();expect((await f.state()).me.life).toBe('disabled');expect((await f.state()).logistics.recyclers).toHaveLength(0);
+  }finally{await f.close();}
 });

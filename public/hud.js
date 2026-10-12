@@ -14,6 +14,7 @@ export function hudState({ me, mode, deploymentKind, gun, ship, aircraft, placin
   if (aircraft) return { key: 'aircraft', label: `AIRBORNE · ${aircraft}` };
   if (ship) return { key: 'ship', label: `AT SEA · ${ship}` };
   if (gun) return { key: 'facility', label: `OPERATING · ${gun}` };
+  if (me.body === 'recycler') return { key: 'vehicle', label: 'RECYCLER / SALVAGE CREW' };
   if (me.body === 'rover') return { key: 'vehicle', label: 'IN TANK · CREW' };
   if (mode === 'build') return { key: 'placing', label: `PLACING · ${placingLabel || deploymentKind || 'ASSET'}`.toUpperCase() };
   return { key: 'ground', label: 'ON FOOT · ROBOT' };

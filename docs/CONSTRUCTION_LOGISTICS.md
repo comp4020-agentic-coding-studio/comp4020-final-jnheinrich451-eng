@@ -13,9 +13,20 @@ permanent conquest never reverses.
 Deploy a factory, launch station or recycler from **Deploy (B) → Logistics**
 (L-01 to L-03; see docs/UI_REFINEMENT.md). Open the **SUP** header readout (or
 press L) to command collection/delivery, launch cargo, cancel factory orders or
-rebuild a dock/airbase. The recycler uses destination commands
-in this first version; it is not a second player body or a WASD-controlled vehicle.
-It stops if newly placed objects obstruct its route; issue a new command to replan.
+rebuild a dock/airbase. Approach a ready recycler and press **E** to board its single
+seat; **WASD** or the phone movement pad drives. **E** exits onto clear nearby land.
+Park for half a second to collect automatically: conquered ruins take eight seconds;
+nearby alien remains and dropped cargo are picked up directly. Cargo holds 180.
+Park within four tiles of a launch station's center to unload automatically, then
+open its controls with **L** or **Open launch station** and launch. On foot, **E**
+opens a nearby station when no vehicle boarding prompt has priority.
+
+Remote destination commands remain available from Logistics while the recycler is
+unoccupied. A new driver cancels those orders. Blocked remote routes stop; issue a
+new command to replan. Disconnected drivers keep their seat but stop moving and
+collecting. Position, seat, cargo and depletion survive restart. Any teammate can
+board an empty recycler; only its owner or the host managing abandoned contributions
+can issue remote orders. Destruction disables the driver and drops its cargo.
 A rocket launch closes the menu and centers the camera on the station.
 
 ## Placement and construction states
@@ -48,8 +59,8 @@ at 1; penetration below armor deals no damage. Values are centralized in
 
 Crawlers approach a reachable edge before striking. Mortars can target facilities
 and damage them with their ordinary telegraphed acid impacts. Friendly shots still
-cannot damage friendly units or buildings. Extending other enemy weapons to
-facility damage is later polish; rails and terrain flooring are not HP entities.
+cannot damage friendly units or buildings. Lance towers can also hit a recycler hull at the tank damage rate, with penetration 2.
+Extending other enemy weapons to stationary facility damage is later polish; rails and terrain flooring are not HP entities.
 
 Destroyed cores, sentries, artillery and logistics machinery release their slots.
 Completed core flooring remains walkable. A remotely operated gun's destruction
@@ -84,6 +95,7 @@ part of this stage.
 
 - Domain and HTTP: spec/logistics.test.ts plus existing combat/persistence suites.
 - Campaign freeze/ownership: spec/campaigns.test.ts.
+- Driving: tests/browser/recycler-driving.spec.js (desktop E/WASD, phone buttons, collection, shipment, reload).
 - Browser: tests/browser/logistics.spec.js (1920x1080, 390x844, keyboard and resize).
 - Regression: attack-jet and navy-deployment browser paths.
 - Previews: docs/previews/construction-support-* and logistics-cargo-*.

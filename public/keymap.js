@@ -6,13 +6,15 @@
 
 export const SCOPES = Object.freeze({
   global: 'Anywhere', catalogue: 'Deploy catalogue', placing: 'Placing', combat: 'Weapons',
-  tank: 'Tank', gun: 'Cannon / missile battery', ship: 'Ship', submarine: 'Submarine', aircraft: 'Aircraft',
+  recycler: 'Recycler', tank: 'Tank', gun: 'Cannon / missile battery', ship: 'Ship', submarine: 'Submarine', aircraft: 'Aircraft',
 });
 
 const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, keys, label, scope, text, ...extra });
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
+  bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler'),
+  bind('station-open', ['e'], 'E', 'recycler', 'Open a nearby launch station on foot'),
   bind('aircraft-board', ['e'], 'E', 'aircraft', 'Board or leave the aircraft'),
   bind('aircraft-space', [' '], 'Space', 'aircraft', 'Reserved while flying (bombs use LMB)'),
   bind('sub-depth', [' ', 'controlleft'], 'Ctrl / Space', 'submarine', 'Dive / surface'),

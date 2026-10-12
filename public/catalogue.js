@@ -40,7 +40,7 @@ export const ASSETS = Object.freeze([
   { code: 'L-02', tab: 'logistics', card: 'uplink-card', kind: 'uplink', cost: 'uplink', hp: 'uplink', name: 'Launch station', footprint: '3 × 3',
     specs: [['Role', 'Ships salvage cargo to orbit'], ['Launch', `${ECONOMY.launchTime} s`]] },
   { code: 'L-03', tab: 'logistics', card: 'recycler-card', kind: 'recycler', cost: 'recycler', hp: 'recycler', name: 'Recycler', footprint: '1 × 1 pod',
-    specs: [['Cargo', `${ECONOMY.cargo} per trip`], ['Collect', `${ECONOMY.collectTime} s at conquered ruins`]] },
+    specs: [['Drive', 'E board / WASD / park to collect'], ['Cargo', `${ECONOMY.cargo} per trip`], ['Collect', `${ECONOMY.collectTime} s at conquered ruins`]] },
   { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'ship', cost: 'ship', name: 'Coastal gunship', footprint: 'Shore 3 × 1 · dock 3 × 5',
     specs: [['Main guns', `${SHIP.minRange}–${SHIP.range} t · ${SHIP.reload} s per turret`], ['Side guns', `${NAVAL_GUN.range} t · ${degrees(NAVAL_GUN.halfArc * 2)}° arcs`]], limit: '1 per scout' },
   { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'ship', cost: 'submarine', name: 'Missile submarine', footprint: 'Shore 3 × 1 · dock 3 × 5',

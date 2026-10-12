@@ -436,3 +436,10 @@ claim every enemy weapon was extended. Rails and terrain have no HP in this stag
 Provisional prices/timers live in public/logistics.js; document balance changes.
 Migration backs up populated saves and never retroactively charges owned equipment.
 Local checks do not establish deployed behavior or four-player Fly capacity.
+
+The 12 October recycler-driving refinement is in docs/CONSTRUCTION_LOGISTICS.md.
+Preserve the refined UI/keymap/catalogue. E boards/exits one saved recycler seat;
+WASD drives, parking collects/unloads, L opens shipment controls. Remote commands
+require an empty seat. Never render or damage a second robot inside the recycler.
+Loss disables its driver and drops only unshipped cargo. New ground corpses have
+bounded saved salvage; depletion and enemy death share campaign checkpoints.

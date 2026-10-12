@@ -1,3 +1,4 @@
+import { facilityTargets, hurtFacility } from './logistics.js';
 import { turnTurret, angleDelta } from './turret.js';
 import { raycast } from './raycast.js';
 import { operational, hullHealth, hurtVehicle } from './vehicle.js';
@@ -15,9 +16,10 @@ export function tickLasers(world, buildings, robots, dt, emit = event => {}) {
   const tanks = (world.tanks || []).filter(operational);
   const targets = tanks.map(v => ({ id: 'vehicle:' + v.id, x: v.x, y: v.y, hp: hullHealth(v), vehicle: v }));
   for (const p of robots) if (p.life === 'active' && p.health > 0 && !p.deploying && !(p.shield > 0) &&
-      !['orbital', 'rover', 'ship', 'aircraft'].includes(p.body) && !tanks.some(v => v.occupant === p.id)) {
+      !['orbital', 'rover', 'ship', 'aircraft', 'recycler'].includes(p.body) && !tanks.some(v => v.occupant === p.id)) {
     targets.push({ id: p.id, x: p.x, y: p.y, hp: p.health, robot: p });
   }
+  for(const f of facilityTargets(world,buildings).filter(f=>f.kind==='recycler'))targets.push({id:f.id,x:f.x,y:f.y,hp:f.hp.health,facility:f});
   let changed = false;
   for (const site of world.sites || []) {
     if (site.kind !== 'laser') continue;
@@ -76,9 +78,9 @@ export function tickLasers(world, buildings, robots, dt, emit = event => {}) {
       const ray = trace(m.angle, LASER.range, targets.filter(p => p.hp > 0));
       m.beam = { x: ray.x, y: ray.y };
       if (ray.enemy) {
-        const p = ray.enemy, body = p.vehicle || p.robot;
+        const p = ray.enemy, body = p.facility?.hp || p.vehicle || p.robot;
         const hurt = p.vehicle ? hurtVehicle : hurtRobot;
-        if (hurt(body, exposure * (p.vehicle ? LASER.tankDps : LASER.robotDps))) {
+        if (p.facility ? hurtFacility(p.facility,exposure*LASER.tankDps,2) : hurt(body, exposure * (p.vehicle ? LASER.tankDps : LASER.robotDps))) {
           p.hp = body.health;
           if (!m.hitIds.includes(p.id)) {
             m.hitIds.push(p.id);

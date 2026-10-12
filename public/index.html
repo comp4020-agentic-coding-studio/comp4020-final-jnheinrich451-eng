@@ -39,6 +39,7 @@
     <section id="recovery-panel" class="recovery-panel panel" aria-labelledby="recovery-title" hidden><span class="eyebrow">ORBITAL RECOVERY</span><h2 id="recovery-title">Robot disabled</h2><p id="recovery-message" role="status">Choose a friendly core.</p><label for="recovery-core">Recovery core</label><select id="recovery-core"></select><button id="revive-button" class="primary-button">Deploy replacement</button><button id="emergency-orbit" class="secondary-button" hidden>All cores lost / Emergency orbital core</button><small>Robot recovery is free.</small></section>
     <button id="fire-button" class="fire-button" aria-label="Fire cannon">◎<small>CANNON</small></button>
     <button id="machine-gun-button" class="machine-gun-button" aria-label="Fire machine gun">⋮<small>HOLD MG</small></button>
+    <section id="recycler-controls" class="panel recycler-controls" aria-label="Recycler controls" hidden><strong>RECYCLER</strong><span id="recycler-cargo"></span><p id="recycler-status" role="status"></p><p>WASD drive / E exit / Park near salvage to collect, beside a station to unload.</p><button id="recycler-uplink" hidden>Open launch station / L</button></section>
     <div class="bottom-hud">
       <ol id="orbit-steps" class="orbit-steps panel" aria-label="Landing steps"><li data-step="1"><b>01</b> Survey</li><li data-step="2"><b>02</b> Select site</li><li data-step="3"><b>03</b> Confirm drop</li></ol>
       <p class="map-hint" id="map-hint">WASD move · Mouse aim · Middle-drag pan</p>
@@ -59,6 +60,8 @@
         <div id="submarine-depth" class="submarine-depth" hidden><span id="submarine-battery" role="status"></span><button id="submarine-dive">Left Ctrl / Dive</button><button id="submarine-surface">Space / Surface</button></div><div class="ship-secondary-row"><span id="ship-port-status">Port</span><button id="ship-secondary">Hold RMB / Side guns</button><span id="ship-starboard-status">Starboard</span></div><p id="ship-manual">W/S forward/reverse / A/D steer / Mouse aim / 6-40 tiles</p>
       </section>
       <button id="ship-interact" class="secondary-button tank-interact" hidden>Board ship / E</button>
+      <button id="recycler-interact" class="secondary-button tank-interact" hidden>Drive recycler / E</button>
+      <button id="station-interact" class="secondary-button tank-interact" hidden>Launch station / E</button>
       <button id="tank-interact" class="secondary-button tank-interact" hidden>Board tank / E</button>
       <div id="tank-loadout" class="panel tank-loadout"><label>Cannon <select id="tank-primary"><option value="HE">HE</option><option value="MAGNETIC">Magnetic / charge 1s</option></select></label><label>RMB <select id="tank-secondary"><option value="APCR">Machine gun</option><option value="HEAVY_FLAME">Fuel jet / 8 tiles</option></select></label><span id="tank-charge">READY</span></div>
       <nav class="mode-dock panel" aria-label="Battlefield actions">
@@ -91,7 +94,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <dialog id="logistics-dialog" aria-labelledby="logistics-title"><form method="dialog"><button class="dialog-close" aria-label="Close logistics">&#215;</button></form>
-      <h1 id="logistics-title">Field logistics</h1><p id="logistics-balance"></p><p id="logistics-message" role="status"></p>
+      <h1 id="logistics-title">Field logistics</h1><p class="fine-print">E boards a recycler; WASD drives. Park near ruined facilities, alien remains or cargo to collect automatically. Park beside a launch station to unload, then launch below. Remote orders work while the recycler is unoccupied.</p><p id="logistics-balance"></p><p id="logistics-message" role="status"></p>
       <p class="fine-print">Deploy factories, launch stations and recyclers from <strong>Deploy (B) → Logistics</strong>.</p>
       <p class="fine-print">Factories extend construction support. Nearby heavy facilities cost 40% less and take 20 seconds to build. Cores, factories and launch stations need land; orbital tanks and sentries can deploy beyond construction circles.</p>
       <h2>Recover alien material</h2><label>Recycler<select id="recycler-select"></select></label><label>Ruins or recovered cargo<select id="salvage-target"></select></label>

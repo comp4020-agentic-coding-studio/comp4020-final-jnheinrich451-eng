@@ -1,6 +1,6 @@
 import { LOGISTICS_SIZE, ECONOMY, facilityTargets } from './logistics.js';
 
-export function drawLogistics(c,world,buildings,T,zoom,reduced){
+export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId){
   const l=world.logistics;if(!l)return;
   const label=(text,x,y,color='#e8dfa8')=>{c.font=`${10/zoom}px monospace`;c.textAlign='center';const w=c.measureText(text).width;c.fillStyle='#122d29e8';c.fillRect(x*T-w/2-3,y*T-11/zoom,w+6,15/zoom);c.fillStyle=color;c.fillText(text,x*T,y*T);};
   c.save();
@@ -26,12 +26,19 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced){
   }
   for(const r of l.recyclers){
     c.save();c.translate(r.x*T,r.y*T);c.rotate(r.angle);c.fillStyle='#172d30';c.fillRect(-.43*T,-.48*T,.86*T,.96*T);
+    for(const side of [-1,1])for(const axle of [-.3,.3]){c.fillStyle='#101d21';c.fillRect((side*.4-.09)*T,(axle-.15)*T,.18*T,.3*T);}
     c.fillStyle='#c39d58';c.fillRect(-.33*T,-.4*T,.66*T,.8*T);c.fillStyle='#3d656a';c.fillRect(-.23*T,-.31*T,.46*T,.25*T);
     c.fillStyle=r.cargo?'#aa6d94':'#4a5045';c.fillRect(-.25*T,.06*T,.5*T,.28*T);c.fillStyle='#adba9e';c.fillRect(-.45*T,-.54*T,.9*T,.12*T);c.restore();
+    if(r.occupant){c.strokeStyle=r.occupant===driverId?'#e3bc70':'#a6ccc0';c.lineWidth=2/zoom;c.beginPath();c.arc(r.x*T,r.y*T,T*.67,0,Math.PI*2);c.stroke();}
     if(r.remaining>0){c.strokeStyle='#e6ba69';c.beginPath();c.arc(r.x*T,r.y*T,T*.8,0,Math.PI*2);c.stroke();}
-    label(r.remaining>0?'POD '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':'RECYCLER / '+r.cargo,r.x,r.y+.85);
+    label(r.remaining>0?'POD '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':'RECYCLER / ')+r.cargo,r.x,r.y+.85);
   }
-  for(const box of l.crates){c.fillStyle='#cda463';c.fillRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);c.strokeStyle='#45392d';c.strokeRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);label('CARGO '+box.amount,box.x,box.y+.65);}
+  for(const box of l.crates){
+    if(box.kind==='remains'){
+      c.save();c.translate(box.x*T,box.y*T);c.rotate(box.angle||0);c.fillStyle='#653454';c.beginPath();c.ellipse(0,0,.55*T,.34*T,0,0,Math.PI*2);c.fill();c.fillStyle='#823c43';c.beginPath();c.ellipse(0,0,.35*T,.2*T,0,0,Math.PI*2);c.fill();c.strokeStyle='#4d2a38';c.lineWidth=.07*T;
+      for(const side of [-1,1])for(const dy of [-.14,.12]){c.beginPath();c.moveTo(side*.2*T,dy*T);c.lineTo(side*.47*T,(dy+.16)*T);c.stroke();}c.restore();label('REMAINS '+box.amount,box.x,box.y+.7,'#daa6c2');
+    }else{c.fillStyle='#cda463';c.fillRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);c.strokeStyle='#45392d';c.strokeRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);label('CARGO '+box.amount,box.x,box.y+.65);}
+  }
   for(const f of facilityTargets(world,buildings)){
     const job=l.jobs[f.object.id];
     if(job){c.fillStyle='#294b5088';c.fillRect((f.x-f.w/2)*T,(f.y-f.h/2)*T,f.w*T,f.h*T);label('BUILD '+Math.ceil(job.remaining)+'s',f.x,f.y);}

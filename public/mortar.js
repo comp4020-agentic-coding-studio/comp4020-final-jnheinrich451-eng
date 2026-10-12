@@ -13,7 +13,7 @@ export const acidDamage = distance => distance > MORTAR.radius ? 0 : Math.round(
 export function tickMortars(world, robots, shells, now, dt, nextId, emit = event => {}, facilities = []) {
   const tanks = (world.tanks || []).filter(operational);
   const foot = robots.filter(p => p.life === 'active' && p.health > 0 && !p.deploying && !(p.shield > 0) &&
-    !['orbital', 'rover', 'ship', 'aircraft'].includes(p.body) && !tanks.some(v => v.occupant === p.id));
+    !['orbital', 'rover', 'ship', 'aircraft', 'recycler'].includes(p.body) && !tanks.some(v => v.occupant === p.id));
   const targets = foot.map(p => ({ id: p.id, x: p.x, y: p.y })).concat(tanks.map(v => ({ id: 'vehicle:' + v.id, x: v.x, y: v.y }))).concat(facilities.map(f=>({id:f.id,x:f.x,y:f.y})));
   let changed = shells.length > 0;
   for (const shell of shells) if (!shell.impacted && now >= shell.landAt) {

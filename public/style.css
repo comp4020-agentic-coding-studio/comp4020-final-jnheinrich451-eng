@@ -176,3 +176,15 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 @media(max-width:760px),(pointer:coarse){.asset-key,.tab-keys,.mode-dock kbd{display:none}}
 /* Phones in cannon/battery overview: keep the objective line, drop drill and hull rows to free the map. */
 @media(max-width:760px){.artillery-orbit .objective .robot-health,.artillery-orbit .objective .front-label,.artillery-orbit #drill-front,.artillery-orbit .objective-bottom,.artillery-orbit .landing-log{display:none}}
+
+/* Recycler uses the existing instrument panels without changing the catalogue. */
+.recycler-controls{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 28px));padding:12px 16px;pointer-events:auto;font:12px var(--mono,monospace)}
+.recycler-controls>span{float:right}.recycler-controls p{margin:6px 0}.in-recycler .weapon-display,.in-recycler #fire-button,.in-recycler #machine-gun-button{display:none}
+@media(max-width:760px){.recycler-controls{bottom:220px;font-size:10px;width:calc(100% - 28px)}}
+
+.in-recycler .bottom-hud{pointer-events:none}.in-recycler .bottom-hud>button,.in-recycler .bottom-hud .mode-dock{pointer-events:auto}
+
+@media(max-width:760px),(pointer:coarse){.in-recycler .touch-pad{bottom:115px}}
+
+.recycler-controls{backdrop-filter:none;background-color:var(--panel-solid)}
+.in-recycler .map-hint{visibility:hidden}
