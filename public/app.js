@@ -32,6 +32,7 @@ import { switchAt, switchLocked, switchConnectionError } from './switches.js';
 import { drawHazards } from './hazard-effects.js';
 import { fieldCapacityError } from './hazards.js';
 import { tileAt, LABELS, placementError } from './world.js';
+import { hudState, coreSiteAnalysis, orbitStep, landingLog } from './hud.js';
 import { CombatEffects, drawCrawler } from './effects.js';
 import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
 import { CORE, corePlacementError } from './core.js';
@@ -90,6 +91,47 @@ let path = [], toastTimer, moved = false, seenRevision = -1, lastMini = 0;
 let initialFoundations = 0, inputBusy = false, lastInput = '0,0', failedInputs = 0, lastAim = null;
 let combat = { status: 'ready', health: 100, enemies: [], shells: [], impacts: [], sentries: {} }, aim = null, mouseAim = null, stateReceived = 0;
 let lastPointerKind = 'mouse';
+let locatedSite = false; try { locatedSite = sessionStorage.getItem('frontier-located') === '1'; } catch {}
+const ASSET_NAMES = { core: 'Orbital core', sentry: 'APCR sentry', tank: 'Tank drop pod', rail: 'Rail track', artillery: 'Railway cannon', missile: 'Missile battery', airbase: 'Airbase', factory: 'Factory', uplink: 'Launch station', recycler: 'Recycler' };
+// State banner and first-landing log. Presentation only; derived from the current snapshot.
+function updateHud() {
+  if (!me || !world) return;
+  const gun = controlledGun(), ship = currentShip(), plane = me.aircraftId ? currentAircraft() : null;
+  const placingLabel = deploymentKind === 'ship' ? shipName({ kind: deploymentShipKind }) : deploymentKind === 'airbase' && deploymentAircraftKind === 'attack-jet' ? 'Airbase + attack jet' : ASSET_NAMES[deploymentKind];
+  const state = hudState({ me, mode, deploymentKind, gun: gun && (isMissile(gun) ? 'Missile battery' : 'Rail cannon').toUpperCase(), ship: ship && shipName(ship).toUpperCase(), aircraft: plane && aircraftName(plane).toUpperCase(), placingLabel });
+  $('state-banner').textContent = state.label;
+  document.querySelector('.battlefield').dataset.state = state.key;
+  const log = landingLog({ world, buildings, me, located: locatedSite }), list = $('landing-log');
+  list.hidden = !['ground', 'placing'].includes(state.key) || log.every(item => item.done);
+  const key = log.map(item => item.id + ':' + item.done).join();
+  if (!list.hidden && list.dataset.key !== key) {
+    list.dataset.key = key;
+    list.replaceChildren(...log.map(item => {
+      const li = document.createElement('li'); li.classList.toggle('done', item.done);
+      li.append((item.done ? '✓ ' : '○ ') + item.label);
+      if (item.key && !item.done) li.append(' ', Object.assign(document.createElement('kbd'), { textContent: item.key }));
+      return li;
+    }));
+  }
+}
+function noteLocated() { locatedSite = true; try { sessionStorage.setItem('frontier-located', '1'); } catch {} updateHud(); }
+// Site analysis for an orbital core: measured footprint facts plus the client preview's verdict.
+function renderSiteAnalysis(a, error) {
+  const supplies = Math.floor(world.logistics?.supplies ?? 0), terrain = [['grass', a.grass], ['sand', a.sand], ['rock', a.rock], ['water', a.water], ['floor', a.floor]].filter(([, n]) => n).map(([name, n]) => name + ' ' + n).join(' · ');
+  const rows = [
+    ['Footprint', a.cells + '-cell cross'],
+    ['Terrain', terrain || '—'],
+    ['Flooring', a.rock + ' rock' + (a.rock === 1 ? '' : 's') + ' covered'],
+    ['Hostile', a.nearest ? 'nearest ' + a.nearest.distance.toFixed(1) + ' t · ' + (a.territory ? 'inside red territory' : 'outside red territory') : 'none surveyed'],
+    ['Cost', deploymentPrice() + ' SUP · balance ' + supplies],
+  ];
+  const checks = [['inside map', a.inside], ['land', a.water === 0], ['1 core per scout', !world.cores.some(c => c.owner === me.id)]];
+  const items = rows.flatMap(([term, value]) => [Object.assign(document.createElement('dt'), { textContent: term }), Object.assign(document.createElement('dd'), { textContent: value })]);
+  const verdict = Object.assign(document.createElement('dd'), { className: 'checks' });
+  for (const [label, ok] of checks) verdict.append(Object.assign(document.createElement('span'), { className: ok ? 'ok' : 'fail', textContent: (ok ? '✓ ' : '✗ ') + label }));
+  verdict.append(Object.assign(document.createElement('span'), { className: error ? 'fail verdict' : 'ok verdict', textContent: error ? '✗ ' + error : '✓ clear · server confirms on drop' }));
+  $('site-analysis').replaceChildren(...items, Object.assign(document.createElement('dt'), { textContent: 'Checks' }), verdict);
+}
 let eventStream;
 const firing = new Set(), heldGun = new Set(), heldPrimary = new Set(), nextFire = { HE: 0, APCR: 0, FLAME: 0, LASER: 0 }, flashTimers = {};
 let displayedBody;
@@ -646,6 +688,7 @@ function updateState(state) {
   updateSurvival();
   updateArtillery(); updateSwitches(); updateTankControl(); updateShips(); updateAircraft();
   if (recoveryWasHidden && !alive()) { inspectRecoveryCore(); $('recovery-core').focus({ preventScroll: true }); }
+  updateHud();
 }
 function setMode(next) {
   stopFiring();
@@ -662,6 +705,7 @@ function setMode(next) {
   toggleTray(false); toggleSite(false);
   updateSelection(); if (world) { updateTankControl(); updateShips(); updateAircraft(); }
   if (inOrbit()) { following = false; $('map-hint').textContent = 'In orbit / Choose a core landing site / Confirm orbital drop'; toggleSite(true); }
+  updateHud();
 }
 function beginCoreSurvey(kind = 'core') {
   if(kind!=='tank')emergencyDeployment=false;
@@ -752,6 +796,11 @@ function updateSelection() {
   if (mode === 'build' && deploymentKind === 'rail' && !error) $('site-reason').textContent = 'Corners and junctions occupy one tile. Crossing your EW and NS rails creates a junction. WASD chooses a connected exit; leave room for the cannon body.';
   if (mode === 'build' && deploymentKind === 'rail' && isCurve(curve) && !error) $('site-reason').textContent = `Clear 8 × 8 turning apron. Connect three straight tiles centered at ${curveEnds(curve).map(e => `${e.x}:${e.y} (${e.shape})`).join(' and ')}.`;
   $('place-building').disabled = !!error || !connected || pending || me.deploying || !alive();
+  const analysis = mode === 'build' && deploymentKind === 'core' ? coreSiteAnalysis(world, x, y) : null;
+  $('site-analysis').hidden = !analysis; if (analysis) renderSiteAnalysis(analysis, error);
+  $('site-reason').hidden = !!analysis; $('deployment-cost').hidden = !!analysis;
+  const step = orbitStep({ error, pending });
+  for (const li of $('orbit-steps').children) { const n = Number(li.dataset.step); li.classList.toggle('done', n < step); li.classList.toggle('current', n === step); li.toggleAttribute('aria-current', n === step); }
   $('place-building').replaceChildren(document.createTextNode(pending ? 'Saving deployment…' : !connected ? 'Waiting for connection' : error ? 'Choose a clear site' : coreMode ? 'Confirm orbital drop' : mode === 'build' && deploymentKind === 'rail' ? 'Lay rails' : mode === 'build' && deploymentKind === 'artillery' ? 'Deploy railway cannon' : mode === 'build' && deploymentKind === 'missile' ? 'Deploy missile battery' : LOGISTICS_SIZE[deploymentKind] ? 'Deploy '+deploymentKind : 'Deploy sentry'), Object.assign(document.createElement('span'), { textContent: '+' }));
   const selectedCurve = world.rails.find(r => r.x === x && r.y === y && isCurve(r));
   $('enable-switch').hidden = !selectedCurve || selectedCurve.owner !== me.id || !!switchAt(world, selectedCurve);
@@ -1393,6 +1442,7 @@ mini.addEventListener('pointerdown', event => {
 });
 function locateSite(kind, id = null) {
   const site = world?.sites?.find(s => id ? s.id === id : s.kind === kind); if (!site) return;
+  noteLocated();
   selectedSiteId = site.id;
   following = false; camera.x = (site.x + 1.5) * T; camera.y = (site.y + 1.5) * T;
   camera.zoom = Math.max(.45, camera.zoom); canvas.focus();
@@ -1406,6 +1456,7 @@ $('locate-laser').onclick = () => locateSite('laser');
 $('locate-contaminator').onclick = () => locateSite('contaminator');
 $('locate-settlement').onclick = () => {
   const colony = settlements(world?.sites)[0]; if (!colony) return;
+  noteLocated();
   selectedSiteId = (colony.members.find(s => s?.state === 'hostile') || colony.members.find(Boolean)).id;
   following = false; camera.x = colony.x * T; camera.y = colony.y * T; camera.zoom = .35; canvas.focus();
 };

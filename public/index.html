@@ -15,16 +15,16 @@
   <main class="battlefield" aria-label="Caldera battlefield">
     <canvas id="world-canvas" tabindex="0" aria-label="Caldera island. WASD or arrow keys move. B opens deployment. Mouse aims; left-click or Space fires the selected cannon, hold right-click or J for the selected secondary weapon. Middle-drag pans. Site controls provide a coordinate alternative.">Canvas is needed to display the battlefield.</canvas>
     <header class="hud-header panel">
-      <div class="brand">F<span>FRONTIER<small>CALDERA / 01</small></span></div>
-      <div class="session-info"><span id="connection" class="connection"><i></i> Connecting</span><span id="presence">SHARED WORLD</span></div>
+      <div class="brand">F<span>FRONTIER<small>CALDERA / 01</small></span></div><span id="state-banner" class="state-banner" role="status" aria-label="Operator state">CONNECTING</span>
+      <div class="session-info"><span id="connection" class="connection"><i></i> Connecting</span><span id="presence">SHARED WORLD</span></div><button id="supplies-button" class="supply-readout" title="Supplies and logistics">SUP —</button>
       <nav aria-label="Game information"><button id="room-button" title="Campaign room">Room</button><a id="campaign-link" class="account-link" href="/campaigns/" title="Create or join a saved campaign">Campaigns</a><a id="account-link" class="account-link" href="/account/" aria-label="Player account" title="Player account">ID</a><button id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button><button id="help-button" aria-label="How to play">?</button></nav>
     </header>
     <span id="detection-status" role="status" hidden></span>
     <span id="fog-status" role="status" hidden>VISIBILITY LOST / Contaminated air</span>
     <span id="acid-warning" role="status" hidden>INCOMING ACID · Leave the marked circle</span>
     <section class="objective panel" aria-label="Combat objectives and drills">
-      <span class="eyebrow">COOPERATIVE FIELD TEST</span>
-      <button id="supplies-button" class="secondary-button">SUPPLIES / Logistics</button><strong id="combat-status">Establish a foothold.</strong>
+      <span class="eyebrow">OPERATIONS</span>
+      <ol id="landing-log" class="landing-log" aria-label="First landing log" hidden></ol><strong id="combat-status">Establish a foothold.</strong>
       <div id="settlement-objective" hidden><span id="settlement-progress"></span><div id="settlement-targets" aria-label="Settlement structures"></div></div>
       <div id="robot-health" class="robot-health" hidden><div><span id="health-label">ROBOT HULL</span><span id="health-value">100 / 100</span></div><progress id="health-meter" max="100" value="100" aria-label="Robot health"></progress></div>
       <label class="front-label" for="drill-front">Drill sector</label><select id="drill-front"><option value="landing">Caldera landing</option></select><div class="objective-bottom"><span id="objective-health">Drill beacon · 100%</span><button id="start-drill">Start drill</button></div>
@@ -40,6 +40,7 @@
     <button id="fire-button" class="fire-button" aria-label="Fire cannon">◎<small>CANNON</small></button>
     <button id="machine-gun-button" class="machine-gun-button" aria-label="Fire machine gun">⋮<small>HOLD MG</small></button>
     <div class="bottom-hud">
+      <ol id="orbit-steps" class="orbit-steps panel" aria-label="Landing steps"><li data-step="1"><b>01</b> Survey</li><li data-step="2"><b>02</b> Select site</li><li data-step="3"><b>03</b> Confirm drop</li></ol>
       <p class="map-hint" id="map-hint">WASD move · Mouse aim · Middle-drag pan</p>
       <section id="facility-controls" class="facility-controls panel" aria-label="Active facility controls" hidden>
         <div class="facility-heading"><strong>RAILWAY CANNON</strong><button id="facility-switches">Switches</button><span id="artillery-status" role="status"></span><button id="facility-exit">Exit / Esc</button></div>
@@ -77,6 +78,7 @@
     <aside id="site-panel" class="site-panel panel" aria-label="Site controls" hidden>
       <div class="section-heading"><h2 id="site-title">Deployment site</h2><span id="tile-coordinate">24 : 18</span><button id="close-site" aria-label="Close site controls">×</button></div>
       <div class="terrain-info"><span id="terrain-swatch"></span><div><strong id="terrain-name">Drill beacon</strong><small id="terrain-description">Choose a tile</small></div></div>
+      <dl id="site-analysis" class="site-analysis" aria-label="Site analysis" hidden></dl>
       <label id="sentry-options" hidden>Sentry mode<select id="sentry-weapon"><option value="APCR">Machine gun / APCR</option><option value="HEAVY_FLAME">Flamethrower / 8 tiles</option></select></label>
       <div id="rail-options" hidden><label>Direction<select id="rail-shape"><option value="EW">East-west</option><option value="NS">North-south</option><option value="J">Junction / 1 tile</option><option value="CNE">Corner / North + East</option><option value="CSE">Corner / South + East</option><option value="CSW">Corner / South + West</option><option value="CNW">Corner / North + West</option></select></label><label>Length<select id="rail-length"><option value="5">5 tiles</option><option value="1">1 tile</option></select></label></div><label id="construction-method-row" hidden>Delivery<select id="construction-method"><option value="orbital">Orbital / full cost</option></select></label><p id="deployment-cost" class="site-reason"></p><p id="construction-help" class="site-reason" hidden></p><p id="site-reason" class="site-reason">Select clear ground.</p>
       <details id="coordinate-details"><summary>Choose by coordinates</summary><div class="coordinate-inputs"><label>Column<input id="tile-x" type="number" min="0" max="47" value="24"></label><label>Row<input id="tile-y" type="number" min="0" max="35" value="18"></label><button id="select-tile">Inspect</button></div></details>

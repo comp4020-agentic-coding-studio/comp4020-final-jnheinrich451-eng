@@ -21,6 +21,12 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     await expect(page.locator('#site-panel')).toBeVisible();
     await expect(page.locator('#place-building')).toBeEnabled();
     await expect(page.locator('#fire-button')).toBeHidden();
+    // Orbit shows landing steps and a measured site readout instead of ground controls.
+    await expect(page.locator('#orbit-steps')).toBeVisible(); await expect(page.locator('.mode-dock')).toBeHidden();
+    await expect(page.locator('#orbit-steps li.current')).toContainText('Confirm drop');
+    await expect(page.locator('#site-analysis')).toContainText('57-cell cross');
+    await expect(page.locator('#site-analysis')).toContainText('server confirms on drop');
+    if (!mobile) await expect(page.locator('#state-banner')).toHaveText('ORBIT · NO GROUND BODY');
     expect((await state()).me.body).toBe('orbital');
     await page.keyboard.press('Escape');
     await expect(page.locator('#site-panel')).toBeVisible();
@@ -35,6 +41,9 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     await expect.poll(async () => (await state()).me.body).toBe('robot');
     await expect.poll(async () => (await state()).me.deploying, { timeout: 7000 }).toBe(false);
     await expect(page.locator('#site-panel')).toBeHidden();
+    await expect(page.locator('#orbit-steps')).toBeHidden(); await expect(page.locator('.mode-dock')).toBeVisible();
+    await expect(page.locator('#landing-log')).toContainText('✓ Core landed');
+    if (!mobile) await expect(page.locator('#state-banner')).toHaveText('ON FOOT · ROBOT');
     const landed = (await state()).me;
     if (mobile) {
       const button = page.locator('[data-direction="right"]');

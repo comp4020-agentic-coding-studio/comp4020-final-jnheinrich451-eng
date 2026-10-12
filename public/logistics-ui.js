@@ -22,7 +22,8 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   $('recycler-locate').onclick=()=>{const r=state().world.logistics.recyclers.find(r=>r.id===$('recycler-select').value);if(r){dialog.close();locate(r);}};
   function update(){
     const {world,me,connected,canManage}=state(),l=world?.logistics;if(!l)return;
-    $('supplies-button').textContent=`SUPPLIES ${Math.floor(l.supplies)} / Logistics`;
+    const rising=l.supplies<ECONOMY.reserve;$('supplies-button').textContent=`SUP ${Math.floor(l.supplies)}${rising?' ▲':''}`;
+    $('supplies-button').setAttribute('aria-label',`Supplies ${Math.floor(l.supplies)}${rising?', refilling':''}. Open logistics`);
     $('logistics-balance').textContent=`${Math.floor(l.supplies)} / ${ECONOMY.capacity} supplies shared by the room. +${ECONOMY.income}/s while running, until ${ECONOMY.reserve}. Salvage shipments can fill the rest.`;
     const allowed=connected&&me?.life==='active'&&me.body==='robot';
     for(const b of document.querySelectorAll('[data-logistics-deploy]'))b.disabled=!allowed||l.supplies<COSTS[b.dataset.logisticsDeploy];

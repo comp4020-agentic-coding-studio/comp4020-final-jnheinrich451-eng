@@ -78,9 +78,41 @@
 #fog-status{position:absolute;left:50%;top:164px;transform:translateX(-50%);padding:7px 12px;border:1px solid #c895b9;background:#412e45ee;color:#f0c9e9;font:11px/1.5 var(--mono);text-align:center;pointer-events:none;z-index:3}
 @media(max-width:760px){#fog-status{top:auto;bottom:360px;width:max-content;max-width:calc(100% - 24px);font-size:10px}}
 
-#logistics-dialog h2{font-size:16px;margin:20px 0 8px}#logistics-dialog label,#construction-method-row{display:block;font-size:12px;margin:10px 0}#logistics-dialog select,#construction-method{display:block;width:100%;min-height:44px;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:2px;margin-top:5px;padding:6px}.logistics-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.logistics-actions button{flex:1;padding:8px;font-size:12px}#logistics-message{color:var(--warn)}#supplies-button{margin:0 0 4px;font:10px var(--mono);letter-spacing:.8px;color:var(--actual);min-height:30px;padding:6px;text-align:left}
+#logistics-dialog h2{font-size:16px;margin:20px 0 8px}#logistics-dialog label,#construction-method-row{display:block;font-size:12px;margin:10px 0}#logistics-dialog select,#construction-method{display:block;width:100%;min-height:44px;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:2px;margin-top:5px;padding:6px}.logistics-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.logistics-actions button{flex:1;padding:8px;font-size:12px}#logistics-message{color:var(--warn)}
 /* Stage 1 instrument icons: inline line art, coloured by the surrounding control. */
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:miter;flex-shrink:0;vertical-align:middle}
 .mode-dock svg.i{width:16px;height:16px}
 .map-tools button,.hud-header nav button{display:grid;place-items:center}
 .unit-art svg.i{width:30px;height:30px}
+
+/* Stage 2: state-aware HUD. One banner names the operator state; orbit shows landing steps. */
+.state-banner{font:500 10px var(--mono);letter-spacing:1.6px;color:var(--actual);border:1px solid var(--rule);border-radius:2px;padding:6px 10px;white-space:nowrap}
+[data-state=placing] .state-banner{color:var(--intent);border-color:#f0c44c66}
+[data-state=disabled] .state-banner{color:var(--hostile);border-color:#ff5e5766}
+[data-state=descent] .state-banner,[data-state=orbit] .state-banner{border-color:#a9dcff66}
+.supply-readout{width:auto!important;min-width:44px;padding:0 10px;font:500 11px var(--mono)!important;letter-spacing:1px;color:var(--ink);white-space:nowrap}
+.orbit-steps{display:none;list-style:none;margin:0;padding:5px;gap:4px}
+.in-orbit .orbit-steps{display:flex}
+.in-orbit .mode-dock{display:none}
+.orbit-steps li{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;font:500 11px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-radius:2px}
+.orbit-steps b{font-weight:500;opacity:.7}
+.orbit-steps li.done{color:var(--valid)}
+.orbit-steps li.done b::before{content:'✓ '}
+.orbit-steps li.current{color:var(--intent);box-shadow:inset 0 0 0 1px var(--intent);background:#f0c44c14}
+.landing-log{list-style:none;margin:8px 0 2px;padding:0;font:11px/1.9 var(--mono);color:var(--muted)}
+.landing-log li.done{color:var(--valid)}
+.landing-log kbd{margin-left:4px}
+.site-analysis{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:10px 0;padding:10px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font:10px/1.45 var(--mono)}
+.site-analysis dt{color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-size:9px;padding-top:1px}
+.site-analysis dd{margin:0;color:var(--ink)}
+.site-analysis .checks{display:flex;flex-wrap:wrap;gap:3px 10px}
+.site-analysis .ok{color:var(--valid)}
+.site-analysis .fail{color:var(--hostile)}
+.site-analysis .verdict{flex-basis:100%}
+@media(max-width:760px){
+.orbit-steps{width:100%}
+.orbit-steps li{flex:1;justify-content:center;padding:0 4px;font-size:9px;letter-spacing:.4px;gap:4px;text-align:center}
+.site-analysis{margin:6px 0;padding:6px 0;gap:3px 10px}
+}
+@media(max-width:900px){.state-banner{display:none}}
+@media(max-width:650px){.hud-header .supply-readout{padding:0 6px;font-size:10px!important}.hud-header .session-info #presence{display:none}}
