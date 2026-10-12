@@ -1,5 +1,5 @@
 import { seedSettlement } from './public/settlement.js';
-import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft } from './public/aircraft.js';
+import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, deliverAircraft } from './public/aircraft.js';
 import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
 import http from 'node:http';
@@ -7,7 +7,7 @@ import { createAudit } from './observability.js';
 import { isSubmarine } from './public/submarine.js';
 import { VEHICLE, hullHealth, operational } from './public/vehicle.js';
 import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
-import { SHIP, shipKind, shipSite, boardingPoint, shoreRampSite, sailStep, shipSolution } from './public/ship.js';
+import { SHIP, shipKind, shipSite, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
 import { TANK, tankPlacementError, tankArrivalPosition } from './public/tank.js';
 import { readFile, stat } from 'node:fs/promises';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -377,7 +377,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if (player.life !== 'active') return json(res, 409, { error: player.life === 'arriving' ? 'Replacement pod incoming. Controls unlock on landing.' : 'Robot disabled. Choose a friendly core for recovery.' });
           const plane=boardedAircraft(player.id);
-          if(plane&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
+          if(plane&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/strafe','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
           const ship = boardedShip(player.id);
           if(ship && !['/api/input','/api/drill','/api/ships/board','/api/ships/exit','/api/ships/fire','/api/ships/secondary','/api/ships/ammo','/api/ships/contact','/api/ships/ramp','/api/ships/depth','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Disembark at a dock before using ground equipment.'});
           if (url.pathname === '/api/vehicles/replace') {
@@ -389,7 +389,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople(),...combat.snapshot().enemies];
             let next,error;
             if (naval) {
-              const site=shipSite(filtered,allBuildings(),occupants,Math.floor(old.berthX),Math.floor(old.berthY),player.id,shipKind(old));error=site.error;
+              const site=shipSite(filtered,allBuildings(),occupants,old.siteX??Math.floor(old.berthX),old.siteY??Math.floor(old.berthY),player.id,shipKind(old),old.dockStyle||'legacy',old);error=site.error;
               if(!error) next={...old,...site.ship,id:old.id};
             } else {
               error=tankPlacementError(filtered,allBuildings(),occupants,old.podX,old.podY,player.id);
@@ -399,6 +399,15 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             Object.assign(next,{elapsed:0,health:VEHICLE[data.kind],hurt:0,destroyed:false,replacement:0,occupant:null,speed:0,reload:0});
             if(naval){resetDepth(next);next.launchRemaining=0;next.mainReloads={fore:0,aft:0};next.nextMainMount='fore';next.ramp=null;next.target=null;next.aftTurret=next.turret;next.portTurret=-Math.PI/2;next.starboardTurret=Math.PI/2;saveShip(next);}else saveTank(next);Object.assign(old,next);broadcast();return json(res,200,{saved:true,vehicle:old});
           }
+          if(url.pathname==='/api/ships/recall') {
+            if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot before recalling a naval deployment.'});
+            const vessel=world.ships.find(s=>s.id===data.id);
+            if(!vessel||vessel.owner!==player.id)return json(res,403,{error:'Only the owner can recall this ship and dock.'});
+            const error=recallShipError(world,vessel);if(error)return json(res,409,{error});
+            db.prepare('DELETE FROM ships WHERE id=?').run(vessel.id);
+            savedShips.delete(vessel.id);world.ships=world.ships.filter(s=>s.id!==vessel.id);
+            broadcast();return json(res,200,{saved:true,id:vessel.id});
+          }
           if(url.pathname==='/api/ships/contact') {
             if(!ship||!streams.has(player.id))return json(res,409,{error:'Board a ship to request a naval contact.'});
             const error=combat.contact(ship);if(error)return json(res,409,{error});broadcast();return json(res,200,{ok:true});
@@ -407,8 +416,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||incomingCore(player.id)||controlledBy(player.id)||playerBody(player)!=='robot')return json(res,409,{error:'Return to your active robot to call an orbital ship.'});
             const kind=data.kind??'gunship';if(!['gunship','submarine'].includes(kind))return json(res,400,{error:'Choose a gunship or submarine.'});
             const old=world.ships.find(s=>s.owner===player.id&&shipKind(s)===kind);
-            if(old&&old.berthX===data.x+.5&&old.berthY===data.y+.5)return json(res,200,{ship:old,saved:true});
-            const site=shipSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,kind);
+            if(old&&(old.siteX??old.berthX-.5)===data.x&&(old.siteY??old.berthY-.5)===data.y)return json(res,200,{ship:old,saved:true});
+            const site=shipSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,kind,data.dockStyle||'legacy');
             if(site.error)return json(res,409,{error:site.error});
             const vessel={...site.ship,id:randomUUID(),health:VEHICLE.ship,hurt:0};resetDepth(vessel);saveShip(vessel);world.ships.push(vessel);broadcast();return json(res,201,{ship:vessel,saved:true});
           }
@@ -465,9 +474,17 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if (vehicle && !['/api/fire', '/api/input', '/api/drill', '/api/charge/cancel', '/api/tank-weapon', '/api/tanks/board', '/api/tanks/exit'].includes(url.pathname)) return json(res, 409, { error: 'Exit your tank before building or operating a facility.' });
           if(url.pathname==='/api/airbases'){
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Deploy an airbase from your active robot.'});
+            if(data.kind!==undefined&&!['bomber','attack-jet'].includes(data.kind))return json(res,400,{error:'Choose a bomber or attack jet.'});
             const old=world.airbases.find(b=>b.owner===player.id);if(old&&old.x===data.x&&old.y===data.y)return json(res,200,{saved:true,airbase:old});
             const error=airbaseError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id);if(error)return json(res,409,{error});
-            const base=newAirbase(randomUUID(),player.id,data.x,data.y);saveAirbase(base);world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
+            const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber');if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');saveAirbase(base);world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
+          }
+          if(url.pathname==='/api/aircraft/deliver'){
+            const base=world.airbases.find(b=>b.id===data.id);
+            if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id)||!base||base.owner!==player.id)return json(res,409,{error:'Call a replacement from your robot to your own airbase.'});
+            if(base.aircraft.state==='delivering'&&base.aircraft.kind===data.kind)return json(res,200,{saved:true});
+            const error=deliverAircraft(base,data.kind);if(error)return json(res,409,{error});
+            saveAirbase(base);broadcast();return json(res,200,{saved:true});
           }
           if(url.pathname==='/api/aircraft/board'){
             const base=world.airbases.find(b=>b.id===data.id),gate=base&&airbaseGate(base);
@@ -475,9 +492,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const error=launchAircraft(base.aircraft);if(error)return json(res,409,{error});
             base.aircraft.occupant=player.id;Object.assign(player,{x:base.aircraft.x,y:base.aircraft.y,angle:0,inputUntil:0,path:[]});combat.cancelCharge(player.id);persist(player);broadcast();return json(res,200,{saved:true});
           }
-          if(url.pathname==='/api/aircraft/launch'||url.pathname==='/api/aircraft/bomb'){
-            if(!plane||!streams.has(player.id))return json(res,409,{error:'Board a connected bomber first.'});
-            const error=url.pathname.endsWith('/bomb')?combat.bombRun(plane):launchAircraft(plane);if(error)return json(res,409,{error});
+          if(url.pathname==='/api/aircraft/launch'||url.pathname==='/api/aircraft/bomb'||url.pathname==='/api/aircraft/strafe'){
+            if(!plane||!streams.has(player.id))return json(res,409,{error:'Board a connected aircraft first.'});
+            const error=url.pathname.endsWith('/strafe')?combat.strafe(plane):url.pathname.endsWith('/bomb')?combat.bombRun(plane):launchAircraft(plane);if(error)return json(res,409,{error});
             persist(player);broadcast();return json(res,200,{saved:true});
           }
           if(url.pathname==='/api/aircraft/exit'){

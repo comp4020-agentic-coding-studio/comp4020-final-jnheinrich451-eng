@@ -3,6 +3,7 @@ import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
 import { submarineAim } from './submarine.js';
 import { AIR, bombError, makeBombRun } from './aircraft.js';
+import { JET, strafeError, strafePoint } from './attack-jet.js';
 import { fogRadius } from './contaminator.js';
 import { ALERT, damageSites, siteDistance, tickSites } from './conquest.js';
 import { SCANNER } from './sensors.js';
@@ -519,5 +520,14 @@ export function createCombat(world, saved = null, auditContext = null) {
     if(barrages.length>=MISSILE.maxVolleys)return 'Two bombardments are already in flight.';
     barrages.push(makeBombRun(plane,++serial));plane.runs--;plane.releaseRemaining=(AIR.count-1)*AIR.interval;return null;
   }
-  return { checkpoint, drainEvents, bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
+  function strafe(plane){
+    const error=strafeError(world,plane);if(error)return error;
+    const key=plane.id+':strafe';if((cooldowns.get(key)||0)>now)return 'Autocannon reloading.';
+    if(salvos.length>=JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
+    const point=strafePoint(plane),id=++serial;
+    salvos.push({id,kind:'strafe',weapon:'HE',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.angle,elapsed:0,duration:JET.flight,profile:{...JET}});
+    shots.push({id,weapon:'APCR',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});
+    plane.rounds--;cooldowns.set(key,now+JET.cooldown);return null;
+  }
+  return { checkpoint, drainEvents, strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
 }

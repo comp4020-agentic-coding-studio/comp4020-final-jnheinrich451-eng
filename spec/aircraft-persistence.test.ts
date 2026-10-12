@@ -21,6 +21,28 @@ async function fixture(landing=false){
  const restart=async()=>{controllers.forEach(c=>c.abort());controllers=[];await app.close();app=createApp({dataDir:dir});await listen();};
  return{state,post,connect,restart,close:async()=>{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-air-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}};
 }
+it('delivers an orbital jet once, resumes delivery after restart and authorizes only its connected pilot to strafe',async()=>{
+ const f=await fixture();try{
+  await f.connect();await f.connect(1);
+  const built=await f.post('airbases',{x:48,y:48,kind:'attack-jet'});expect(built.status).toBe(201);const id=built.body.airbase.id;
+  expect(built.body.airbase.aircraft).toMatchObject({state:'delivering',rounds:90,kind:'attack-jet'});
+  expect((await f.post('aircraft/board',{id})).status).toBe(409);
+  expect((await f.post('aircraft/deliver',{id,kind:'bomber'},1)).status).toBe(409);
+  expect((await f.post('aircraft/deliver',{id,kind:'attack-jet'})).status).toBe(200);
+  await f.restart();const saved=(await f.state()).airbases[0].aircraft;
+  expect(saved.state).toBe('delivering');await new Promise(r=>setTimeout(r,150));expect((await f.state()).airbases[0].aircraft.remaining).toBe(saved.remaining);
+  await f.connect();await f.connect(1);await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:6000}).toBe('parked');
+  expect((await f.post('aircraft/board',{id})).status).toBe(200);
+  expect((await f.post('aircraft/deliver',{id,kind:'bomber'})).status).toBe(409);
+  await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:4000}).toBe('flying');
+  expect((await f.post('aircraft/strafe',{},1)).status).toBe(409);
+  expect((await f.post('aircraft/bomb')).status).toBe(409);
+  expect((await f.post('aircraft/strafe',{x:0,y:0,weapon:'GAS'})).status).toBe(200);
+  expect((await f.state()).airbases[0].aircraft.rounds).toBe(89);
+  await f.restart();expect((await f.state()).airbases[0].aircraft).toMatchObject({kind:'attack-jet',occupant:'a',rounds:89,state:'flying'});
+  expect((await f.post('aircraft/strafe')).status).toBe(409);
+ }finally{await f.close();}
+},15000);
 it('deploys one saved airbase, admits one pilot and preserves flight, seat and spent ammunition across idle restart',async()=>{
  const f=await fixture();try{
   expect((await f.post('airbases',{x:48,y:48})).status).toBe(409);await f.connect();await f.connect(1);

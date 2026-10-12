@@ -61,6 +61,10 @@ export function drawRailGun(c, gun, tile, elapsed, recoil = 0, selected = false)
 }
 export function drawSalvos(c, salvos, tile, elapsed, reduced) {
   for (const s of salvos || []) {
+    if(s.kind==='strafe'){
+      const t=Math.min(1,(s.elapsed+elapsed)/s.duration),before=Math.max(0,t-.18);
+      c.save();c.strokeStyle='#ffe4a3';c.lineWidth=2;c.beginPath();c.moveTo((s.x+(s.targetX-s.x)*before)*tile,(s.y+(s.targetY-s.y)*before)*tile);c.lineTo((s.x+(s.targetX-s.x)*t)*tile,(s.y+(s.targetY-s.y)*t)*tile);c.stroke();c.restore();continue;
+    }
     const t = Math.min(1, (s.elapsed + elapsed) / s.duration), groundX = (s.x + (s.targetX - s.x) * t) * tile, groundY = (s.y + (s.targetY - s.y) * t) * tile;
     const seconds = t * s.duration, priorSeconds = Math.max(0, seconds - .08), priorT = priorSeconds / s.duration;
     const altitude = at => s.gravity ? Math.max(0, s.verticalSpeed * at - .5 * s.gravity * at * at) : Math.sin(at / s.duration * Math.PI) * 16;

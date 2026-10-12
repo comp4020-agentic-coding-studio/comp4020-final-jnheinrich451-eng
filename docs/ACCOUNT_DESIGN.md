@@ -200,3 +200,20 @@ account-addressed/email invitations. Isolated campaigns, code invitations and
 the planet selector are implemented locally; the legacy public world is not awarded to
 the first registrant. Retain distinct statuses for implemented behavior, measured
 capacity and verified provider delivery.
+
+## Testing two players on one computer (12 October)
+
+Normal tabs and windows in one browser profile share the Frontier login cookie.
+Creating two accounts does not give different tabs independent login sessions.
+Use the host account in a normal window and the teammate in a private window,
+a separate browser profile, or another browser. Multiple private windows may
+also share their private session; one normal plus one private is the simple pair.
+Keep the host signed in and connected while the teammate redeems the invitation.
+Each new campaign member begins in orbit and deploys their own core and robot.
+
+A local browser regression creates both Demo accounts sequentially in one profile,
+then verifies that two normal tabs represent one player. Signing the second
+account into an isolated browser context yields distinct player IDs, two cores
+with different owners, and independent robot movement visible to the peer.
+The scenario passed; Windows runner teardown required interruption after its OK
+result. This does not inspect or change the user's Fly accounts or saved campaign.

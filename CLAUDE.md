@@ -405,3 +405,9 @@ walkable-runway/solid-hangar collision. Airborne pilots have no ground body or
 ground weapons. Viewer-based pause, offline cruise and saved flight state apply.
 Anti-air and bomber damage/recovery now extend this loop in docs/ANTI_AIR.md.
 Fuel, base damage, other warheads and carriers remain future stages.
+
+The attack jet and unfolding naval dock stage is recorded in
+`docs/ORBITAL_FORCE_DEPLOYMENT.md` (12 October). Preserve legacy bomber/dock
+saves, one aircraft slot per base, ready/unoccupied exchange gates, saved arrival
+timers and heading-owned HE strafing. New docks reserve the 3-by-1 shore, 3-by-5
+water structure and adjacent berth before arrival. Do not relocate old docks.
