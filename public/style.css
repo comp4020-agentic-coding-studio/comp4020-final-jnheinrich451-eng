@@ -77,3 +77,5 @@
 @media(max-width:760px){.map-tools{grid-template-columns:repeat(2,44px)}}
 #fog-status{position:absolute;left:50%;top:164px;transform:translateX(-50%);padding:7px 12px;border:1px solid #c895b9;background:#412e45ee;color:#f0c9e9;font:11px/1.5 var(--mono);text-align:center;pointer-events:none;z-index:3}
 @media(max-width:760px){#fog-status{top:auto;bottom:360px;width:max-content;max-width:calc(100% - 24px);font-size:10px}}
+
+#logistics-dialog h2{font-size:16px;margin:20px 0 8px}#logistics-dialog label,#construction-method-row{display:block;font-size:12px;margin:10px 0}#logistics-dialog select,#construction-method{display:block;width:100%;min-height:44px;background:#18342c;color:var(--ink);border:1px solid var(--line);border-radius:4px;margin-top:5px;padding:6px}.logistics-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.logistics-actions button{flex:1;padding:8px;font-size:12px}#logistics-message{color:#efac86}#supplies-button{margin:0 0 4px;font:10px var(--mono);min-height:30px;padding:6px;text-align:left}

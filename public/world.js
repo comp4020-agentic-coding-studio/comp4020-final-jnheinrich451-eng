@@ -1,3 +1,4 @@
+import { logisticsAt } from './footprints.js';
 import { airbaseAt, hangarBlocks, hostileAt } from './footprints.js';
 import { dockAt, shipBlocks } from './ship.js';
 // World coordinates are measured in tiles; artwork never determines collision.
@@ -8,7 +9,7 @@ export const TERRAIN = { WATER: 0, SAND: 1, GRASS: 2, ROCK: 3, FLOOR: 4 };
 export const LABELS = ['Open water', 'Sand', 'Grassland', 'Rock', 'Metal flooring'];
 export const SPEED = 3;
 export const MAX_BUILDINGS = 60;
-const bridgeIndexes = new WeakMap();
+const bridgeIndexes = new WeakMap(), reclaimedFloors = new WeakMap();
 
 export function createWorld() {
   const width = 48, height = 36;
@@ -33,6 +34,8 @@ export function createWorld() {
 
 export function tileAt(world, x, y) {
   x = Math.floor(x); y = Math.floor(y);
+  const floors=world.logistics?.floors;
+  if(floors?.length){if(!reclaimedFloors.has(floors))reclaimedFloors.set(floors,new Set(floors));if(x>=0&&y>=0&&x<world.width&&y<world.height&&reclaimedFloors.get(floors).has(y*world.width+x))return TERRAIN.FLOOR;}
   if (world.tanks?.some(t => t.elapsed >= TANK.duration && tankPodCell(t, x, y))) return TERRAIN.FLOOR;
   if (world.cores?.some(c => c.elapsed >= CORE.duration && coreCell(c, x, y))) return TERRAIN.FLOOR;
   if (world.bridges?.length) {
@@ -51,7 +54,7 @@ export function canStand(world, buildings, x, y, ignoreTank = null, radius = .21
   for (const dx of [-radius, radius]) for (const dy of [-radius, radius]) {
     const tx = Math.floor(x + dx), ty = Math.floor(y + dy);
     const tile = tileAt(world, tx, ty);
-    if (hostileAt(world, tx, ty)) return false;
+    if (hostileAt(world, tx, ty) || logisticsAt(world,tx,ty)) return false;
     if (hangarBlocks(world,tx,ty) || tile === 0 || tile === 3 || world.cores?.some(c => coreBlocks(c, tx, ty)) || buildings.some(b => b.x === tx && b.y === ty)) return false;
   }
   return true;
@@ -72,6 +75,7 @@ export function clearSpawn(world, buildings) {
 }
 
 export function placementError(world, buildings, players, x, y) {
+  if (logisticsAt(world,x,y)) return 'Construction facility occupies this tile.';
   if (hostileAt(world, x, y)) return 'Destroy the alien station before building on its footprint.';
   if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= world.width || y >= world.height) return 'Select a tile inside the survey area.';
   if(airbaseAt(world,x,y))return 'Keep the airbase runway and apron clear.';

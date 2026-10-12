@@ -1,3 +1,4 @@
+import { facilityDistance, hurtFacility } from './logistics.js';
 import { angleDelta, turnTurret } from './turret.js';
 import { operational, hullDistance, hurtVehicle } from './vehicle.js';
 import { hurtRobot } from './survival.js';
@@ -9,11 +10,11 @@ export const acidDamage = distance => distance > MORTAR.radius ? 0 : Math.round(
   (MORTAR.damage - MORTAR.edgeDamage) * Math.max(0, distance - .6) / (MORTAR.radius - .6));
 
 // Server simulation only. One fixed point, one radial damage application per hull.
-export function tickMortars(world, robots, shells, now, dt, nextId, emit = event => {}) {
+export function tickMortars(world, robots, shells, now, dt, nextId, emit = event => {}, facilities = []) {
   const tanks = (world.tanks || []).filter(operational);
   const foot = robots.filter(p => p.life === 'active' && p.health > 0 && !p.deploying && !(p.shield > 0) &&
     !['orbital', 'rover', 'ship', 'aircraft'].includes(p.body) && !tanks.some(v => v.occupant === p.id));
-  const targets = foot.map(p => ({ id: p.id, x: p.x, y: p.y })).concat(tanks.map(v => ({ id: 'vehicle:' + v.id, x: v.x, y: v.y })));
+  const targets = foot.map(p => ({ id: p.id, x: p.x, y: p.y })).concat(tanks.map(v => ({ id: 'vehicle:' + v.id, x: v.x, y: v.y }))).concat(facilities.map(f=>({id:f.id,x:f.x,y:f.y})));
   let changed = shells.length > 0;
   for (const shell of shells) if (!shell.impacted && now >= shell.landAt) {
     shell.impacted = true;
@@ -21,6 +22,7 @@ export function tickMortars(world, robots, shells, now, dt, nextId, emit = event
       const damage = acidDamage(Math.hypot(p.x - shell.x, p.y - shell.y));
       if (damage && hurtRobot(p, damage)) emit({ event: 'enemy.weapon.hit', kind: 'system', sourceId: shell.sourceId, projectileId: shell.id, targetId: p.id, weapon: 'ACID', hp: p.health });
     }
+    for(const f of facilities){const amount=acidDamage(facilityDistance(f,shell));if(amount)hurtFacility(f,amount,3);}
     for (const v of tanks) {
       const damage = acidDamage(hullDistance(v, shell));
       if (damage && hurtVehicle(v, damage)) emit({ event: 'enemy.weapon.hit', kind: 'system', sourceId: shell.sourceId, projectileId: shell.id, targetId: v.id, weapon: 'ACID', hp: v.health });

@@ -19,8 +19,7 @@
   to build it immediately.
 - The agreed campaign is planetary conquest: a large explorable map, visible
   hostile sites and permanent objective completion. No site-regeneration timers
-  or enemy recapture. Deployment is globally available subject to existing terrain,
-  footprint and platform rules; conquest does not unlock build permission. Facility
+  or enemy recapture. The 12 October construction stage below refines large-infrastructure placement; conquest does not unlock build permission. Facility
   loss never reverses conquered sites. Exact map scale and objective rules remain open.
 - Planned facility durability uses HP and numeric armor: enemy penetration below
   armor deals no damage; equality or greater permits attack damage. Values are
@@ -411,3 +410,23 @@ The attack jet and unfolding naval dock stage is recorded in
 saves, one aircraft slot per base, ready/unoccupied exchange gates, saved arrival
 timers and heading-owned HE strafing. New docks reserve the 3-by-1 shore, 3-by-5
 water structure and adjacent berth before arrival. Do not relocate old docks.
+
+The author approved completing the construction/economy pipeline on 12 October.
+See docs/CONSTRUCTION_LOGISTICS.md and docs/ECONOMY_DESIGN.md. This supersedes older
+free-deployment, global large-infrastructure and deferred-facility-HP statements.
+Shared supplies start once per world, refill only during running simulation up to
+a reserve threshold, and can exceed it through finite salvaged cargo shipments.
+Keep cost/object insertion atomic; retain conquered IDs and depletion through
+restart. No per-shot charge, offline income, duplicate join credit or friendly fire.
+Large infrastructure needs one completed friendly core/factory's full-footprint
+support. Existing unsupported equipment continues working. Independent entity caps
+remain. Factory orders reserve space, cost less, take time and cannot be operated
+until ready. Destroying a workshop cancels pending orders with a half refund.
+Preserve emergency core/HE-tank recovery, living/offline identities after core loss,
+completed flooring, cargo crates and once-only launch credit. Dock/base destruction
+must not silently delete ships at sea or freeze airborne planes, including during
+repair. Ground claws and acid can damage facilities through numeric armor; do not
+claim every enemy weapon was extended. Rails and terrain have no HP in this stage.
+Provisional prices/timers live in public/logistics.js; document balance changes.
+Migration backs up populated saves and never retroactively charges owned equipment.
+Local checks do not establish deployed behavior or four-player Fly capacity.

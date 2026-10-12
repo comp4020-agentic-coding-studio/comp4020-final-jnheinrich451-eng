@@ -43,9 +43,13 @@ permanent conquest is implemented; planetary victory remains future work.
 
 Military behavior should make choices understandable: a turret takes time to
 turn, heavy weapons reload, and vehicles need room to operate. Physical detail
-supports satisfying combat within overhead 2D and the server budget. Economy,
-armor and height are separate design stages; their unresolved rules are not
-implemented balance promises.
+supports satisfying combat within overhead 2D and the server budget. The first
+local economy connects finite salvage, cargo rockets and shared deployment supplies.
+Factories extend construction support and exchange time for lower equipment costs;
+enemies can destroy the infrastructure. Free robot recovery and emergency core/HE
+equipment keep defeat recoverable. Prices and timing are provisional, and height
+remains design work. [The current stage](docs/CONSTRUCTION_LOGISTICS.md) separates
+these local mechanics from deployment and performance validation.
 
 ## The shared-world contract
 
@@ -53,7 +57,7 @@ The [course brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studi
 requires distinct people acting on shared state, changes reaching other open
 sessions within about a second, and persistent consequences across sessions,
 restarts and redeploys. Frontier's saved trace is its constructions and vehicle
-state and permanently conquered sites. Accepted construction saves before
+state, permanently conquered sites, supplies and cargo. Accepted construction saves before
 confirmation; movement uses half-second checkpoints. Named campaigns retain
 enemies, committed airborne weapons and hazard state across closure/restart;
 cosmetic craters remain temporary. The labelled legacy field keeps its earlier

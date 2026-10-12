@@ -38,6 +38,7 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
   }
   for (const site of sites) {
     const center = siteCenter(site), dead = site.state === 'conquered';
+    if(dead&&world?.logistics?.salvage[site.id]===0)continue;
     const antiAir = site.kind === 'anti-air';
     const laser = site.kind === 'laser', mortar = site.kind === 'mortar', modifier = site.kind === 'modifier', region = sectorRadius(site);
     const phase = reduced || dead ? 0 : time / 1000;

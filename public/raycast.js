@@ -1,4 +1,4 @@
-import { hangarBlocks, hostileAt } from './footprints.js';
+import { logisticsAt, hangarBlocks, hostileAt } from './footprints.js';
 import { tileAt } from './world.js';
 import { coreBlocks } from './core.js';
 import { artilleryBlocks } from './footprints.js';
@@ -14,7 +14,7 @@ export function raycast(world, buildings, origin, dx, dy, range, enemies = [], r
   const deltaY = Math.abs(dy) < 1e-10 ? Infinity : Math.abs(1 / dy);
   let nextX = deltaX === Infinity ? Infinity : (dx >= 0 ? x + 1 - origin.x : origin.x - x) * deltaX;
   let nextY = deltaY === Infinity ? Infinity : (dy >= 0 ? y + 1 - origin.y : origin.y - y) * deltaY;
-  const solid = (cx, cy) => cx < 0 || cy < 0 || cx >= world.width || cy >= world.height || tileAt(world, cx, cy) === 3 || occupied.has(`${cx},${cy}`) || hostileAt(world,cx,cy) || hangarBlocks(world,cx,cy) || artilleryBlocks(world, cx, cy) || world.cores?.some(c => coreBlocks(c, cx, cy));
+  const solid = (cx, cy) => cx < 0 || cy < 0 || cx >= world.width || cy >= world.height || tileAt(world, cx, cy) === 3 || occupied.has(`${cx},${cy}`) || hostileAt(world,cx,cy) || logisticsAt(world,cx,cy) || hangarBlocks(world,cx,cy) || artilleryBlocks(world, cx, cy) || world.cores?.some(c => coreBlocks(c, cx, cy));
   while (entered <= range) {
     if (solid(x, y)) { distance = entered; blocked = true; break; }
     if (Math.abs(nextX - nextY) < 1e-8) {

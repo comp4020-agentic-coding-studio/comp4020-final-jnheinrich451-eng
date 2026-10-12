@@ -11,7 +11,7 @@ async function fixture(landing=false){
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-air-'));let app=createApp({dataDir:dir});await app.close();
  const db=new DatabaseSync(path.join(dir,'world.sqlite')),tokens=[randomUUID(),randomUUID()];
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify({...createWorld(),width:128,height:96,version:2,terrain:Array(128*96).fill(2)}),'world');
- for(const [i,id] of ['a','b'].entries()){db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,54.6,56.5+i,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core'+id,id,75,60+i*16,4.5);}
+ for(const [i,id] of ['a','b'].entries()){db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,54.6,56.5+i,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core'+id,id,63,60+i*16,4.5);}
  if(landing){const b:any=newAirbase('base','a',48,48);Object.assign(b.aircraft,{occupant:'a',state:'flying',y:parkingPoint(b).y+5.1,leftBase:true,speed:6,runs:0});db.prepare('INSERT INTO airbases VALUES (?,?)').run(b.id,JSON.stringify(b));}
  db.close();app=createApp({dataDir:dir});let base='',controllers:AbortController[]=[];
  async function listen(){await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;}await listen();

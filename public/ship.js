@@ -95,7 +95,7 @@ export function recallShipError(world,ship) {
 }
 export function mooredDock(world,ship) {
   if(!surfaced(ship))return null;
-  return (world.ships||[]).find(s=>s.elapsed>=SHIP.duration&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
+  return (world.ships||[]).find(s=>!s.dockDestroyed&&s.elapsed>=SHIP.duration&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
 }
 export const SHORE_RAMP = Object.freeze({reach:2, width:.42});
 // Validate the entire narrow crossing: only the endpoint tile may be land.

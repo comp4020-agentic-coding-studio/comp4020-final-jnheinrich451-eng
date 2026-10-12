@@ -1,3 +1,4 @@
+import { facilityTargets, facilityPoint, facilityDistance, hurtFacility } from './logistics.js';
 import { tickAntiAir } from './anti-air.js';
 import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
@@ -237,6 +238,7 @@ export function createCombat(world, saved = null, auditContext = null) {
   }
   function tick(dt, buildings, robots = [], weaponSources = robots) {
     now += dt * 1000;
+    const facilities = facilityTargets(world, buildings);
     const wasNaval = navalCooldown>0 || enemies.some(e=>e.kind==='swimmer'); navalCooldown=Math.max(0,navalCooldown-dt);
     let changed = wasNaval || enemies.length > 0 || charges.length > 0 || status === 'active' || barrages.length > 0 || fields.some(f => f.weapon === 'INCENDIARY') || salvos.length > 0 || shells.length > 0 || jets.length > 0 || impacts.length > 0 || shots.length > 0;
     // Keep broadcasting/checkpointing through the last clearing tick even when
@@ -245,7 +247,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     const sensorBefore = auditContext ? world.sites.map(s => ({ id: s.id, mode: s.sensor?.mode, pending: s.pending?.at })) : [];
     const beforeArrivals = serial;
     changed = tickSites(world.sites, world, buildings, weaponSources, enemies, now, () => ++serial, fireBlocked(fields)) || changed;
-    changed = tickMortars(world, robots, acidShells, now, dt, () => ++serial, event => events.push(event)) || changed;
+    changed = tickMortars(world, robots, acidShells, now, dt, () => ++serial, event => events.push(event), facilities) || changed;
     changed = tickLasers(world, buildings, robots, dt, event => events.push(event)) || changed;
     changed = tickAntiAir(world, flakShells, now, dt, () => ++serial, event => events.push(event)) || changed;
     for (const before of sensorBefore) {
@@ -310,8 +312,9 @@ export function createCombat(world, saved = null, auditContext = null) {
         const withinHome = p => !e.siteId || Math.hypot(p.x - e.homeX, p.y - e.homeY) <= leash;
         const investigation = withinHome(e) && [report, e.investigation, station?.defenseReport, station?.disturbance].find(p => p && p.until > now && withinHome(p));
         const available = robots.filter(p => p.life === 'active' && p.health > 0 && !p.deploying && p.shield <= 0).concat((world.tanks||[]).filter(operational).map(v=>({id:'vehicle:'+v.id,x:v.x,y:v.y,health:hullHealth(v),life:'active',vehicle:v})))
+          .concat(facilities.filter(f=>f.hp.health>0).map(f=>({id:f.id,x:f.x,y:f.y,facility:f})))
           .filter(p => withinHome(p) && withinHome(e));
-        const distanceTo = p => p.vehicle ? hullDistance(p.vehicle,e) : Math.hypot(p.x-e.x,p.y-e.y);
+        const distanceTo = p => p.facility ? facilityDistance(p.facility,e) : p.vehicle ? hullDistance(p.vehicle,e) : Math.hypot(p.x-e.x,p.y-e.y);
         let victim = available.find(p => p.id === e.targetId && distanceTo(p) < SURVIVAL.aggro + 2);
         if (!victim) victim = available.filter(p => distanceTo(p) < SURVIVAL.aggro).sort((a,b)=>distanceTo(a)-distanceTo(b))[0];
         // Only a fresh beam report grants remote knowledge. Lost lock routes to
@@ -331,10 +334,10 @@ export function createCombat(world, saved = null, auditContext = null) {
           if (now >= e.attack.at) {
             const target = available.find(p => p.id === e.attack.targetId);
             let hit = false;
-            if (target && (target.vehicle ? hullDistance(target.vehicle,e.attack) : Math.hypot(target.x-e.attack.x,target.y-e.attack.y)) <= SURVIVAL.strikeRadius) {
-              const point = target.vehicle ? hullPoint(target.vehicle,e) : target;
+            if (target && (target.facility ? facilityDistance(target.facility,e.attack) : target.vehicle ? hullDistance(target.vehicle,e.attack) : Math.hypot(target.x-e.attack.x,target.y-e.attack.y)) <= SURVIVAL.strikeRadius) {
+              const point = target.facility ? facilityPoint(target.facility,e) : target.vehicle ? hullPoint(target.vehicle,e) : target;
               const distance = Math.hypot(point.x-e.x,point.y-e.y);
-              if (distance <= SURVIVAL.reach + SURVIVAL.strikeRadius && !raycast(world, buildings, e, (point.x-e.x)/(distance||1), (point.y-e.y)/(distance||1), distance).blocked) hit = target.vehicle ? hurtVehicle(target.vehicle,SURVIVAL.damage) : hurtRobot(target,SURVIVAL.damage);
+              if (distance <= SURVIVAL.reach + SURVIVAL.strikeRadius && !raycast(world, buildings, e, (point.x-e.x)/(distance||1), (point.y-e.y)/(distance||1), Math.max(0,distance-(target.facility ? .12 : 0))).blocked) hit = target.facility ? hurtFacility(target.facility,SURVIVAL.damage,2) : target.vehicle ? hurtVehicle(target.vehicle,SURVIVAL.damage) : hurtRobot(target,SURVIVAL.damage);
             }
             e.strike = { ...e.attack, at: now, hit }; e.attack = null; e.reroute = 0;
           }
@@ -342,7 +345,7 @@ export function createCombat(world, saved = null, auditContext = null) {
           continue;
         }
         if (victim && distanceTo(victim) <= SURVIVAL.reach && now >= (e.nextAttack || 0)) {
-          e.attack = { ...(victim.vehicle ? hullPoint(victim.vehicle,e) : {x:victim.x,y:victim.y}), targetId: victim.id, at: now + SURVIVAL.windup };
+          e.attack = { ...(victim.facility ? facilityPoint(victim.facility,e) : victim.vehicle ? hullPoint(victim.vehicle,e) : {x:victim.x,y:victim.y}), targetId: victim.id, at: now + SURVIVAL.windup };
           e.nextAttack = now + SURVIVAL.windup + SURVIVAL.cooldown;
           e.angle = Math.atan2(victim.y - e.y, victim.x - e.x) + Math.PI / 2;
           continue;
@@ -358,6 +361,12 @@ export function createCombat(world, saved = null, auditContext = null) {
               if (route?.length) { e.path = route; break; }
             }
           } else if (e.behavior === 'lured') e.path = e.lurePath || [];
+          else if (victim?.facility) {
+            const f=victim.facility, goals=[];
+            for(let y=Math.floor(f.y-f.h/2)-1;y<=Math.ceil(f.y+f.h/2);y++)for(let x=Math.floor(f.x-f.w/2)-1;x<=Math.ceil(f.x+f.w/2);x++)if(facilityDistance(f,{x:x+.5,y:y+.5})<=SURVIVAL.reach&&canStand(world,buildings,x+.5,y+.5))goals.push({x:x+.5,y:y+.5});
+            goals.sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));
+            for(const goal of goals.slice(0,12)){const route=findPath(world,buildings,e,goal,blockedByFire);if(route){e.path=route;break;}}
+          }
           else if (victim?.vehicle) {
             const v=victim.vehicle,goals=[];
             for(let y=Math.floor(v.y)-2;y<=Math.floor(v.y)+2;y++)for(let x=Math.floor(v.x)-2;x<=Math.floor(v.x)+2;x++)if(hullDistance(v,{x:x+.5,y:y+.5})<=SURVIVAL.reach&&canStand(world,buildings,x+.5,y+.5))goals.push({x:x+.5,y:y+.5});

@@ -48,7 +48,8 @@ it('preserves committed buildings across a database reopen and enforces ownershi
     const returned = await (await fetch(`${base}/api/world`, { headers: { Cookie: winner.cookie } })).json();
     expect(returned.buildings.map((item: { id: string }) => item.id)).toContain(building.id);
     expect(returned.me.id).toBe(winner.state.me.id);
-    expect(returned.world).toEqual(winner.state.world);
+    expect({...returned.world,logistics:undefined}).toEqual({...winner.state.world,logistics:undefined});
+    expect(returned.logistics.supplies).toBe(winner.state.logistics.supplies-25);
     expect((await post('dismantle', winner.cookie, { id: building.id })).status).toBe(200);
   } finally { await app.close(); await rm(dataDir, { recursive: true, force: true }); }
 });

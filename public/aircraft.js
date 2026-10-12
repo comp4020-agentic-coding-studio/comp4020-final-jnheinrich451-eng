@@ -62,7 +62,7 @@ export function tickAircraft(world,base,input,dt){
  if(p.state==='delivering'){p.remaining=Math.max(0,p.remaining-dt);if(p.remaining<.000001)Object.assign(p,{state:'parked',remaining:0});return true;}
  if(p.state==='destroyed'){
   p.remaining=Math.max(0,p.remaining-dt);
-  if(p.remaining<.000001)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y,p.kind||'bomber').aircraft});
+  if(p.remaining<.000001&&!world.logistics&&!base.destroyed)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y,p.kind||'bomber').aircraft});
   return true;
  }
  if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.rounds=JET.ammo;p.health=AIR_HULL.health;}return true;}
@@ -88,7 +88,7 @@ export function tickAircraft(world,base,input,dt){
   p.x+=Math.sin(p.angle)*p.speed*step;p.y-=Math.cos(p.angle)*p.speed*step;
   const park=parkingPoint(base),distance=Math.hypot(p.x-park.x,p.y-park.y);
   if(distance>12)p.leftBase=true;
-  if(p.state==='flying'&&p.leftBase&&!releasing&&p.speed<=AIR.minSpeed+1&&distance<=AIR.landingRange){Object.assign(p,{state:'landing',remaining:AIR.transition,landingX:p.x,landingY:p.y});}
+  if(!base.destroyed&&p.state==='flying'&&p.leftBase&&!releasing&&p.speed<=AIR.minSpeed+1&&distance<=AIR.landingRange){Object.assign(p,{state:'landing',remaining:AIR.transition,landingX:p.x,landingY:p.y});}
  }
  return true;
 }

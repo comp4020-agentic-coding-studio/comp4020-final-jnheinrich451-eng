@@ -55,6 +55,21 @@ The first scanner, detected-status and defender investigation stage is now
 implemented locally. Noise and neighbor sharing remain future work; tuning needs
 playtesting. The linked brief distinguishes this implementation from the roadmap.
 
+## 12 October construction and economy checkpoint
+
+The author approved the complete placement -> recovery -> supplies -> recycler and
+rocket shipment -> factory/destructible-facility pipeline. It is implemented locally
+in [Construction and logistics](docs/CONSTRUCTION_LOGISTICS.md), with shared balance,
+recovery exceptions and provisional tuning in [Economy design](docs/ECONOMY_DESIGN.md).
+This supersedes the older globally unrestricted large-infrastructure rule and the
+older economy/HP deferrals below. Permanent conquest and ordinary weapon behavior
+remain unchanged. Existing equipment is retained, with one initial reserve per save.
+There is no offline income or ongoing cost for ordinary firing/robot revival.
+
+The first recycler uses remote destination commands. Forward airstrips and passenger
+transport remain separate work. Review the playable economy before elaborating its
+resource types or adding continuous production chains.
+
 ## 1. How to use this document
 
 11 October stage: build the [corrosive-mortar outpost](docs/MORTAR_OUTPOST.md)
@@ -105,7 +120,7 @@ battles on the configured shared CPU and 256 MB server.
 | Opponents | Agreed: cooperative players versus computer-controlled aliens. PvP and friendly weapon damage are outside the present direction. |
 | Player role | Agreed: directly control one body or facility at a time; switch between fighting, operating and building. Whole-army command is not required. |
 | World scope | Agreed target: a large explorable planet with a territory overview and local battles. Current locally: isolated host-owned saves retaining teammates' changes, plus the preserved legacy world. Owner exit saves and closes the room. Exact planet scale remains open. |
-| Building | Agreed: deployment is globally available, including hostile territory, subject to terrain, footprint and platform rules. Enemy attacks can destroy facilities. Conquest is not a build-permission gate. Facility HP and armor are planned. |
+| Building | Current locally, 12 October: large infrastructure requires a completed friendly core or factory within construction range. Tanks, sentries, recyclers and rails retain global deployment subject to terrain/footprints/caps. Conquest is not a permission gate. Facility HP and numeric armor now apply to ground claws and acid; friendly fire remains disabled. |
 | Forces | Current: ground weapons/vehicles, artillery, missiles, gunship, submarine and first bomber. More force types do not by themselves complete the game. |
 | Long-term progress | Current locally: alert station, mortar and environment modifier, with safe additive placement in named campaigns. HE conquest is permanent; red regions disappear and surviving defenders remain. The modifier's ground coating clears. No recapture or regeneration. Settlements and planet victory remain ahead. |
 | Entry | Current locally: optional Email/Demo accounts, Caldera planet selector, create/join/resume campaigns, code invitations and orbital core landing. Guests join campaigns; accounts may host. Optional introduction remains later work. |

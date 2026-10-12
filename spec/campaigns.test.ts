@@ -301,8 +301,9 @@ it('freezes for reconnect, resumes the same visit and closes after the 30-second
   await owner.request('/api/campaigns/enter', { id }); const stream = await h.connect(owner, id);
   stream.abort();
   await expect.poll(async () => (await owner.request(worldRoute(id))).data.room.state).toBe('reconnecting');
-  const time = (await owner.request(worldRoute(id))).data.combat.time;
-  await new Promise(r => setTimeout(r, 250)); expect((await owner.request(worldRoute(id))).data.combat.time).toBe(time);
+  const frozenState = (await owner.request(worldRoute(id))).data, time = frozenState.combat.time;
+  await new Promise(r => setTimeout(r, 250)); const stayed = (await owner.request(worldRoute(id))).data; expect(stayed.combat.time).toBe(time);
+  expect(stayed.logistics.time).toBe(frozenState.logistics.time); expect(stayed.logistics.supplies).toBe(frozenState.logistics.supplies);
   const again = await h.connect(owner, id); expect((await owner.request(worldRoute(id))).data.room.state).toBe('open');
   again.abort(); await expect.poll(async () => (await owner.request(worldRoute(id))).data.room.state).toBe('reconnecting');
   const now = Date.now(); vi.spyOn(Date, 'now').mockImplementation(() => now + 31000);

@@ -17,7 +17,7 @@ export class ShipEffects extends CoreEffects {
   }
   preview(c,site,x,y,zoom) {
     const T=this.tile,s=site.ship;
-    c.save();c.lineWidth=1/zoom;c.strokeStyle=s?'#b8ece4':'#ffab86';c.fillStyle=s?'#9eddd42e':'#e7876540';
+    c.save();c.lineWidth=1/zoom;c.strokeStyle=s&&!site.error?'#b8ece4':'#ffab86';c.fillStyle=s&&!site.error?'#9eddd42e':'#e7876540';
     if(s)for(const cell of [...hullCells(hull(s,true)),...dockRects(s).flatMap(hullCells)]){c.fillRect(cell.x*T,cell.y*T,T,T);c.strokeRect(cell.x*T+1,cell.y*T+1,T-2,T-2);}
     else{c.fillRect(x*T,y*T,T,T);c.strokeRect(x*T,y*T,T,T);}
     if(s){this.dock(c,s,zoom,true);c.fillStyle='#d4f1e6';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('ORBITAL SHIP / WATER CRADLE',s.x*T,(s.y-3.5)*T);}

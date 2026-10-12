@@ -1,25 +1,20 @@
-# Orbital reclamation unit — future design
+# Orbital reclamation and salvage
 
-11 October 2026. Author request: an orbitally delivered facility/unit that wipes
-away traces of destroyed enemy facilities. **Record only; not implemented.**
+12 October 2026. The earlier cosmetic-cleanup idea is now the mobile recycler in
+[Construction and logistics](CONSTRUCTION_LOGISTICS.md), with its supplies contract
+in [Economy design](ECONOMY_DESIGN.md). Implemented locally.
 
-Purpose: let players visibly reclaim a conquered location after the fighting,
-instead of leaving alien ruins under a new human base. Reuse orbital delivery
-when this becomes a playable stage.
+An orbital pod delivers a remotely commanded recycler. It drives to permanently
+conquered hostile structures, collects finite salvage and removes their central
+ruin artwork after depletion. Collection preserves the site ID, completed objective,
+conquest history and settlement checklist. It never revives sites, changes build
+permission, deletes player construction or resets the world.
 
-Recommended boundary: work only on destroyed hostile structures. Persist a
-separate cleanup flag; retain the site's ID, conquest history and completed
-objective. Cleanup must never revive the site, erase player construction, grant
-build permission that conquest already allows, or reset an entire world.
+Collected material is cargo until unloaded at a fixed launch station and sent to
+orbit by rocket. The cargo, collection state, depletion flags and shipment progress
+are saved. The sender and recycler can be destroyed; unshipped cargo remains
+recoverable. No cosmetic cleanup of ordinary bodies or craters is included.
 
-Still to design with the author: stationary facility or mobile worker; footprint,
-working radius and time; automatic versus selected targets; whether it also clears
-ordinary corpses/craters or restores converted terrain. Costs, salvage rewards,
-durability and ownership permissions wait for the appropriate design stages.
-
-The later [environment-modifier stage](ENVIRONMENT_MODIFIER.md) clears that
-structure's cosmetic ground coating automatically after conquest. This does not
-implement the orbital reclamation unit or remove the central ruin. Other cleanup
-targets and salvage behavior remain unresolved.
-
-For now, conquered ruins remain visible and walkable/buildable as before.
+The earlier environment modifier still clears its cosmetic coating on conquest.
+That is separate from collecting the ruin's material. Planetary-scale performance,
+final materials and sound remain later work.

@@ -2,7 +2,7 @@ import { canStand } from './world.js';
 import { CORE, coreExit } from './core.js';
 
 export const SURVIVAL = Object.freeze({ health: 100, damage: 25, aggro: 6, reach: 1.15, strikeRadius: .85, windup: 650, cooldown: 1400, recovery: 3, arrival: 1.8, shield: 2, radius: 6 });
-export const freshLife = () => ({ health: SURVIVAL.health, life: 'active', recovery: 0, shield: 0, reviveCore: null, hurt: 0, lostVehicle: null });
+export const freshLife = () => ({ health: SURVIVAL.health, life: 'active', recovery: 0, shield: 0, reviveCore: null, hurt: 0, lostVehicle: null, deployed: false });
 export function lifeRecord(p) {
   return Object.fromEntries(Object.keys(freshLife()).map(key => [key, p[key]]));
 }

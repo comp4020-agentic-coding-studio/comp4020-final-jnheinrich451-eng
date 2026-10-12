@@ -1,103 +1,109 @@
-# Economy — first-stage design
+# Conquest economy - first playable pipeline
 
-10 October 2026. The author has reopened economy design after the first conquest
-encounter. The 9 October deferral is superseded for design work; the game still
-has no active economy. Ownership, sources and the first spending scope are awaiting
-answers. Do not turn the recommendations below into implemented rules prematurely.
+12 October 2026. The author approved placement, recovery, supplies, recycling,
+shipping and factories in that order, then authorized completion of the whole
+pipeline. Implemented locally; deployment and sustained Fly capacity are separate
+checks. [Construction and logistics](CONSTRUCTION_LOGISTICS.md) records the stage.
 
-## Purpose requested by the author
+## Combat purpose
 
-Let players enjoy heavy military equipment, learn to balance their forces, and
-feel a meaningful consequence for unsuitable operation. Economy should support
-the combat/conquest loop and provide recovery after mistakes. The goal is not
-maximum scarcity or long waits before using the interesting equipment.
+Heavy equipment should be enjoyable to obtain and worth defending. Mistakes cost
+supplies, but a campaign must retain a route back to robot control and HE conquest.
+Conquest stays permanent. No enemy recapture, upkeep, ammunition bill or resource
+mining chain is introduced. Ordinary firing, servicing and robot revival are free.
 
-## Recommended small first version — awaiting decisions
+## Shared supplies
 
-Use one abstract supply resource before adding fuel, metal, ammunition or supply
-transport. Prefer a shared campaign stockpile, matching shared conquest and saves.
-Everyone's spending would be visible to the room; personal balances and spending
-permissions would need a separate decision if desired.
+One server-owned campaign stockpile starts at 1200 supplies. Old saves receive the
+same initial reserve once, preserving all existing equipment without retrospective
+charges. Joining, reconnecting, deploying a core and creating another identity do
+not refill that stockpile. Campaigns have independent ledgers.
 
-Proposed sources: an initial reserve, modest income during running simulation,
-and a once-only conquest award. No income during solo pause, owner reconnect
-freeze, room closure or offline time. Do not multiply income by the number of
-players, reconnects or newly created cores. A storage cap could later prevent
-unlimited idle accumulation; its necessity and value are still open.
+Income is 2 supplies per active simulation second until the reserve reaches 250.
+It does not run without viewers, while paused, during owner reconnect freeze,
+while a room is closed or offline. Salvage can raise the balance above that reserve;
+total storage is capped at 2000. A full storage bay leaves excess cargo at the
+launch station rather than discarding or duplicating it.
 
-Proposed spending: equipment deployment and replacement first. Ordinary shots
-and robot recovery remain free. Keep an initial core/recovery route available,
-so a player cannot spend the campaign into an unrecoverable state. Expensive
-equipment should produce a substantial, visible benefit in its intended role.
-Per-shot costs, upkeep, repairs, salvage and dismantling refunds remain later
-decisions, not default behaviors.
+The current tuning values are centralized in [public/logistics.js](../public/logistics.js):
 
-Do not simply add a price to an existing permanent ownership cap: first establish
-which destroyed objects can be replaced, what remains of their footprint, and
-whether replacement removes or reuses an old record. Tanks, ships, aircraft and
-static facilities currently have different destruction/recovery coverage. Charging
-for loss is meaningful only where loss and replacement actually work.
+| Deployment | Supplies |
+| --- | ---: |
+| Sentry | 25 |
+| HE tank / replacement | 100 |
+| Rail cannon | 180 |
+| Missile battery | 220 |
+| Gunship / replacement | 240 |
+| Submarine / replacement | 280 |
+| Airbase with aircraft | 300 |
+| Aircraft exchange / replacement | 100 |
+| Factory | 150 |
+| Cargo launch station | 100 |
+| Recycler | 60 |
+| Replacement core | 120 |
+| Dock rebuild / airbase rebuild | 90 / 150 |
 
-## Three decisions requested
+A player's first core is free. A replacement core is free when no cores remain.
+Track laying remains free. Technical ownership/population limits stay independent
+of supplies. Recall/dismantling does not refund completed equipment, and friendly
+objects cannot be farmed for salvage.
 
-1. Shared campaign supplies or separate player supplies?
-2. Equipment deployment/replacement costs first, or ammunition costs as well?
-3. Starting reserve + active income + conquest awards, or reserve + conquest only?
+## Recovery guarantees
 
-Exact costs, income, rewards, storage cap and existing-save starting credit remain
-untuned. Existing equipment should not be silently deleted or retroactively charged
-when introducing economy. Agree the migration credit and starter loadout before
-enabling spending on real saved campaigns.
+Robot revival at a completed friendly core is free. A disabled robot with no cores
+remaining can return to orbit and choose a new emergency core landing site. Losing
+a core does not erase a living robot or its owner's deployed identity. Completed
+floor panels remain walkable after core machinery is lost.
 
-## How to learn balance from the first version
+If the room has no surviving explosive platform and less than 100 supplies, an
+emergency HE tank can be deployed at a clear land site. This is room-wide, with a
+20-second cooldown between emergency grants. It replaces an owner's destroyed tank
+record if needed, permitting a new delivery site rather than forcing a blocked old
+berth. One living platform blocks further emergency grants. Any standard tank can
+switch back to HE for free. Normal income is a second way to fund a replacement.
 
-Measure a few combat decisions rather than choosing every price independently:
+The emergency path still validates terrain, occupied footprints and entity caps;
+it does not place equipment inside an enemy or overwrite the map.
 
-- Time until the player can use their first heavy weapon.
-- Which useful loadouts the starting reserve affords, including one eligible HE
-  platform for the station. There must be no conquest/equipment funding deadlock.
-- Income and expenditure per completed assault; time to recover from losing a tank.
-- Whether a cheaper mixed force can solve a problem that mass heavy weapons cannot.
-- Whether passive waiting is more rewarding than advancing; adjust that incentive.
-- Whether a new teammate helps without granting duplicate starter money or
-  immediately consuming the room's only recovery path.
+## Salvage and shipment
 
-Tune one variable at a time through comparable solo and cooperative encounters.
-Keep technical entity caps separate from prices; enough money does not authorize
-an unbounded server workload. Permanent conquered sites never reset to farm rewards.
+Each permanently conquered hostile structure contains 180 salvage, including
+structures already conquered in an existing save. A remotely commanded recycler
+carries 180, drives along a server-validated land route, and takes eight seconds to
+collect. Depletion is saved by site ID. It removes the central ruin artwork but
+retains the objective, conquest state and checklist. No direct conquest payment is
+also granted for the same material.
 
-## Current behavior
+The recycler must unload at a stationary launch station; launching takes five
+seconds and visibly sends a rocket upward. Supplies are credited only on launch
+completion. The station stores up to four recycler loads. Destroyed recyclers and
+stations leave unshipped cargo in recoverable crates. Cargo already shipped is
+never also dropped. Saved launch progress resumes without a second reward.
 
-Deployments have no resource price. Existing terrain, footprint, ownership,
-population and facility caps still apply. Those caps control gameplay/runtime
-cost; they are not a currency or a completed economy. Campaign creation and
-planet selection do not grant, spend or display an invented balance.
+## Factory trade-off
 
-## Decisions to fill in later
+A completed factory extends construction support by 24 tiles. Heavy equipment built
+inside its circle costs 60% of the orbital price and reserves its footprint for
+20 seconds before becoming usable (then any normal pod arrival animation runs).
+It is selected explicitly in the placement panel. Factory orders survive restart.
+Cancellation refunds half the paid cost and removes the unfinished equipment.
+Losing the factory cancels its unfinished orders under that same refund rule;
+already completed equipment continues operating. Destruction of an unfinished
+individual order itself gives no refund. No passive upkeep or power network.
 
-- Purpose: what useful combat choice should scarcity create?
-- Resources: what, if anything, is collected or produced?
-- Ownership: shared campaign stock, personal stock, or another model?
-- Sources: objectives, enemies, time, production, or a combination?
-- Spending: construction, ammunition, repairs, replacement, or something else?
-- Recovery: how does a player continue after losing equipment or all cores?
-- Joining/leaving: what happens to a teammate's resources?
-- Persistence: which balances and transactions survive a session/restart?
+## Persistence and evidence
 
-Earlier passive income and support-resource ideas remain proposals. No values,
-prices, unlocks or resource types are settled by this placeholder. Permanent
-conquest and globally available deployment remain the agreed boundaries.
+Versioned logistics state lives in SQLite alongside the world. Initial migration
+backs up populated saves. Cost deduction and object insertion commit in one
+transaction. Tick checkpoints save supplies, salvage, cargo, launch/assembly
+progress and facility HP. Named campaigns also checkpoint the causal combat state.
+Legacy combat retains its existing transient behavior. Unknown logistics versions
+are rejected instead of overwritten. The local reset tool already clears world
+meta after making its backup; it does not clear named campaigns.
 
-## Future integration boundary
-
-When authorized, economy belongs to the server-owned campaign state, with a
-versioned save migration. Deployment should validate the action and its cost
-before changing either balance or world; both changes must commit together.
-Objective rewards need a saved, once-only award so reconnect/retry cannot pay
-twice. Clients present balances and requests; they do not decide affordability
-or grant rewards. Choose the actual schema/API after the rules above are agreed.
-
-Future checks should cover insufficient funds without partial placement, failed
-placement without a charge, simultaneous spending, reward retries, saved return,
-campaign isolation and recovery from an exhausted economy. No runtime stub or
-empty balance widget is needed for this stage.
+Checks cover shared spending races, rejected placement without charges, replayed
+placement, construction cancellation/restart, bounded income, finite salvage,
+shipments, cargo loss, factory loss, base repair, destroyed-core identity/flooring,
+all-core-loss recovery and HE fallback. Browser checks exercise construction and
+the collection/unload/launch loop on desktop and phone. Prices and timing need
+human playtesting; these checks do not establish fun or production capacity.
