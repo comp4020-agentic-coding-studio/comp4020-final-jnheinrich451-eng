@@ -1,3 +1,4 @@
+import { bridgeReady } from '../public/bridge-geometry.js';
 import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from '../public/recycler.js';
 import { addRemains } from '../public/logistics.js';
 import { expect, it } from 'vitest';
@@ -203,4 +204,24 @@ it('losing an occupied recycler disables its driver and drops its cargo, includi
     await f.connect();await expect.poll(async()=>(await f.state()).me.life).toBe('disabled');const s=await f.state();expect(s.me.recyclerId).toBeNull();expect(s.logistics.crates[0].amount).toBe(33);
     await f.restart();expect((await f.state()).me.life).toBe('disabled');expect((await f.state()).logistics.recyclers).toHaveLength(0);
   }finally{await f.close();}
+});
+
+it('admits one paid bridge from a boarded builder, locks construction, and resumes saved unfolding',async()=>{
+  const f=await fixture((db,w,l)=>{
+    for(let y=0;y<w.height;y++)for(let x=35;x<=40;x++)w.terrain[y*w.width+x]=0;
+    l.recyclers=[{id:'builder',kind:'builder',owner:'a',x:33.5,y:42.5,remaining:0,cargo:0,path:[],angle:0}];
+  });try{
+    await f.connect();const data={from:{x:34,y:42},to:{x:41,y:42}};
+    expect((await f.post('logistics/bridge',data)).status).toBe(409);await f.post('logistics/board',{id:'builder'});
+    const bad=await f.post('logistics/bridge',{...data,to:{x:41,y:43}});expect(bad.status).toBe(409);expect((await f.state()).logistics.supplies).toBe(1200);
+    expect((await f.post('logistics/bridge',data)).status).toBe(201);expect((await f.post('logistics/bridge',data)).status).toBe(200);
+    expect((await f.state()).logistics.supplies).toBe(1134);await f.post('input',{x:1,y:0});
+    await expect.poll(async()=>(await f.state()).logistics.bridges[0].elapsed).toBeGreaterThan(.3);expect((await f.state()).logistics.recyclers[0].x).toBe(33.5);
+    await f.restart();const saved=(await f.state()).logistics.bridges[0].elapsed;expect(saved).toBeGreaterThan(0);await f.connect();
+    await expect.poll(async()=>bridgeReady((await f.state()).logistics.bridges[0]),{timeout:9000}).toBe(true);expect((await f.state()).logistics.supplies).toBe(1134);
+    expect((await f.post('logistics/command',{id:'builder',action:'collect',targetId:'fake'})).status).toBe(409);
+  }finally{await f.close();}
+},15000);
+it('removes a destroyed builders unfinished crossing without refunding or losing completed bridges',async()=>{
+  const f=await fixture((db,w,l)=>{l.recyclers=[{id:'builder',kind:'builder',owner:'a',x:33.5,y:42.5,remaining:0,cargo:0,path:[],angle:0}];l.durability['recycler:builder']={health:0,max:160,armor:1};l.bridges=[{id:'unfinished',builderId:'builder',from:{x:34,y:42},to:{x:41,y:42},elapsed:0},{id:'finished',builderId:'builder',from:{x:34,y:50},to:{x:41,y:50},elapsed:99}];});try{await f.connect();await expect.poll(async()=>(await f.state()).logistics.bridges.length).toBe(1);expect((await f.state()).logistics.bridges[0].id).toBe('finished');await f.restart();expect((await f.state()).logistics.bridges).toHaveLength(1);}finally{await f.close();}
 });

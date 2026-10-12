@@ -1,3 +1,4 @@
+import { bridgeAt } from './bridge-geometry.js';
 import { logisticsAt } from './footprints.js';
 import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
@@ -16,9 +17,11 @@ export function tankBlocks(world, x, y, radius = .21, ignore = null) {
 }
 export function tankPlacementError(world, buildings, occupants, x, y, owner) {
   if (![x, y].every(Number.isInteger)) return 'Choose a tile for the tank pod.';
+  if (world.ships?.some(s=>s.cargo?.kind==='tank'&&s.cargo.vehicle.owner===owner)) return 'Your tank is aboard a transport. Unload it first.';
   if (world.tanks?.some(t => t.owner === owner)) return 'Your tank is already deployed. One per scout in this field test.';
-  if ((world.tanks?.filter(t=>!t.destroyed).length || 0) >= TANK.max) return 'This field test allows eight tanks.';
+  if ((world.tanks?.filter(t=>!t.destroyed).length || 0)+(world.ships?.filter(s=>s.cargo?.kind==='tank').length||0) >= TANK.max) return 'This field test allows eight tanks.';
   for (const cell of tankPodCells(x, y)) {
+    if(bridgeAt(world,cell.x,cell.y))return 'Keep bridges clear of deployment pods.';
     if(logisticsAt(world,cell.x,cell.y))return 'Construction facility occupies the pod footprint.';
     if (hostileAt(world, cell.x, cell.y)) return 'An alien station occupies the pod footprint.';
     if(airbaseAt(world,cell.x,cell.y))return 'Keep the airbase runway and apron clear.';

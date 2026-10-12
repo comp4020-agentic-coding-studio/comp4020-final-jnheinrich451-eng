@@ -443,3 +443,21 @@ WASD drives, parking collects/unloads, L opens shipment controls. Remote command
 require an empty seat. Never render or damage a second robot inside the recycler.
 Loss disables its driver and drops only unshipped cargo. New ground corpses have
 bounded saved salvage; depletion and enemy death share campaign checkpoints.
+
+The subsequent 12 October bridge-builder stage is in docs/BRIDGE_BUILDER.md.
+Preserve three-wide straight crossings: two cables between 3-by-1 bank anchors,
+then saved 1-by-3 deck steps. Admit and charge atomically; retry without double
+spending. Lock the builder and reserve the entire span until completion. New decks
+are traffic-only and block ships; old causeways/rails remain unchanged. Derive
+walkable floor from completed bridge records without rewriting terrain. Builder
+loss cancels unfinished spans without refund, retaining completed bridges. Bridge
+HP, dismantling and armored vehicle transport remain separate future stages.
+
+The author then approved completing the transport stage and pushing the pipeline.
+See docs/ARMORED_TRANSPORT.md, which supersedes the transport deferral above.
+Keep one unoccupied ground vehicle in a saved ship cargo slot, removed from the
+active world atomically. Retain ownership/caps, health, loadout and salvage. Check
+nearby ground routes at both transfers, reject occupied vehicles and lock working
+builders. Loading requires management permission; unloading retains ownership.
+Sink cargo with its ship, preserve normal tank replacement, and reject loaded
+recall. The transport has one bow turret; never change gunship mount counts.

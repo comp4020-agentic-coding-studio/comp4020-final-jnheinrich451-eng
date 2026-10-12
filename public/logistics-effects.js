@@ -27,11 +27,12 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId){
   for(const r of l.recyclers){
     c.save();c.translate(r.x*T,r.y*T);c.rotate(r.angle);c.fillStyle='#172d30';c.fillRect(-.43*T,-.48*T,.86*T,.96*T);
     for(const side of [-1,1])for(const axle of [-.3,.3]){c.fillStyle='#101d21';c.fillRect((side*.4-.09)*T,(axle-.15)*T,.18*T,.3*T);}
-    c.fillStyle='#c39d58';c.fillRect(-.33*T,-.4*T,.66*T,.8*T);c.fillStyle='#3d656a';c.fillRect(-.23*T,-.31*T,.46*T,.25*T);
+    c.fillStyle=r.kind==='builder'?'#b3bcb6':'#c39d58';c.fillRect(-.33*T,-.4*T,.66*T,.8*T);c.fillStyle='#3d656a';c.fillRect(-.23*T,-.31*T,.46*T,.25*T);
     c.fillStyle=r.cargo?'#aa6d94':'#4a5045';c.fillRect(-.25*T,.06*T,.5*T,.28*T);c.fillStyle='#adba9e';c.fillRect(-.45*T,-.54*T,.9*T,.12*T);c.restore();
+    if(r.kind==='builder'){c.strokeStyle='#dab96e';c.lineWidth=4/zoom;c.beginPath();c.moveTo(r.x*T,r.y*T);c.lineTo((r.x+Math.sin(r.angle)*.55)*T,(r.y-Math.cos(r.angle)*.55)*T);c.stroke();}
     if(r.occupant){c.strokeStyle=r.occupant===driverId?'#e3bc70':'#a6ccc0';c.lineWidth=2/zoom;c.beginPath();c.arc(r.x*T,r.y*T,T*.67,0,Math.PI*2);c.stroke();}
     if(r.remaining>0){c.strokeStyle='#e6ba69';c.beginPath();c.arc(r.x*T,r.y*T,T*.8,0,Math.PI*2);c.stroke();}
-    label(r.remaining>0?'POD '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':'RECYCLER / ')+r.cargo,r.x,r.y+.85);
+    label(r.remaining>0?'POD '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':r.cargo),r.x,r.y+.85);
   }
   for(const box of l.crates){
     if(box.kind==='remains'){

@@ -1,6 +1,6 @@
 import { depthState, diveBattery, DIVE } from './submarine-depth.js';
 import { SHIP, hull, hullCells, shipName, shipKind, dockRects } from './ship.js';
-import { MAIN_MOUNTS, SIDE_MOUNTS } from './ship-armament.js';
+import { mainMounts, SIDE_MOUNTS } from './ship-armament.js';
 import { hullPoint } from './vehicle.js';
 import { CoreEffects } from './core-effects.js';
 const clamp=n=>Math.max(0,Math.min(1,n));
@@ -83,7 +83,11 @@ export function drawShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0) {
   c.strokeStyle='#a8b9a7';c.lineWidth=1;c.stroke();
   c.fillStyle='#304c57';c.fillRect(-.36*T,-.35*T,.72*T,.7*T);c.fillStyle='#a3bdb0';c.fillRect(-.3*T,-.3*T,.6*T,.22*T);
   c.strokeStyle='#c5d9c5';c.lineWidth=2;c.beginPath();c.moveTo(0,-.1*T);c.lineTo(0,.32*T);c.moveTo(-.2*T,.1*T);c.lineTo(.2*T,.1*T);c.stroke();
-  for(const m of MAIN_MOUNTS){
+  if(shipKind(s)==='transport'){
+    c.fillStyle='#203e45';c.fillRect(-.63*T,.35*T,1.26*T,1.35*T);c.strokeStyle='#cfb573';c.setLineDash([5,4]);c.strokeRect(-.63*T,.35*T,1.26*T,1.35*T);c.setLineDash([]);
+    if(s.cargo){c.fillStyle=s.cargo.kind==='tank'?'#b9ac78':'#829d9d';c.fillRect(-.35*T,.62*T,.7*T,.75*T);c.fillStyle='#23383d';c.fillRect(-.43*T,.58*T,.12*T,.85*T);c.fillRect(.31*T,.58*T,.12*T,.85*T);if(s.cargo.kind==='tank'){c.fillStyle='#d9c792';c.fillRect(-.08*T,.38*T,.16*T,.6*T);}}
+  }
+  for(const m of mainMounts(s)){
     c.save();c.translate(0,m.y*T);c.rotate((s[m.key]??s.turret)-s.angle);
     c.fillStyle='#1b3540';c.beginPath();c.arc(0,0,T*.36,0,Math.PI*2);c.fill();c.fillStyle='#d1c395';c.fillRect(-.29*T,-.3*T,.58*T,.56*T);c.strokeStyle='#ecdeb5';c.strokeRect(-.29*T,-.3*T,.58*T,.56*T);
     for(const side of [-1,1]){const kick=recoil(s.id+':'+m.id+':'+side,s.ammo);c.fillStyle='#344f58';c.fillRect((side*.13-.045)*T,-.8*T+kick,.09*T,.68*T);c.fillStyle=s.ammo==='GAS'?'#b2d48b':s.ammo==='INCENDIARY'?'#ef9f5a':'#bedcdb';c.fillRect((side*.13-.065)*T,-.8*T+kick,.13*T,.12*T);}
@@ -94,7 +98,7 @@ export function drawShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0) {
     c.fillStyle='#96b5a9';c.fillRect(-.12*T,-.17*T,.24*T,.27*T);c.fillStyle='#dbc694';c.fillRect(-.045*T,-.43*T+recoil(s.id+':'+m.id,'NAVAL_APCR'),.09*T,.33*T);c.restore();
   }
   c.restore();
-  c.save();c.fillStyle='#193934dd';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=mine?'YOU / COASTAL GUNSHIP':s.occupant?'GUNSHIP / OCCUPIED':'COASTAL GUNSHIP',w=c.measureText(label).width;c.fillRect(s.x*T-w/2-5,s.y*T+2.4*T,w+10,16/zoom);c.fillStyle='#e5d8ac';c.fillText(label,s.x*T,s.y*T+2.4*T+11/zoom);c.restore();
+  c.save();c.fillStyle='#193934dd';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=(mine?'YOU / ':'')+shipName(s).toUpperCase()+(s.cargo?' / LOADED':s.occupant&&!mine?' / OCCUPIED':''),w=c.measureText(label).width;c.fillRect(s.x*T-w/2-5,s.y*T+2.4*T,w+10,16/zoom);c.fillStyle='#e5d8ac';c.fillText(label,s.x*T,s.y*T+2.4*T+11/zoom);c.restore();
 }
 function drawSubmarine(c,s,T,mine,zoom,time,reduced){
  const state=depthState(s),remaining=s.depthRemaining||0;

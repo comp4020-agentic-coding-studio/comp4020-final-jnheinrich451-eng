@@ -1,3 +1,4 @@
+import { bridgeAt } from './bridge-geometry.js';
 import { airbaseAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
 import { POD } from './pod.js';
@@ -7,8 +8,8 @@ import { angleDelta } from './turret.js';
 import { hullPoint, operational } from './vehicle.js';
 
 export const SHIP = Object.freeze({ ...POD, max:4, width:2, length:4, speed:2.5, reverse:1.5, turnSpeed:Math.PI/5, turretSpeed:Math.PI/3, minRange:6, range:40, reload:6, dockRange:.8, boardRange:1.4 });
-export const shipKind = ship => ship?.kind==='submarine'?'submarine':'gunship';
-export const shipName = ship => shipKind(ship)==='submarine'?'Missile submarine':'Coastal gunship';
+export const shipKind = ship => ship?.kind==='submarine'?'submarine':ship?.kind==='transport'?'transport':'gunship';
+export const shipName = ship => shipKind(ship)==='submarine'?'Missile submarine':shipKind(ship)==='transport'?'Armored transport':'Coastal gunship';
 export function hull(ship, cradle=false) {
   return { x:cradle?ship.berthX:ship.x, y:cradle?ship.berthY:ship.y, angle:cradle?ship.dock.angle:ship.angle, w:cradle?3:SHIP.width, h:cradle?5:SHIP.length };
 }
@@ -38,14 +39,14 @@ export function shipBlocks(world,x,y,radius=.21) {
 }
 export function canSail(world,ship,x=ship.x,y=ship.y,angle=ship.angle,cradle=false) {
   const rect=cradle?hull(ship,true):hull({...ship,x,y,angle});
-  for(const cell of hullCells(rect))if(cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||tileAt(world,cell.x,cell.y)!==0||artilleryBlocks(world,cell.x,cell.y))return false;
+  for(const cell of hullCells(rect))if(cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||bridgeAt(world,cell.x,cell.y)||tileAt(world,cell.x,cell.y)!==0||artilleryBlocks(world,cell.x,cell.y))return false;
   if((world.ships||[]).some(s=>dockRects(s).some(r=>rectanglesOverlap(rect,r))))return false;
   return !(world.ships||[]).some(s=>!s.destroyed&&s.id!==ship.id&&rectanglesOverlap(rect,hull(s,s.elapsed<SHIP.duration)));
 }
 /** @param {{dock:{x:number,y:number,angle:number},berthX:number,berthY:number} | null} [original] */
 export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dockStyle='legacy',original=null) {
   const fail=error=>({error,ship:null});
-  if(!['gunship','submarine'].includes(kind))return fail('Choose a coastal gunship or missile submarine.');
+  if(!['gunship','submarine','transport'].includes(kind))return fail('Choose a gunship, missile submarine or armored transport.');
   if(!['legacy','unfolding'].includes(dockStyle))return fail('Choose a supported dock layout.');
   if(![x,y].every(Number.isInteger))return fail('Select a coastal water tile for the ship center.');
   if(world.ships?.some(s=>s.owner===owner&&shipKind(s)===kind))return fail('One '+shipName({kind}).toLowerCase()+' per scout in this field test.');
@@ -55,7 +56,7 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
     if(dockStyle==='unfolding'&&distance!==3)continue;
     const dock={x:x+.5+dx*distance,y:y+.5+dy*distance,angle:Math.atan2(-dx,dy)};
     if(original&&(Math.hypot(dock.x-original.dock.x,dock.y-original.dock.y)>.001||Math.abs(angleDelta(dock.angle,original.dock.angle))>.001))continue;
-    if(airbaseAt(world,dock.x,dock.y)||!canStand(world,buildings,dock.x,dock.y)||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
+    if(bridgeAt(world,dock.x,dock.y)||airbaseAt(world,dock.x,dock.y)||!canStand(world,buildings,dock.x,dock.y)||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
     if(occupants.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&Math.hypot(p.x-dock.x,p.y-dock.y)<.8))continue;
     let clear=true;for(let step=1;step<distance;step++)if(tileAt(world,x+dx*step,y+dy*step)!==0)clear=false;
     if(!clear)continue;
@@ -63,7 +64,7 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
     if(dockStyle==='unfolding'){
       Object.assign(ship,{dockStyle,siteX:x,siteY:y});
       const rects=dockRects(ship),cells=rects.flatMap(hullCells);
-      if(cells.some(cell=>cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||dockAt(world,cell.x,cell.y)||railCorridor(world,cell.x,cell.y)||airbaseAt(world,cell.x,cell.y)||artilleryBlocks(world,cell.x,cell.y)))continue;
+      if(cells.some(cell=>cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||bridgeAt(world,cell.x,cell.y)||dockAt(world,cell.x,cell.y)||railCorridor(world,cell.x,cell.y)||airbaseAt(world,cell.x,cell.y)||artilleryBlocks(world,cell.x,cell.y)))continue;
       if(hullCells(rects[0]).some(cell=>tileAt(world,cell.x,cell.y)===0||!canStand(world,buildings,cell.x+.5,cell.y+.5)))continue;
       if(hullCells(rects[1]).some(cell=>tileAt(world,cell.x,cell.y)!==0))continue;
       if(rects.some(r=>(world.ships||[]).some(s=>rectanglesOverlap(r,hull(s,s.elapsed<SHIP.duration))||rectanglesOverlap(r,hull(s,true)))||occupants.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&rectanglesOverlap(r,{x:p.x,y:p.y,w:.8,h:.8,angle:0}))))continue;
@@ -87,6 +88,7 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
 export function recallShipError(world,ship) {
   if(!ship)return 'Choose your ship first.';
   if(ship.elapsed<SHIP.duration)return 'Wait for deployment to finish before recalling it.';
+  if(ship.cargo)return 'Unload the vehicle before recalling this ship.';
   if(ship.occupant)return 'Disembark before recalling the ship and dock.';
   if(ship.launchRemaining>0)return 'Wait for the missile launch to finish.';
   if(!ship.destroyed&&(!surfaced(ship)||Math.hypot(ship.x-ship.berthX,ship.y-ship.berthY)>SHIP.dockRange||Math.abs(Math.sin(angleDelta(ship.angle,ship.dock.angle)))>=Math.sin(Math.PI/8)))return 'Return the ship to its original dock, surface and disembark first.';
@@ -116,7 +118,7 @@ export function shoreRampSite(world,buildings,occupants,ship) {
   if(!surfaced(ship)||!operational(ship)||!canSail(world,ship))return null;
   const candidates=[],r=SHIP.length/2+SHORE_RAMP.reach+1;
   for(let y=Math.max(0,Math.floor(ship.y-r));y<Math.min(world.height,ship.y+r);y++)for(let x=Math.max(0,Math.floor(ship.x-r));x<Math.min(world.width,ship.x+r);x++){
-    if(airbaseAt(world,x,y)||tileAt(world,x,y)===0||dockAt(world,x,y)||railCorridor(world,x,y))continue;
+    if(bridgeAt(world,x,y)||airbaseAt(world,x,y)||tileAt(world,x,y)===0||dockAt(world,x,y)||railCorridor(world,x,y))continue;
     const p={x:x+.5,y:y+.5};
     if(occupants.some(v=>v.id!==ship.occupant&&v.life!=='disabled'&&(v.hp===undefined||v.hp>0)&&Math.hypot(v.x-p.x,v.y-p.y)<.8)||!rampClear(world,buildings,ship,p))continue;
     candidates.push(p);

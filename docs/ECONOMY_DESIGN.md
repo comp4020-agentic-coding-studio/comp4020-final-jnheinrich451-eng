@@ -35,15 +35,22 @@ The current tuning values are centralized in [public/logistics.js](../public/log
 | Missile battery | 220 |
 | Gunship / replacement | 240 |
 | Submarine / replacement | 280 |
+| Armored transport / replacement | 200 |
 | Airbase with aircraft | 300 |
 | Aircraft exchange / replacement | 100 |
 | Factory | 150 |
 | Cargo launch station | 100 |
 | Recycler | 60 |
+| Bridge builder | 80 |
+| Field bridge | 30 + 6 per water row |
 | Replacement core | 120 |
 | Dock rebuild / airbase rebuild | 90 / 150 |
 
 A player's first core is free. A replacement core is free when no cores remain.
+Bridge materials/timers live in `public/bridge-geometry.js`; see
+[Bridge builder](BRIDGE_BUILDER.md). A failed placement spends nothing; losing
+the builder during construction consumes the committed materials and removes
+the unfinished crossing. Completed bridges currently have no HP or dismantling.
 Track laying remains free. Technical ownership/population limits stay independent
 of supplies. Recall/dismantling does not refund completed equipment, and friendly
 objects cannot be farmed for salvage.

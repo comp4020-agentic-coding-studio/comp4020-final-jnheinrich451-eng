@@ -1,3 +1,4 @@
+import { bridgeAt } from './bridge-geometry.js';
 import { clampStrike } from './strike-aim.js';
 import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
@@ -38,6 +39,7 @@ export function missilePlacementError(world, buildings, occupants, x, y, owner) 
   if (world.artillery?.some(g => isMissile(g) && g.owner === owner)) return 'One missile battery per scout in this field test.';
   if ((world.artillery || []).filter(isMissile).length >= MISSILE.maxBatteries) return 'This field test allows four missile batteries.';
   for (let cy = y; cy < y + 4; cy++) for (let cx = x; cx < x + 4; cx++) {
+    if(bridgeAt(world,cx,cy))return 'Keep bridges clear of missile batteries.';
     if (hostileAt(world, cx, cy)) return 'An alien station occupies the battery footprint.';
     if(airbaseAt(world,cx,cy))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,cx,cy))return 'Keep the shoreline dock clear.';

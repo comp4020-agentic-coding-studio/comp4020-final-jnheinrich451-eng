@@ -12,7 +12,7 @@ import { tickMortars } from './mortar.js';
 import { reportSectorAttack, investigationPoint } from './sector-defense.js';
 import { hostileAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
-import { mainSalvo, MAIN_MOUNTS, mainReload, readyMainMounts, SIDE_MOUNTS, sideSolution } from './ship-armament.js';
+import { mainSalvo, mainMounts, mainReload, readyMainMounts, SIDE_MOUNTS, sideSolution } from './ship-armament.js';
 import { SHIP } from './ship.js';
 import { isSubmarine, SUBMARINE, submarineFireError, makeSubmarineBarrage } from './submarine.js';
 import { SWIMMER, navalSpawn, swimStep } from './naval.js';
@@ -193,7 +193,7 @@ export function createCombat(world, saved = null, auditContext = null) {
       const error=fieldCapacityError(fields,reserved,weapon);if(error)return error;reserved.push({weapon});
     }
     for(const r of rounds){const id=++serial;salvos.push({...r,id,weapon,elapsed:0,profile:{...ARTILLERY_SHELLS[weapon]}});shots.push({id,weapon,mount:'naval-main',owner:r.owner,x:r.x,y:r.y,angle:r.angle,at:now});}
-    ship.mainReloads=Object.fromEntries(MAIN_MOUNTS.map(m=>[m.id,mounts.includes(m)?SHIP.reload:mainReload(ship,m.id)]));
+    ship.mainReloads=Object.fromEntries(mainMounts(ship).map(m=>[m.id,mounts.includes(m)?SHIP.reload:mainReload(ship,m.id)]));
     ship.reload=Math.max(...Object.values(ship.mainReloads));
     ship.nextMainMount=mounts.at(-1).id==='fore'?'aft':'fore';
     shots=shots.slice(-64);return null;

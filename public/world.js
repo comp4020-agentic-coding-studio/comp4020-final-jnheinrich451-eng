@@ -1,3 +1,4 @@
+import { bridgeAt, bridgeReady } from './bridge-geometry.js';
 import { logisticsAt } from './footprints.js';
 import { airbaseAt, hangarBlocks, hostileAt } from './footprints.js';
 import { dockAt, shipBlocks } from './ship.js';
@@ -34,6 +35,7 @@ export function createWorld() {
 
 export function tileAt(world, x, y) {
   x = Math.floor(x); y = Math.floor(y);
+  const bridge=bridgeAt(world,x,y);if(bridge&&bridgeReady(bridge))return TERRAIN.FLOOR;
   const floors=world.logistics?.floors;
   if(floors?.length){if(!reclaimedFloors.has(floors))reclaimedFloors.set(floors,new Set(floors));if(x>=0&&y>=0&&x<world.width&&y<world.height&&reclaimedFloors.get(floors).has(y*world.width+x))return TERRAIN.FLOOR;}
   if (world.tanks?.some(t => t.elapsed >= TANK.duration && tankPodCell(t, x, y))) return TERRAIN.FLOOR;
@@ -53,6 +55,7 @@ export function canStand(world, buildings, x, y, ignoreTank = null, radius = .21
   if (artilleryUnitBlocks(world, x, y, radius)) return false;
   for (const dx of [-radius, radius]) for (const dy of [-radius, radius]) {
     const tx = Math.floor(x + dx), ty = Math.floor(y + dy);
+    const bridge=bridgeAt(world,tx,ty);if(bridge&&!bridgeReady(bridge))return false;
     const tile = tileAt(world, tx, ty);
     if (hostileAt(world, tx, ty) || logisticsAt(world,tx,ty)) return false;
     if (hangarBlocks(world,tx,ty) || tile === 0 || tile === 3 || world.cores?.some(c => coreBlocks(c, tx, ty)) || buildings.some(b => b.x === tx && b.y === ty)) return false;
@@ -75,6 +78,7 @@ export function clearSpawn(world, buildings) {
 }
 
 export function placementError(world, buildings, players, x, y) {
+  if(bridgeAt(world,x,y))return 'Keep bridge decks and anchors clear for traffic.';
   if (logisticsAt(world,x,y)) return 'Construction facility occupies this tile.';
   if (hostileAt(world, x, y)) return 'Destroy the alien station before building on its footprint.';
   if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= world.width || y >= world.height) return 'Select a tile inside the survey area.';

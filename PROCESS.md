@@ -247,3 +247,21 @@ SMTP authentication without sending mail. The author also supplied a screenshot
 of the verified sender with DKIM and DMARC configured. Real inbox delivery and
 the complete registration flow still need testing. See
 [the account deployment record](docs/ACCOUNT_DESIGN.md).
+
+## Routes for logistics, 12 October
+
+The author's recycler could not cross the causeway after a railway cannon was
+placed on it. This playtest led to two complementary solutions: a permanent
+bridge and a vehicle-carrying ship. The author specified the bridge's visual
+sequence: two steel cables between 3-by-1 anchors, followed by rolling 1-by-3 deck
+sections. The agent implemented that sequence and reserved new decks for traffic.
+
+The approved follow-on transport reuses docks, shore access, helm controls and
+naval weapons, with one bow turret and one saved cargo vehicle. The important
+boundary was preserving one vehicle identity while moving it between the active
+ground world and the ship's bay. Tests cover rejection without spending, duplicate
+requests, ownership limits, saved progress, unloading and loss. Desktop and phone
+browser scenarios exercise both routes. Stage notes and previews are retained in
+[Bridge builder](docs/BRIDGE_BUILDER.md) and
+[Armored transport](docs/ARMORED_TRANSPORT.md). Local checks and later CI deployment
+are distinct evidence; no new author playtest or Fly capacity result is inferred.

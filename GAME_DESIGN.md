@@ -66,9 +66,21 @@ older economy/HP deferrals below. Permanent conquest and ordinary weapon behavio
 remain unchanged. Existing equipment is retained, with one initial reserve per save.
 There is no offline income or ongoing cost for ordinary firing/robot revival.
 
-The first recycler uses remote destination commands. Forward airstrips and passenger
+The recycler now supports E/WASD driving and parked collection/unloading, with
+remote destination commands when empty. Forward airstrips and passenger
 transport remain separate work. Review the playable economy before elaborating its
 resource types or adding continuous production chains.
+
+The subsequent [bridge-builder stage](docs/BRIDGE_BUILDER.md) adds a drivable
+engineering rover and saved, three-tile-wide crossings. Two steel cables connect
+3-by-1 bank anchors before the deck unrolls in 1-by-3 sections. Completed bridges
+open alternate ground routes and reserve their deck for traffic; ships cannot
+pass beneath them. This first stage has straight crossings only, provisional
+material costs and no bridge HP. The subsequent
+[armored transport](docs/ARMORED_TRANSPORT.md) carries one unoccupied tank, recycler
+or builder between docks and remote shore access points. It retains the vehicle's
+saved identity, adds a bow turret and reuses naval side guns. Transport loss
+destroys its cargo; passenger seats and aircraft carriers remain future stages.
 
 ## 1. How to use this document
 

@@ -14,6 +14,12 @@ and operating facilities. Ground, naval and air forces should offer different
 ways to solve a problem; orbital support belongs to the later vision. Players
 can defend, position artillery or fly bombing runs, leaving a base worth revisiting.
 
+The 12 October logistics stage adds two ways around a blocked crossing: an
+[engineering rover](docs/BRIDGE_BUILDER.md) unfolds a three-tile-wide bridge, and
+an [armored transport](docs/ARMORED_TRANSPORT.md) ferries a tank or utility vehicle
+to another shore. These support the same combat loop: open a route, recover alien
+salvage, ship it to orbit and fund the next deployment.
+
 ## What makes that experience good
 
 **Playable alone, better together.** Essential progress should not require a full

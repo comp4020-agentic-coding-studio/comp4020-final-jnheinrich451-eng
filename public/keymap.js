@@ -13,7 +13,8 @@ const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, k
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
-  bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler'),
+  bind('bridge-cancel', ['escape'], 'Esc', 'recycler', 'Close bridge planner'),
+  bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler / bridge builder'),
   bind('station-open', ['e'], 'E', 'recycler', 'Open a nearby launch station on foot'),
   bind('aircraft-board', ['e'], 'E', 'aircraft', 'Board or leave the aircraft'),
   bind('aircraft-space', [' '], 'Space', 'aircraft', 'Reserved while flying (bombs use LMB)'),
@@ -38,6 +39,7 @@ export const BINDINGS = Object.freeze([
   bind('back', ['escape'], 'Esc', 'global', 'Back: close catalogue or placement, leave facility'),
   bind('sub-rotate', ['r'], 'R', 'submarine', 'Rotate the strike area'),
   bind('recenter', ['c'], 'C', 'global', 'Recenter on yourself'),
+  bind('ship-cargo', ['k'], 'K', 'ship', 'Load or unload an armored transport vehicle'),
   bind('ship-ramp', ['g'], 'G', 'ship', 'Deploy or retract the shore ramp'),
   bind('grid', ['g'], 'G', 'global', 'Toggle tile grid'),
   bind('logistics', ['l'], 'L', 'global', 'Logistics and supplies'),
