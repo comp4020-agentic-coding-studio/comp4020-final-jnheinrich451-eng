@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
+import { isolatedField, landCore } from './rover-helper.js';
 
 test('stabilized turret trails a cursor reversal and shares its actual firing bearing', async ({ browser }) => {
+  const arena = await isolatedField('turret', [{ x: 24.5, y: 18.5 }]);
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await arena.seat(context);
+  try {
   const page = await context.newPage(), peer = await other.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
+  await page.goto(arena.base + '/?legacy=1'); await peer.goto(arena.base + '/?legacy=1');
   for (const p of [page, peer]) {
     await expect(p.locator('#connection')).toContainText('Uplink live');
     await p.evaluate(() => {
@@ -33,7 +37,7 @@ test('stabilized turret trails a cursor reversal and shares its actual firing be
   await page.screenshot({ path: 'docs/previews/stabilized-turret-mobile.png' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
-  await context.close(); await other.close();
+  } finally { await context.close(); await other.close(); await arena.close(); }
 });
 
 async function siteControls(page) {
@@ -44,25 +48,34 @@ async function siteControls(page) {
 }
 
 test('two scouts share a saved foundation; keyboard movement, reload, and resize work', async ({ browser }) => {
+  const arena = await isolatedField('foundation');
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  try {
   const page = await context.newPage(), peer = await other.newPage();
-  const errors = [];
+  const errors = [], fireRequests = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
+  page.on('request', request => { if (request.url().endsWith('/api/fire')) fireRequests.push(request.postDataJSON()); });
+  await page.goto(arena.base + '/?legacy=1'); await peer.goto(arena.base + '/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(page.locator('#presence')).toContainText('2 SCOUTS');
+  await landCore(page);
   const initial = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
   await page.locator('#world-canvas').focus();
   await page.keyboard.down('d'); await page.waitForTimeout(700); await page.keyboard.up('d'); await page.waitForTimeout(650);
   const moved = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
   expect(moved.x).toBeGreaterThan(initial.x + .5);
   await page.locator('#build-mode').click();
-  await page.locator('#sentry-card').click(); await siteControls(page);
+  await page.locator('#sentry-card').click();
+  // Choosing a site with the mouse while placing never fires a weapon.
+  await page.mouse.click(1130, 650); await page.waitForTimeout(200);
+  expect(fireRequests).toHaveLength(0); await expect(page.locator('#site-panel')).toBeVisible();
+  await siteControls(page);
   await page.locator('#tile-x').fill('28'); await page.locator('#tile-y').fill('21'); await page.locator('#select-tile').click();
   await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
   await expect(page.locator('#toast')).toContainText('placed and saved');
-  await expect(peer.locator('#building-count')).toHaveText('1 FOUNDATION');
+  // The landed core contributes its built-in sentry; the placed sentry is the second.
+  await expect(peer.locator('#building-count')).toHaveText('2 FOUNDATIONS');
   await page.reload(); await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(page.locator('#task-save')).toHaveClass(/done/);
   const returned = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
@@ -89,18 +102,21 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
   await page.locator('#build-mode').click(); await expect(page.locator('#sentry-card')).toBeInViewport();
   await page.screenshot({ path: 'docs/previews/landscape.png' });
   expect(errors).toEqual([]);
-  await context.close(); await other.close();
+  } finally { await context.close(); await other.close(); await arena.close(); }
 });
 
 test('touch users can select a site and place a foundation', async ({ browser }) => {
+  const arena = await isolatedField('touch-site');
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/?legacy=1');
+  try {
+  const page = await context.newPage(); await page.goto(arena.base + '/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
+  await landCore(page);
   await page.locator('#build-mode').tap();
   await expect(page.locator('#deployment-tray')).toBeVisible();
   await page.locator('#sentry-card').tap();
   await expect(page.locator('#deployment-tray')).not.toBeVisible();
-  // Two tiles east and three south of the spawn, in the unobscured play area.
+  // Two tiles east and three south of the robot, in the unobscured play area.
   await page.touchscreen.tap(262, 523);
   await expect(page.locator('#site-panel')).toBeVisible();
   await expect(page.locator('#place-building')).toBeInViewport();
@@ -110,14 +126,18 @@ test('touch users can select a site and place a foundation', async ({ browser })
   await page.locator('#site-button').tap();
   await expect(page.locator('#remove-building')).toBeVisible();
   await page.locator('#remove-building').tap(); await expect(page.locator('#toast')).toContainText('removed');
-  await context.close();
+  } finally { await context.close(); await arena.close(); }
 });
 
 test('two browsers see the same shell and enemy damage; drill and firing controls work', async ({ browser }) => {
+  const arena = await isolatedField('shared-shells', [{ x: 24.5, y: 21.5 }]);
+  // A parked tank is an obstacle; keep the drill beacon tile itself reachable.
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await arena.seat(context);
+  try {
   const page = await context.newPage(), peer = await other.newPage();
-  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
+  await page.goto(arena.base + '/?legacy=1'); await peer.goto(arena.base + '/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(peer.locator('#connection')).toContainText('Uplink live');
   for (const p of [page, peer]) await p.evaluate(() => {
@@ -147,14 +167,17 @@ test('two browsers see the same shell and enemy damage; drill and firing control
   const craterId = await page.evaluate(() => window.combatEvents.flatMap(c => c.marks).find(m => m.kind === 'crater').id);
   await expect.poll(() => peer.evaluate(id => window.combatEvents.some(c => c.marks.some(m => m.id === id && m.kind === 'crater')), craterId)).toBe(true);
   await page.bringToFront(); await page.screenshot({ path: 'docs/previews/combat.png' });
-  await context.close(); await other.close();
+  } finally { await context.close(); await other.close(); await arena.close(); }
 });
 
 test('HE leaves shared cosmetic craters; effects deduplicate and reduced mode persists', async ({ browser }) => {
+  const arena = await isolatedField('craters', [{ x: 24.5, y: 18.5 }]);
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await arena.seat(context);
+  try {
   const page = await context.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  await page.goto(arena.base + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.bringToFront();
   await page.locator('#zoom-in').click(); await page.locator('#zoom-in').click();
   await page.evaluate(async () => {
@@ -186,14 +209,18 @@ test('HE leaves shared cosmetic craters; effects deduplicate and reduced mode pe
   await page.locator('#help-button').click(); await expect(page.locator('#reduced-effects')).toBeChecked(); await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 390, height: 844 }); await page.locator('#center').click();
   await page.screenshot({ path: 'docs/previews/he-mobile.png' });
-  expect(errors).toEqual([]); await context.close();
+  expect(errors).toEqual([]);
+  } finally { await context.close(); await arena.close(); }
 });
 
 test('mouse weapons are independent; readouts are passive; held fire stops on release, blur and menus', async ({ browser }) => {
+  const arena = await isolatedField('mouse-weapons', [{ x: 24.5, y: 18.5 }]);
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await arena.seat(context);
+  try {
   const page = await context.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  await page.goto(arena.base + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.evaluate(() => {
     window.controlShots = new Map(); window.controlEvents = new EventSource('/api/events');
     window.controlEvents.onmessage = e => JSON.parse(e.data).combat.shots.forEach(s => window.controlShots.set(s.id, s));
@@ -226,21 +253,21 @@ test('mouse weapons are independent; readouts are passive; held fire stops on re
   await page.locator('#help-button').click(); await page.waitForTimeout(200);
   const paused = await count('APCR'); await page.waitForTimeout(350); expect(await count('APCR')).toBe(paused);
   await page.keyboard.up('j'); await page.keyboard.press('Escape');
-  await page.locator('#build-mode').click(); await page.locator('#sentry-card').click();
-  const beforeBuild = await count('HE'); await page.mouse.click(1130, 650); await page.waitForTimeout(200);
-  expect(await count('HE')).toBe(beforeBuild); await expect(page.locator('#site-panel')).toBeVisible();
-  await page.keyboard.press('Escape');
   await page.locator('#world-canvas').focus(); await page.keyboard.down('j'); await page.waitForTimeout(250);
   await context.setOffline(true); await expect(page.locator('#connection')).toContainText('Reconnecting');
   await page.keyboard.up('j'); await context.setOffline(false); await expect(page.locator('#connection')).toContainText('Uplink live', { timeout: 10000 });
   await page.waitForTimeout(250); const restored = await count('APCR'); await page.waitForTimeout(350); expect(await count('APCR')).toBe(restored);
   await page.screenshot({ path: 'docs/previews/dual-weapons-desktop.png' });
-  expect(errors).toEqual([]); await context.close();
+  expect(errors).toEqual([]);
+  } finally { await context.close(); await arena.close(); }
 });
 
 test('touch aim does not fire or move; cannon and held machine gun work without mode switches', async ({ browser }) => {
+  const arena = await isolatedField('touch-weapons', [{ x: 24.5, y: 18.5 }]);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
+  await arena.seat(context);
+  try {
+  const page = await context.newPage(); await page.goto(arena.base + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   const shotRequests = [];
   page.on('request', request => { if (request.url().endsWith('/api/fire')) shotRequests.push(request.postDataJSON()); });
   const initial = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
@@ -257,20 +284,22 @@ test('touch aim does not fire or move; cannon and held machine gun work without 
   expect(shotRequests.filter(r => r.weapon === 'APCR').length).toBeGreaterThanOrEqual(2);
   await page.waitForTimeout(200); const stopped = shotRequests.length; await page.waitForTimeout(300); expect(shotRequests.length).toBe(stopped);
   await page.screenshot({ path: 'docs/previews/dual-weapons-mobile.png' });
-  await context.close();
+  } finally { await context.close(); await arena.close(); }
 });
 
 test('automatic sentries share gradual traverse and fire along the aligned barrel', async ({ browser }) => {
   test.setTimeout(60000);
+  const arena = await isolatedField('sentry-traverse');
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
   const page = await context.newPage(), peer = await other.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message)); peer.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
+  await page.goto(arena.base + '/?legacy=1'); await peer.goto(arena.base + '/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(peer.locator('#connection')).toContainText('Uplink live');
-  // Earlier tests may have left a drill finishing. Use the same isolated test save.
-  await expect(page.locator('#start-drill')).toBeEnabled({ timeout: 35000 });
+  await landCore(page);
+  await expect(page.locator('#start-drill')).toBeEnabled();
   const building = await page.evaluate(async () => {
     const response = await fetch('/api/buildings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: 24, y: 14 }) });
     if (!response.ok) throw new Error('Test sentry deployment failed');
@@ -299,23 +328,24 @@ test('automatic sentries share gradual traverse and fire along the aligned barre
     await fetch('/api/dismantle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   }, building.id);
   expect(errors).toEqual([]);
-  await context.close(); await other.close();
+  } finally { await context.close(); await other.close(); await arena.close(); }
 });
 
 test('orbital core lands, unfolds walkable panels, releases a robot and survives reload', async ({ browser }) => {
   test.setTimeout(70000);
+  const arena = await isolatedField('core-landing');
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const other = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
   const page = await context.newPage(), peer = await other.newPage(), errors = [];
   for (const p of [page, peer]) p.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?legacy=1'); await peer.goto('/?legacy=1');
+  await page.goto(arena.base + '/?legacy=1'); await peer.goto(arena.base + '/?legacy=1');
   await expect(page.locator('#connection')).toContainText('Uplink live');
-  await expect(page.locator('#start-drill')).toBeEnabled({ timeout: 35000 });
   for (const p of [page, peer]) await p.evaluate(() => {
     window.coreStates = []; window.coreStream = new EventSource('/api/events');
     window.coreStream.onmessage = e => window.coreStates.push(JSON.parse(e.data));
   });
-  await page.bringToFront(); await page.locator('#build-mode').click(); await page.locator('#core-card').click();
+  await page.bringToFront();
   await expect(page.locator('#core-status')).toContainText('ORBITAL SURVEY');
   await siteControls(page); await page.locator('#tile-x').fill('29'); await page.locator('#tile-y').fill('13'); await page.locator('#select-tile').click();
   await expect(page.locator('#place-building')).toHaveText(/Confirm orbital drop/);
@@ -342,7 +372,8 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   expect(returned.cores.find(c => c.id === core.id)?.elapsed).toBe(4.5); expect(returned.me.x).toBeCloseTo(walked.x, 1);
   await page.locator('#build-mode').click(); await expect(page.locator('#core-card')).toBeDisabled();
   // The second player owns a separate core; native touch can confirm deployment.
-  await peer.bringToFront(); await peer.locator('#build-mode').tap(); await peer.locator('#core-card').tap();
+  await peer.bringToFront(); await siteControls(peer);
+  await peer.locator('#tile-x').fill('24'); await peer.locator('#tile-y').fill('24'); await peer.locator('#select-tile').tap();
   await expect(peer.locator('#place-building')).toBeEnabled();
   await peer.screenshot({ path: 'docs/previews/core-survey-mobile.png' });
   await peer.locator('#place-building').tap(); await expect(peer.locator('#core-status')).toHaveText('ORBITAL DESCENT');
@@ -385,5 +416,5 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   expect(later.every(id => stoppedAt.includes(id))).toBe(true);
   expect(await peer.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
   expect(errors).toEqual([]);
-  await context.close(); await other.close();
+  } finally { await context.close(); await other.close(); await arena.close(); }
 });

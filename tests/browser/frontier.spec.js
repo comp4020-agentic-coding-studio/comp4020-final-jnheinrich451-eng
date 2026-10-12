@@ -27,10 +27,14 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
       } finally { await page.unroute('**/api/input', idle); }
     };
     const initial = await state(page); expect([initial.world.width, initial.world.height]).toEqual([128, 96]);
+    // Orbital entry: both scouts land before building. The teammate's core near
+    // the eastern track supplies the cannon's construction support.
+    expect((await post(page, 'cores', { x: 29, y: 13 })).status).toBe(201);
+    expect((await post(peer, 'cores', { x: 60, y: 26 })).status).toBe(201);
+    await expect.poll(async () => (await state(page)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    await expect.poll(async () => (await state(peer)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const data of [{ x: 68, y: 19, shape: 'EW' }, { x: 71, y: 22, shape: 'NS' }, { x: 68, y: 22, shape: 'NE' }]) expect((await post(page, 'rails', data)).status).toBe(201);
     const deployed = await post(page, 'artillery', { x: 68, y: 19 }); expect(deployed.status).toBe(201); const gun = deployed.data.gun;
-    expect((await post(page, 'cores', { x: 29, y: 13 })).status).toBe(201);
-    await expect.poll(async () => (await state(page)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     await positionRobot(30, 11);
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#artillery-guard')).toContainText('Robot guarding');

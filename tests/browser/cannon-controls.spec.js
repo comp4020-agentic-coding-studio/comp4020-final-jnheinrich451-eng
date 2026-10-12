@@ -15,7 +15,8 @@ for (const mobile of [false, true]) test(`pointer cannon, directional drive and 
     const state = () => page.evaluate(async () => (await (await fetch('/api/world')).json()));
     const post = (route, data) => page.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     await expect(page.locator('#connection')).toContainText('live');
-    expect((await post('cores', { x: 70, y: 50 })).status).toBe(201);
+    // The cannon needs a completed friendly core's construction support nearby.
+    expect((await post('cores', { x: 29, y: 13 })).status).toBe(201);
     await expect.poll(async () => (await state()).me.deploying, { timeout: 12000 }).toBe(false);
     for (const x of [20, 24]) expect((await post('rails', { x, y: 23, shape: 'EW' })).status).toBe(201);
     const gun = (await post('artillery', { x: 20, y: 23 })).data.gun;
