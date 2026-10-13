@@ -1,12 +1,15 @@
+import { assemblyStage } from './construction-effects.js';
 import { LOGISTICS_SIZE, ECONOMY, facilityTargets } from './logistics.js';
 
-export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId){
+export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construction=null,advance=0){
   const l=world.logistics;if(!l)return;
   const label=(text,x,y,color='#e8dfa8')=>{c.font=`${10/zoom}px monospace`;c.textAlign='center';const w=c.measureText(text).width;c.fillStyle='#122d29e8';c.fillRect(x*T-w/2-3,y*T-11/zoom,w+6,15/zoom);c.fillStyle=color;c.fillText(text,x*T,y*T);};
   c.save();
   for(const site of world.sites||[])if(site.state==='conquered'&&(l.salvage[site.id]??ECONOMY.salvage)>0)label('SALVAGE '+(l.salvage[site.id]??ECONOMY.salvage),site.x+1.5,site.y+3.4);
   for(const f of l.facilities){
     const size=LOGISTICS_SIZE[f.kind],x=f.x*T,y=f.y*T,s=size*T;
+    const stage=assemblyStage(f.remaining,8,advance);
+    c.save();if(stage.active){c.beginPath();c.rect(x,y+s*(1-stage.reveal),s,s*stage.reveal);c.clip();}
     c.fillStyle='#293e43';c.fillRect(x,y,s,s);c.strokeStyle='#adbea0';c.lineWidth=2/zoom;c.strokeRect(x+3,y+3,s-6,s-6);
     for(let i=0;i<size*3;i++){c.fillStyle=i%2?'#d3ab58':'#26373b';c.fillRect(x+i*s/(size*3),y+s-7,s/(size*3),7);}
     if(f.kind==='factory'){
@@ -21,18 +24,21 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId){
       if(f.launch>0){c.fillStyle='#ffaa45';c.beginPath();c.moveTo(-s*.07,s*.25);c.lineTo(0,s*.6);c.lineTo(s*.07,s*.25);c.fill();}
       c.fillStyle='#dbdbc3';c.beginPath();c.moveTo(0,-s*.35);c.lineTo(s*.1,-s*.15);c.lineTo(s*.1,s*.25);c.lineTo(-s*.1,s*.25);c.lineTo(-s*.1,-s*.15);c.closePath();c.fill();c.fillStyle='#ae5744';c.fillRect(-s*.1,-s*.02,s*.2,s*.07);c.restore();
     }
-    if(f.remaining>0){c.fillStyle='#15312b99';c.fillRect(x,y,s,s);label('ASSEMBLING '+Math.ceil(f.remaining)+'s',f.x+size/2,f.y+size/2);}
+    c.restore();construction?.draw(c,world,{x:f.x+size/2,y:f.y+size/2},size,stage,zoom,reduced,true);
+    if(stage.active)label(stage.phase+' '+Math.ceil(f.remaining)+'s',f.x+size/2,f.y+size+.6);
     label(f.kind==='factory'?'FACTORY':'UPLINK / '+f.cargo+' CARGO',f.x+size/2,f.y+size+.25);
   }
   for(const r of l.recyclers){
+    const stage=assemblyStage(r.remaining,4.5,advance);
+    c.save();if(stage.active)c.globalAlpha=stage.reveal;
     c.save();c.translate(r.x*T,r.y*T);c.rotate(r.angle);c.fillStyle='#172d30';c.fillRect(-.43*T,-.48*T,.86*T,.96*T);
     for(const side of [-1,1])for(const axle of [-.3,.3]){c.fillStyle='#101d21';c.fillRect((side*.4-.09)*T,(axle-.15)*T,.18*T,.3*T);}
     c.fillStyle=r.kind==='builder'?'#b3bcb6':'#c39d58';c.fillRect(-.33*T,-.4*T,.66*T,.8*T);c.fillStyle='#3d656a';c.fillRect(-.23*T,-.31*T,.46*T,.25*T);
     c.fillStyle=r.cargo?'#aa6d94':'#4a5045';c.fillRect(-.25*T,.06*T,.5*T,.28*T);c.fillStyle='#adba9e';c.fillRect(-.45*T,-.54*T,.9*T,.12*T);c.restore();
     if(r.kind==='builder'){c.strokeStyle='#dab96e';c.lineWidth=4/zoom;c.beginPath();c.moveTo(r.x*T,r.y*T);c.lineTo((r.x+Math.sin(r.angle)*.55)*T,(r.y-Math.cos(r.angle)*.55)*T);c.stroke();}
     if(r.occupant){c.strokeStyle=r.occupant===driverId?'#e3bc70':'#a6ccc0';c.lineWidth=2/zoom;c.beginPath();c.arc(r.x*T,r.y*T,T*.67,0,Math.PI*2);c.stroke();}
-    if(r.remaining>0){c.strokeStyle='#e6ba69';c.beginPath();c.arc(r.x*T,r.y*T,T*.8,0,Math.PI*2);c.stroke();}
-    label(r.remaining>0?'POD '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':r.cargo),r.x,r.y+.85);
+    c.restore();construction?.draw(c,world,r,1,stage,zoom,reduced);
+    label(r.remaining>0?stage.phase+' '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':r.cargo),r.x,r.y+.85);
   }
   for(const box of l.crates){
     if(box.kind==='remains'){

@@ -1,3 +1,4 @@
+import { dockRecords } from './shipyard.js';
 import { boardingPoint, mooredDock, dockRects } from './ship.js';
 import { canStand } from './world.js';
 import { operational } from './vehicle.js';
@@ -60,7 +61,7 @@ export function unloadPoint(world,buildings,people,ship,drive=false){
 export function driveGate(world,buildings,ship){
   if(!cargoAccess(world,buildings,ship))return null;
   if(ship.ramp)return {x:ship.ramp.x,y:ship.ramp.y};
-  const dock=mooredDock(world,ship),owner=world.ships.find(s=>s.dock===dock),pier=owner&&dockRects(owner)[1];
+  const dock=mooredDock(world,ship),owner=dockRecords(world).find(s=>s.dock===dock),pier=owner&&dockRects(owner)[1];
   if(!pier)return dock;
   const dx=ship.x-pier.x,dy=ship.y-pier.y,d=Math.hypot(dx,dy);
   return {x:pier.x+dx/d,y:pier.y+dy/d};

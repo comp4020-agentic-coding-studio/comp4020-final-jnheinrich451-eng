@@ -472,3 +472,16 @@ K drives cargo off directly into vehicle controls. Preserve a single seat and
 vehicle record across restart, ownership, blocked exits and builder locks.
 Retain completed deck flooring during hull replacement and dock damage; require
 a clear offshore deck before recall. See docs/ARMORED_TRANSPORT.md.
+
+The next 13 October stage is in docs/CONSTRUCTION_AND_SHIPYARDS.md. The author
+confirmed cosmetic construction drones and reusable permanent shipyards separate
+from retractable shore ramps. Stage 1 adds client-only capsule/assembly feedback
+for logistics buildings and utility vehicles using existing saved countdowns.
+Naval cards expose manage/rebuild actions instead of disabling owned vessels.
+Preserve server admission, prices, caps and atomic replacement; never infer
+readiness from animation time. The author then approved implementing and deploying the remaining batch. Independent
+shipyards, bounded cosmetic wrecks and the ramp sentry are implemented in that
+brief. Preserve legacy dock geometry and backups, one assigned hull per yard,
+existing fleet caps, paid idempotent admission and interruption during dock loss.
+Folding cannot restore sentry HP or reload; repair requires a paid dock service.
+All pricing remains provisional. No individual worker simulation is authorized.

@@ -1,3 +1,4 @@
+import { dockRecords } from './shipyard.js';
 import { ECONOMY, COSTS, emergencyTankError, readyFactory } from './logistics.js';
 
 export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
@@ -34,7 +35,7 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     options('recycler-select',l.recyclers.filter(r=>r.kind!=='builder'&&(canManage(r.owner)||r.occupant===me?.id)).map(r=>[r.id,`Recycler / ${r.cargo}/${ECONOMY.cargo} cargo / ${r.remaining>0?'incoming':r.occupant?'occupied':r.blocked?'route blocked':r.path.length?'driving':r.task?.action||'idle'}`]));
     options('salvage-target',[...(world.sites||[]).filter(s=>s.state==='conquered'&&(l.salvage[s.id]??ECONOMY.salvage)>0).map(s=>['site:'+s.id,`${s.name} / ${l.salvage[s.id]??ECONOMY.salvage} salvage / ${s.x}:${s.y}`]),...l.crates.map(c=>['crate:'+c.id,`${c.kind==='remains'?'Alien remains':'Recover'} ${c.amount} cargo / ${Math.floor(c.x)}:${Math.floor(c.y)}`])]);
     options('uplink-select',l.facilities.filter(f=>f.kind==='uplink').map(f=>[f.id,`Launch station ${f.x}:${f.y} / ${f.cargo} cargo${f.remaining>0?' / building':f.launch>0?' / launching '+Math.ceil(f.launch)+'s':''}`]));
-    const repairs=[...world.ships.filter(s=>s.dockDestroyed&&canManage(s.owner)).map(s=>['dock:'+s.id,`Dock ${s.dock.x}:${s.dock.y} / ${COSTS.dockRepair} supplies`]),...world.airbases.filter(b=>b.destroyed&&canManage(b.owner)).map(b=>['airbase:'+b.id,`Airbase ${b.x}:${b.y} / ${COSTS.baseRepair} supplies`])];
+    const repairs=[...dockRecords(world).filter(s=>s.dockDestroyed&&canManage(s.owner)).map(s=>['dock:'+s.id,`Dock ${s.dock.x}:${s.dock.y} / ${COSTS.dockRepair} supplies`]),...world.airbases.filter(b=>b.destroyed&&canManage(b.owner)).map(b=>['airbase:'+b.id,`Airbase ${b.x}:${b.y} / ${COSTS.baseRepair} supplies`])];
     options('logistics-repair',repairs);
     const objects=[...world.airbases,...world.ships,...world.artillery];
     options('logistics-order',Object.entries(l.jobs).filter(([id,j])=>j.kind!=='repair'&&objects.some(o=>o.id===id&&canManage(o.owner))).map(([id,j])=>[id,`${j.kind} / ${Math.ceil(j.remaining)}s / cancel returns ${Math.floor(j.cost/2)}`]));

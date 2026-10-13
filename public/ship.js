@@ -1,3 +1,4 @@
+import { dockRecords, SHIPYARD } from './shipyard.js';
 import { bridgeAt } from './bridge-geometry.js';
 import { airbaseAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
@@ -35,26 +36,27 @@ export function dockRects(ship) {
 }
 export const dockComplete = ship => ship.dockReady || ship.elapsed >= SHIP.duration;
 export function dockFloorAt(world,x,y){
-  return (world.ships||[]).some(s=>dockComplete(s)&&dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0})));
+  return dockRecords(world).some(s=>dockComplete(s)&&dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0})));
 }
-export const dockAt = (world,x,y) => world.ships?.some(s=>dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0}))||[s.dock,...(!s.destroyed&&s.ramp?[s.ramp]:[])].some(p=>Math.floor(p.x)===x&&Math.floor(p.y)===y));
+export const dockAt = (world,x,y) => dockRecords(world).some(s=>dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0}))||(Math.floor(s.dock.x)===x&&Math.floor(s.dock.y)===y))||(world.ships||[]).some(s=>!s.destroyed&&s.ramp&&Math.floor(s.ramp.x)===x&&Math.floor(s.ramp.y)===y);
 export function shipBlocks(world,x,y,radius=.21) {
   return world.ships?.some(s=>!s.destroyed&&rectanglesOverlap(hull(s,s.elapsed<SHIP.duration),{x,y,w:radius*2,h:radius*2,angle:0}))||false;
 }
 export function canSail(world,ship,x=ship.x,y=ship.y,angle=ship.angle,cradle=false) {
   const rect=cradle?hull(ship,true):hull({...ship,x,y,angle});
   for(const cell of hullCells(rect))if(cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||bridgeAt(world,cell.x,cell.y)||tileAt(world,cell.x,cell.y)!==0||artilleryBlocks(world,cell.x,cell.y))return false;
-  if((world.ships||[]).some(s=>dockRects(s).some(r=>rectanglesOverlap(rect,r))))return false;
+  if(dockRecords(world).some(s=>dockRects(s).some(r=>rectanglesOverlap(rect,r))))return false;
   return !(world.ships||[]).some(s=>!s.destroyed&&s.id!==ship.id&&rectanglesOverlap(rect,hull(s,s.elapsed<SHIP.duration)));
 }
 /** @param {{dock:{x:number,y:number,angle:number},berthX:number,berthY:number} | null} [original] */
-export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dockStyle='legacy',original=null) {
+export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dockStyle='legacy',original=null,yardOnly=false) {
   const fail=error=>({error,ship:null});
   if(!['gunship','submarine','transport'].includes(kind))return fail('Choose a gunship, missile submarine or armored transport.');
   if(!['legacy','unfolding'].includes(dockStyle))return fail('Choose a supported dock layout.');
   if(![x,y].every(Number.isInteger))return fail('Select a coastal water tile for the ship center.');
-  if(world.ships?.some(s=>s.owner===owner&&shipKind(s)===kind))return fail('One '+shipName({kind}).toLowerCase()+' per scout in this field test.');
-  if((world.ships?.length||0)>=SHIP.max)return fail('This field test allows four ships.');
+  if(dockRecords(world).length>=SHIPYARD.max||dockRecords(world).filter(d=>d.owner===owner).length>=SHIPYARD.perOwner)return fail('Shipyard limit: four per scout, eight per campaign.');
+  if(!yardOnly&&world.ships?.some(s=>s.owner===owner&&shipKind(s)===kind))return fail('One '+shipName({kind}).toLowerCase()+' per scout in this field test.');
+  if(!yardOnly&&(world.ships?.length||0)>=SHIP.max)return fail('This field test allows four ships.');
   if(x<0||y<0||x>=world.width||y>=world.height||tileAt(world,x,y)!==0)return fail('The ship needs open water. Choose a coastal water tile.');
   for(let distance=3;distance<=5;distance++)for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]) {
     if(dockStyle==='unfolding'&&distance!==3)continue;
@@ -77,12 +79,12 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
       for(const side of [1,-1]){
         ship.x=ship.berthX=x+.5+Math.cos(dock.angle)*3*side;ship.y=ship.berthY=y+.5+Math.sin(dock.angle)*3*side;
         if(original&&Math.hypot(ship.berthX-original.berthX,ship.berthY-original.berthY)>.001)continue;
-        if(canSail(world,ship,ship.x,ship.y,ship.angle,true)&&!(world.ships||[]).some(s=>rectanglesOverlap(hull(ship,true),hull(s,true)))&&!occupants.some(p=>rectanglesOverlap(hull(ship,true),{x:p.x,y:p.y,w:.8,h:.8,angle:0}))){found=true;break;}
+        if(canSail(world,ship,ship.x,ship.y,ship.angle,true)&&!dockRecords(world).some(s=>rectanglesOverlap(hull(ship,true),hull(s,true)))&&!occupants.some(p=>rectanglesOverlap(hull(ship,true),{x:p.x,y:p.y,w:.8,h:.8,angle:0}))){found=true;break;}
       }
       if(!found)continue;
     }
     if(!canSail(world,ship,ship.x,ship.y,ship.angle,true))continue;
-    if((world.ships||[]).some(s=>rectanglesOverlap(hull(ship,true),hull(s,true))))continue;
+    if(dockRecords(world).some(s=>rectanglesOverlap(hull(ship,true),hull(s,true))))continue;
     if(occupants.some(p=>rectanglesOverlap(hull(ship,true),{x:p.x,y:p.y,w:.8,h:.8,angle:0})))continue;
     return {error:null,ship};
   }
@@ -103,14 +105,14 @@ export function recallShipError(world,ship,people=[]) {
 }
 export function mooredDock(world,ship) {
   if(!surfaced(ship))return null;
-  return (world.ships||[]).find(s=>!s.dockDestroyed&&dockComplete(s)&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
+  return dockRecords(world).find(s=>!s.dockDestroyed&&dockComplete(s)&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
 }
 // Replacement uses an existing dock. People on its shore platform do not block
 // rebuilding the hull alongside it; only the reserved water cradle must clear.
 export function replacementShipError(world,people,ship){
   if(!ship?.destroyed)return 'Choose a destroyed ship.';
   if(ship.dockDestroyed)return 'Repair this dock in Logistics (L) before rebuilding its ship.';
-  if(world.logistics?.jobs?.[ship.id])return 'Wait for dock repairs to finish.';
+  if(world.logistics?.jobs?.[ship.yardId||ship.id])return 'Wait for dock repairs to finish.';
   if(ship.replacement>.001)return 'Replacement ready in '+Math.ceil(ship.replacement)+'s.';
   const next={...ship,x:ship.berthX,y:ship.berthY,angle:ship.dock.angle};
   if(!canSail(world,next,next.x,next.y,next.angle,true))return 'Clear the water berth beside the existing dock.';
@@ -151,7 +153,7 @@ export function boardingPoint(world,ship,buildings=[],near=null) {
   if(p&&Math.hypot(ship.x-p.shipX,ship.y-p.shipY)<.001&&Math.abs(angleDelta(ship.angle,p.shipAngle))<.001&&rampClear(world,buildings,ship,p))return p;
   const dock=mooredDock(world,ship);
   if(!dock||!near)return dock;
-  const owner=world.ships.find(s=>s.dock===dock),rects=dockRects(owner);
+  const owner=dockRecords(world).find(s=>s.dock===dock),rects=dockRects(owner);
   const points=[dock,...rects.flatMap(hullCells).map(p=>({x:p.x+.5,y:p.y+.5}))];
   return points.filter(p=>canStand(world,buildings,p.x,p.y)).sort((a,b)=>Math.hypot(a.x-near.x,a.y-near.y)-Math.hypot(b.x-near.x,b.y-near.y))[0]||dock;
 }

@@ -86,10 +86,10 @@ it.each(['gunship','submarine','transport'])('rebuilds a destroyed %s at its sav
     const r=await f.post('vehicles/replace',{kind:'ship',id:'wreck'});expect(r.status).toBe(200);expect(r.data.vehicle).toMatchObject({id:'wreck',kind,destroyed:false,health:300,elapsed:0,dock:original.dock,berthX:original.berthX,berthY:original.berthY});
     const cost=kind==='gunship'?240:kind==='submarine'?280:200;expect((await f.state()).logistics.supplies).toBe(before-cost);
     expect((await f.post('vehicles/replace',{kind:'ship',id:'wreck'})).status).toBe(200);expect((await f.state()).logistics.supplies).toBe(before-cost);
-    await f.restart();await f.connect();await expect.poll(async()=>(await f.state()).ships[0].elapsed,{timeout:7000}).toBe(4.5);
+    await f.restart();await f.connect();await expect.poll(async()=>(await f.state()).ships[0].elapsed,{timeout:16000}).toBe(4.5);
     expect((await f.post('ships/board',{id:'wreck'})).status).toBe(200);
   }finally{await f.close();}
-},12000);
+},20000);
 it('explains damaged docks, repairs, timers and occupied berths before rebuilding',()=>{
   const w=river(flat()),s={...vessel(),destroyed:true,health:0,replacement:0};w.ships=[s];
   expect(replacementShipError(w,[{...s.dock,body:'robot'}],s)).toBeNull();

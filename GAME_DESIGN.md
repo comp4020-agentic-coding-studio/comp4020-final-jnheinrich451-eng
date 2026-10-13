@@ -82,6 +82,17 @@ or builder between docks and remote shore access points. It retains the vehicle'
 saved identity, adds a bow turret and reuses naval side guns. Transport loss
 destroys its cargo; passenger seats and aircraft carriers remain future stages.
 
+## 13 October construction presentation checkpoint
+
+[Construction and shipyards](docs/CONSTRUCTION_AND_SHIPYARDS.md) records capsule
+arrivals and cosmetic assembly drones for logistics equipment, plus explicit
+naval deploy/manage/rebuild actions. This first stage is implemented locally and
+uses existing server timers, prices and fleet caps. The author confirmed visual
+workers first and reusable permanent shipyards separate from retractable shore
+ramps. The subsequently approved batch implements paid 12-second shipyard production,
+bounded persistent sinking traces and a folding ramp sentry. Existing docks migrate
+with backups; prices and limits are provisional and recorded in the stage brief.
+
 ## 1. How to use this document
 
 11 October stage: build the [corrosive-mortar outpost](docs/MORTAR_OUTPOST.md)

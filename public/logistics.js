@@ -1,3 +1,4 @@
+import { dockRecords } from './shipyard.js';
 // All balance values for the first conquest economy live here. Server-owned;
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
@@ -5,10 +6,10 @@ export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 20
   factoryDiscount: .6, factoryTime: 20, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ core: 120, sentry: 25, tank: 100, ship: 240,
   submarine: 280, transport: 200, airbase: 300, artillery: 180, missile: 220, factory: 150,
-  uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150 });
+  uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
 export const LOGISTICS_SIZE = Object.freeze({ factory: 2, uplink: 3, recycler: 1, builder: 1 });
 export const FACILITY_HP = Object.freeze({ core: 500, sentry: 140, artillery: 350,
-  missile: 320, airbase: 500, dock: 320, factory: 400, uplink: 300, recycler: 160 });
+  missile: 320, airbase: 500, dock: 320, ramp: 140, factory: 400, uplink: 300, recycler: 160 });
 export const freshLogistics = () => ({ version: 1, supplies: ECONOMY.initial, time: 0,
   emergency: 0, bridges: [], floors: [], facilities: [], recyclers: [], crates: [], salvage: {}, durability: {},
   jobs: {}, deployments: {}, shipments: 0 });
@@ -80,7 +81,7 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
   for (const b of buildings) if (!b.coreId) add(b,'sentry',b.x+.5,b.y+.5,1,1);
   for (const g of world.artillery || []) add(g,g.kind==='missile'?'missile':'artillery',g.x+(g.kind==='missile'?2:.5),g.y+(g.kind==='missile'?2:.5),g.kind==='missile'?4:3,g.kind==='missile'?4:3);
   for (const b of world.airbases || []) add(b,'airbase',b.x+5,b.y+2.5,2,3);
-  for (const s of world.ships || []) {
+  for (const s of dockRecords(world)) {
     // A hull loss does not destroy its dock; a dock loss does not sink its ship.
     if (!s.dockDestroyed) {
       const proxy = { ...s, destroyed: false };
@@ -88,6 +89,7 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
       targets[targets.length-1].object = s;
     }
   }
+  for (const s of world.ships || []) if(s.ramp && !s.destroyed && s.rampGun && !s.rampGun.destroyed) add(s.rampGun,'ramp',s.ramp.x,s.ramp.y,.6,.6);
   for (const f of l.facilities) { const size=LOGISTICS_SIZE[f.kind]; add(f,f.kind,f.x+size/2,f.y+size/2,size,size); }
   for (const r of l.recyclers) add(r,'recycler',r.x,r.y,.8,.8);
   return includeDestroyed ? targets : targets.filter(t=>t.hp.health>0);

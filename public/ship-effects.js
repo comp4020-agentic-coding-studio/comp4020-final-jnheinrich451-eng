@@ -12,8 +12,10 @@ export class ShipEffects extends CoreEffects {
     c.strokeStyle=preview?'#bceac799':'#e3c489';c.fillStyle='#546f70';c.lineWidth=2/zoom;
     if(preview){c.setLineDash([5/zoom,4/zoom]);c.strokeRect(0,-T*.21,length,T*.42);}
     else{c.fillRect(0,-T*.21,length,T*.42);c.strokeRect(0,-T*.21,length,T*.42);c.lineWidth=1;for(let x=4;x<length;x+=T*.18){c.beginPath();c.moveTo(x,-T*.17);c.lineTo(x,T*.17);c.stroke();}}
-    c.restore();c.save();c.strokeStyle=preview?'#bceac7':'#e3c489';c.lineWidth=1.5/zoom;c.strokeRect((point.x-.38)*T,(point.y-.38)*T,.76*T,.76*T);
-    c.fillStyle='#123b3bdf';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=preview?'G / SHORE RAMP':'RAMP / E',width=c.measureText(label).width;c.fillRect(point.x*T-width/2-3,(point.y+.95)*T,width+6,15/zoom);c.fillStyle='#e6e5bc';c.fillText(label,point.x*T,(point.y+.95)*T+11/zoom);c.restore();
+    c.restore();
+    if(!preview&&ship.rampGun){const g=ship.rampGun;c.save();c.translate(point.x*T,point.y*T);c.rotate(g.angle||0);c.fillStyle=g.destroyed?'#423c3b':'#344b4d';c.fillRect(-.3*T,-.3*T,.6*T,.6*T);c.strokeStyle=g.destroyed?'#7f6752':'#dcc68c';c.lineWidth=2/zoom;c.strokeRect(-.3*T,-.3*T,.6*T,.6*T);if(!g.destroyed){c.fillStyle='#d9cbaa';c.fillRect(-.12*T,-.2*T,.24*T,.36*T);c.fillStyle='#778f91';c.fillRect(-.04*T,-.68*T,.08*T,.5*T);}c.restore();}
+    c.save();c.strokeStyle=preview?'#bceac7':'#e3c489';c.lineWidth=1.5/zoom;c.strokeRect((point.x-.38)*T,(point.y-.38)*T,.76*T,.76*T);
+    c.fillStyle='#123b3bdf';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=preview?'G / SHORE RAMP':ship.rampGun?.destroyed?'RAMP / SENTRY LOST':'RAMP / SENTRY / E',width=c.measureText(label).width;c.fillRect(point.x*T-width/2-3,(point.y+.95)*T,width+6,15/zoom);c.fillStyle='#e6e5bc';c.fillText(label,point.x*T,(point.y+.95)*T+11/zoom);c.restore();
   }
   vehicleRamp(c,ship,point,zoom){
     if(!point)return;

@@ -1,3 +1,4 @@
+import { rampSentryStep } from './ramp-sentry.js';
 import { addRemains, facilityTargets, facilityPoint, facilityDistance, hurtFacility } from './logistics.js';
 import { tickAntiAir } from './anti-air.js';
 import { tickLasers } from './laser-tower.js';
@@ -414,6 +415,7 @@ export function createCombat(world, saved = null, auditContext = null) {
         }
       }
     }
+    for(const ship of world.ships||[])if(rampSentryStep(world,ship,enemies,buildings,dt,shoot))changed=true;
     let hazardsLanded = false;
     for (const barrage of barrages) {
       barrage.age += dt;
