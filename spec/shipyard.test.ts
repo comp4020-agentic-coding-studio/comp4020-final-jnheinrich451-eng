@@ -9,7 +9,8 @@ import { createWorld, tileAt } from '../public/world.js';
 import { shipSite, dockAt } from '../public/ship.js';
 import { freshLife } from '../public/survival.js';
 import { freshLogistics, facilityTargets, hurtFacility } from '../public/logistics.js';
-import { dockRecords, yardFromShip, rememberWreck } from '../public/shipyard.js';
+import { dockRecords, yardFromShip, rememberWreck, yardBuildError, tickDockRepair, nearbyShipyard, dockBoardingShip } from '../public/shipyard.js';
+import { hurtVehicle } from '../public/vehicle.js';
 import { rampSentryStep, newRampGun } from '../public/ramp-sentry.js';
 import { createCombat } from '../public/combat.js';
 
@@ -48,8 +49,20 @@ it('migrates docks with a backup, buys an empty yard, rebuilds there once and pr
     expect((await post('ships/recall',{id:'lost',keepYard:true})).status).toBe(200);s=await state();expect(s.ships).toHaveLength(0);expect(s.logistics.shipyards).toHaveLength(2);
     expect((await post('ships',{kind:'transport',yardId:yard.id})).status).toBe(201);s=await state();expect(s.ships[0].kind).toBe('transport');expect(s.logistics.supplies).toBe(525);
     await restart();s=await state();expect(s.ships).toHaveLength(1);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);expect(tileAt(s.world,23,25)).toBe(4);
+    // Each dock has its own slot, even when the same owner chooses the same type.
+    await connect();
+    const second=await post('ships',{kind:'transport',yardId:'lost'});expect(second.status).toBe(201);
+    expect((await post('ships',{kind:'transport',yardId:'lost'})).status).toBe(200);
+    expect((await state()).ships).toHaveLength(2);expect((await state()).logistics.supplies).toBe(325);
+    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{elapsed:4.5,assemblyRemaining:0,health:250});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
+    await connect();await expect.poll(async()=>(await state()).ships.find((v:any)=>v.id===second.body.ship.id).health,{timeout:8000}).toBe(300);
+    expect((await state()).logistics.supplies).toBeCloseTo(315,4);
+    await restart();s=await state();expect(s.ships.find((v:any)=>v.id===second.body.ship.id).health).toBe(300);expect(s.logistics.supplies).toBeCloseTo(315,4);
+    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{destroyed:true,health:0,replacement:0});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
+    await connect();const changed=await post('vehicles/replace',{kind:'ship',vesselKind:'submarine',id:second.body.ship.id});expect(changed.status).toBe(200);expect(changed.body.vehicle).toMatchObject({kind:'submarine',ammo:'HE',health:300,depth:'surfaced'});
+    s=await state();expect(s.logistics.supplies).toBeGreaterThan(35-1e-8);expect(s.logistics.supplies).toBeLessThan(37);expect(s.ships).toHaveLength(2);
   }finally{controller?.abort();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-yard-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}
-},45000);
+},55000);
 
 it('retains empty dock geometry and bounds cosmetic wrecks without obstructing water',()=>{
   const w=coast(),s:any={...shipSite(w,[],[],23,25,'a','gunship','unfolding').ship,id:'s',elapsed:4.5,destroyed:true};
@@ -67,4 +80,43 @@ it.each(['swimmer','crawler'])('ramp sentry hits a %s with real projectiles and 
   const target=facilityTargets(w).find(f=>f.kind==='ramp')!;hurtFacility(target,20);const hp=target.hp.health,gun=ship.rampGun;gun.remaining=.3;ship.ramp=null;
   let fired=false;rampSentryStep(w,ship,[{id:3,x:19,y:25,hp:10}],[],.05,()=>{fired=true;return null;});expect(fired).toBe(false);expect(gun.remaining).toBeCloseTo(.25);expect(target.hp.health).toBe(hp);
   ship.ramp={x:20.5,y:25.5};gun.destroyed=true;rampSentryStep(w,ship,[{id:3,x:19,y:25,hp:10}],[],1,()=>{fired=true;return null;});expect(fired).toBe(false);
+});
+
+function repairFixture(){
+  const w=coast(),ship:any={...shipSite(w,[],[],23,25,'a','gunship','unfolding').ship,id:'s',elapsed:4.5,health:200,speed:0};
+  w.ships=[ship];w.logistics.shipyards=[yardFromShip(ship)];w.logistics.supplies=100;return {w,ship,yard:w.logistics.shipyards[0]};
+}
+it('repairs only real missing hull health, stops on damage, and never charges beyond available supplies',()=>{
+  const {w,ship}=repairFixture();tickDockRepair(w,ship,1);expect(ship.health).toBe(210);expect(w.logistics.supplies).toBe(98);expect(ship.repairing).toBe(true);
+  hurtVehicle(ship,20);tickDockRepair(w,ship,4);expect(ship.health).toBe(190);expect(ship.repairing).toBe(false);expect(w.logistics.supplies).toBe(98);
+  tickDockRepair(w,ship,1);expect(ship.health).toBe(200);
+  ship.health=299;tickDockRepair(w,ship,1);expect(ship.health).toBe(300);expect(w.logistics.supplies).toBeCloseTo(95.8);
+  tickDockRepair(w,ship,1);expect(w.logistics.supplies).toBeCloseTo(95.8);expect(ship.repairing).toBe(false);
+  ship.health=200;w.logistics.supplies=.1;tickDockRepair(w,ship,1);expect(ship.health).toBe(200.5);expect(w.logistics.supplies).toBe(0);
+  tickDockRepair(w,ship,1);expect(ship.health).toBe(200.5);expect(ship.repairing).toBe(false);
+});
+it.each(['moving','away','submerged','destroyed','assembling','dock destroyed','dock repairing'])('does not heal while %s',reason=>{
+  const {w,ship,yard}=repairFixture();
+  if(reason==='moving')ship.speed=1;if(reason==='away')ship.x+=10;
+  if(reason==='submerged'){ship.kind='submarine';ship.depth='submerged';}
+  if(reason==='destroyed')ship.destroyed=true;if(reason==='assembling')ship.assemblyRemaining=2;
+  if(reason==='dock destroyed')yard.dockDestroyed=true;if(reason==='dock repairing')w.logistics.jobs[yard.id]={remaining:3};
+  tickDockRepair(w,ship,1);expect(ship.health).toBe(200);expect(w.logistics.supplies).toBe(100);expect(ship.repairing).toBe(false);
+});
+it('reserves a per-dock slot at sea, counts active hulls and finds dock interaction from its deck',()=>{
+  const {w,ship,yard}=repairFixture();ship.x+=15;
+  expect(yardBuildError(w,yard,'a','transport')).toContain('already supports');
+  expect(yardBuildError(w,yard,'other','transport')).toContain('own shipyard');
+  ship.destroyed=true;expect(yardBuildError(w,yard,'a','transport',ship)).toBeNull();
+  for(let n=0;n<4;n++)w.ships.push({...ship,id:'other'+n,yardId:'other'+n,destroyed:false,x:45,y:60+n*6});
+  expect(yardBuildError(w,yard,'a','transport',ship)).toContain('four vessels');
+  expect(nearbyShipyard(w,{id:'a',body:'robot',life:'active',...yard.dock})?.yard.id).toBe(yard.id);
+  expect(nearbyShipyard(w,{id:'b',body:'robot',life:'active',...yard.dock})).toBeNull();
+});
+
+it('offers boarding for a visitor without transferring its assigned production slot',()=>{
+  const {w,ship,yard}=repairFixture();
+  const visitor={...ship,id:'friend',owner:'friend',yardId:'other-yard'};ship.x+=12;w.ships.push(visitor);
+  expect(dockBoardingShip(w,yard)?.id).toBe('friend');expect(visitor.yardId).toBe('other-yard');
+  visitor.destroyed=true;expect(dockBoardingShip(w,yard)).toBeNull();
 });

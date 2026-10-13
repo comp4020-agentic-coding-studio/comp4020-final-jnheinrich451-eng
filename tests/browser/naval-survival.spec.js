@@ -12,8 +12,8 @@ for(const mobile of [false,true])test(`swimmers, ship loss, core recovery and re
  const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-sea-loss-'));let app=createApp({dataDir}),context,other;
  await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=createWorld(),token=randomUUID();world.terrain=world.terrain.map((_,i)=>i%48<20?0:2);
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');
- db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',17.5,12.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',30,24,4.5);
- const ship={...shipSite(world,[],[],17,12,'pilot').ship,id:'ship',elapsed:4.5,health:105,hurt:0,occupant:'pilot'};db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));db.close();app=createApp({dataDir});
+ db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',12.5,12.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',30,24,4.5);
+ const ship={...shipSite(world,[],[],17,12,'pilot').ship,id:'ship',elapsed:4.5,health:105,hurt:0,x:12.5,occupant:'pilot'};db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));db.close();app=createApp({dataDir});
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();
@@ -31,8 +31,8 @@ for(const mobile of [false,true])test(`swimmers, ship loss, core recovery and re
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
   expect((await state(page)).ships[0].health).toBe(0);await expect(page.locator('#recovery-title')).toHaveText('Ship destroyed');
   await expect(page.locator('#revive-button')).toBeEnabled({timeout:5000});await page.locator('#revive-button').click();await expect.poll(async()=>(await state(page)).me.life).toBe('active');
-  await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-replace')).toBeVisible();await expect(page.locator('#ship-replace')).toBeEnabled({timeout:15000});
-  await page.locator('#ship-replace').click();await expect.poll(async()=>(await state(peer)).ships[0].elapsed,{timeout:7000}).toBe(4.5);
+  await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#ship-card').click();await expect(page.locator('#yard-build-gunship')).toBeVisible();await expect(page.locator('#yard-build-gunship')).toBeEnabled({timeout:15000});
+  await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state(peer)).ships[0].elapsed,{timeout:15000}).toBe(4.5);
   expect((await state(page)).ships).toHaveLength(1);expect((await state(page)).ships[0]).toMatchObject({health:300,destroyed:false,occupant:null});
   await page.screenshot({path:`docs/previews/naval-replacement-${mobile?'mobile':'desktop'}.png`});
   if(!mobile){await page.setViewportSize({width:900,height:700});await page.waitForTimeout(100);}

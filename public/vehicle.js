@@ -1,11 +1,12 @@
 ﻿import { POD } from './pod.js';
+export const SHIP_REPAIR_DELAY = 5;
 export const VEHICLE = Object.freeze({tank:200,ship:300,replacement:12});
 export const vehicleKind = v => v.berthX !== undefined ? 'ship' : 'tank';
 export const hullHealth = v => v.health ?? VEHICLE[vehicleKind(v)];
 export const operational = v => !v.destroyed && hullHealth(v)>0 && v.elapsed>=POD.duration;
 export function hurtVehicle(v,amount) {
  if(!operational(v)||!Number.isFinite(amount)||amount<=0)return false;
- v.health=Math.max(0,hullHealth(v)-amount);v.hurt=(v.hurt||0)+1;v.damageDirty=true;
+ v.health=Math.max(0,hullHealth(v)-amount);v.hurt=(v.hurt||0)+1;v.damageDirty=true;if(vehicleKind(v)==='ship')v.repairDelay=SHIP_REPAIR_DELAY;
  if(!v.health){v.destroyed=true;v.lossPending=true;v.replacement=VEHICLE.replacement;v.speed=0;}
  return true;
 }

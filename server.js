@@ -1,4 +1,4 @@
-import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, yardBuildError, rememberWreck } from './public/shipyard.js';
+import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, yardBuildError, rememberWreck, tickDockRepair } from './public/shipyard.js';
 import { newRampGun } from './public/ramp-sentry.js';
 import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint, driveOnError } from './public/transport.js';
 import { BRIDGE, isBuilder, bridgeReady, bridgeDuration, bridgeCost } from './public/bridge-geometry.js';
@@ -106,7 +106,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   world.tanks = db.prepare('SELECT value FROM tanks ORDER BY rowid').all().map(row => ({health:VEHICLE.tank,hurt:0,...JSON.parse(row.value)}));
   const writeTank = db.prepare('INSERT INTO tanks VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value');
   const saveTank = tank => writeTank.run(tank.id, JSON.stringify(Object.fromEntries(Object.entries(tank).filter(([key])=>!['damageDirty','timerDirty'].includes(key)))));
-  world.ships = db.prepare('SELECT value FROM ships ORDER BY rowid').all().map(row => ({health:VEHICLE.ship,hurt:0,...JSON.parse(row.value),speed:0,launchRemaining:0}));
+  world.ships = db.prepare('SELECT value FROM ships ORDER BY rowid').all().map(row => ({health:VEHICLE.ship,hurt:0,...JSON.parse(row.value),speed:0,launchRemaining:0,repairing:false}));
   const writeShip=db.prepare('INSERT INTO ships VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value'), savedShips=new Map();
   for(const ship of world.ships)if(isSubmarine(ship))Object.assign(ship,{depth:'surfaced',depthRemaining:0,diveBattery:30,...ship});
   const saveShip=ship=>{const {speed,damageDirty,timerDirty,target,launchRemaining,...record}=ship,value=JSON.stringify(record);if(savedShips.get(ship.id)!==value){writeShip.run(ship.id,value);savedShips.set(ship.id,value);}};
@@ -561,8 +561,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             let next,error;
             if (naval) {
               const yard=dockRecords(world).find(y=>y.id===(data.yardId||old.yardId||old.id));
-              error=yardBuildError(world,yard,player.id,shipKind(old),old,occupants);
-              if(!error){next={...old,x:yard.berthX,y:yard.berthY,angle:yard.dock.angle,turret:yard.dock.angle,cargo:null,lastUnloaded:null,assemblyRemaining:SHIPYARD.buildTime,wreckRecorded:false};linkYard(next,yard);}
+              const kind=data.vesselKind||shipKind(old);
+              error=yardBuildError(world,yard,player.id,kind,old,occupants);
+              if(!error){next={...old,kind,ammo:kind===shipKind(old)?old.ammo:'HE',x:yard.berthX,y:yard.berthY,angle:yard.dock.angle,turret:yard.dock.angle,cargo:null,lastUnloaded:null,assemblyRemaining:SHIPYARD.buildTime,wreckRecorded:false};linkYard(next,yard);}
             } else {
               error=tankPlacementError(filtered,allBuildings(),occupants,old.podX,old.podY,player.id);
               next={...old,...tankArrivalPosition({...old,elapsed:0}),angle:Math.PI/2,turret:Math.PI/2};
@@ -570,14 +571,14 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(error)return json(res,409,{error:'Original delivery site blocked: '+error});
             Object.assign(next,{elapsed:0,health:VEHICLE[data.kind],hurt:0,destroyed:false,replacement:0,occupant:null,speed:0,reload:0});
             if(naval&&next.dockDestroyed)return json(res,409,{error:'Rebuild the destroyed dock before replacing its ship.'});
-            if(naval){next.rampGun=newRampGun(next);resetDepth(next);next.launchRemaining=0;next.mainReloads={fore:0,aft:0};next.nextMainMount='fore';next.ramp=null;next.target=null;next.aftTurret=next.turret;next.portTurret=-Math.PI/2;next.starboardTurret=Math.PI/2;}
+            if(naval){next.repairDelay=0;next.repairing=false;next.repairTime=0;next.rampGun=newRampGun(next);resetDepth(next);next.launchRemaining=0;next.mainReloads={fore:0,aft:0};next.nextMainMount='fore';next.ramp=null;next.target=null;next.aftTurret=next.turret;next.portTurret=-Math.PI/2;next.starboardTurret=Math.PI/2;}
             const payment=purchase(naval?(shipKind(next)==='gunship'?'ship':shipKind(next)):'tank',{method:'orbital',emergency:data.emergency},next,()=>{if(naval){rememberWreck(world,old);delete world.logistics.durability['ramp:'+next.id];saveShip(next);}else saveTank(next);});if(payment)return json(res,409,{error:payment});Object.assign(old,next);broadcast();return json(res,200,{saved:true,vehicle:old});
           }
           if(url.pathname==='/api/ships/recall') {
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot before recalling a naval deployment.'});
             const vessel=world.ships.find(s=>s.id===data.id);
             if(!vessel||vessel.owner!==player.id)return json(res,403,{error:'Only the owner can recall this ship and dock.'});
-            const error=recallShipError(world,vessel,groundPeople().map(p=>({...p,body:playerBody(p)})));if(error)return json(res,409,{error});
+            const error=recallShipError(world,vessel,groundPeople().map(p=>({...p,body:playerBody(p)})),!!data.keepYard);if(error)return json(res,409,{error});
             const before=structuredClone(world.logistics);
             db.exec('BEGIN IMMEDIATE');try{
               rememberWreck(world,vessel);
@@ -621,7 +622,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const old=world.ships.find(s=>s.owner===player.id&&shipKind(s)===kind);
             if(data.yardId){
               const yard=dockRecords(world).find(y=>y.id===data.yardId);
-              if(old&&!old.destroyed&&old.yardId===data.yardId)return json(res,200,{ship:old,saved:true});
+              const resident=world.ships.find(s=>s.owner===player.id&&(s.yardId||s.id)===data.yardId);
+              if(resident&&!resident.destroyed&&shipKind(resident)===kind)return json(res,200,{ship:resident,saved:true});
               const error=yardBuildError(world,yard,player.id,kind,null,[...groundPeople(),...combat.snapshot().enemies]);if(error)return json(res,409,{error});
               const vessel={id:randomUUID(),kind,owner:player.id,x:yard.berthX,y:yard.berthY,angle:yard.dock.angle,turret:yard.dock.angle,elapsed:0,assemblyRemaining:SHIPYARD.buildTime,health:VEHICLE.ship,hurt:0,ammo:'HE',reload:0,occupant:null};
               linkYard(vessel,yard);resetDepth(vessel);vessel.rampGun=newRampGun(vessel);
@@ -1079,7 +1081,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       json(res, status, { error: status === 500 ? 'The server could not complete that action. Your last saved changes are safe.' : error.message });
     }
   });
-  let lastTick = Date.now(), lastSave = Date.now(), lastSlowTick = 0;
+  let lastTick = Date.now(), lastSave = Date.now(), lastSlowTick = 0, dockRepairElapsed = 0;
   const tick = setInterval(() => {
     const tickStarted = performance.now();
     const now = Date.now(), dt = Math.min((now - lastTick) / 1000, 0.15); lastTick = now;
@@ -1191,6 +1193,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     for (const robot of robots) robot.guarding = isGuarding(robot);
     const beforeSiteHp = world.sites.map(s => s.hp).join(',');
     if (streams.size && combat.tick(dt, obstacles, robots, groundPeople().filter(p => streams.has(p.id)).map(p => ({ ...p, body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
+
     for(const target of facilityTargets(world,buildings))void target; // Register newly placed facilities before the next tick.
     const lost=facilityTargets(world,buildings,true).filter(f=>f.hp.health<=0);
     if(lost.length){for(const f of lost)destroyFacility(f);changed=true;}
@@ -1246,6 +1249,14 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         if (gun.move) { saveGun(gun); changed = true; }
       }
       if (streams.size && (isMissile(gun) ? tickBattery(gun, dt) : tickCarriage(gun, dt))) { saveGun(gun); changed = true; }
+    }
+    // Batch dock health and its supply charge into the same saved transaction.
+    if(streams.size)dockRepairElapsed+=dt;
+    if(dockRepairElapsed>=.5){
+      let serviced=false;
+      for(const s of world.ships)if(tickDockRepair(world,s,dockRepairElapsed))serviced=true;
+      dockRepairElapsed=0;
+      if(serviced){checkpoint();changed=true;}
     }
     if (streams.size && now - lastCheckpoint >= 500) checkpoint();
     const durationMs = Math.round(performance.now() - tickStarted);

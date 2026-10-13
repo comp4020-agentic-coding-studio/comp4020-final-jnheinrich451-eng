@@ -9,6 +9,8 @@ Deploy support equipment, see it arrive and become usable, then recover from a
 lost ship without mistaking an ownership cap for insufficient supplies. Construction
 should feel physical while keeping the server's work bounded.
 
+> The dock-first refinement below supersedes the earlier menu and per-type fleet rules.
+
 ## Stage 1: construction presentation and naval actions (local)
 
 - Launch stations and factories arrive in capsules and assemble from the ground
@@ -118,3 +120,56 @@ in the ignored .local directory for visual inspection.
 Check online after deployment: whether building feels clear, whether the sentry
 provides enough time to load or leave a ship, and whether shipyard prices make
 forward recovery worthwhile. Resource capacity for larger armies remains unmeasured.
+
+## Dock-first refinement (13 October, local)
+
+The author found Build type and Selected vessel confusing. The current interface
+has one shipyard panel: Deploy > Naval keeps the three ship cards, but choosing a
+card opens a dock's controls. Deploy shipyard places the empty 120-SUP dock first.
+Standing on an owned completed dock and pressing E (or its touch button) opens the
+same panel. An empty/lost slot shows the three direct build choices; an occupied
+slot shows its assigned ship, health, boarding and management actions. With several
+docks, one selector chooses the dock. Each unavailable hull choice shows its reason.
+Opening the panel stops held movement and firing; Escape closes it.
+
+Each dock reserves one assigned vessel, including while that vessel is at sea or
+under construction. The server checks that individual slot, rather than comparing
+worldwide totals that could accidentally unlock a different occupied dock. Different
+docks can build the same ship type. The campaign cap remains four active ships;
+lost hull records do not consume that active cap. Yard limits remain four per owner
+and eight per campaign. This supersedes the older one-per-type rule. Replacement
+can choose a different type, charges that type's price, preserves the wreck, and
+retains the twelve-second construction and destruction cooldown gates. Existing
+ship-and-dock API orders remain compatible with older clients; the new UI uses
+separate dock and hull orders. No existing save or vessel is removed.
+
+Retiring a vessel keeps its dock, so standing on that retained deck is safe. Cargo
+must still be unloaded and the crew must disembark. Dismantling the empty dock
+continues to require a clear deck and berth. Both actions pay no refund.
+
+The author confirmed automatic, supply-funded dockside repairs. Hull repairs use provisional tuning: 10 HP per active second at 0.2 SUP
+per HP actually restored. A ship must be operational, surfaced, stationary and
+aligned at a completed intact dock (including a teammate's); a shore ramp does not
+qualify. Recent damage delays repair for five seconds. Repair stops when sailing,
+submerging, losing the dock, exhausting supplies or reaching 300 HP. It creates no
+immunity. Health and the supply charge checkpoint together in half-second batches;
+unused/paused rooms gain no offline repairs. Up to three cosmetic workers reuse the
+construction renderer, one in reduced effects mode. No worker simulation is added.
+Ramp-sentry repair remains the separate 25-SUP service.
+
+Validation covers slot occupancy while at sea, owner checks, active fleet limits,
+same-type ships at separate docks, retry charging, missing-health/funds caps, damage
+cooldown, invalid repair states and health/payment persistence. Browser coverage
+uses keyboard and touch, the 423-SUP replacement case, readable failure reasons,
+retiring/dismantling, submarine controls and direct transport boarding.
+
+SMTP status is separate from game changes: on 13 October the author reported Brevo
+reactivation. Connection, required TLS and authentication were verified from Fly
+using its deployed configuration, without sending an email. Actual delivery still
+needs an author-requested registration or password-reset test.
+
+A visiting friendly ship remains boardable from the dock panel without taking over
+the dock's assigned production slot. This preserves access for teammate transports.
+Local review passed the 54-file / 341-test full check, the expanded focused shipyard
+checks, and desktop/phone naval UI scenarios. Screenshots were inspected; a repair
+label overlap was corrected. Deployment is verified separately after the release push.

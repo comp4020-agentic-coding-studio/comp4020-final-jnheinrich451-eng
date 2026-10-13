@@ -1,4 +1,5 @@
-import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap } from './ship.js';
+import { operational, hullHealth, VEHICLE, SHIP_REPAIR_DELAY } from './vehicle.js';
+import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock } from './ship.js';
 
 export const SHIPYARD = Object.freeze({ max: 8, perOwner: 4, buildTime: 12, wrecks: 24 });
 // Old saves and isolated domain fixtures still carry their dock on the hull.
@@ -34,8 +35,7 @@ export function yardBuildError(world, yard, owner, kind, previous = null, people
   if (yard.dockDestroyed) return 'Repair this shipyard in Logistics (L) first.';
   if (!dockComplete(yard) || world.logistics?.jobs?.[yard.id]) return 'Wait for the shipyard to finish assembly or repairs.';
   if ((world.ships || []).some(s => s.id !== previous?.id && (s.yardId || s.id) === yard.id)) return 'This shipyard already supports a vessel. Retire it before changing type.';
-  if ((world.ships || []).some(s => s.id !== previous?.id && s.owner === owner && shipKind(s) === kind)) return 'One vessel of each type per scout. Manage or replace the existing vessel.';
-  if (!previous && world.ships.length >= SHIP.max) return 'Fleet limit: four vessels per campaign.';
+  if (world.ships.filter(s=>!s.destroyed&&s.id!==previous?.id).length >= SHIP.max) return 'Fleet limit: four vessels per campaign.';
   if (previous && (!previous.destroyed || previous.replacement > .001)) return 'Wait for the lost vessel replacement countdown.';
   const next = { ...yard, id: previous?.id || 'preview', x: yard.berthX, y: yard.berthY, angle: yard.dock.angle };
   if (!canSail(world, next, next.x, next.y, next.angle, true)) return 'Clear the shipyard water berth.';
@@ -49,4 +49,35 @@ export function rememberWreck(world, ship) {
   if (wrecks.length > SHIPYARD.wrecks) wrecks.splice(0, wrecks.length - SHIPYARD.wrecks);
   ship.wreckRecorded = true;
   return true;
+}
+
+export const DOCK_REPAIR = Object.freeze({ rate: 10, perHp: .2, delay: SHIP_REPAIR_DELAY });
+export function tickDockRepair(world, ship, dt) {
+  const oldDelay=ship.repairDelay||0,wasRepairing=!!ship.repairing;
+  ship.repairDelay=Math.max(0,oldDelay-dt);ship.repairing=false;
+  if(!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||Math.abs(ship.speed||0)>.05||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
+  const dock=mooredDock(world,ship),yard=dockRecords(world).find(y=>y.dock===dock);
+  if(!yard||world.logistics?.jobs?.[yard.id])return wasRepairing||oldDelay>0;
+  const restored=Math.min(VEHICLE.ship-hullHealth(ship),DOCK_REPAIR.rate*dt,world.logistics.supplies/DOCK_REPAIR.perHp);
+  if(!(restored>0))return wasRepairing||oldDelay>0;
+  ship.health=Math.min(VEHICLE.ship,hullHealth(ship)+restored);
+  world.logistics.supplies=Math.max(0,world.logistics.supplies-restored*DOCK_REPAIR.perHp);
+  ship.repairing=true;ship.repairTime=(ship.repairTime||0)+dt;
+  return true;
+}
+export function nearbyShipyard(world, person) {
+  if(!person||person.body!=='robot'||person.life==='disabled')return null;
+  const choices=dockRecords(world).filter(y=>y.owner===person.id&&dockComplete(y)).map(y=>{
+    const points=[y.dock,...dockRects(y).flatMap(hullCells).map(p=>({x:p.x+.5,y:p.y+.5}))];
+    const point=points.sort((a,b)=>Math.hypot(a.x-person.x,a.y-person.y)-Math.hypot(b.x-person.x,b.y-person.y))[0];
+    return {yard:y,...point,distance:Math.hypot(point.x-person.x,point.y-person.y)};
+  }).filter(p=>p.distance<=1.4).sort((a,b)=>a.distance-b.distance);
+  return choices[0]||null;
+}
+
+// Assignment reserves production; a visiting friendly vessel may still use the berth.
+export function dockBoardingShip(world,yard) {
+  if(!yard)return null;
+  return (world.ships||[]).filter(s=>operational(s)&&mooredDock(world,s)===yard.dock)
+    .sort((a,b)=>Number(!!a.occupant)-Number(!!b.occupant))[0]||null;
 }

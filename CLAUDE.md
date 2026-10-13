@@ -485,3 +485,13 @@ brief. Preserve legacy dock geometry and backups, one assigned hull per yard,
 existing fleet caps, paid idempotent admission and interruption during dock loss.
 Folding cannot restore sentry HP or reload; repair requires a paid dock service.
 All pricing remains provisional. No individual worker simulation is authorized.
+
+The subsequent 13 October dock-first refinement supersedes the per-type naval cap
+and menu above: one assigned vessel per dock, four active ships per campaign, with
+same-type ships allowed at different docks. E on an owned dock opens the unified
+shipyard panel. Retiring with keepYard preserves occupied deck flooring; deleting
+the yard still requires clear deck/berth access. Paid automatic dock hull repairs
+and their supply charge checkpoint together; pause/offline cannot advance them.
+See docs/CONSTRUCTION_AND_SHIPYARDS.md for provisional rates and admission gates.
+The author reported Brevo reactivation on 13 October; deployed SMTP/TLS/authentication
+verification succeeded without sending mail. This does not establish inbox delivery.

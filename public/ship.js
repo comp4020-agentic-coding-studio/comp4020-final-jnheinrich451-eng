@@ -91,11 +91,11 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
   return fail(dockStyle==='unfolding'?'Need 3 clear shore tiles, a 3 x 5 offshore dock and open water beside it. Select water three tiles from shore.':'Need a clear 3 x 5 water cradle and accessible shore 3 to 5 tiles away. Try farther along the coast.');
 }
 // Recall the saved deployment as a pair; never leave a live crew without a berth.
-export function recallShipError(world,ship,people=[]) {
+export function recallShipError(world,ship,people=[],keepYard=false) {
   if(!ship)return 'Choose your ship first.';
   if(ship.elapsed<SHIP.duration)return 'Wait for deployment to finish before recalling it.';
   const pier=dockRects(ship)[1];
-  if(pier&&[...people,...(world.tanks||[]).filter(v=>!v.destroyed),...(world.logistics?.recyclers||[]).filter(v=>!v.destroyed)].some(p=>p.body!=='aircraft'&&p.body!=='ship'&&p.life!=='disabled'&&rectanglesOverlap(pier,{x:p.x,y:p.y,w:.84,h:.84,angle:0})))return 'Clear all units from the offshore dock before recalling it.';
+  if(!keepYard&&pier&&[...people,...(world.tanks||[]).filter(v=>!v.destroyed),...(world.logistics?.recyclers||[]).filter(v=>!v.destroyed)].some(p=>p.body!=='aircraft'&&p.body!=='ship'&&p.life!=='disabled'&&rectanglesOverlap(pier,{x:p.x,y:p.y,w:.84,h:.84,angle:0})))return 'Clear all units from the offshore dock before recalling it.';
   if(ship.cargo)return 'Unload the vehicle before recalling this ship.';
   if(ship.occupant)return 'Disembark before recalling the ship and dock.';
   if(ship.launchRemaining>0)return 'Wait for the missile launch to finish.';

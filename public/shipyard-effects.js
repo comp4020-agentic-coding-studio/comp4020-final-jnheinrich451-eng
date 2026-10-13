@@ -1,4 +1,5 @@
 import { SHIPYARD } from './shipyard.js';
+import { mooredDock } from './ship.js';
 import { drawShip } from './ship-effects.js';
 export function drawWrecks(c,world,T,zoom){
   c.save();
@@ -11,7 +12,14 @@ export function drawWrecks(c,world,T,zoom){
   }c.restore();
 }
 export function drawShipAssembly(c,world,ship,T,zoom,reduced,effects){
-  if(!(ship.assemblyRemaining>0)||ship.destroyed)return;
+  if(ship.destroyed)return;
+  if(ship.repairing){
+    const dock=mooredDock(world,ship);
+    if(dock){c.save();c.translate(ship.x*T,ship.y*T);
+      effects.workers(c,{cores:[{x:dock.x-1.5,y:dock.y-1.5,elapsed:4.5}]},ship,2,{time:2+(ship.repairTime||0),reveal:.5},reduced);
+      c.fillStyle='#a9e7cf';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('DOCK REPAIR',0,2.4*T+28/zoom);c.restore();}
+  }
+  if(!(ship.assemblyRemaining>0))return;
   const reveal=1-ship.assemblyRemaining/SHIPYARD.buildTime;
   c.save();c.translate(ship.x*T,ship.y*T);c.rotate(ship.angle);
   c.beginPath();c.rect(-T,(2-4*reveal)*T,2*T,4*T*reveal);c.clip();

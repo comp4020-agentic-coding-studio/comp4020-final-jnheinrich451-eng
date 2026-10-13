@@ -27,6 +27,7 @@ export const BINDINGS = Object.freeze([
   bind('ship-ammo', ['1', '2', '3'], '1 2 3', 'ship', 'HE / Fire / Gas shells'),
   bind('tank-primary', ['1', '2'], '1 2', 'tank', 'Cannon: HE / Magnetic'),
   bind('tank-secondary', ['q'], 'Q', 'tank', 'Cycle secondary: machine gun / fuel jet'),
+  bind('shipyard-open', ['e'], 'E', 'ship', 'Open your nearby shipyard'),
   bind('ship-board', ['e'], 'E', 'ship', 'Board or leave the ship'),
   bind('tank-board', ['e'], 'E', 'tank', 'Board or leave the tank'),
   bind('place-confirm', ['enter'], 'Enter', 'placing', 'Confirm the selected site', { shift: false }),

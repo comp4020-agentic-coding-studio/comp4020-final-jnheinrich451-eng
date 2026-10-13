@@ -9,7 +9,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 for(const mobile of [false,true])test(`surface submarine deployment, missiles and saved fleet on ${mobile?'phone':'desktop'}`,async({browser})=>{
- test.setTimeout(65000);
+ test.setTimeout(85000);
  const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-sub-browser-'));let app=createApp({dataDir}),context,other;
  await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=expandWorld(createWorld()),token=randomUUID();world.terrain=world.terrain.map((_,i)=>i%world.width<64?0:2);world.bridges=[];
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');
@@ -21,11 +21,12 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json()),sub=async()=>(await state(peer)).ships.find(s=>s.kind==='submarine');
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();
-  await expect(page.locator('#ship-card')).toBeEnabled();await expect(page.locator('#ship-card')).toContainText('MANAGE EXISTING');await expect(page.locator('#submarine-card')).toBeEnabled();await page.locator('#submarine-card').click();
+  await expect(page.locator('#ship-card')).toBeEnabled();await expect(page.locator('#ship-card')).toContainText('AT SHIPYARD');await expect(page.locator('#submarine-card')).toBeEnabled();await page.locator('#submarine-card').click();await page.locator('#shipyard-new-dialog').click();
   // Unfolding docks (12 Oct) need the selected water tile three tiles from shore.
   await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('61');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();
-  await page.screenshot({path:`docs/previews/submarine-site-${mobile?'mobile':'desktop'}.png`});await page.locator('#place-building').click();await expect.poll(async()=>(await sub())?.elapsed,{timeout:7000}).toBe(4.5);
-  await expect(page.locator('#ship-interact')).toBeVisible();await page.locator('#ship-interact').click();await expect(page.locator('#ship-title')).toHaveText('MISSILE SUBMARINE');await expect(page.locator('#ship-secondary')).toBeHidden();
+  await page.screenshot({path:`docs/previews/submarine-site-${mobile?'mobile':'desktop'}.png`});await page.locator('#place-building').click();await expect(page.locator('#shipyard-interact')).toBeVisible({timeout:7000});await page.locator('#shipyard-interact').click();await page.locator('#yard-build-submarine').click();
+  await expect.poll(async()=>(await sub())?.elapsed,{timeout:15000}).toBe(4.5);
+  await expect(page.locator('#yard-board')).toBeEnabled();await page.locator('#yard-board').click();await expect(page.locator('#ship-title')).toHaveText('MISSILE SUBMARINE');await expect(page.locator('#ship-secondary')).toBeHidden();
   await page.locator('#world-canvas').focus();for(let i=0;i<12;i++)await page.keyboard.press('+');await page.screenshot({path:`docs/previews/submarine-hull-${mobile?'mobile':'desktop'}.png`});for(let i=0;i<12;i++)await page.keyboard.press('-');
   await page.locator('#ship-contact').click();await page.locator('#world-canvas').focus();
   if(mobile)await page.locator('#submarine-dive').click();else await page.keyboard.press('ControlLeft');
@@ -53,7 +54,7 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
   const resumed=await state(page);expect(resumed.ships).toHaveLength(2);expect(resumed.me.shipId).toBe((await sub()).id);expect((await sub()).reload).toBeGreaterThan(0);expect((await sub()).ammo).toBe(mobile?'INCENDIARY':'GAS');expect(resumed.combat.barrages).toHaveLength(0);
   await page.locator('#world-canvas').focus();await page.keyboard.down('s');await expect.poll(async()=>(await sub()).x,{timeout:5000,intervals:[50]}).toBeGreaterThan(61);await page.keyboard.up('s');await page.locator('#ship-interact').click();await expect.poll(async()=>(await state(page)).me.body).toBe('robot');
-  await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#navy-vessel option')).toHaveCount(2);await page.locator('#navy-vessel').selectOption((await sub()).id);await expect(page.locator('#submarine-card')).toBeEnabled();await expect(page.locator('#submarine-card')).toContainText('MANAGE EXISTING');await page.screenshot({path:`docs/previews/submarine-fleet-${mobile?'mobile':'desktop'}.png`});
+  await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#shipyard-open').click();await expect(page.locator('#shipyard-select option')).toHaveCount(2);await page.locator('#shipyard-select').selectOption((await sub()).yardId);await expect(page.locator('#shipyard-status')).toContainText('Missile submarine');await page.locator('#shipyard-close').click();await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#submarine-card')).toBeEnabled();await expect(page.locator('#submarine-card')).toContainText('AT SHIPYARD');await page.screenshot({path:`docs/previews/submarine-fleet-${mobile?'mobile':'desktop'}.png`});
   if(!mobile){await page.setViewportSize({width:900,height:700});await page.waitForTimeout(100);}
   expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true);
  }finally{await context?.close();await other?.close();await app.close();if(!path.resolve(dataDir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-sub-browser-'))throw Error('Bad temp path');await rm(dataDir,{recursive:true,force:true});}

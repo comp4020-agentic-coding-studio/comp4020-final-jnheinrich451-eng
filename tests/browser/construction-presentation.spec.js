@@ -31,19 +31,26 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
     context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
     const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json());
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();
-    await expect(page.locator('#ship-card')).toBeEnabled();await expect(page.locator('#ship-card')).toContainText('240 SUP / REBUILD AT DOCK');await page.locator('#ship-card').click();
-    await expect(page.locator('#ship-replace')).toBeEnabled();await page.screenshot({path:`.local/naval-rebuild-${mobile?'phone':'desktop'}.png`});
-    await page.locator('#ship-replace').click();await expect.poll(async()=>(await state()).ships[0].destroyed).toBe(false);
+    // The dock is the contextual interaction, on keyboard and touch.
+    await expect(page.locator('#shipyard-interact')).toBeVisible();
+    if(mobile)await page.locator('#shipyard-interact').click();else await page.keyboard.press('e');
+    await expect(page.locator('#shipyard-dialog')).toBeVisible();
+    await expect(page.locator('#shipyard-status')).toContainText('Vessel lost');
+    await expect(page.locator('#navy-vessel')).toHaveCount(0);await expect(page.locator('#shipyard-kind')).toHaveCount(0);
+    await expect(page.locator('#yard-build-gunship')).toBeEnabled();await page.screenshot({path:`.local/naval-rebuild-${mobile?'phone':'desktop'}.png`});
+    await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state()).ships[0].destroyed).toBe(false);
     const after=await state();expect(after.ships).toHaveLength(1);expect(after.logistics.supplies).toBeGreaterThanOrEqual(183);expect(after.logistics.supplies).toBeLessThan(190);
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('MANAGE EXISTING');await page.locator('#ship-card').click();expect((await state()).ships).toHaveLength(1);
-    await page.locator('#shipyard-new').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('36');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
+    await expect(page.locator('#shipyard-choices')).toBeHidden();
+    await page.locator('#shipyard-close').click();
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('240 SUP / AT SHIPYARD');await page.locator('#ship-card').click();expect((await state()).ships).toHaveLength(1);
+    await page.locator('#shipyard-new-dialog').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('36');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
     await expect.poll(async()=>(await state()).logistics.shipyards.length).toBe(2);
     const yard=(await state()).logistics.shipyards.find(y=>y.id!=='gunship');
     await expect.poll(async()=>(await state()).logistics.shipyards.find(y=>y.id===yard.id).dockReady,{timeout:6500}).toBe(true);
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#shipyard-select').selectOption(yard.id);await page.locator('#shipyard-kind').selectOption('submarine');await expect(page.locator('#shipyard-build')).toBeDisabled();await expect(page.locator('#shipyard-help')).toContainText('Need 280 supplies');
-    await page.locator('#shipyard-controls').scrollIntoViewIfNeeded();await page.screenshot({path:'.local/shipyards-'+(mobile?'phone':'desktop')+'.png'});
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#submarine-card').click();await page.locator('#shipyard-select').selectOption(yard.id);await expect(page.locator('#yard-build-submarine')).toBeDisabled();await expect(page.locator('#yard-reason-submarine')).toContainText('Need 280 supplies');
+    await expect(page.locator('#shipyard-dialog')).toBeVisible();await page.screenshot({path:'.local/shipyards-'+(mobile?'phone':'desktop')+'.png'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.locator('#shipyard-close').click();
     // Render known saved countdowns through the actual logistics renderer. This
     // makes each phase reviewable without racing a 1.35-second landing window.
     const result=await page.evaluate(async()=>{
@@ -72,9 +79,9 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
       const ship={...yard,id:'review',kind:'gunship',x:7,y:5.5,angle:Math.PI,turret:Math.PI,elapsed:2,assemblyRemaining:6};
       drawShipAssembly(c,{},ship,T,1,false,workers);
       drawWrecks(c,{logistics:{wrecks:[{x:12,y:8,angle:.7}]}},T,1);
-      const docked={...ship,x:19,y:5.5,angle:Math.PI/2,turret:0,elapsed:4.5,assemblyRemaining:0,ramp:{x:19,y:2.5},rampGun:{angle:-Math.PI/2,destroyed:false}};
-      drawShip(c,docked,T,false,1,0,true);effects.ramp(c,docked,docked.ramp,1);
-      c.fillStyle='#f0dfac';c.font='18px monospace';c.fillText('SHIPYARD ASSEMBLY',100,470);c.fillText('SINKING TRACE',450,470);c.fillText('RAMP SENTRY',740,470);
+      const docked={...ship,repairing:true,repairTime:1,x:19,y:5.5,angle:Math.PI/2,turret:0,elapsed:4.5,assemblyRemaining:0,ramp:{x:19,y:2.5},rampGun:{angle:-Math.PI/2,destroyed:false}};
+      drawShip(c,docked,T,false,1,0,true);effects.ramp(c,docked,docked.ramp,1);drawShipAssembly(c,{ships:[],logistics:{shipyards:[{...yard,berthX:19,berthY:5.5,dock:{x:19,y:2.5,angle:Math.PI/2}}]}},docked,T,1,false,workers);
+      c.fillStyle='#f0dfac';c.font='18px monospace';c.fillText('SHIPYARD ASSEMBLY',100,470);c.fillText('SINKING TRACE',450,470);c.fillText('SENTRY + REPAIR',735,470);
     });
     await page.locator('#assembly-review').screenshot({path:'.local/naval-effects-'+(mobile?'phone':'desktop')+'.png'});
     await page.evaluate(async()=>{const{ConstructionEffects}=await import('/construction-effects.js');const canvas=document.querySelector('#assembly-review');const c=canvas.getContext('2d');new ConstructionEffects(42).draw(c,{cores:[],logistics:{facilities:[]}}, {x:2,y:2},1,{active:true,time:.4,reveal:0,phase:'INBOUND'},1,true);canvas.remove();});

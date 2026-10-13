@@ -91,7 +91,10 @@ uses existing server timers, prices and fleet caps. The author confirmed visual
 workers first and reusable permanent shipyards separate from retractable shore
 ramps. The subsequently approved batch implements paid 12-second shipyard production,
 bounded persistent sinking traces and a folding ramp sentry. Existing docks migrate
-with backups; prices and limits are provisional and recorded in the stage brief.
+with backups; prices and limits are provisional and recorded in the stage brief. The subsequent dock-first refinement replaces the two naval selectors with one
+shipyard panel (E on an owned dock), one vessel per dock and paid automatic hull
+repair. Different docks may build the same type; the four-active-ship campaign cap
+remains. See the stage record for rates, cooldowns and durability checks.
 
 ## 1. How to use this document
 

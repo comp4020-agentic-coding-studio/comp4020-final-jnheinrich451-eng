@@ -41,7 +41,7 @@ export class ShipEffects extends CoreEffects {
     c.strokeStyle='#7c9390';c.lineWidth=T*.4;c.stroke();
     c.strokeStyle='#d4bb7c';c.lineWidth=2;for(let i=0;i<=length-SHIP.length/2;i+=.3){const x=(d.x+dx/length*i)*T,y=(d.y+dy/length*i)*T;c.beginPath();c.moveTo(x-dy/length*T*.2,y+dx/length*T*.2);c.lineTo(x+dy/length*T*.2,y-dx/length*T*.2);c.stroke();}
     c.fillStyle='#516f72';c.fillRect((d.x-.45)*T,(d.y-.45)*T,T*.9,T*.9);c.strokeStyle='#ead29c';c.strokeRect((d.x-.4)*T,(d.y-.4)*T,T*.8,T*.8);
-    c.fillStyle='#eef0d4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'BOARDING POINT':s.dockDestroyed?'DOCK LOST / L REPAIR':'BOARD HERE / E',d.x*T,(d.y+.85)*T);
+    c.fillStyle='#eef0d4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'BOARDING POINT':s.dockDestroyed?'DOCK LOST / L REPAIR':'DOCK / E',d.x*T,(d.y+.85)*T);
     c.translate(s.berthX*T,s.berthY*T);c.rotate(d.angle);c.strokeStyle='#baded055';c.lineWidth=1/zoom;c.setLineDash([6/zoom,7/zoom]);c.strokeRect(-1.2*T,-2.2*T,2.4*T,4.4*T);c.setLineDash([]);
     c.beginPath();c.moveTo(-.3*T,-2.6*T);c.lineTo(0,-2.9*T);c.lineTo(.3*T,-2.6*T);c.stroke();c.restore();
   }
@@ -80,7 +80,7 @@ export class ShipEffects extends CoreEffects {
       const open=clamp((time-2.05-row*.25)/.45);if(!open)continue;
       for(let col=0;col<3;col++)panel(col-1.5,-.5-row-open,1,open);
     }
-    c.fillStyle='#edd5a4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'SHORE CAPSULE / 3 x 5 DOCK':time<SHIP.exit?'DOCK UNFOLDING':s.dockDestroyed?'DOCK LOST / L REPAIR':'BOARD HERE / E',0,T);
+    c.fillStyle='#edd5a4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'SHORE CAPSULE / 3 x 5 DOCK':time<SHIP.exit?'DOCK UNFOLDING':s.dockDestroyed?'DOCK LOST / L REPAIR':'DOCK / E',0,T);
     c.restore();
     if(time>=SHIP.exit){c.save();c.strokeStyle='#c6e6cd88';c.setLineDash([6/zoom,6/zoom]);c.translate(s.berthX*T,s.berthY*T);c.rotate(s.dock.angle);c.strokeRect(-1.4*T,-2.4*T,2.8*T,4.8*T);c.restore();}
   }
