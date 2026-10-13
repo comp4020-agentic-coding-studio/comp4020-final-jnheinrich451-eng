@@ -64,6 +64,9 @@ it('authorizes submarine depth changes, blocks underwater operations and saves p
   expect((await f.post('ships/depth',{action:'dive'})).status).toBe(200);
   await expect.poll(async()=>(await f.state()).ships[0].depth,{timeout:4000}).toBe('submerged');
   for(const [route,data] of [['ships/fire',{x:40,y:20}],['ships/ramp',{deployed:true}],['ships/exit',{}],['ships/contact',{}]] as const){expect((await f.post(route,data)).status).toBe(409);}
+  // Reaching submerged state can coincide exactly with the transition tick.
+  // Observe battery use before restarting instead of relying on HTTP latency.
+  await expect.poll(async()=>(await f.state()).ships[0].diveBattery).toBeLessThan(30);
   await f.restart();const saved=(await f.state()).ships[0];expect(saved.depth).toBe('submerged');expect(saved.diveBattery).toBeLessThan(30);
   await new Promise(r=>setTimeout(r,250));expect((await f.state()).ships[0].diveBattery).toBe(saved.diveBattery);
   // A disconnected pilot does not stop battery drain when another scout watches.
