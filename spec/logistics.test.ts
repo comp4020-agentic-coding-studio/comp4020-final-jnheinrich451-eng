@@ -27,7 +27,7 @@ it('requires a whole land footprint within completed friendly support and allows
   w.cores=[];w.logistics.facilities=[{id:'f',kind:'factory',x:65,y:40,remaining:1}];
   expect(constructionError(w,'airbase',70,45)).toBeTruthy();w.logistics.facilities[0].remaining=0;
   expect(constructionError(w,'airbase',70,45)).toBeNull();
-  expect(constructionError(w,'tank',110,70)).toBeNull();expect(constructionError(w,'sentry',110,70)).toBeNull();
+  expect(constructionError(w,'tank',110,70)).toBeTruthy();expect(constructionError(w,'sentry',110,70)).toBeTruthy();
   expect(canStand(w,[],65.5,40.5)).toBe(false);
 });
 it('checks the shore platform rather than the sea end of a dock',()=>{
@@ -69,7 +69,7 @@ async function fixture(seed:(db:DatabaseSync,w:any,l:any)=>void=()=>{}){
   for(const [i,id] of ['a','b'].entries())db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,32.5,42.5+i,0);
   db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run(core.id,core.owner,core.x,core.y,core.elapsed);
   for(const id of ['a','b'])db.prepare('INSERT INTO robot_states VALUES (?,?)').run(id,JSON.stringify({...freshLife(),deployed:true}));
-  seed(db,w,l);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));db.close();
+  l.groundSupplies=1200;seed(db,w,l);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));db.close();
   let base='',controllers:AbortController[]=[];
   async function open(){app=createApp({dataDir:dir,logSink:()=>{}});await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;}await open();
   const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
@@ -80,8 +80,8 @@ async function fixture(seed:(db:DatabaseSync,w:any,l:any)=>void=()=>{}){
 it('enforces remote placement at HTTP admission, spends only accepted deployments and retains them through restart',async()=>{
   const f=await fixture();try{
     await f.connect();const before=(await f.state()).logistics.supplies;
-    expect((await f.post('airbases',{x:88,y:60})).data.error).toContain('24 tiles');
-    expect((await f.post('missiles',{x:90,y:60})).data.error).toContain('24 tiles');
+    expect((await f.post('airbases',{x:88,y:60,method:'factory',factoryId:'friendly'})).data.error).toContain('24 tiles');
+    expect((await f.post('missiles',{x:90,y:60,method:'factory',factoryId:'friendly'})).data.error).toContain('24 tiles');
     const accepted=await f.post('airbases',{x:48,y:32});expect(accepted.status).toBe(201);
     expect((await f.state()).logistics.supplies).toBe(before-300);
     expect((await f.post('airbases',{x:48,y:32})).status).toBe(200);expect((await f.state()).logistics.supplies).toBe(before-300);
@@ -99,12 +99,12 @@ it('serializes shared spending so simultaneous requests cannot overdraw or build
 it('reserves discounted construction, blocks premature operation and refunds only half when cancelling',async()=>{
   const f=await fixture((_db,_w,l)=>l.facilities.push({id:'factory',owner:'a',kind:'factory',x:48,y:24,remaining:0,cargo:0}));try{
     await f.connect();const r=await f.post('missiles',{x:54,y:36,method:'factory',factoryId:'factory'});expect(r.status).toBe(201);
-    expect((await f.state()).logistics.supplies).toBe(1068);
+    expect((await f.state()).logistics.groundSupplies).toBe(1145);
     expect((await f.post('artillery/control',{id:r.data.gun.id})).data.error).toContain('construction');
     await f.restart();expect((await f.state()).logistics.jobs[r.data.gun.id].remaining).toBeGreaterThan(0);await f.connect();
     expect((await f.post('logistics/cancel',{id:r.data.gun.id},1)).status).toBe(409);
     expect((await f.post('logistics/cancel',{id:r.data.gun.id})).status).toBe(200);
-    const s=await f.state();expect(s.artillery).toHaveLength(0);expect(s.logistics.supplies).toBe(1134);
+    const s=await f.state();expect(s.artillery).toHaveLength(0);expect(s.logistics.groundSupplies).toBe(1172);
     expect((await f.post('logistics/cancel',{id:r.data.gun.id})).status).toBe(409);await f.restart();expect((await f.state()).artillery).toHaveLength(0);
   }finally{await f.close();}
 });
@@ -149,9 +149,9 @@ it('repairs a saved airbase without replacing its airborne aircraft or taking a 
     db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));l.durability['airbase:lostbase']={health:0,max:500,armor:2};
   });try{
     await f.connect();expect((await f.post('logistics/repair',{kind:'airbase',id:'lostbase'})).status).toBe(200);
-    expect((await f.post('logistics/repair',{kind:'airbase',id:'lostbase'})).status).toBe(409);expect((await f.state()).logistics.supplies).toBe(1050);
+    expect((await f.post('logistics/repair',{kind:'airbase',id:'lostbase'})).status).toBe(409);expect((await f.state()).logistics.groundSupplies).toBe(1050);
     await f.restart();await f.connect();await expect.poll(async()=>(await f.state()).airbases[0].destroyed,{timeout:11000}).toBe(false);
-    expect((await f.state()).airbases[0].aircraft.id).toBe('lostbase:bomber');expect((await f.state()).logistics.supplies).toBe(1050);
+    expect((await f.state()).airbases[0].aircraft.id).toBe('lostbase:bomber');expect((await f.state()).logistics.groundSupplies).toBe(1050);
   }finally{await f.close();}
 },16000);
 it('rejects unknown prototype properties as deployment kinds without corrupting supplies',async()=>{
@@ -215,10 +215,10 @@ it('admits one paid bridge from a boarded builder, locks construction, and resum
     expect((await f.post('logistics/bridge',data)).status).toBe(409);await f.post('logistics/board',{id:'builder'});
     const bad=await f.post('logistics/bridge',{...data,to:{x:41,y:43}});expect(bad.status).toBe(409);expect((await f.state()).logistics.supplies).toBe(1200);
     expect((await f.post('logistics/bridge',data)).status).toBe(201);expect((await f.post('logistics/bridge',data)).status).toBe(200);
-    expect((await f.state()).logistics.supplies).toBe(1134);await f.post('input',{x:1,y:0});
+    expect((await f.state()).logistics.groundSupplies).toBe(1134);await f.post('input',{x:1,y:0});
     await expect.poll(async()=>(await f.state()).logistics.bridges[0].elapsed).toBeGreaterThan(.3);expect((await f.state()).logistics.recyclers[0].x).toBe(33.5);
     await f.restart();const saved=(await f.state()).logistics.bridges[0].elapsed;expect(saved).toBeGreaterThan(0);await f.connect();
-    await expect.poll(async()=>bridgeReady((await f.state()).logistics.bridges[0]),{timeout:9000}).toBe(true);expect((await f.state()).logistics.supplies).toBe(1134);
+    await expect.poll(async()=>bridgeReady((await f.state()).logistics.bridges[0]),{timeout:9000}).toBe(true);expect((await f.state()).logistics.groundSupplies).toBe(1134);
     expect((await f.post('logistics/command',{id:'builder',action:'collect',targetId:'fake'})).status).toBe(409);
   }finally{await f.close();}
 },15000);

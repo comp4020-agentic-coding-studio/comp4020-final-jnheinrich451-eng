@@ -14,7 +14,7 @@ async function fixture(kind='ship',health=35){
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');
  for(const[i,id]of['a','b'].entries()){db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,21.5,12.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core-'+id,id,30,8+i*16,4.5);}
  const v=kind==='ship'?{...shipSite(world,[],[],17,12,'a').ship!,id:'ship'}:{id:'tank',owner:'a',x:26.5,y:11.5,podX:24,podY:11,angle:0,turret:0,weapon:'HE',secondary:'APCR'};
- Object.assign(v,{elapsed:4.5,health,occupant:'a'});db.prepare('INSERT INTO '+(kind==='ship'?'ships':'tanks')+' VALUES (?,?)').run(v.id,JSON.stringify(v));db.close();app=createApp({dataDir:dir});
+ Object.assign(v,{elapsed:4.5,health,occupant:'a'});db.prepare('INSERT INTO '+(kind==='ship'?'ships':'tanks')+' VALUES (?,?)').run(v.id,JSON.stringify(v));const supplies=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);supplies.groundSupplies=1200;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(supplies));db.close();app=createApp({dataDir:dir});
  let base='';const controllers=new Map<number,AbortController>();const listen=async()=>{await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;};await listen();
  const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
  const post=async(route:string,data:any={},i=0)=>{const r=await fetch(base+'/api/'+route,{method:'POST',headers:{Cookie:'frontier='+tokens[i],'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};};

@@ -23,7 +23,7 @@ async function fixture(seed:(db:DatabaseSync,w:any,l:any)=>void=()=>{}){
   for(const [i,id] of ['a','b'].entries())db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,32.5,42.5+i,0);
   db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run(core.id,core.owner,core.x,core.y,core.elapsed);
   for(const id of ['a','b'])db.prepare('INSERT INTO robot_states VALUES (?,?)').run(id,JSON.stringify({...freshLife(),deployed:true}));
-  seed(db,w,l);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));db.close();
+  l.groundSupplies=1200;seed(db,w,l);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));db.close();
   let base='',controllers:AbortController[]=[];
   async function open(){app=createApp({dataDir:dir,logSink:()=>{}});await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;}await open();
   const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
@@ -82,14 +82,14 @@ it.each(['tank','recycler'])('loses %s cargo with its transport without duplicat
 it.each(['gunship','submarine','transport'])('rebuilds a destroyed %s at its saved dock even with its owner on the shore platform',async kind=>{
   let original:any;
   const f=await fixture((db,w)=>{river(w);original={...shipSite(w,[],[],23,25,'a',kind,'unfolding').ship,id:'wreck',elapsed:4.5,destroyed:true,health:0,replacement:0};db.prepare('UPDATE scouts SET x=?,y=? WHERE id=?').run(original.dock.x,original.dock.y,'a');db.prepare('INSERT INTO ships VALUES (?,?)').run(original.id,JSON.stringify(original));});try{
-    await f.connect();const before=(await f.state()).logistics.supplies;
+    await f.connect();const before=(await f.state()).logistics.groundSupplies;
     const r=await f.post('vehicles/replace',{kind:'ship',id:'wreck'});expect(r.status).toBe(200);expect(r.data.vehicle).toMatchObject({id:'wreck',kind,destroyed:false,health:300,elapsed:0,dock:original.dock,berthX:original.berthX,berthY:original.berthY});
-    const cost=kind==='gunship'?240:kind==='submarine'?280:200;expect((await f.state()).logistics.supplies).toBe(before-cost);
-    expect((await f.post('vehicles/replace',{kind:'ship',id:'wreck'})).status).toBe(200);expect((await f.state()).logistics.supplies).toBe(before-cost);
-    await f.restart();await f.connect();await expect.poll(async()=>(await f.state()).ships[0].elapsed,{timeout:16000}).toBe(4.5);
+    const cost=kind==='gunship'?60:kind==='submarine'?70:50;expect((await f.state()).logistics.groundSupplies).toBe(before-cost);
+    expect((await f.post('vehicles/replace',{kind:'ship',id:'wreck'})).status).toBe(200);expect((await f.state()).logistics.groundSupplies).toBe(before-cost);
+    await f.restart();expect((await f.state()).ships[0].assemblyRemaining).toBeGreaterThan(58);await f.restart(db=>{const row=db.prepare('SELECT value FROM ships WHERE id=?').get('wreck')!;const ship=JSON.parse(row.value as string);ship.assemblyRemaining=.2;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),'wreck');});await f.connect();await expect.poll(async()=>(await f.state()).ships[0].elapsed,{timeout:3000}).toBe(4.5);
     expect((await f.post('ships/board',{id:'wreck'})).status).toBe(200);
   }finally{await f.close();}
-},20000);
+},70000);
 it('explains damaged docks, repairs, timers and occupied berths before rebuilding',()=>{
   const w=river(flat()),s={...vessel(),destroyed:true,health:0,replacement:0};w.ships=[s];
   expect(replacementShipError(w,[{...s.dock,body:'robot'}],s)).toBeNull();

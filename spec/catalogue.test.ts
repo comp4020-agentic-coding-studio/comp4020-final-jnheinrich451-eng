@@ -21,6 +21,6 @@ it('quotes prices from the shared economy table', () => {
   for (const a of ASSETS) expect(orbitalPrice(a)).toBe(a.cost ? COSTS[a.cost as keyof typeof COSTS] : 0);
   const cannon = ASSETS.find(a => a.code === 'R-02')!, factory = ASSETS.find(a => a.code === 'L-01')!;
   expect(factoryPrice(cannon)).toBe(quote('artillery', true));
-  expect(factoryPrice(factory)).toBeNull(); // factories are not factory orders
+  expect(factoryPrice(factory)).toBe(quote('factory', true)); // factories can now be built by friendly local support
   expect(specRows(ASSETS.find(a => a.code === 'R-01')!).at(-1)).toEqual(['Cost', 'Free']);
 });

@@ -493,5 +493,32 @@ shipyard panel. Retiring with keepYard preserves occupied deck flooring; deletin
 the yard still requires clear deck/berth access. Paid automatic dock hull repairs
 and their supply charge checkpoint together; pause/offline cannot advance them.
 See docs/CONSTRUCTION_AND_SHIPYARDS.md for provisional rates and admission gates.
+The 14 October design record is docs/BOMBER_AND_SUPPORT_NETWORK.md. The requested
+direction adds automatic bomber sorties, HP-based paid aircraft repair, global
+orbital delivery, cheaper/slower local construction and core salvage receivers.
+This is a design record, not authorization for the whole network implementation.
+Confirmed: one free bomber to an existing airbase per campaign, and a 2-by-2
+support outpost with receiver and robot respawn. The author requests cheaper local
+recycling and reusable cargo rockets with a provisional two-minute cooldown and
+return animation. The author confirmed separate campaign-shared ground supplies
+(local processing; local construction/repair) and orbital supplies (rocket delivery;
+orbital deployment). Current runtime still uses one SUP pool. Define initial balances,
+passive income and migration without duplicating old supplies; preserve refund currency.
+Define shipment credit, cooldown persistence and station
+loss before implementation. Preserve actual flight/anti-air, shared spending,
+emergency recovery and once-only salvage. Current runtime prices/gates still apply.
+
 The author reported Brevo reactivation on 13 October; deployed SMTP/TLS/authentication
 verification succeeded without sending mail. This does not establish inbox delivery.
+
+The author subsequently authorized the economy/support implementation before bomber
+automation. docs/SUPPORT_NETWORK_STAGE.md supersedes the design-only status above.
+Both budgets are campaign-wide, shared by every core and teammate. Preserve the
+old supplies field as orbital SUP; v1 migration backs up and adds groundSupplies=0
+without duplicating money. Local processing earns ground SUP; rocket delivery earns
+orbital SUP once, with a saved 120-second return cycle. Local construction takes
+60 seconds at 25% cost in ground SUP; global orbital site rules still enforce
+terrain, footprint and capacity. Completed 2-by-2 outposts add shared respawn and
+construction support. Cosmetic drone stores stay inside reserved footprints.
+Preserve existing native pod geometry, emergency recovery, refund currency and
+shipment cargo conservation; no worker agents or electricity simulation.

@@ -8,14 +8,14 @@ export function bridgeUI({state,api,stop,notify,frame}){
   function preview(){
     if(!active())return null;const {world,buildings,players,me,truck}=state(),from=point('from'),to=point('to');
     let error=bridgeError(world,buildings,players,truck,from,to);
-    const price=bridgeCost({from,to});if(!error&&world.logistics.supplies<price)error='Need '+price+' supplies for this crossing.';
+    const price=bridgeCost({from,to});if(!error&&world.logistics.groundSupplies<price)error='Need '+price+' ground SUP for this crossing.';
     if(!error&&world.logistics.bridges?.some(b=>b.builderId===truck?.id&&!bridgeReady(b)))error='Finish the current bridge first.';
     if(!isBuilder(truck)||me.life!=='active')error='Board your bridge builder to plan a crossing.';
     return {from,to,elapsed:0,error,price};
   }
   function update(){
     if(!active())return;if(!isBuilder(state().truck)){panel.hidden=true;return;}
-    const p=preview();$('bridge-message').textContent=p.error||`${p.price} supplies / Two cables, then 1 x 3 deck sections. Opens when complete.`;
+    const p=preview();$('bridge-message').textContent=p.error||`${p.price} ground SUP / Two cables, then 1 x 3 deck sections. Opens when complete.`;
     $('bridge-confirm').disabled=busy||!!p.error;
     for(const bank of ['from','to'])$('bridge-pick-'+bank).setAttribute('aria-pressed',String(choosing===bank));
     $('bridge-pick-hint').textContent='Click or tap the '+(choosing==='from'?'near':'far')+' bank center. Maximum '+BRIDGE.maxSpan+' water tiles. Ships cannot pass underneath.';

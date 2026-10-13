@@ -51,6 +51,11 @@ Military behavior should make choices understandable: a turret takes time to
 turn, heavy weapons reload, and vehicles need room to operate. Physical detail
 supports satisfying combat within overhead 2D and the server budget. The first
 local economy connects finite salvage, cargo rockets and shared deployment supplies.
+The 14 October local stage separates shared ground and orbital budgets: core/outpost
+processing funds local construction and repairs; reusable rocket shipments fund
+orbital delivery. Support outposts also provide robot respawn. See the
+[support-network stage](docs/SUPPORT_NETWORK_STAGE.md) for rules and validation;
+this checkpoint is not yet a deployment claim.
 Factories extend construction support and exchange time for lower equipment costs;
 enemies can destroy the infrastructure. Free robot recovery and emergency core/HE
 equipment keep defeat recoverable. Prices and timing are provisional, and height

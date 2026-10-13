@@ -1,4 +1,4 @@
-import { COSTS } from './logistics.js';
+import { COSTS, quote } from './logistics.js';
 import { dockRecords, yardBuildError, nearbyShipyard, dockBoardingShip, SHIPYARD } from './shipyard.js';
 import { shipName, dockComplete, recallShipError, boardingPoint, SHIP, mooredDock } from './ship.js';
 import { hullHealth, VEHICLE } from './vehicle.js';
@@ -22,13 +22,13 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
     $('shipyard-status').textContent=!yard?'Deploy a dock to create your first ship slot.':yard.dockDestroyed?'Dock destroyed. Rebuild it through Logistics (L).':!dockComplete(yard)?'Dock unfolding...':!v?'Empty berth / choose a vessel':v.destroyed?'Vessel lost / choose its replacement':v.assemblyRemaining>0?`${shipName(v)} / assembling ${Math.ceil(v.assemblyRemaining)}s`:`${shipName(v)} / ${Math.ceil(hullHealth(v))}/${VEHICLE.ship} HP / ${v.repairing?'REPAIRING':moored?'DOCKED':'AT SEA'}`;
     $('shipyard-choices').hidden=!!active;
     for(const kind of ['gunship','submarine','transport']){
-      const price=COSTS[kind==='gunship'?'ship':kind],b=$('yard-build-'+kind);
-      const reason=actorError||yardBuildError(world,yard,me.id,kind,v?.destroyed?v:null,players)||(world.logistics.supplies+1e-8<price?`Need ${price} supplies.`:null);
-      b.disabled=busy||!!reason;b.title=reason||'12 seconds to assemble';$('yard-reason-'+kind).textContent=reason||'12s assembly';
-      b.textContent=shipName({kind})+' / '+price+' SUP';
+      const price=quote(kind==='gunship'?'ship':kind,true),b=$('yard-build-'+kind);
+      const reason=actorError||yardBuildError(world,yard,me.id,kind,v?.destroyed?v:null,players)||(world.logistics.groundSupplies+1e-8<price?`Need ${price} ground SUP.`:null);
+      b.disabled=busy||!!reason;b.title=reason||'60 seconds to assemble';$('yard-reason-'+kind).textContent=reason||'60s assembly';
+      b.textContent=shipName({kind})+' / '+price+' GND';
       b.setAttribute('aria-label',(v?.destroyed?'Replace with ':'Build ')+b.textContent);
     }
-    $('shipyard-help').textContent=active?'One ship per dock, including ships at sea. Stationary ships repair at any intact dock: 10 HP/s for 2 SUP/s, starting 5 seconds after damage.':actorError||(!yard?'Select Deploy shipyard below.':yardBuildError(world,yard,me.id,'gunship',v?.destroyed?v:null,players))||'Choose one vessel. 12s assembly; up to four active ships per campaign. ';
+    $('shipyard-help').textContent=active?'One ship per dock, including ships at sea. Stationary ships repair at any intact dock: 10 HP/s for 2 GND/s, starting 5 seconds after damage.':actorError||(!yard?'Select Deploy shipyard below.':yardBuildError(world,yard,me.id,'gunship',v?.destroyed?v:null,players))||'Choose one vessel. 60s assembly; up to four active ships per campaign. ';
     for(const id of ['shipyard-new','shipyard-new-dialog'])$(id).disabled=busy||!!actorError||world.logistics.supplies+1e-8<COSTS.shipyard||yards.length>=SHIPYARD.perOwner||dockRecords(world).length>=SHIPYARD.max;
     $('shipyard-retire').hidden=!!v||!yard;$('shipyard-retire').disabled=busy||!!actorError;
     $('ship-find').hidden=!active;$('ship-find').disabled=!active;
@@ -37,7 +37,7 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
     const visitor=boardingVessel(),point=visitor&&boardingPoint(world,visitor,buildings,me);
     $('yard-board').hidden=!active&&!visitor;$('yard-board').textContent=visitor&&visitor.id!==v?.id?'Board visiting '+shipName(visitor):'Board vessel';$('yard-board').disabled=busy||!!actorError||!visitor||!!visitor.occupant||!point||Math.hypot(me.x-point.x,me.y-point.y)>SHIP.boardRange;
     const hp=world.logistics.durability['ramp:'+v?.id],damaged=v?.rampGun?.destroyed||hp&&hp.health<hp.max;
-    $('ramp-repair').hidden=!active||!damaged;$('ramp-repair').disabled=busy||!!actorError||!moored||!!v?.occupant||world.logistics.supplies+1e-8<25;
+    $('ramp-repair').hidden=!active||!damaged;$('ramp-repair').disabled=busy||!!actorError||!moored||!!v?.occupant||world.logistics.groundSupplies+1e-8<25;
     $('shipyard-interact').hidden=!connected||!near()||me.body!=='robot'||placing||dialog.open;
   }
   function open(kind=null,id=null){stop();update();if(id)$('shipyard-select').value=id;update();dialog.showModal();update();const b=kind&&$('yard-build-'+kind);if(b&&!b.disabled)b.focus();}

@@ -1,7 +1,7 @@
 // Deployment catalogue: client-only asset codes, tab order and spec sheets.
 // Codes never reach the server or saves; requests keep using each asset's kind.
 // Every number below is read from the module that owns it, never copied here.
-import { COSTS, FACILITY_HP, ECONOMY, quote } from './logistics.js';
+import { COSTS, FACILITY_HP, ECONOMY, LOCAL_KINDS, quote } from './logistics.js';
 import { CONSTRUCTION, needsConstruction } from './construction.js';
 import { HE, APCR, HEAVY_FLAME, MAGNETIC, ARTILLERY_HE } from './weapons.js';
 import { MISSILE } from './missile.js';
@@ -38,10 +38,11 @@ export const ASSETS = Object.freeze([
   { code: 'L-01', tab: 'logistics', card: 'factory-card', kind: 'factory', cost: 'factory', hp: 'factory', name: 'Factory', footprint: '2 × 2',
     specs: [['Support', `${CONSTRUCTION.radius} t construction radius`], ['Orders', `${Math.round((1 - ECONOMY.factoryDiscount) * 100)}% cheaper · ${ECONOMY.factoryTime} s build`]] },
   { code: 'L-02', tab: 'logistics', card: 'uplink-card', kind: 'uplink', cost: 'uplink', hp: 'uplink', name: 'Launch station', footprint: '3 × 3',
-    specs: [['Role', 'Ships salvage cargo to orbit'], ['Launch', `${ECONOMY.launchTime} s`]] },
+    specs: [['Role', 'Ships salvage cargo to orbit'], ['Launch', `${ECONOMY.rocketCycle} s cycle / reusable rocket`]] },
   { code: 'L-03', tab: 'logistics', card: 'recycler-card', kind: 'recycler', cost: 'recycler', hp: 'recycler', name: 'Recycler', footprint: '1 × 1 pod',
     specs: [['Drive', 'E board / WASD / park to collect'], ['Cargo', `${ECONOMY.cargo} per trip`], ['Collect', `${ECONOMY.collectTime} s at conquered ruins`]] },
   { code: 'L-04', tab: 'logistics', card: 'builder-card', kind: 'builder', cost: 'builder', hp: 'recycler', name: 'Bridge builder', footprint: '1 x 1 pod', specs: [['Role','E board / WASD drive / plan bank endpoints'],['Bridge','3 tiles wide / cables then rolling deck']], limit:'1 per scout' },
+  { code: 'L-05', tab: 'logistics', card: 'outpost-card', kind: 'outpost', cost: 'outpost', hp: 'outpost', name: 'Support outpost', footprint: '2 x 2', specs: [['Support','Shared robot respawn and local construction'],['Receiver','Raw salvage to shared ground supplies']] },
   { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'ship', cost: 'ship', name: 'Coastal gunship', footprint: '2 x 4 hull / shipyard berth',
     specs: [['Main guns', `${SHIP.minRange}–${SHIP.range} t · ${SHIP.reload} s per turret`], ['Side guns', `${NAVAL_GUN.range} t · ${degrees(NAVAL_GUN.halfArc * 2)}° arcs`]], limit: '1 per dock' },
   { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'ship', cost: 'submarine', name: 'Missile submarine', footprint: '2 x 4 hull / shipyard berth',
@@ -57,7 +58,7 @@ export const assetsIn = tab => ASSETS.filter(a => a.tab === tab);
 export const assetByCard = id => ASSETS.find(a => a.card === id);
 export const orbitalPrice = asset => asset.cost ? quote(asset.cost) : 0;
 // Factory orders exist only for these kinds (see deliveryData in app.js and the server).
-const FACTORY_KINDS = ['airbase', 'ship', 'artillery', 'missile'];
+const FACTORY_KINDS = LOCAL_KINDS;
 export const factoryPrice = asset => asset.cost && asset.placement === undefined && FACTORY_KINDS.includes(asset.kind) ? quote(asset.cost, true) : null;
 
 // Rows for the spec sheet; HP and support come from the shared rules.
@@ -65,8 +66,8 @@ export function specRows(asset) {
   const rows = [['Footprint', asset.footprint], ...asset.specs];
   if (asset.hp) rows.push(['Durability', `${FACILITY_HP[asset.hp]} HP`]);
   if (asset.limit) rows.push(['Limit', asset.limit]);
-  rows.push(['Placement', asset.placement || (needsConstruction(asset.kind) ? `Within ${CONSTRUCTION.radius} t of a completed core or factory` : 'Any clear site')]);
+  rows.push(['Placement', asset.placement || 'Global orbital; local builds need nearby friendly support']);
   const price = orbitalPrice(asset), local = factoryPrice(asset);
-  rows.push(['Cost', price ? `${price} SUP orbital${local ? ` · ${local} SUP at a factory` : ''}${asset.costNote ? ` · ${asset.costNote}` : ''}` : 'Free']);
+  rows.push(['Cost', price ? `${price} ORB orbital${local ? ` · ${local} GND local` : ''}${asset.costNote ? ` · ${asset.costNote}` : ''}` : 'Free']);
   return rows;
 }

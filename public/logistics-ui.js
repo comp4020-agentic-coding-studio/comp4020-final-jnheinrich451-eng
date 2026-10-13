@@ -1,5 +1,5 @@
 import { dockRecords } from './shipyard.js';
-import { ECONOMY, COSTS, emergencyTankError, readyFactory } from './logistics.js';
+import { ECONOMY, COSTS, emergencyTankError, supportSources, salvageReceivers, readyFactory } from './logistics.js';
 
 export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   const $=id=>document.getElementById(id), dialog=$('logistics-dialog');
@@ -10,7 +10,7 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     select.dataset.signature=signature;if(entries.some(e=>e[0]===old))select.value=old;
   }
   async function action(route,data){try{await api('logistics/'+route,data);}catch(error){$('logistics-message').textContent=error.message;}}
-  function open(stationId){stop();update();if(stationId)$('uplink-select').value=stationId;dialog.showModal();}
+  function open(stationId){stop();update();if(stationId)$('uplink-select').value=stationId;update();dialog.showModal();}
   $('supplies-button').onclick=()=>open();
   for(const button of document.querySelectorAll('[data-logistics-deploy]'))button.onclick=()=>{dialog.close();deploy(button.dataset.logisticsDeploy);};
   $('emergency-tank').onclick=()=>{dialog.close();deploy('tank',true);};
@@ -23,27 +23,30 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   $('logistics-cancel').onclick=()=>action('cancel',{id:$('logistics-order').value});
   $('recycler-locate').onclick=()=>{const r=state().world.logistics.recyclers.find(r=>r.id===$('recycler-select').value);if(r){dialog.close();locate(r);}};
   function update(){
-    const {world,me,connected,canManage}=state(),l=world?.logistics;if(!l)return;
-    const rising=l.supplies<ECONOMY.reserve;$('supplies-button').textContent=`SUP ${Math.floor(l.supplies)}${rising?' ▲':''}`;
-    $('supplies-button').setAttribute('aria-label',`Supplies ${Math.floor(l.supplies)}${rising?', refilling':''}. Open logistics`);
-    $('logistics-balance').textContent=`${Math.floor(l.supplies)} / ${ECONOMY.capacity} supplies shared by the room. +${ECONOMY.income}/s while running, until ${ECONOMY.reserve}. Salvage shipments can fill the rest.`;
+    const {world,me,connected,buildings=[],canManage}=state(),l=world?.logistics;if(!l)return;
+    const rising=l.supplies<ECONOMY.reserve;$('supplies-button').textContent='GND '+Math.floor(l.groundSupplies||0)+' /\nORB '+Math.floor(l.supplies);
+    $('supplies-button').setAttribute('aria-label',`Ground supplies ${Math.floor(l.groundSupplies||0)}, orbital supplies ${Math.floor(l.supplies)}${rising?', refilling':''}. Open logistics`);
+    $('logistics-balance').textContent=`Ground ${Math.floor(l.groundSupplies||0)} / ${ECONOMY.capacity}: local building and repairs. Orbital ${Math.floor(l.supplies)} / ${ECONOMY.capacity}: orbital delivery. Both pools shared by all teammates and cores. Orbital reserve +${ECONOMY.income}/s while running, up to ${ECONOMY.reserve}.`;
     const operating=connected&&me?.life==='active'&&['robot','recycler'].includes(me.body),allowed=operating&&me.body==='robot';
     for(const b of document.querySelectorAll('[data-logistics-deploy]'))b.disabled=!allowed||l.supplies<COSTS[b.dataset.logisticsDeploy];
     const reason=emergencyTankError(world);$('emergency-tank').disabled=!allowed||!!reason;
     $('emergency-reason').textContent=reason||'One free HE tank can restore the offensive. Choose a clear land drop site.';
-    $('emergency-orbit').hidden=me?.life!=='disabled'||world.cores.length>0;
-    options('recycler-select',l.recyclers.filter(r=>r.kind!=='builder'&&(canManage(r.owner)||r.occupant===me?.id)).map(r=>[r.id,`Recycler / ${r.cargo}/${ECONOMY.cargo} cargo / ${r.remaining>0?'incoming':r.occupant?'occupied':r.blocked?'route blocked':r.path.length?'driving':r.task?.action||'idle'}`]));
+    $('emergency-orbit').hidden=me?.life!=='disabled'||supportSources(world).some(f=>f.kind!=='factory');
+    options('recycler-select',l.recyclers.filter(r=>r.kind!=='builder'&&(canManage(r.owner)||r.occupant===me?.id)).map(r=>[r.id,`Recycler / ${Math.ceil(r.cargo)}/${ECONOMY.cargo} cargo / ${r.remaining>0?'incoming':r.occupant?'occupied':r.blocked?'route blocked':r.path.length?'driving':r.task?.action||'idle'}`]));
     options('salvage-target',[...(world.sites||[]).filter(s=>s.state==='conquered'&&(l.salvage[s.id]??ECONOMY.salvage)>0).map(s=>['site:'+s.id,`${s.name} / ${l.salvage[s.id]??ECONOMY.salvage} salvage / ${s.x}:${s.y}`]),...l.crates.map(c=>['crate:'+c.id,`${c.kind==='remains'?'Alien remains':'Recover'} ${c.amount} cargo / ${Math.floor(c.x)}:${Math.floor(c.y)}`])]);
-    options('uplink-select',l.facilities.filter(f=>f.kind==='uplink').map(f=>[f.id,`Launch station ${f.x}:${f.y} / ${f.cargo} cargo${f.remaining>0?' / building':f.launch>0?' / launching '+Math.ceil(f.launch)+'s':''}`]));
-    const repairs=[...dockRecords(world).filter(s=>s.dockDestroyed&&canManage(s.owner)).map(s=>['dock:'+s.id,`Dock ${s.dock.x}:${s.dock.y} / ${COSTS.dockRepair} supplies`]),...world.airbases.filter(b=>b.destroyed&&canManage(b.owner)).map(b=>['airbase:'+b.id,`Airbase ${b.x}:${b.y} / ${COSTS.baseRepair} supplies`])];
+    options('uplink-select',salvageReceivers(world).map(f=>[f.id,f.kind==='uplink'?`Orbital rocket ${f.x}:${f.y} / ${f.cargo} stored / ${f.inFlight||0} airborne${f.cooldown>0?' / returns '+Math.ceil(f.cooldown)+'s':''}`:`Ground receiver ${f.x}:${f.y} / ${f.kind}`]));
+    const repairs=[...dockRecords(world).filter(s=>s.dockDestroyed&&canManage(s.owner)).map(s=>['dock:'+s.id,`Dock ${s.dock.x}:${s.dock.y} / ${COSTS.dockRepair} ground SUP`]),...world.airbases.filter(b=>b.destroyed&&canManage(b.owner)).map(b=>['airbase:'+b.id,`Airbase ${b.x}:${b.y} / ${COSTS.baseRepair} ground SUP`])];
     options('logistics-repair',repairs);
-    const objects=[...world.airbases,...world.ships,...world.artillery];
+    const objects=[...world.airbases,...world.ships,...world.artillery,...world.tanks,...l.facilities,...l.recyclers,...buildings];
     options('logistics-order',Object.entries(l.jobs).filter(([id,j])=>j.kind!=='repair'&&objects.some(o=>o.id===id&&canManage(o.owner))).map(([id,j])=>[id,`${j.kind} / ${Math.ceil(j.remaining)}s / cancel returns ${Math.floor(j.cost/2)}`]));
     for(const id of ['recycler-collect','recycler-stop','recycler-deliver','recycler-locate'])$(id).disabled=!allowed||!$('recycler-select').value||(id==='recycler-collect'&&!$('salvage-target').value)||(id==='recycler-deliver'&&!$('uplink-select').value);
-    $('cargo-launch').disabled=!operating||!$('uplink-select').value;
+    const station=l.facilities.find(f=>f.id===$('uplink-select').value&&f.kind==='uplink');
+    $('cargo-launch').disabled=!operating||!station||station.remaining>0||station.cooldown>0||!station.cargo||l.supplies>=ECONOMY.capacity;
+    $('cargo-launch').textContent=station?.cooldown>0?'Rocket returns / '+Math.ceil(station.cooldown)+'s':'Launch cargo to orbit';
     $('logistics-rebuild').disabled=!allowed||!$('logistics-repair').value;
     $('logistics-cancel').disabled=!allowed||!$('logistics-order').value;
-    options('construction-method',[['orbital','Orbital / full cost / immediate delivery'],...l.facilities.filter(readyFactory).map(f=>[f.id,`Factory ${f.x}:${f.y} / 40% cheaper / 20s`])]);
+    options('construction-method',[['orbital','Orbital / ORB / rapid drop'],...supportSources(world).map(f=>[f.id,`Local ${f.kind} ${f.x}:${f.y} / GND / 25% cost / 60s`])]);
   }
+  $('uplink-select').onchange=()=>update();
   return {update,open};
 }

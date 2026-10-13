@@ -58,10 +58,10 @@ export function tickDockRepair(world, ship, dt) {
   if(!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||Math.abs(ship.speed||0)>.05||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
   const dock=mooredDock(world,ship),yard=dockRecords(world).find(y=>y.dock===dock);
   if(!yard||world.logistics?.jobs?.[yard.id])return wasRepairing||oldDelay>0;
-  const restored=Math.min(VEHICLE.ship-hullHealth(ship),DOCK_REPAIR.rate*dt,world.logistics.supplies/DOCK_REPAIR.perHp);
+  const restored=Math.min(VEHICLE.ship-hullHealth(ship),DOCK_REPAIR.rate*dt,world.logistics.groundSupplies/DOCK_REPAIR.perHp);
   if(!(restored>0))return wasRepairing||oldDelay>0;
   ship.health=Math.min(VEHICLE.ship,hullHealth(ship)+restored);
-  world.logistics.supplies=Math.max(0,world.logistics.supplies-restored*DOCK_REPAIR.perHp);
+  world.logistics.groundSupplies=Math.max(0,world.logistics.groundSupplies-restored*DOCK_REPAIR.perHp);
   ship.repairing=true;ship.repairTime=(ship.repairTime||0)+dt;
   return true;
 }

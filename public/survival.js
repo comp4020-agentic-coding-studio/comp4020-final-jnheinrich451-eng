@@ -1,6 +1,7 @@
 import { canStand } from './world.js';
 import { CORE, coreExit } from './core.js';
 
+export const recoveryCores = world => [...(world.cores||[]),...(world.logistics?.facilities||[]).filter(f=>f.kind==='outpost'&&!f.destroyed&&f.remaining<=0&&!world.logistics.jobs?.[f.id]).map(f=>({...f,x:f.x-.5,y:f.y-.5,elapsed:CORE.duration}))];
 export const SURVIVAL = Object.freeze({ health: 100, damage: 25, aggro: 6, reach: 1.15, strikeRadius: .85, windup: 650, cooldown: 1400, recovery: 3, arrival: 1.8, shield: 2, radius: 6 });
 export const freshLife = () => ({ health: SURVIVAL.health, life: 'active', recovery: 0, shield: 0, reviveCore: null, hurt: 0, lostVehicle: null, deployed: false });
 export function lifeRecord(p) {
@@ -35,7 +36,7 @@ export function beginRecovery(p, world, buildings, occupants, coreId) {
   if (p.life === 'arriving' && p.reviveCore === coreId) return null;
   if (p.life !== 'disabled') return 'Your robot is already active or arriving.';
   if (p.recovery > .001) return 'Replacement is still preparing.';
-  const core = world.cores?.find(c => c.id === coreId);
+  const core = recoveryCores(world).find(c => c.id === coreId);
   if (!core || core.elapsed < CORE.duration) return 'Choose a completed friendly core.';
   const point = recoveryPoint(world, buildings, core, occupants, p.id);
   if (!point) return 'No clear landing point near this core. Choose another core or wait for space.';
@@ -47,7 +48,7 @@ export function tickLife(p, dt, world, buildings, occupants) {
   if (p.shield > 0) { p.shield = Math.max(0, p.shield - dt); changed = true; }
   if (p.recovery > 0) { p.recovery = Math.max(0, p.recovery - dt); changed = true; }
   if (p.life === 'arriving' && p.recovery <= .001) {
-    const core = world.cores?.find(c => c.id === p.reviveCore);
+    const core = recoveryCores(world).find(c => c.id === p.reviveCore);
     if (clearRecoveryPoint(world, buildings, core, p, occupants, p.id)) Object.assign(p, { health: SURVIVAL.health, life: 'active', shield: SURVIVAL.shield, recovery: 0, angle: Math.PI / 2, aim: Math.PI / 2, turret: Math.PI / 2, dirty: true });
     else { p.life = 'disabled'; p.recovery = 0; }
     changed = true;

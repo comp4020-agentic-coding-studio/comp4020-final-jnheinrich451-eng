@@ -1,5 +1,10 @@
 # Construction feedback and reusable shipyards
 
+14 October local update: [Support network stage](SUPPORT_NETWORK_STAGE.md) changes
+shipyard hull builds to ground SUP at 25% of the orbital catalogue price and
+60-second assembly. Repairs use ground SUP. This supersedes the older prices and
+12-second assembly below; independent docks, ownership and fleet caps still apply.
+
 13 October 2026. This record separates the first local implementation from the
 agreed direction for later playable stages.
 

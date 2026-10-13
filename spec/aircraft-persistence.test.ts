@@ -31,7 +31,7 @@ it('delivers an orbital jet once, resumes delivery after restart and authorizes 
   expect((await f.post('aircraft/deliver',{id,kind:'attack-jet'})).status).toBe(200);
   await f.restart();const saved=(await f.state()).airbases[0].aircraft;
   expect(saved.state).toBe('delivering');await new Promise(r=>setTimeout(r,150));expect((await f.state()).airbases[0].aircraft.remaining).toBe(saved.remaining);
-  await f.connect();await f.connect(1);await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:6000}).toBe('parked');
+  await f.connect();await f.connect(1);await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:19000}).toBe('parked');
   expect((await f.post('aircraft/board',{id})).status).toBe(200);
   expect((await f.post('aircraft/deliver',{id,kind:'bomber'})).status).toBe(409);
   await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:4000}).toBe('flying');
@@ -42,12 +42,13 @@ it('delivers an orbital jet once, resumes delivery after restart and authorizes 
   await f.restart();expect((await f.state()).airbases[0].aircraft).toMatchObject({kind:'attack-jet',occupant:'a',rounds:89,state:'flying'});
   expect((await f.post('aircraft/strafe')).status).toBe(409);
  }finally{await f.close();}
-},15000);
+},27000);
 it('deploys one saved airbase, admits one pilot and preserves flight, seat and spent ammunition across idle restart',async()=>{
  const f=await fixture();try{
   expect((await f.post('airbases',{x:48,y:48})).status).toBe(409);await f.connect();await f.connect(1);
   expect((await f.post('airbases',{x:0,y:0})).status).toBe(409);const built=await f.post('airbases',{x:48,y:48});expect(built.status).toBe(201);const id=built.body.airbase.id;
   expect((await f.post('airbases',{x:48,y:48})).status).toBe(200);expect((await f.post('airbases',{x:80,y:25})).status).toBe(409);
+  await expect.poll(async()=>!!(await f.state()).logistics.jobs[id],{timeout:15000}).toBe(false);
   expect((await f.post('aircraft/board',{id})).status).toBe(200);expect((await f.post('aircraft/board',{id},1)).status).toBe(409);
   expect((await f.state()).me).toMatchObject({body:'aircraft',aircraftId:id+':bomber'});
   for(const route of ['fire','ships/board','tanks/board','artillery/control','airbases','navigate'])expect((await f.post(route,{weapon:'HE',x:70,y:40})).status).toBe(409);
@@ -60,7 +61,7 @@ it('deploys one saved airbase, admits one pilot and preserves flight, seat and s
   await f.connect(1);await expect.poll(async()=>(await f.state()).airbases[0].aircraft.y).toBeLessThan(saved.y); // no disconnected-pilot freeze
   expect((await f.state()).me.aircraftId).toBe(id+':bomber');
  }finally{await f.close();}
-});
+},25000);
 it('lands automatically, persists servicing while idle, allows apron exit and restores a full load',async()=>{
  const f=await fixture(true);try{
   await f.connect();await expect.poll(async()=>(await f.state()).airbases[0].aircraft.state,{timeout:4000}).toBe('parked');

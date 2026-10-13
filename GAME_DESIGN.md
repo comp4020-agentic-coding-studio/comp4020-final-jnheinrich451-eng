@@ -1,6 +1,6 @@
 # Frontier game design harness
 
-Version 0.24, 11 October 2026. This is the central guide for deciding what belongs
+Version 0.25, 14 October 2026. This is the central guide for deciding what belongs
 in the game and what a playable stage must establish. It consolidates agreed
 direction; it does not authorize every future feature or implement new rules.
 
@@ -95,6 +95,34 @@ with backups; prices and limits are provisional and recorded in the stage brief.
 shipyard panel (E on an owned dock), one vessel per dock and paid automatic hull
 repair. Different docks may build the same type; the four-active-ship campaign cap
 remains. See the stage record for rates, cooldowns and durability checks.
+
+## 14 October bomber and support-network direction
+
+[Bomber and support network](docs/BOMBER_AND_SUPPORT_NETWORK.md) records the
+author's next design: automatic marked-area bombing with the existing aircraft,
+HP-based paid aircraft repairs, global orbital delivery, cheaper/slower local
+construction, core salvage receivers and a small energy/support outpost. It also
+records wreck recovery and recycling without duplicate rewards. These are design
+changes, not implemented behavior. Confirmed: one free bomber delivered to an
+existing airbase per campaign; the 2-by-2 support outpost also allows robot respawn.
+The author requests cheaper local recycling and reusable cargo rockets with a
+provisional two-minute shipment cycle and return animation. The author confirmed
+separate campaign-shared ground supplies for local construction/repair and orbital
+supplies for orbital deliveries. Initial balances, passive income and save migration
+remain open; preserve existing recovery paths. The proposed
+first playable slice is an automatic HE sortie, reusing real flight and anti-air.
+
+## 14 October shared economy implementation
+
+The author prioritized economy and support before bomber automation, confirmed
+that all cores and teammates share one ground pool and a separate orbital pool,
+and requested orbital unfolding plus a one-tile local drone store. The local
+implementation is recorded in [Support network stage](docs/SUPPORT_NETWORK_STAGE.md).
+Existing SUP becomes orbital SUP with no duplicate ground grant. Core/outpost
+processing earns ground SUP; rocket shipments earn orbital SUP. Outposts also
+provide shared respawn and local construction. Local orders cost 25% and take
+60 seconds; orbital placement is global subject to normal site rules. Power
+simulation and the automatic bomber remain separate future work.
 
 ## 1. How to use this document
 

@@ -1,5 +1,10 @@
 # Airbase and HE bomber: first flight stage
 
+For the 14 October proposed automatic missions, paid aircraft servicing and shared
+support rules, see [Bomber and support network](BOMBER_AND_SUPPORT_NETWORK.md).
+This file records the original flight stage; later anti-air and economy stages
+supersede its original damage and free-replacement assumptions.
+
 Implemented 2026-10-05. This stage establishes deployment, direct flight,
 predicted bomb impacts, landing and rearming. It follows the air-force proposal
 in GAME_IDEAS.md and the accepted WASD/LMB controls. Aircraft damage, hostile

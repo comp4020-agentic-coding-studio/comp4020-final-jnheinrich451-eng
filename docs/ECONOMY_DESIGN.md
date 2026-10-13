@@ -1,5 +1,22 @@
 # Conquest economy - first playable pipeline
 
+Current local implementation: [Shared economy and support network](SUPPORT_NETWORK_STAGE.md).
+The 14 October stage implements split campaign budgets, local processing, reusable
+rockets and support outposts. It supersedes the single-pool rules and 20-second
+factory pricing in this historical record.
+
+The [14 October support-network design](BOMBER_AND_SUPPORT_NETWORK.md) proposes
+global orbital delivery, 25%-cost/60-second local construction, paid aircraft
+repairs and core receivers. These do not yet replace the implemented rules below;
+the free allowance is confirmed as one bomber at an existing airbase per campaign.
+The proposed small outpost also supports robot respawn. The author requests cheaper
+local recycling and a reusable cargo rocket with a provisional two-minute cooldown
+and return animation. The author confirmed separate campaign-shared ground supplies
+for local construction/repair and orbital supplies for orbital delivery. Local
+processing earns ground supplies; rocket delivery earns orbital supplies. Initial
+balances, passive income and migration remain to be specified. Current shipment
+timers and single-pool SUP accounting below still apply until implementation.
+
 12 October 2026. The author approved placement, recovery, supplies, recycling,
 shipping and factories in that order, then authorized completion of the whole
 pipeline. Implemented locally; deployment and sustained Fly capacity are separate

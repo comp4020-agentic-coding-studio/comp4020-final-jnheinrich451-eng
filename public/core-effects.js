@@ -82,7 +82,11 @@ export class CoreEffects {
       c.fillStyle = time >= CORE.exit ? '#add8bc' : '#db8d5b'; c.fillRect(.5 * T + 5, -.5 * T + 5, 4, T - 10);
       const hatch = 1 - smooth((time - CORE.exit + .3) / .3);
       c.fillStyle = '#8b958b'; c.fillRect(.5 * T + 8, -.5 * T + 4, (T - 12) * hatch, T - 8);
-      c.fillStyle = '#d8d6b5'; c.font = 'bold 9px monospace'; c.textAlign = 'center'; c.fillText('UPLINK', -T * .5, -T * .62);
+      c.fillStyle = '#d8d6b5'; c.font = 'bold 9px monospace'; c.textAlign = 'center'; c.fillText('CORE', -T * .5, -T * .62);
+      c.fillStyle='#4e7869';c.fillRect(-1.5*T+3,.5*T+3,T-6,T-6);
+      c.fillStyle='#172f31';c.fillRect(-1.5*T+8,.5*T+10,T-16,T*.42);
+      c.strokeStyle='#b6d996';c.strokeRect(-1.5*T+8,.5*T+10,T-16,T*.42);
+      c.fillStyle='#d8e6bd';c.font='bold 8px monospace';c.fillText('RECYCLE',-T,T*1.3);
       c.restore();
     }
     if (size === 1 && open >= 1) { c.drawImage(this.panel, 0, 0, T, T, -T / 2, -T / 2, T, T); c.strokeStyle = '#d9b675'; c.lineWidth = 2; c.strokeRect(-T*.3, -T*.3, T*.6, T*.6); }

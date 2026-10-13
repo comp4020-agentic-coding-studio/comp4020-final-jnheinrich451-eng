@@ -65,7 +65,7 @@ export function tickAircraft(world,base,input,dt){
   if(p.remaining<.000001&&!world.logistics&&!base.destroyed)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y,p.kind||'bomber').aircraft});
   return true;
  }
- if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.rounds=JET.ammo;p.health=AIR_HULL.health;}return true;}
+ if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.rounds=JET.ammo;if(!world.logistics)p.health=AIR_HULL.health;}return true;}
  const steps=Math.ceil(dt/.025),step=dt/steps;
  for(let i=0;i<steps;i++){
   if(p.state==='landing'){
@@ -91,4 +91,12 @@ export function tickAircraft(world,base,input,dt){
   if(!base.destroyed&&p.state==='flying'&&p.leftBase&&!releasing&&p.speed<=AIR.minSpeed+1&&distance<=AIR.landingRange){Object.assign(p,{state:'landing',remaining:AIR.transition,landingX:p.x,landingY:p.y});}
  }
  return true;
+}
+
+export function tickAirRepair(world,base,dt){
+ const p=base.aircraft,was=!!p.repairing;p.repairing=false;
+ if(!world.logistics||base.destroyed||world.logistics.jobs?.[base.id]||p.state!=='parked'||aircraftHealth(p)>=AIR_HULL.health)return was;
+ const amount=Math.min(AIR_HULL.health-aircraftHealth(p),10*dt,(world.logistics.groundSupplies||0)/.2);
+ if(amount<=0)return was;
+ p.health=aircraftHealth(p)+amount;world.logistics.groundSupplies=Math.max(0,world.logistics.groundSupplies-amount*.2);p.repairing=true;return true;
 }

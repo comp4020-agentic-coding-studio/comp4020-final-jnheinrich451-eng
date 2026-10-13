@@ -1,19 +1,20 @@
+import { POD } from './pod.js';
 import { dockRecords } from './shipyard.js';
 // All balance values for the first conquest economy live here. Server-owned;
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
-  factoryDiscount: .6, factoryTime: 20, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
+  rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ core: 120, sentry: 25, tank: 100, ship: 240,
-  submarine: 280, transport: 200, airbase: 300, artillery: 180, missile: 220, factory: 150,
+  submarine: 280, transport: 200, airbase: 300, artillery: 180, missile: 220, outpost: 80, factory: 150,
   uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
-export const LOGISTICS_SIZE = Object.freeze({ factory: 2, uplink: 3, recycler: 1, builder: 1 });
+export const LOGISTICS_SIZE = Object.freeze({ outpost: 2, factory: 2, uplink: 3, recycler: 1, builder: 1 });
 export const FACILITY_HP = Object.freeze({ core: 500, sentry: 140, artillery: 350,
-  missile: 320, airbase: 500, dock: 320, ramp: 140, factory: 400, uplink: 300, recycler: 160 });
-export const freshLogistics = () => ({ version: 1, supplies: ECONOMY.initial, time: 0,
+  missile: 320, airbase: 500, dock: 320, ramp: 140, outpost: 250, factory: 400, uplink: 300, recycler: 160 });
+export const freshLogistics = () => ({ version: 2, supplies: ECONOMY.initial, groundSupplies: 0, freeBomberUsed: false, time: 0,
   emergency: 0, bridges: [], floors: [], facilities: [], recyclers: [], crates: [], salvage: {}, durability: {},
   jobs: {}, deployments: {}, shipments: 0 });
-export const readyFactory = f => f.kind === 'factory' && !f.destroyed && !(f.remaining > 0);
+export const readyFactory = f => ['factory','outpost'].includes(f.kind) && !f.destroyed && !(f.remaining > 0);
 export const facilityCenter = f => ({ x: f.x + (LOGISTICS_SIZE[f.kind] || 1) / 2, y: f.y + (LOGISTICS_SIZE[f.kind] || 1) / 2 });
 export const quote = (kind, local = false) => Math.ceil(COSTS[kind] * (local ? ECONOMY.factoryDiscount : 1));
 export function usableExplosives(world) {
@@ -31,9 +32,9 @@ export function tickSupplies(state, dt) {
   if (state.supplies < ECONOMY.reserve) state.supplies = Math.min(ECONOMY.reserve, state.supplies + ECONOMY.income * dt);
   state.emergency = Math.max(0, state.emergency - dt);
 }
-export function credit(state, amount) {
-  const accepted = Math.max(0, Math.min(amount, ECONOMY.capacity - state.supplies));
-  state.supplies += accepted; return accepted;
+export function credit(state, amount, pool = 'supplies') {
+  const accepted = Math.max(0, Math.min(amount, ECONOMY.capacity - (state[pool] || 0)));
+  state[pool] = (state[pool] || 0) + accepted; return accepted;
 }
 export function collectSalvage(state, site, truck, dt) {
   if (!site || site.state !== 'conquered' || Math.hypot(truck.x-site.x-1.5, truck.y-site.y-1.5) > 4) return false;
@@ -55,15 +56,20 @@ export function addRemains(state, enemy, id) {
   state.crates.push({id,kind:'remains',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount:ECONOMY.remainsValue});
 }
 export function tickLaunch(state, station, dt) {
-  if (!(station.launch > 0)) return false;
+  const active=station.launch>0||station.cooldown>0;
+  station.cooldown=Math.max(0,(station.cooldown||0)-dt);
+  if (!(station.launch > 0)) return active;
+  // Old in-progress shipments retain their cargo and deliver exactly once.
+  if(station.inFlight===undefined){station.inFlight=station.cargo;station.cargo=0;station.cooldown=Math.max(station.cooldown,ECONOMY.rocketCycle);}
   station.launch = Math.max(0, station.launch - dt);
   if (station.launch < 1e-8) {
-    station.launch = 0;
-    const accepted = credit(state, station.cargo);
-    station.cargo -= accepted; // Full storage never silently discards a shipment.
-    if (accepted > 0) state.shipments++;
+    station.launch=0;
+    const accepted=credit(state,station.inFlight);
+    station.cargo+=station.inFlight-accepted;
+    station.inFlight=0;
+    if(accepted>0)state.shipments++;
   }
-  return true;
+  return active;
 }
 
 // Durable HP is separate from legacy table layouts. Only explicitly assembled
@@ -102,3 +108,31 @@ export function hurtFacility(f, amount, penetration = 2) {
   if (f.hp.health<=0 || penetration < f.hp.armor || !Number.isFinite(amount) || amount<=0) return false;
   f.hp.health=Math.max(0,f.hp.health-amount); return true;
 }
+
+// Keep the old serialized supplies field as orbital SUP for compatibility.
+export function migrateLogistics(state) {
+  if(![1,2].includes(state.version))throw new Error('Unsupported logistics save version. Preserve this save and update the server.');
+  if(state.version===1){state.groundSupplies=0;state.freeBomberUsed=false;for(const job of Object.values(state.jobs||{}))job.pool='supplies';state.version=2;}
+  return state;
+}
+export const LOCAL_KINDS = ['airbase','ship','submarine','transport','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
+export const poolFor = (kind, local=false) => local || ['dockRepair','baseRepair','rampRepair'].includes(kind) ? 'groundSupplies' : 'supplies';
+export const poolLabel = pool => pool==='groundSupplies'?'ground SUP':'orbital SUP';
+export function supportSources(world){return [
+ ...(world.cores||[]).filter(c=>!c.destroyed&&c.elapsed>=POD.duration).map(c=>({...c,kind:'core',center:{x:c.x+1.5,y:c.y+1.5}})),
+ ...(world.logistics?.facilities||[]).filter(f=>readyFactory(f)&&!world.logistics?.jobs?.[f.id]).map(f=>({...f,center:facilityCenter(f)}))
+];}
+export function salvageReceivers(world){return [
+ ...supportSources(world).filter(f=>f.kind!=='factory'),
+ ...(world.logistics?.facilities||[]).filter(f=>f.kind==='uplink'&&f.remaining<=0&&!world.logistics.jobs?.[f.id]).map(f=>({...f,center:facilityCenter(f)}))
+];}
+export function unloadSalvage(world,truck,id,dt){
+ const l=world.logistics,receiver=salvageReceivers(world).find(f=>f.id===id);
+ if(!receiver||Math.hypot(truck.x-receiver.center.x,truck.y-receiver.center.y)>4)return 0;
+ if(receiver.kind==='uplink'){
+  const station=l.facilities.find(f=>f.id===id),amount=Math.max(0,Math.min(truck.cargo,ECONOMY.cargo*4-station.cargo-(station.inFlight||0)));
+  station.cargo+=amount;truck.cargo-=amount;return amount;
+ }
+ const amount=credit(l,Math.min(truck.cargo,ECONOMY.processRate*dt),'groundSupplies');truck.cargo-=amount;return amount;
+}
+export const orbitalDuration = kind => ['airbase','artillery','missile','shipyard'].includes(kind)?12:['factory','uplink','outpost'].includes(kind)?8:4.5;

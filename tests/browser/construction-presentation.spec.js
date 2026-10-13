@@ -23,7 +23,7 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
   db.prepare('INSERT INTO robot_states VALUES (?,?)').run('pilot',JSON.stringify({...freshLife(),deployed:true}));
   const ship={...shipSite(world,[],[],23,25,'pilot','gunship','unfolding').ship,id:'gunship',elapsed:4.5,dockReady:true,destroyed:true,health:0,replacement:0};
   db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));
-  const logistics=freshLogistics();logistics.supplies=423;
+  const logistics=freshLogistics();logistics.supplies=423;logistics.groundSupplies=100;
   db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(logistics));db.close();
   app=createApp({dataDir:dir,logSink:()=>{}});
   try{
@@ -39,15 +39,15 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
     await expect(page.locator('#navy-vessel')).toHaveCount(0);await expect(page.locator('#shipyard-kind')).toHaveCount(0);
     await expect(page.locator('#yard-build-gunship')).toBeEnabled();await page.screenshot({path:`.local/naval-rebuild-${mobile?'phone':'desktop'}.png`});
     await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state()).ships[0].destroyed).toBe(false);
-    const after=await state();expect(after.ships).toHaveLength(1);expect(after.logistics.supplies).toBeGreaterThanOrEqual(183);expect(after.logistics.supplies).toBeLessThan(190);
+    const after=await state();expect(after.ships).toHaveLength(1);expect(after.logistics.groundSupplies).toBe(40);expect(after.logistics.supplies).toBe(423);
     await expect(page.locator('#shipyard-choices')).toBeHidden();
     await page.locator('#shipyard-close').click();
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('240 SUP / AT SHIPYARD');await page.locator('#ship-card').click();expect((await state()).ships).toHaveLength(1);
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('60 GND / AT SHIPYARD');await page.locator('#ship-card').click();expect((await state()).ships).toHaveLength(1);
     await page.locator('#shipyard-new-dialog').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('36');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
     await expect.poll(async()=>(await state()).logistics.shipyards.length).toBe(2);
     const yard=(await state()).logistics.shipyards.find(y=>y.id!=='gunship');
     await expect.poll(async()=>(await state()).logistics.shipyards.find(y=>y.id===yard.id).dockReady,{timeout:6500}).toBe(true);
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#submarine-card').click();await page.locator('#shipyard-select').selectOption(yard.id);await expect(page.locator('#yard-build-submarine')).toBeDisabled();await expect(page.locator('#yard-reason-submarine')).toContainText('Need 280 supplies');
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#submarine-card').click();await page.locator('#shipyard-select').selectOption(yard.id);await expect(page.locator('#yard-build-submarine')).toBeDisabled();await expect(page.locator('#yard-reason-submarine')).toContainText('Need 70 ground SUP');
     await expect(page.locator('#shipyard-dialog')).toBeVisible();await page.screenshot({path:'.local/shipyards-'+(mobile?'phone':'desktop')+'.png'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.locator('#shipyard-close').click();

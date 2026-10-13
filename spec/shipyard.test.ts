@@ -20,7 +20,7 @@ it('migrates docks with a backup, buys an empty yard, rebuilds there once and pr
   const dir=await mkdtemp(path.join(tmpdir(),'frontier-yard-'));let app=createApp({dataDir:dir,logSink:()=>{}});await app.close();
   const token=randomUUID(),db=new DatabaseSync(path.join(dir,'world.sqlite')),w=coast();
   const original:any={...shipSite(w,[],[],23,25,'a','gunship','unfolding').ship,id:'lost',elapsed:4.5,destroyed:true,health:0,replacement:0,x:38,y:36};
-  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(freshLogistics()));
+  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify({...freshLogistics(),groundSupplies:1200}));
   db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'a','Pilot',19.5,25.5,0);db.prepare('INSERT INTO robot_states VALUES (?,?)').run('a',JSON.stringify({...freshLife(),deployed:true}));db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','a',10,28,4.5);db.prepare('INSERT INTO ships VALUES (?,?)').run(original.id,JSON.stringify(original));db.close();
   let url='',controller:AbortController|undefined;
   const open=async()=>{app=createApp({dataDir:dir,logSink:()=>{}});await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));url='http://127.0.0.1:'+(app.server.address() as any).port;};await open();
@@ -35,34 +35,36 @@ it('migrates docks with a backup, buys an empty yard, rebuilds there once and pr
     expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(409);
     await expect.poll(async()=>(await state()).logistics.shipyards.find((y:any)=>y.id===yard.id).dockReady,{timeout:6500}).toBe(true);
     expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(200);
-    s=await state();expect(s.logistics.supplies).toBe(840);expect(s.ships[0].yardId).toBe(yard.id);expect(s.ships[0].assemblyRemaining).toBeGreaterThan(11);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);
-    expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(200);expect((await state()).logistics.supplies).toBe(840);
+    s=await state();expect(s.logistics.groundSupplies).toBe(1140);expect(s.ships[0].yardId).toBe(yard.id);expect(s.ships[0].assemblyRemaining).toBeGreaterThan(11);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);
+    expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1140);
     await restart(db=>{const l=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);l.shipyards.find((y:any)=>y.id===yard.id).dockDestroyed=true;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));});
     const remaining=(await state()).ships[0].assemblyRemaining;await connect();await new Promise(r=>setTimeout(r,200));expect((await state()).ships[0].assemblyRemaining).toBe(remaining);
     expect((await post('logistics/repair',{kind:'dock',id:yard.id})).status).toBe(200);
     await expect.poll(async()=>(await state()).ships[0].assemblyRemaining,{timeout:10000}).toBeLessThan(remaining);
-    await expect.poll(async()=>(await state()).ships[0].assemblyRemaining,{timeout:15000}).toBe(0);
+    expect((await state()).ships[0].assemblyDuration).toBe(60);
+    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get('lost') as any).value);ship.assemblyRemaining=.2;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),'lost');});await connect();
+    await expect.poll(async()=>(await state()).ships[0].assemblyRemaining,{timeout:3000}).toBe(0);
     await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get('lost') as any).value);ship.rampGun.destroyed=true;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),'lost');});
     await connect();expect((await state()).ships[0].rampGun.destroyed).toBe(true);
-    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.supplies).toBe(725);
-    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.supplies).toBe(725);expect((await state()).ships[0].rampGun.destroyed).toBe(false);
+    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1025);
+    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1025);expect((await state()).ships[0].rampGun.destroyed).toBe(false);
     expect((await post('ships/recall',{id:'lost',keepYard:true})).status).toBe(200);s=await state();expect(s.ships).toHaveLength(0);expect(s.logistics.shipyards).toHaveLength(2);
-    expect((await post('ships',{kind:'transport',yardId:yard.id})).status).toBe(201);s=await state();expect(s.ships[0].kind).toBe('transport');expect(s.logistics.supplies).toBe(525);
+    expect((await post('ships',{kind:'transport',yardId:yard.id})).status).toBe(201);s=await state();expect(s.ships[0].kind).toBe('transport');expect(s.logistics.groundSupplies).toBe(975);
     await restart();s=await state();expect(s.ships).toHaveLength(1);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);expect(tileAt(s.world,23,25)).toBe(4);
     // Each dock has its own slot, even when the same owner chooses the same type.
     await connect();
     const second=await post('ships',{kind:'transport',yardId:'lost'});expect(second.status).toBe(201);
     expect((await post('ships',{kind:'transport',yardId:'lost'})).status).toBe(200);
-    expect((await state()).ships).toHaveLength(2);expect((await state()).logistics.supplies).toBe(325);
+    expect((await state()).ships).toHaveLength(2);expect((await state()).logistics.groundSupplies).toBe(925);
     await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{elapsed:4.5,assemblyRemaining:0,health:250});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
     await connect();await expect.poll(async()=>(await state()).ships.find((v:any)=>v.id===second.body.ship.id).health,{timeout:8000}).toBe(300);
-    expect((await state()).logistics.supplies).toBeCloseTo(315,4);
-    await restart();s=await state();expect(s.ships.find((v:any)=>v.id===second.body.ship.id).health).toBe(300);expect(s.logistics.supplies).toBeCloseTo(315,4);
+    expect((await state()).logistics.groundSupplies).toBeCloseTo(915,4);
+    await restart();s=await state();expect(s.ships.find((v:any)=>v.id===second.body.ship.id).health).toBe(300);expect(s.logistics.groundSupplies).toBeCloseTo(915,4);
     await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{destroyed:true,health:0,replacement:0});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
     await connect();const changed=await post('vehicles/replace',{kind:'ship',vesselKind:'submarine',id:second.body.ship.id});expect(changed.status).toBe(200);expect(changed.body.vehicle).toMatchObject({kind:'submarine',ammo:'HE',health:300,depth:'surfaced'});
-    s=await state();expect(s.logistics.supplies).toBeGreaterThan(35-1e-8);expect(s.logistics.supplies).toBeLessThan(37);expect(s.ships).toHaveLength(2);
+    s=await state();expect(s.logistics.groundSupplies).toBeCloseTo(845,6);expect(s.ships).toHaveLength(2);
   }finally{controller?.abort();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-yard-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}
-},55000);
+},100000);
 
 it('retains empty dock geometry and bounds cosmetic wrecks without obstructing water',()=>{
   const w=coast(),s:any={...shipSite(w,[],[],23,25,'a','gunship','unfolding').ship,id:'s',elapsed:4.5,destroyed:true};
@@ -84,15 +86,15 @@ it.each(['swimmer','crawler'])('ramp sentry hits a %s with real projectiles and 
 
 function repairFixture(){
   const w=coast(),ship:any={...shipSite(w,[],[],23,25,'a','gunship','unfolding').ship,id:'s',elapsed:4.5,health:200,speed:0};
-  w.ships=[ship];w.logistics.shipyards=[yardFromShip(ship)];w.logistics.supplies=100;return {w,ship,yard:w.logistics.shipyards[0]};
+  w.ships=[ship];w.logistics.shipyards=[yardFromShip(ship)];w.logistics.groundSupplies=100;return {w,ship,yard:w.logistics.shipyards[0]};
 }
 it('repairs only real missing hull health, stops on damage, and never charges beyond available supplies',()=>{
-  const {w,ship}=repairFixture();tickDockRepair(w,ship,1);expect(ship.health).toBe(210);expect(w.logistics.supplies).toBe(98);expect(ship.repairing).toBe(true);
-  hurtVehicle(ship,20);tickDockRepair(w,ship,4);expect(ship.health).toBe(190);expect(ship.repairing).toBe(false);expect(w.logistics.supplies).toBe(98);
+  const {w,ship}=repairFixture();tickDockRepair(w,ship,1);expect(ship.health).toBe(210);expect(w.logistics.groundSupplies).toBe(98);expect(ship.repairing).toBe(true);
+  hurtVehicle(ship,20);tickDockRepair(w,ship,4);expect(ship.health).toBe(190);expect(ship.repairing).toBe(false);expect(w.logistics.groundSupplies).toBe(98);
   tickDockRepair(w,ship,1);expect(ship.health).toBe(200);
-  ship.health=299;tickDockRepair(w,ship,1);expect(ship.health).toBe(300);expect(w.logistics.supplies).toBeCloseTo(95.8);
-  tickDockRepair(w,ship,1);expect(w.logistics.supplies).toBeCloseTo(95.8);expect(ship.repairing).toBe(false);
-  ship.health=200;w.logistics.supplies=.1;tickDockRepair(w,ship,1);expect(ship.health).toBe(200.5);expect(w.logistics.supplies).toBe(0);
+  ship.health=299;tickDockRepair(w,ship,1);expect(ship.health).toBe(300);expect(w.logistics.groundSupplies).toBeCloseTo(95.8);
+  tickDockRepair(w,ship,1);expect(w.logistics.groundSupplies).toBeCloseTo(95.8);expect(ship.repairing).toBe(false);
+  ship.health=200;w.logistics.groundSupplies=.1;tickDockRepair(w,ship,1);expect(ship.health).toBe(200.5);expect(w.logistics.groundSupplies).toBe(0);
   tickDockRepair(w,ship,1);expect(ship.health).toBe(200.5);expect(ship.repairing).toBe(false);
 });
 it.each(['moving','away','submerged','destroyed','assembling','dock destroyed','dock repairing'])('does not heal while %s',reason=>{
@@ -101,7 +103,7 @@ it.each(['moving','away','submerged','destroyed','assembling','dock destroyed','
   if(reason==='submerged'){ship.kind='submarine';ship.depth='submerged';}
   if(reason==='destroyed')ship.destroyed=true;if(reason==='assembling')ship.assemblyRemaining=2;
   if(reason==='dock destroyed')yard.dockDestroyed=true;if(reason==='dock repairing')w.logistics.jobs[yard.id]={remaining:3};
-  tickDockRepair(w,ship,1);expect(ship.health).toBe(200);expect(w.logistics.supplies).toBe(100);expect(ship.repairing).toBe(false);
+  tickDockRepair(w,ship,1);expect(ship.health).toBe(200);expect(w.logistics.groundSupplies).toBe(100);expect(ship.repairing).toBe(false);
 });
 it('reserves a per-dock slot at sea, counts active hulls and finds dock interaction from its deck',()=>{
   const {w,ship,yard}=repairFixture();ship.x+=15;

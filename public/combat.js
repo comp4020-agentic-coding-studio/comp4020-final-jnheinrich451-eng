@@ -398,6 +398,7 @@ export function createCombat(world, saved = null, auditContext = null) {
         if (action) shoot(robot, action.target.x, action.target.y, action.weapon, buildings);
       }
       for (const b of buildings) {
+        if(world.logistics?.jobs?.[b.id])continue;
         const weapon = b.weapon === 'HEAVY_FLAME' ? 'HEAVY_FLAME' : 'APCR', rangeLimit = weapon === 'HEAVY_FLAME' ? WEAPONS.HEAVY_FLAME.range : 7;
         const source = { id: b.id, x: b.x + .5, y: b.y + .5, mount: 'sentry' };
         const mount = sentryMounts.get(b.id);

@@ -47,7 +47,7 @@ async function fixture(ready=false,blocked=false,away=false,submarine=false,wrec
  if(ready){const s={...vessel(),occupant:'a',...(submarine?{kind:'submarine'}:{}),...(away?{x:17.8,y:20.5,angle:0,turret:0}:{}),...(wreck?{destroyed:true,health:0,occupant:null,replacement:0,reload:10,ramp:{x:20.5,y:12.5}}:{})};db.prepare('INSERT INTO ships VALUES (?,?)').run(s.id,JSON.stringify(s));}
  if(wreck){const gun={...shipSite(coast(),[],[],17,24,'a').ship!,id:'other-gun',elapsed:SHIP.duration};db.prepare('INSERT INTO ships VALUES (?,?)').run(gun.id,JSON.stringify(gun));}
  if(blocked)db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run('block',20,12,'a','now');
- db.close();app=createApp({dataDir:dir});let base='',controllers:AbortController[]=[];
+ const supplies=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);supplies.groundSupplies=1200;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(supplies));db.close();app=createApp({dataDir:dir});let base='',controllers:AbortController[]=[];
  const listen=async()=>{await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;};await listen();
  const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
  const post=async(route:string,data:any,i=0)=>{const r=await fetch(base+'/api/'+route,{method:'POST',headers:{Cookie:'frontier='+tokens[i],'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};};

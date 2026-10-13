@@ -22,7 +22,7 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
   await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
   await expect.poll(plane).toMatchObject({kind:'attack-jet',state:'delivering'});await expect(page.locator('#aircraft-interact')).toBeDisabled();
   await page.waitForTimeout(1600);await page.screenshot({path:`docs/previews/jet-delivery-${mobile?'mobile':'desktop'}.png`});
-  await expect.poll(async()=>(await plane()).state,{timeout:6000}).toBe('parked');await page.locator('#aircraft-interact').click();
+  await expect.poll(async()=>(await plane()).state,{timeout:20000}).toBe('parked');await page.locator('#aircraft-interact').click();
   await expect(page.locator('#aircraft-controls')).toHaveAttribute('aria-label','Attack jet controls');await expect.poll(async()=>(await plane()).state,{timeout:4000}).toBe('flying');
   if(mobile){const b=await page.locator('#aircraft-bomb').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);
   await page.mouse.down();await expect.poll(async()=>(await plane()).rounds,{timeout:3000,intervals:[80]}).toBeLessThan(87);await page.mouse.up();

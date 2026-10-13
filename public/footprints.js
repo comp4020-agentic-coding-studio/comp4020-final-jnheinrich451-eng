@@ -46,4 +46,4 @@ export const railCorridor = (world, x, y) => world.rails?.some(r => isCurve(r) ?
 export const airbaseAt=(world,x,y)=>world.airbases?.some(b=>x>=b.x&&x<b.x+6&&y>=b.y&&y<b.y+10)||false;
 export const hangarBlocks=(world,x,y)=>world.airbases?.some(b=>x>=b.x+4&&x<b.x+6&&y>=b.y+1&&y<b.y+4)||false;
 
-export const logisticsAt = (world,x,y) => world.logistics?.facilities?.some(f => x>=f.x && y>=f.y && x<f.x+(f.kind==='factory'?2:3) && y<f.y+(f.kind==='factory'?2:3)) || false;
+export const logisticsAt = (world,x,y) => world.logistics?.facilities?.some(f => x>=f.x && y>=f.y && x<f.x+(['factory','outpost'].includes(f.kind)?2:3) && y<f.y+(['factory','outpost'].includes(f.kind)?2:3)) || false;

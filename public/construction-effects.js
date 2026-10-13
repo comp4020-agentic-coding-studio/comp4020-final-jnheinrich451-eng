@@ -19,6 +19,17 @@ export class ConstructionEffects extends CoreEffects {
   draw(c,world,point,size,stage,zoom,reduced,drones=false){
     if(!stage.active)return;
     const T=this.tile,t=stage.time;
+    if(stage.method==='factory'){
+      c.save();c.translate(point.x*T,point.y*T);
+      const bay=stage.droneBay||{x:Math.floor(point.x),y:Math.floor(point.y)},x=(bay.x-point.x)*T,y=(bay.y-point.y)*T;
+      c.fillStyle='#18353a';c.fillRect(x,y,T,T);c.strokeStyle='#8edccc';c.lineWidth=2/zoom;c.strokeRect(x+2,y+2,T-4,T-4);
+      c.fillStyle='#567e80';c.fillRect(x+T*.12,y+T*.15,T*.76,T*.45);
+      for(let i=0;i<3;i++){c.fillStyle='#d6c384';c.fillRect(x+T*(.2+i*.23),y+T*.24,T*.13,T*.25);}
+      c.fillStyle='#b7dfd5';c.font='bold '+9/zoom+'px monospace';c.textAlign='center';c.fillText('DRONES',x+T/2,y+T*.84);
+      this.workers(c,world,point,size,{...stage,time:stage.time+POD.unfold+2,source:{x:bay.x+.5,y:bay.y+.5}},reduced);
+      c.fillStyle='#17373c';c.fillRect(-size*T/2,(size/2+.14)*T,size*T,.06*T);c.fillStyle='#aaddc0';c.fillRect(-size*T/2,(size/2+.14)*T,size*T*stage.reveal,.06*T);
+      c.restore();return;
+    }
     c.save();c.translate(point.x*T,point.y*T);
     c.strokeStyle='#dabf78';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);
     c.strokeRect(-size*T/2,-size*T/2,size*T,size*T);c.setLineDash([]);
@@ -45,7 +56,7 @@ export class ConstructionEffects extends CoreEffects {
   }
   workers(c,world,point,size,stage,reduced){
     const T=this.tile,t=stage.time;
-    const source=constructionCores(world).map(p=>({x:p.x+1.5,y:p.y+1.5}))
+    const source=stage.source||constructionCores(world).map(p=>({x:p.x+1.5,y:p.y+1.5}))
       .sort((a,b)=>Math.hypot(a.x-point.x,a.y-point.y)-Math.hypot(b.x-point.x,b.y-point.y))[0];
     for(let i=0;i<(reduced?1:3);i++){
       const phase=t*1.2+i*2.1,angle=reduced?i*2:phase;

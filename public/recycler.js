@@ -1,5 +1,5 @@
 import { canStand } from './world.js';
-import { ECONOMY, facilityCenter } from './logistics.js';
+import { ECONOMY, facilityCenter, salvageReceivers } from './logistics.js';
 
 export const RECYCLER = Object.freeze({ speed: 3.5, radius: .42, boardRange: 1.8, pickupRange: 2, idleTime: .5 });
 
@@ -31,7 +31,7 @@ export function recyclerExit(world, buildings, truck, occupants = []) {
 
 export function parkedTask(world, truck) {
   const l=world.logistics;
-  if(truck.cargo>0){const station=l.facilities.find(f=>f.kind==='uplink'&&f.remaining<=0&&!(f.launch>0)&&f.cargo<ECONOMY.cargo*4&&Math.hypot(truck.x-facilityCenter(f).x,truck.y-facilityCenter(f).y)<=4);if(station)return {action:'deliver',id:station.id};}
+  if(truck.cargo>0){const station=salvageReceivers(world).filter(f=>f.kind==='uplink'?f.cargo+(f.inFlight||0)<ECONOMY.cargo*4:(l.groundSupplies||0)<ECONOMY.capacity).filter(f=>Math.hypot(truck.x-f.center.x,truck.y-f.center.y)<=4).sort((a,b)=>Math.hypot(truck.x-a.center.x,truck.y-a.center.y)-Math.hypot(truck.x-b.center.x,truck.y-b.center.y))[0];if(station)return {action:'deliver',id:station.id};}
   if(truck.cargo>=ECONOMY.cargo)return null;
   const crate=l.crates.filter(c=>c.amount>0&&Math.hypot(c.x-truck.x,c.y-truck.y)<=RECYCLER.pickupRange).sort((a,b)=>Math.hypot(a.x-truck.x,a.y-truck.y)-Math.hypot(b.x-truck.x,b.y-truck.y))[0];
   if(crate)return {action:'recover',id:crate.id};
