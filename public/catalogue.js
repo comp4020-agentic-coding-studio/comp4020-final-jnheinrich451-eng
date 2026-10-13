@@ -46,7 +46,7 @@ export const ASSETS = Object.freeze([
     specs: [['Main guns', `${SHIP.minRange}–${SHIP.range} t · ${SHIP.reload} s per turret`], ['Side guns', `${NAVAL_GUN.range} t · ${degrees(NAVAL_GUN.halfArc * 2)}° arcs`]], limit: '1 per scout' },
   { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'ship', cost: 'submarine', name: 'Missile submarine', footprint: 'Shore 3 × 1 · dock 3 × 5',
     specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Reload', `${SUBMARINE.reload} s`]], limit: '1 per scout' },
-  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'ship', cost: 'transport', name: 'Armored transport', footprint: 'Shore 3 x 1 / dock 3 x 5', specs: [['Cargo','One empty tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','K at a dock or shore ramp']], limit:'1 per scout' },
+  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'ship', cost: 'transport', name: 'Armored transport', footprint: 'Shore 3 x 1 / dock 3 x 5', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per scout' },
   { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Airbase + bomber', footprint: `${AIR.width} × ${AIR.height}`,
     specs: [['Bomber', `${AIR.count} HE × ${AIR.runs} runs`], ['Speed', `${AIR.minSpeed}–${AIR.maxSpeed} t/s`], ['Rearm', `${AIR.rearm} s`]] },
   { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'airbase', cost: 'aircraft', name: 'Orbital attack jet', footprint: 'Delivered to an airbase',

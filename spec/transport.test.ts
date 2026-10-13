@@ -1,11 +1,11 @@
 import { expect, it } from 'vitest';
 import { createApp } from '../server.js';
-import { createWorld } from '../public/world.js';
+import { createWorld, tileAt, canStand } from '../public/world.js';
 import { freshLogistics } from '../public/logistics.js';
 import { freshLife } from '../public/survival.js';
 import { mainMounts, mainSalvo, tickMainReloads } from '../public/ship-armament.js';
-import { shipName, recallShipError } from '../public/ship.js';
-import { loadError, unloadPoint } from '../public/transport.js';
+import { shipName, recallShipError, shipSite, replacementShipError, boardingPoint } from '../public/ship.js';
+import { loadError, unloadPoint, driveGate, driveOnError } from '../public/transport.js';
 import { tankPlacementError } from '../public/tank.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -78,3 +78,67 @@ it.each(['tank','recycler'])('loses %s cargo with its transport without duplicat
     if(kind==='tank'){expect(s.tanks).toHaveLength(1);expect(s.tanks[0].destroyed).toBe(true);}else expect(s.logistics.recyclers).toHaveLength(0);
   }finally{await f.close();}
 });
+
+it.each(['gunship','submarine','transport'])('rebuilds a destroyed %s at its saved dock even with its owner on the shore platform',async kind=>{
+  let original:any;
+  const f=await fixture((db,w)=>{river(w);original={...shipSite(w,[],[],23,25,'a',kind,'unfolding').ship,id:'wreck',elapsed:4.5,destroyed:true,health:0,replacement:0};db.prepare('UPDATE scouts SET x=?,y=? WHERE id=?').run(original.dock.x,original.dock.y,'a');db.prepare('INSERT INTO ships VALUES (?,?)').run(original.id,JSON.stringify(original));});try{
+    await f.connect();const before=(await f.state()).logistics.supplies;
+    const r=await f.post('vehicles/replace',{kind:'ship',id:'wreck'});expect(r.status).toBe(200);expect(r.data.vehicle).toMatchObject({id:'wreck',kind,destroyed:false,health:300,elapsed:0,dock:original.dock,berthX:original.berthX,berthY:original.berthY});
+    const cost=kind==='gunship'?240:kind==='submarine'?280:200;expect((await f.state()).logistics.supplies).toBe(before-cost);
+    expect((await f.post('vehicles/replace',{kind:'ship',id:'wreck'})).status).toBe(200);expect((await f.state()).logistics.supplies).toBe(before-cost);
+    await f.restart();await f.connect();await expect.poll(async()=>(await f.state()).ships[0].elapsed,{timeout:7000}).toBe(4.5);
+    expect((await f.post('ships/board',{id:'wreck'})).status).toBe(200);
+  }finally{await f.close();}
+},12000);
+it('explains damaged docks, repairs, timers and occupied berths before rebuilding',()=>{
+  const w=river(flat()),s={...vessel(),destroyed:true,health:0,replacement:0};w.ships=[s];
+  expect(replacementShipError(w,[{...s.dock,body:'robot'}],s)).toBeNull();
+  s.dockDestroyed=true;expect(replacementShipError(w,[],s)).toContain('Repair');s.dockDestroyed=false;
+  w.logistics.jobs[s.id]={repair:'dock',remaining:8};expect(replacementShipError(w,[],s)).toContain('repairs');w.logistics.jobs={};
+  s.replacement=5;expect(replacementShipError(w,[],s)).toContain('5s');s.replacement=0;
+  expect(replacementShipError(w,[{x:s.berthX,y:s.berthY}],s)).toContain('unit');
+  expect(replacementShipError(w,[{x:s.berthX,y:s.berthY,body:'aircraft'}],s)).toBeNull();
+  w.ships.push({...vessel(),id:'blocker'});expect(replacementShipError(w,[],s)).toContain('berth');
+});
+
+it('opens completed dock decks to ground units and keeps them during hull replacement or dock damage',()=>{
+  const w=river(flat()),s:any={...shipSite(w,[],[],23,25,'a','transport','unfolding').ship,elapsed:0};w.ships=[s];
+  expect(tileAt(w,23,25)).toBe(0);expect(canStand(w,[],23.5,25.5)).toBe(false);
+  s.elapsed=4.5;expect(tileAt(w,23,25)).toBe(4);expect(canStand(w,[],23.5,25.5,null,.42)).toBe(true);
+  const p={x:25.5,y:25.5};expect(boardingPoint(w,s,[],p)).toMatchObject(p);
+  expect(recallShipError(w,s,[p])).toContain('Clear all units');
+  s.dockReady=true;s.elapsed=0;s.dockDestroyed=true;expect(tileAt(w,23,25)).toBe(4);expect(canStand(w,[],23.5,25.5,null,.42)).toBe(true);
+  expect(boardingPoint(w,s,[],p)).toBeNull();expect(tileAt(w,29,25)).toBe(0);
+});
+it('requires a free transport, deliberate drive-on input and a clear loading gate',()=>{
+  const w=river(flat()),s:any={...shipSite(w,[],[],23,25,'a','transport','unfolding').ship,id:'t',elapsed:4.5};w.ships=[s];
+  const gate=driveGate(w,[],s)!,v={...vehicle('recycler'),...gate,occupant:'a'},c={kind:'utility',vehicle:v};w.logistics.recyclers=[v];
+  const input={x:s.x-gate.x,y:s.y-gate.y};expect(driveOnError(w,[],[],s,c,'a',input)).toBeNull();
+  expect(driveOnError(w,[],[],s,c,'a',{x:-input.x,y:-input.y})).toContain('toward');
+  s.occupant='b';expect(driveOnError(w,[],[],s,c,'a',input)).toContain('empty');s.occupant=null;
+  expect(driveOnError(w,[],[{x:gate.x,y:gate.y,life:'active'}],s,c,'a',input)).toContain('Clear');
+  w.logistics.bridges=[{builderId:v.id,from:{x:2,y:2},to:{x:4,y:2},elapsed:0}];expect(driveOnError(w,[],[],s,c,'a',input)).toContain('Finish');
+});
+for(const kind of ['tank','recycler','builder'])it('drives '+kind+' onto the pier transport and off with one persistent driver',async()=>{
+  let gate:any,ship:any;
+  const f=await fixture((db,w,l)=>{
+    river(w);ship={...shipSite(w,[],[],23,25,'a','transport','unfolding').ship,id:'transport',elapsed:4.5,health:300};w.ships=[ship];gate=driveGate(w,[],ship);
+    const v={...vehicle(kind),x:gate.x-1,y:gate.y,occupant:'a'};
+    db.prepare('UPDATE scouts SET x=?,y=? WHERE id=?').run(v.x,v.y,'a');db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));
+    if(kind==='tank')db.prepare('INSERT INTO tanks VALUES (?,?)').run(v.id,JSON.stringify(v));else l.recyclers=[v];
+  });try{
+    await f.connect();
+    await expect.poll(async()=>{await f.post('input',{x:1,y:0});return (await f.state()).me.x;},{timeout:3000,interval:100}).toBeGreaterThan(gate.x-.15);
+    await f.post('input',{x:0,y:0});let state=await f.state();expect(state.me.shipId).toBeFalsy();
+    const input={x:Math.sign(ship.x-gate.x),y:Math.sign(ship.y-gate.y)};
+    await expect.poll(async()=>{await f.post('input',input);return (await f.state()).me.shipId;},{timeout:3000,interval:100}).toBe('transport');
+    state=await f.state();expect(state.ships[0].cargo.vehicle.occupant).toBeNull();expect(kind==='tank'?state.tanks:state.logistics.recyclers).toHaveLength(0);
+    await f.restart();await f.connect();state=await f.state();expect(state.me.shipId).toBe('transport');expect(state.ships[0].cargo.vehicle.id).toBe('cargo');
+    expect((await f.post('ships/cargo',{action:'drive-off',vehicleId:'cargo'})).status).toBe(200);
+    expect((await f.post('ships/cargo',{action:'drive-off',vehicleId:'cargo'})).status).toBe(200);
+    await f.restart();await f.connect();state=await f.state();const list=kind==='tank'?state.tanks:state.logistics.recyclers;
+    expect(list).toHaveLength(1);expect(list[0]).toMatchObject({id:'cargo',occupant:'a',health:147,weapon:'MAGNETIC'});expect(state.ships[0].occupant).toBeNull();expect(state.ships[0].cargo).toBeNull();
+    expect(state.me.shipId).toBeFalsy();expect(kind==='tank'?state.me.vehicleId:state.me.recyclerId).toBe('cargo');
+    await f.post('input',{x:-input.x,y:-input.y});await new Promise(r=>setTimeout(r,250));expect((await f.state()).me.shipId).toBeFalsy();
+  }finally{await f.close();}
+},12000);

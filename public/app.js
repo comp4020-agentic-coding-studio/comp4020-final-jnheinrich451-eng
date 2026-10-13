@@ -1,4 +1,4 @@
-import { isTransport, cargoName, transportVehicles, carriedVehicles, cargoAccess, loadError } from './transport.js';
+import { isTransport, cargoName, transportVehicles, carriedVehicles, cargoAccess, loadError, driveGate, unloadPoint } from './transport.js';
 import { bridgeUI } from './bridge-ui.js';
 import { drawBridges } from './bridge-effects.js';
 import { isBuilder, bridgeReady, bridgeDuration } from './bridge-geometry.js';
@@ -30,7 +30,7 @@ import { isSubmarine, SUBMARINE, submarineBox, submarineTargetError } from './su
 import { NAVAL_GUN, SIDE_MOUNTS, sideSolution, mainSalvo, mainMounts, mainReload, readyMainMounts } from './ship-armament.js';
 import { VEHICLE, hullHealth } from './vehicle.js';
 import { drawVehicleState, drawSwimmer } from './vehicle-effects.js';
-import { SHIP, shipKind, shipName, shipSite, boardingPoint, shoreRampSite, shipSolution, recallShipError } from './ship.js';
+import { SHIP, dockComplete, shipKind, shipName, shipSite, replacementShipError, boardingPoint, shoreRampSite, shipSolution, recallShipError } from './ship.js';
 import { ShipEffects, drawShip } from './ship-effects.js';
 import { TANK, tankPlacementError, tankArrivalPosition } from './tank.js';
 import { switchAt, switchLocked, switchConnectionError } from './switches.js';
@@ -287,10 +287,9 @@ let shipBusy = false, sideBusy = false, nextSideShot = 0, lastShipTarget = null,
 let shipClick=null;
 function cancelShipClick(){if(shipClick)clearTimeout(shipClick.timer);shipClick=null;}
 function nearbyShip() {
-  return world?.ships?.find(s => {
-    const dock = boardingPoint(world, s, buildings);
-    return dock && !s.destroyed && s.elapsed >= SHIP.duration && Math.hypot(me.x-dock.x, me.y-dock.y) <= SHIP.boardRange;
-  });
+  return (world?.ships||[]).map(s=>({ship:s,dock:boardingPoint(world,s,buildings,me)}))
+    .filter(({ship:s,dock})=>dock&&!s.destroyed&&s.elapsed>=SHIP.duration&&Math.hypot(me.x-dock.x,me.y-dock.y)<=SHIP.boardRange)
+    .sort((a,b)=>Number(!!a.ship.occupant)-Number(!!b.ship.occupant)||Math.hypot(me.x-a.dock.x,me.y-a.dock.y)-Math.hypot(me.x-b.dock.x,me.y-b.dock.y))[0]?.ship;
 }
 function updateShips() {
   const ship = currentShip(), near = nearbyShip(), button = $('ship-interact');
@@ -298,7 +297,7 @@ function updateShips() {
   $('ship-controls').hidden = !ship;
   if (ship) document.querySelector('.mode-dock').hidden = true;
   button.hidden = !alive() || mode === 'build' || !!controlledGun() || (!ship && (me.body !== 'robot' || !near));
-  button.textContent = ship ? 'Disembark / E' : near?.occupant ? 'Ship occupied' : 'Board ship / E';
+  button.textContent = ship ? 'Disembark / E' : near?.occupant ? 'Ship occupied' : 'Board '+shipName(near)+' / E';
   button.disabled = !connected || shipBusy || (!ship && !!near?.occupant);
   for(const[kind,id]of[['gunship','ship-card'],['submarine','submarine-card'],['transport','transport-card']])$(id).disabled=!connected||me.body!=='robot'||world.ships.some(s=>s.owner===me.id&&shipKind(s)===kind);
   const fleet=$('navy-vessel'),ownedShips=world.ships.filter(s=>s.owner===me.id),signature=ownedShips.map(s=>s.id).join(',');
@@ -306,11 +305,12 @@ function updateShips() {
   fleet.disabled=!ownedShips.length;
   const owned = world.ships.some(s => s.owner === me.id);
   $('ship-find').disabled = $('ship-dock-find').disabled = !owned;
-  const recallError=recallShipError(world,selectedVessel());
+  const recallError=recallShipError(world,selectedVessel(),groundPlayers());
   $('ship-recall').disabled=shipBusy||!connected||!alive()||me.body!=='robot'||!!controlledGun()||!!recallError;
   $('ship-recall-help').textContent=recallError||'Removes the selected ship and its dock. You can deploy a new pair afterwards.';
   updateReplacement('ship',world.ships);updateReplacement('tank',world.tanks);
   $('build-mode').disabled ||= !!ship;
+  $('transport-controls').hidden=!isTransport(ship);
   if (!ship) { rampPreview=null; return; }
   rampPreview=ship.ramp?null:shoreRampSite(world,buildings,[...groundPlayers(),...combat.enemies],ship);
   $('ship-ramp').disabled=!connected||shipBusy;
@@ -354,13 +354,13 @@ function updateTransport(ship){
   const options=cargo?[cargo]:nearby,signature=options.map(c=>c.vehicle.id).join(',');
   if(select.dataset.options!==signature){const selected=select.value;select.replaceChildren(...options.map(c=>Object.assign(document.createElement('option'),{value:c.vehicle.id,textContent:cargoName(c)+(c.vehicle.cargo?' / '+c.vehicle.cargo+' salvage':'')})));if(options.some(c=>c.vehicle.id===selected))select.value=selected;select.dataset.options=signature;}
   select.disabled=!!cargo;
-  const candidate=nearby.find(c=>c.vehicle.id===select.value),error=cargo?(!bank?'Stop at a dock or deploy a shore ramp.':null):loadError(world,buildings,[...groundPlayers(),...combat.enemies].filter(p=>p.id!==me.id),ship,candidate);
-  $('transport-status').textContent=cargo?'CARGO / '+cargoName(cargo)+(error?' / '+error:' / Ready to unload on clear land'):error||'Vehicle ready to load. One cargo slot.';
-  $('transport-action').textContent=cargo?'K / Unload vehicle':'K / Load vehicle';$('transport-action').disabled=!connected||shipBusy||!!error;
+  const candidate=nearby.find(c=>c.vehicle.id===select.value),error=cargo?(!unloadPoint(world,buildings,[...groundPlayers(),...combat.enemies].filter(p=>p.id!==me.id),ship,true)?'Stop at a dock or shore ramp with a clear vehicle exit.':null):loadError(world,buildings,[...groundPlayers(),...combat.enemies].filter(p=>p.id!==me.id),ship,candidate);
+  $('transport-status').textContent=cargo?'CARGO / '+cargoName(cargo)+(error?' / '+error:' / K drive off in vehicle'):error||'Vehicle ready to load. One cargo slot.';
+  $('transport-action').textContent=cargo?'K / Drive off':'K / Load vehicle';$('transport-action').disabled=!connected||shipBusy||!!error;
 }
 async function transferCargo(){
   const ship=currentShip();if(!isTransport(ship)||shipBusy)return;const unloading=!!ship.cargo;shipBusy=true;keys.clear();stopFiring();
-  try{await api('ships/cargo',{action:ship.cargo?'unload':'load',vehicleId:ship.cargo?.vehicle.id||$('transport-vehicle').value});notify(unloading?'Vehicle unloaded. E ashore, then board your vehicle.':'Vehicle secured. Sail to another dock or deploy a shore ramp.');}
+  try{await api('ships/cargo',{action:ship.cargo?'drive-off':'load',vehicleId:ship.cargo?.vehicle.id||$('transport-vehicle').value});notify(unloading?'Driving your delivered vehicle. WASD to move; E to exit.':'Vehicle secured. Sail to another dock or deploy a shore ramp.');}
   catch(error){notify(error.message);}finally{shipBusy=false;updateShips();}
 }
 $('transport-action').onclick=transferCargo;$('transport-vehicle').onchange=()=>updateShips();
@@ -413,8 +413,12 @@ async function shipSecondary() {
 }
 function updateReplacement(kind,list) {
   const v=kind==='ship'?selectedVessel():list.find(v=>v.owner===me.id),b=$(kind+'-replace');b.hidden=!v?.destroyed || forceTab!==(kind==='ship'?'navy':'ground');
-  b.disabled=!connected || !alive() || me.body!=='robot' || (v?.replacement||0)>.001;
-  b.textContent=(v?.replacement||0)>.001 ? 'Replacement ready in '+Math.ceil(v.replacement)+'s' : 'Replace destroyed '+kind+' / Original drop site';
+  let reason='';
+  if(kind==='ship'&&v?.destroyed){const price=COSTS[shipKind(v)==='gunship'?'ship':shipKind(v)];reason=replacementShipError(world,[...groundPlayers(),...combat.enemies],v)||((world.logistics?.supplies||0)<price?'Need '+price+' supplies to rebuild.':'');
+    b.textContent='Rebuild '+shipName(v)+' at dock / '+price+' SUP';
+  }else b.textContent=(v?.replacement||0)>.001 ? 'Replacement ready in '+Math.ceil(v.replacement)+'s' : 'Replace destroyed '+kind+' / Original drop site';
+  b.disabled=!connected || !alive() || me.body!=='robot' || (v?.replacement||0)>.001 || !!reason;b.title=reason;
+  if(kind==='ship'){$('ship-replace-help').hidden=b.hidden;$('ship-replace-help').textContent=reason||'Uses the existing dock. Wait for the replacement hull to arrive, then board at the shore marker.';}
 }
 async function replaceVehicle(kind) {
   const v=kind==='ship'?selectedVessel():world.tanks.find(v=>v.owner===me.id);if(!v)return;
@@ -623,7 +627,7 @@ function updateState(state) {
   world.rails = state.rails || []; world.switches = state.switches || []; world.artillery = state.artillery || [];
   $('switches-open').hidden = forceTab !== 'rail' || !world.rails.some(isCurve);
   $('facility-switches').hidden = !world.switches.length;
-  const nextFloorKey = [...world.cores, ...world.tanks].filter(c => c.elapsed >= CORE.duration).map(c => c.id).join(',')+'|'+(world.logistics?.bridges||[]).filter(bridgeReady).map(b=>b.id).join(',');
+  const nextFloorKey = [...world.cores, ...world.tanks].filter(c => c.elapsed >= CORE.duration).map(c => c.id).join(',')+'|'+(world.logistics?.bridges||[]).filter(bridgeReady).map(b=>b.id).join(',')+'|'+world.ships.filter(dockComplete).map(s=>s.id).join(',');
   if (floorKey !== nextFloorKey) { floorKey = nextFloorKey; paintTerrain(); }
   if (state.combat) {
     const previousSites = combat.sites || [];
@@ -714,6 +718,7 @@ function updateState(state) {
     : `CONTACT LOST · Detected ${Math.ceil((detected.until - combat.time) / 1000)}s`;
   if (mine) {
     if (mine.recyclerId !== me.recyclerId || mine.aircraftId !== me.aircraftId || mine.vehicleId !== me.vehicleId || mine.shipId !== me.shipId) { keys.clear(); stopFiring(); positions.delete(me.id); lastInput = '0,0'; lastAim = null; }
+    if(mine.shipId&&!me.shipId&&(me.vehicleId||me.recyclerId))notify('Vehicle secured. You have the helm. WASD sail; K drive off at a dock or shore ramp.');
     const startedLanding = mine.deploying && !me.deploying;
     const previousLife = me.life;
     me = { ...me, ...mine };
@@ -1189,7 +1194,7 @@ function frame(now) {
   effects.drawGround(ctx, now, 'remains');
   for (const core of world.cores || []) coreEffects.draw(ctx, core, coreEffects.time(core, stateReceived, now, connected), effects.reduced);
   for (const tank of world.tanks || []) { const pod = { ...tank, x: tank.podX, y: tank.podY }; tankEffects.draw(ctx, pod, tankEffects.time(pod, stateReceived, now, connected), effects.reduced); }
-  for (const ship of world.ships || []) { shipEffects.dock(ctx, ship, camera.zoom); if(!ship.destroyed)shipEffects.ramp(ctx,ship,ship.ramp|| (ship.id===me.shipId?rampPreview:null),camera.zoom,!ship.ramp); shipEffects.drawPod(ctx, ship, shipEffects.time(ship, stateReceived, now, connected), effects.reduced); }
+  for (const ship of world.ships || []) { shipEffects.dock(ctx, ship, camera.zoom); if(isTransport(ship))shipEffects.vehicleRamp(ctx,ship,driveGate(world,buildings,ship),camera.zoom); if(!ship.destroyed)shipEffects.ramp(ctx,ship,ship.ramp|| (ship.id===me.shipId?rampPreview:null),camera.zoom,!ship.ramp); shipEffects.drawPod(ctx, ship, shipEffects.time(ship, stateReceived, now, connected), effects.reduced); }
   for(const base of world.airbases)drawAirbase(ctx,base,T,camera.zoom);
   drawConquest(ctx, world.sites || [], T, camera.zoom, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced, world, buildings, { orbital: inOrbit(), inspectedId: following ? null : selectedSiteId });
   drawLogistics(ctx,world,buildings,T,camera.zoom,effects.reduced,me.id);
@@ -1591,11 +1596,17 @@ const choosingSite = event => mode === 'build' && !$('site-panel').hidden && (ev
 const inTank = () => me.body === 'rover' && !!me.vehicleId && !controlledGun();
 const shellFor = event => ['HE', 'INCENDIARY', 'GAS'][Number(keyOf(event)) - 1];
 const once = run => event => { if (!event.repeat) run(event); };
+function preferredInteraction(){
+  if(me?.body!=='robot')return me?.recyclerId?'recycler-board':me?.shipId?'ship-board':me?.vehicleId?'tank-board':me?.aircraftId?'aircraft-board':null;
+  const ship=nearbyShip(),base=nearbyAirbase();
+  const options=[['ship-board','ship-interact',ship&&boardingPoint(world,ship,buildings,me)],['recycler-board','recycler-interact',nearbyRecycler()],['tank-board','tank-interact',nearbyTank()],['aircraft-board','aircraft-interact',base&&airbaseGate(base)],['station-open','station-interact',nearbyStation()&&{x:nearbyStation().x+1.5,y:nearbyStation().y+1.5}]];
+  return options.filter(([,id,p])=>p&&!$(id).hidden&&!$(id).disabled).sort((a,b)=>Math.hypot(me.x-a[2].x,me.y-a[2].y)-Math.hypot(me.x-b[2].x,me.y-b[2].y))[0]?.[0];
+}
 const KEY_ACTIONS = {
   'bridge-cancel': { when: event => bridges.active()&&!event.repeat, run: () => bridges.close() },
-  'recycler-board': { when: event => !event.repeat && !$('recycler-interact').hidden, run: () => { if(!$('recycler-interact').disabled)void recyclerInteract(); } },
-  'station-open': { when: event => !event.repeat && !$('station-interact').hidden, run: () => $('station-interact').click() },
-  'aircraft-board': { when: event => !event.repeat && !$('aircraft-interact').hidden, run: () => { if (!$('aircraft-interact').disabled) void aircraftAction(currentAircraft() ? 'exit' : 'board'); } },
+  'recycler-board': { when: event => !event.repeat && !$('recycler-interact').hidden && preferredInteraction()==='recycler-board', run: () => { if(!$('recycler-interact').disabled)void recyclerInteract(); } },
+  'station-open': { when: event => !event.repeat && !$('station-interact').hidden && preferredInteraction()==='station-open', run: () => $('station-interact').click() },
+  'aircraft-board': { when: event => !event.repeat && !$('aircraft-interact').hidden && preferredInteraction()==='aircraft-board', run: () => { if (!$('aircraft-interact').disabled) void aircraftAction(currentAircraft() ? 'exit' : 'board'); } },
   'aircraft-space': { when: event => !!currentAircraft() && onCanvas(event), run: () => {} },
   'sub-depth': { when: event => isSubmarine(currentShip()) && onCanvas(event), run: once(event => { if (combatInputAllowed()) void shipDepth(keyOf(event) === ' ' ? 'surface' : 'dive'); }) },
   'missile-rotate': { when: () => isMissile(controlledGun()), run: once(() => $('missile-rotate').click()) },
@@ -1606,8 +1617,8 @@ const KEY_ACTIONS = {
   'ship-ammo': { when: () => !!me.shipId, run: once(event => void shipAmmo(shellFor(event))) },
   'tank-primary': { when: inTank, run: once(event => setTankWeapon('tank-primary', ['HE', 'MAGNETIC'][Number(keyOf(event)) - 1])) },
   'tank-secondary': { when: inTank, run: once(() => setTankWeapon('tank-secondary', $('tank-secondary').value === 'APCR' ? 'HEAVY_FLAME' : 'APCR')) },
-  'ship-board': { when: event => !event.repeat && !$('ship-interact').hidden, run: () => void shipInteract() },
-  'tank-board': { when: event => !event.repeat && !$('tank-interact').hidden, run: () => void tankInteract() },
+  'ship-board': { when: event => !event.repeat && !$('ship-interact').hidden && preferredInteraction()==='ship-board', run: () => void shipInteract() },
+  'tank-board': { when: event => !event.repeat && !$('tank-interact').hidden && preferredInteraction()==='tank-board', run: () => void tankInteract() },
   'place-confirm': { when: choosingSite, run: once(() => { keepPlacing = false; void place(); }) },
   'place-repeat': { when: choosingSite, run: once(() => { keepPlacing = true; void place(); }) },
   'rail-shape': { when: () => mode === 'build' && deploymentKind === 'rail', run: once(() => cycleSelect('rail-shape')) },

@@ -1,7 +1,7 @@
 import { bridgeAt, bridgeReady } from './bridge-geometry.js';
 import { logisticsAt } from './footprints.js';
 import { airbaseAt, hangarBlocks, hostileAt } from './footprints.js';
-import { dockAt, shipBlocks } from './ship.js';
+import { dockAt, dockFloorAt, shipBlocks } from './ship.js';
 // World coordinates are measured in tiles; artwork never determines collision.
 import { CORE, coreCell, coreBlocks } from './core.js';
 import { artilleryBlocks, artilleryUnitBlocks, railCorridor } from './footprints.js';
@@ -35,6 +35,7 @@ export function createWorld() {
 
 export function tileAt(world, x, y) {
   x = Math.floor(x); y = Math.floor(y);
+  if(dockFloorAt(world,x,y))return TERRAIN.FLOOR;
   const bridge=bridgeAt(world,x,y);if(bridge&&bridgeReady(bridge))return TERRAIN.FLOOR;
   const floors=world.logistics?.floors;
   if(floors?.length){if(!reclaimedFloors.has(floors))reclaimedFloors.set(floors,new Set(floors));if(x>=0&&y>=0&&x<world.width&&y<world.height&&reclaimedFloors.get(floors).has(y*world.width+x))return TERRAIN.FLOOR;}

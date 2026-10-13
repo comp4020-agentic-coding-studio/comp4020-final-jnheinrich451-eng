@@ -39,7 +39,7 @@ export const BINDINGS = Object.freeze([
   bind('back', ['escape'], 'Esc', 'global', 'Back: close catalogue or placement, leave facility'),
   bind('sub-rotate', ['r'], 'R', 'submarine', 'Rotate the strike area'),
   bind('recenter', ['c'], 'C', 'global', 'Recenter on yourself'),
-  bind('ship-cargo', ['k'], 'K', 'ship', 'Load or unload an armored transport vehicle'),
+  bind('ship-cargo', ['k'], 'K', 'ship', 'Load a parked vehicle or drive off the transport'),
   bind('ship-ramp', ['g'], 'G', 'ship', 'Deploy or retract the shore ramp'),
   bind('grid', ['g'], 'G', 'global', 'Toggle tile grid'),
   bind('logistics', ['l'], 'L', 'global', 'Logistics and supplies'),

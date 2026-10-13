@@ -1,4 +1,4 @@
-import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint } from './public/transport.js';
+import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint, driveOnError } from './public/transport.js';
 import { BRIDGE, isBuilder, bridgeReady, bridgeDuration, bridgeCost } from './public/bridge-geometry.js';
 import { bridgeError } from './public/bridge.js';
 import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from './public/recycler.js';
@@ -13,7 +13,7 @@ import { createAudit } from './observability.js';
 import { isSubmarine } from './public/submarine.js';
 import { VEHICLE, hullHealth, operational } from './public/vehicle.js';
 import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
-import { SHIP, shipKind, shipSite, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
+import { SHIP, dockComplete, shipKind, shipSite, replacementShipError, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
 import { TANK, tankPodCells, tankPlacementError, tankArrivalPosition } from './public/tank.js';
 import { readFile, stat } from 'node:fs/promises';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -516,6 +516,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||player.life!=='disabled'||world.cores.length)return json(res,409,{error:'Emergency orbital recovery is available after all cores are lost.'});
             Object.assign(player,freshLife(),{deployed:false,inputUntil:0,path:[]});persist(player);broadcast();return json(res,200,{saved:true});
           }
+          if(url.pathname==='/api/ships/cargo'&&data.action==='drive-off'){
+            const current=boardedTank(player.id)||boardedRecycler(player.id);
+            if(current?.id===data.vehicleId&&world.ships.some(s=>s.lastUnloaded===data.vehicleId))return json(res,200,{saved:true});
+          }
           if(boardedRecycler(player.id)&&!['/api/input','/api/logistics/exit','/api/logistics/bridge','/api/logistics/launch','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Exit your recycler before building or using weapons. Park to collect or unload.'});
           if (playerBody(player) === 'orbital' && url.pathname !== '/api/cores') return json(res, 409, { error: 'You are in orbit. Choose a landing site and deploy your core first.' });
           if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
@@ -536,11 +540,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (!['tank','ship'].includes(data.kind) || !old) return json(res,404,{error:'Choose your own destroyed vehicle.'});
             if (!old.destroyed) return json(res,200,{saved:true,vehicle:old});
             if (old.replacement>.001) return json(res,409,{error:'Replacement cargo is still preparing.'});
-            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople(),...combat.snapshot().enemies];
+            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople().map(p=>({...p,body:playerBody(p)})),...combat.snapshot().enemies];
             let next,error;
             if (naval) {
-              const site=shipSite(filtered,allBuildings(),occupants,old.siteX??Math.floor(old.berthX),old.siteY??Math.floor(old.berthY),player.id,shipKind(old),old.dockStyle||'legacy',old);error=site.error;
-              if(!error) next={...old,...site.ship,id:old.id};
+              error=replacementShipError(world,occupants,old);
+              if(!error)next={...old,x:old.berthX,y:old.berthY,angle:old.dock.angle,turret:old.dock.angle,cargo:null,lastUnloaded:null,dockReady:dockComplete(old)};
             } else {
               error=tankPlacementError(filtered,allBuildings(),occupants,old.podX,old.podY,player.id);
               next={...old,...tankArrivalPosition({...old,elapsed:0}),angle:Math.PI/2,turret:Math.PI/2};
@@ -555,7 +559,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot before recalling a naval deployment.'});
             const vessel=world.ships.find(s=>s.id===data.id);
             if(!vessel||vessel.owner!==player.id)return json(res,403,{error:'Only the owner can recall this ship and dock.'});
-            const error=recallShipError(world,vessel);if(error)return json(res,409,{error});
+            const error=recallShipError(world,vessel,groundPeople().map(p=>({...p,body:playerBody(p)})));if(error)return json(res,409,{error});
             db.prepare('DELETE FROM ships WHERE id=?').run(vessel.id);
             savedShips.delete(vessel.id);world.ships=world.ships.filter(s=>s.id!==vessel.id);
             broadcast();return json(res,200,{saved:true,id:vessel.id});
@@ -576,7 +580,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/ships/cargo') {
             if(!ship||!isTransport(ship)||!streams.has(player.id)||!operational(ship))return json(res,409,{error:'Board your ready armored transport first.'});
-            if(!['load','unload'].includes(data.action)||typeof data.vehicleId!=='string')return json(res,400,{error:'Choose a vehicle and Load or Unload.'});
+            if(!['load','unload','drive-off'].includes(data.action)||typeof data.vehicleId!=='string')return json(res,400,{error:'Choose a vehicle and Load or Unload.'});
             // Identical retries are durable no-ops, including after reconnect/restart.
             if(data.action==='load'&&ship.cargo?.vehicle.id===data.vehicleId)return json(res,200,{saved:true});
             if(data.action==='unload'&&!ship.cargo&&ship.lastUnloaded===data.vehicleId)return json(res,200,{saved:true});
@@ -586,23 +590,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(data.action==='load'&&!canManage(cargo.vehicle.owner,player.id))return json(res,403,{error:'Only load vehicles you can manage.'});
             const error=data.action==='load'?loadError(world,allBuildings(),occupants,ship,cargo):null;
             if(error)return json(res,409,{error});
-            const point=data.action==='unload'?unloadPoint(world,allBuildings(),occupants,ship):null;
-            if(data.action==='unload'&&!point)return json(res,409,{error:'Stop at a dock or deployed ramp with a clear vehicle-width landing area.'});
-            const oldTanks=world.tanks,oldLogistics=structuredClone(world.logistics),oldCargo=ship.cargo,oldLast=ship.lastUnloaded,deleteCount=pendingDeletes.length;
-            try{
-              if(data.action==='load'){
-                ship.cargo=structuredClone(cargo);ship.lastUnloaded=null;
-                if(cargo.kind==='tank'){
-                  const floors=new Set(world.logistics.floors);for(const cell of tankPodCells(cargo.vehicle.podX,cargo.vehicle.podY))floors.add(cell.y*world.width+cell.x);world.logistics.floors=[...floors];
-                  world.tanks=world.tanks.filter(v=>v.id!==data.vehicleId);pendingDeletes.push(['tanks',data.vehicleId]);
-                }else world.logistics.recyclers=world.logistics.recyclers.filter(v=>v.id!==data.vehicleId);
-              }else{
-                const vehicle={...cargo.vehicle,x:point.x,y:point.y,angle:ship.angle,speed:0,occupant:null,path:[],task:null,collecting:0,idle:0};
-                if(cargo.kind==='tank')world.tanks=[...world.tanks,vehicle];else world.logistics.recyclers.push(vehicle);
-                ship.cargo=null;ship.lastUnloaded=data.vehicleId;
-              }
-              player.inputUntil=0;ship.speed=0;checkpoint();
-            }catch(error){world.tanks=oldTanks;world.logistics=oldLogistics;ship.cargo=oldCargo;ship.lastUnloaded=oldLast;pendingDeletes.length=deleteCount;throw error;}
+            const point=data.action!=='load'?unloadPoint(world,allBuildings(),occupants,ship,data.action==='drive-off'):null;
+            if(data.action!=='load'&&!point)return json(res,409,{error:'Stop at a dock or deployed ramp with a clear vehicle-width landing area.'});
+            transferVehicle(ship,cargo,player,point,data.action==='drive-off');
             broadcast();return json(res,200,{saved:true});
           }
           if(url.pathname==='/api/ships/depth') {
@@ -624,7 +614,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/ships/board') {
             if(ship?.id===data.id)return json(res,200,{saved:true});
-            const vessel=world.ships.find(s=>s.id===data.id),dock=vessel&&boardingPoint(world,vessel,allBuildings());
+            const vessel=world.ships.find(s=>s.id===data.id),dock=vessel&&boardingPoint(world,vessel,allBuildings(),player);
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Approach a dock or deployed shore ramp with your active robot.'});
             if(!vessel||constructing(vessel.id)||!operational(vessel)||vessel.occupant||!dock)return json(res,409,{error:'The ship must be unoccupied at a dock or deployed shore ramp.'});
             if(Math.hypot(player.x-dock.x,player.y-dock.y)>SHIP.boardRange||!canStand(world,allBuildings(),dock.x,dock.y))return json(res,409,{error:'Approach the clear shoreline boarding point.'});
@@ -1058,7 +1048,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     if(streams.size)for(const ship of world.ships){
       if(constructing(ship.id)&&world.logistics.jobs[ship.id].kind!=='repair')continue;
       ship.speed=0;
-      if(ship.elapsed<SHIP.duration){ship.elapsed=Math.min(SHIP.duration,ship.elapsed+dt);changed=true;if(ship.elapsed===SHIP.duration)saveShip(ship);}
+      if(ship.elapsed<SHIP.duration){ship.elapsed=Math.min(SHIP.duration,ship.elapsed+dt);changed=true;if(ship.elapsed===SHIP.duration){ship.dockReady=true;saveShip(ship);}}
       const previousDepth=ship.depth;
       if(tickDepth(ship,dt)){changed=true;if(previousDepth!==ship.depth)saveShip(ship);}
       if(isSubmarine(ship)){if(ship.reload>0||ship.launchRemaining>0){ship.reload=Math.max(0,ship.reload-dt);ship.launchRemaining=Math.max(0,(ship.launchRemaining||0)-dt);changed=true;if(!ship.reload)saveShip(ship);}}
@@ -1123,6 +1113,16 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       else { if (!robot) p.angle = Math.atan2(dy, dx) + Math.PI / 2; p.vx = (p.x - oldX) / dt; p.vy = (p.y - oldY) / dt; p.dirty = true; changed = true; }
     }
     for (const p of people.values()) { const tank = boardedTank(p.id); if (tank) Object.assign(tank, { x:p.x,y:p.y,angle:p.angle,turret:p.turret }); }
+    // Drive into a marked loading ramp: one atomic ground-seat -> helm handoff.
+    for(const p of people.values()){
+      if(!streams.has(p.id)||p.life!=='active'||p.inputUntil<=now||controlledBy(p.id))continue;
+      const v=boardedTank(p.id)||boardedRecycler(p.id);if(!v)continue;
+      const cargo={kind:boardedTank(p.id)?'tank':'utility',vehicle:v};
+      if(!canManage(v.owner,p.id))continue;
+      const occupants=[...groundPeople().map(o=>({...o,body:playerBody(o)})),...combat.snapshot().enemies].filter(o=>o.id!==p.id);
+      const ship=world.ships.find(s=>!constructing(s.id)&&!driveOnError(world,obstacles,occupants,s,cargo,p.id,p.input));
+      if(ship){combat.cancelCharge(p.id);transferVehicle(ship,cargo,p,null,true);changed=true;}
+    }
     // Movement is checkpointed; building edits are committed before their acknowledgement.
     if (now - lastSave >= 500) { for(const base of world.airbases)saveAirbase(base); for (const p of people.values()) if (p.dirty) persist(p); for (const c of world.cores) if (c.elapsed < CORE.duration) saveCore.run(c.elapsed, c.id); for (const t of world.tanks) if (t.elapsed < TANK.duration) saveTank(t); for(const s of world.ships){saveShip(s);delete s.timerDirty;} for(const v of world.tanks)if(v.timerDirty){saveTank(v);delete v.timerDirty;} lastSave = now; }
     const robots = [...people.values()].filter(p => streams.has(p.id) && playerBody(p) === 'robot' && !incomingCore(p.id));
@@ -1198,6 +1198,27 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     }
   }, 15000);
   let lastCheckpoint = Date.now();
+  // Cargo, driver and ship are committed together. Never create two active seats.
+  function transferVehicle(ship,cargo,player,point=null,drive=false){
+    const oldTanks=world.tanks,oldLogistics=structuredClone(world.logistics),oldShip={...ship,cargo:ship.cargo,lastUnloaded:ship.lastUnloaded},oldPlayer={...player},deleteCount=pendingDeletes.length;
+    try{
+      if(!point){
+        ship.cargo=structuredClone(cargo);Object.assign(ship.cargo.vehicle,{occupant:null,speed:0,path:[],task:null});ship.lastUnloaded=null;
+        if(cargo.kind==='tank'){
+          const floors=new Set(world.logistics.floors);for(const cell of tankPodCells(cargo.vehicle.podX,cargo.vehicle.podY))floors.add(cell.y*world.width+cell.x);world.logistics.floors=[...floors];
+          world.tanks=world.tanks.filter(v=>v.id!==cargo.vehicle.id);pendingDeletes.push(['tanks',cargo.vehicle.id]);
+        }else world.logistics.recyclers=world.logistics.recyclers.filter(v=>v.id!==cargo.vehicle.id);
+        if(drive){ship.occupant=player.id;ship.target=null;Object.assign(player,{x:ship.x,y:ship.y,angle:ship.angle,turret:ship.turret,aim:ship.turret});}
+      }else{
+        const angle=drive?Math.atan2(point.x-ship.x,-(point.y-ship.y)):ship.angle;
+        const vehicle={...cargo.vehicle,x:point.x,y:point.y,angle,speed:0,occupant:drive?player.id:null,path:[],task:null,collecting:0,idle:0};
+        if(cargo.kind==='tank')world.tanks=[...world.tanks,vehicle];else world.logistics.recyclers.push(vehicle);
+        ship.cargo=null;ship.lastUnloaded=cargo.vehicle.id;
+        if(drive){ship.occupant=null;Object.assign(player,{x:point.x,y:point.y,angle,turret:vehicle.turret??angle,aim:vehicle.turret??angle});}
+      }
+      Object.assign(player,{inputUntil:0,input:{x:0,y:0},path:[],vx:0,vy:0});ship.speed=0;checkpoint();
+    }catch(error){world.tanks=oldTanks;world.logistics=oldLogistics;Object.assign(ship,oldShip);Object.assign(player,oldPlayer);pendingDeletes.length=deleteCount;throw error;}
+  }
   function checkpoint(extraPeople = []) {
     db.exec('BEGIN IMMEDIATE');
     try {

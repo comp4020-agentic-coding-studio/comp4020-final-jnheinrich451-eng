@@ -33,6 +33,10 @@ export function dockRects(ship) {
   const d=ship.dock,dx=Math.sin(d.angle),dy=-Math.cos(d.angle);
   return [{x:d.x,y:d.y,w:3,h:1,angle:d.angle},{x:d.x+dx*3,y:d.y+dy*3,w:3,h:5,angle:d.angle}];
 }
+export const dockComplete = ship => ship.dockReady || ship.elapsed >= SHIP.duration;
+export function dockFloorAt(world,x,y){
+  return (world.ships||[]).some(s=>dockComplete(s)&&dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0})));
+}
 export const dockAt = (world,x,y) => world.ships?.some(s=>dockRects(s).some(r=>rectanglesOverlap(r,{x:x+.5,y:y+.5,w:1,h:1,angle:0}))||[s.dock,...(!s.destroyed&&s.ramp?[s.ramp]:[])].some(p=>Math.floor(p.x)===x&&Math.floor(p.y)===y));
 export function shipBlocks(world,x,y,radius=.21) {
   return world.ships?.some(s=>!s.destroyed&&rectanglesOverlap(hull(s,s.elapsed<SHIP.duration),{x,y,w:radius*2,h:radius*2,angle:0}))||false;
@@ -85,9 +89,11 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
   return fail(dockStyle==='unfolding'?'Need 3 clear shore tiles, a 3 x 5 offshore dock and open water beside it. Select water three tiles from shore.':'Need a clear 3 x 5 water cradle and accessible shore 3 to 5 tiles away. Try farther along the coast.');
 }
 // Recall the saved deployment as a pair; never leave a live crew without a berth.
-export function recallShipError(world,ship) {
+export function recallShipError(world,ship,people=[]) {
   if(!ship)return 'Choose your ship first.';
   if(ship.elapsed<SHIP.duration)return 'Wait for deployment to finish before recalling it.';
+  const pier=dockRects(ship)[1];
+  if(pier&&[...people,...(world.tanks||[]).filter(v=>!v.destroyed),...(world.logistics?.recyclers||[]).filter(v=>!v.destroyed)].some(p=>p.body!=='aircraft'&&p.body!=='ship'&&p.life!=='disabled'&&rectanglesOverlap(pier,{x:p.x,y:p.y,w:.84,h:.84,angle:0})))return 'Clear all units from the offshore dock before recalling it.';
   if(ship.cargo)return 'Unload the vehicle before recalling this ship.';
   if(ship.occupant)return 'Disembark before recalling the ship and dock.';
   if(ship.launchRemaining>0)return 'Wait for the missile launch to finish.';
@@ -97,7 +103,20 @@ export function recallShipError(world,ship) {
 }
 export function mooredDock(world,ship) {
   if(!surfaced(ship))return null;
-  return (world.ships||[]).find(s=>!s.dockDestroyed&&s.elapsed>=SHIP.duration&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
+  return (world.ships||[]).find(s=>!s.dockDestroyed&&dockComplete(s)&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
+}
+// Replacement uses an existing dock. People on its shore platform do not block
+// rebuilding the hull alongside it; only the reserved water cradle must clear.
+export function replacementShipError(world,people,ship){
+  if(!ship?.destroyed)return 'Choose a destroyed ship.';
+  if(ship.dockDestroyed)return 'Repair this dock in Logistics (L) before rebuilding its ship.';
+  if(world.logistics?.jobs?.[ship.id])return 'Wait for dock repairs to finish.';
+  if(ship.replacement>.001)return 'Replacement ready in '+Math.ceil(ship.replacement)+'s.';
+  const next={...ship,x:ship.berthX,y:ship.berthY,angle:ship.dock.angle};
+  if(!canSail(world,next,next.x,next.y,next.angle,true))return 'Clear the water berth beside the existing dock.';
+  const cradle=hull(next,true);
+  if(people.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&p.body!=='aircraft'&&rectanglesOverlap(cradle,{x:p.x,y:p.y,w:.8,h:.8,angle:0})))return 'A unit blocks the dock berth. Move it away before rebuilding.';
+  return null;
 }
 export const SHORE_RAMP = Object.freeze({reach:2, width:.42});
 // Validate the entire narrow crossing: only the endpoint tile may be land.
@@ -126,10 +145,15 @@ export function shoreRampSite(world,buildings,occupants,ship) {
   candidates.sort((a,b)=>Math.hypot(a.x-ship.x,a.y-ship.y)-Math.hypot(b.x-ship.x,b.y-ship.y)||a.y-b.y||a.x-b.x);
   return candidates[0]||null;
 }
-export function boardingPoint(world,ship,buildings=[]) {
+/** @param {{x:number,y:number}|null} [near] */
+export function boardingPoint(world,ship,buildings=[],near=null) {
   const p=ship.ramp;
   if(p&&Math.hypot(ship.x-p.shipX,ship.y-p.shipY)<.001&&Math.abs(angleDelta(ship.angle,p.shipAngle))<.001&&rampClear(world,buildings,ship,p))return p;
-  return mooredDock(world,ship);
+  const dock=mooredDock(world,ship);
+  if(!dock||!near)return dock;
+  const owner=world.ships.find(s=>s.dock===dock),rects=dockRects(owner);
+  const points=[dock,...rects.flatMap(hullCells).map(p=>({x:p.x+.5,y:p.y+.5}))];
+  return points.filter(p=>canStand(world,buildings,p.x,p.y)).sort((a,b)=>Math.hypot(a.x-near.x,a.y-near.y)-Math.hypot(b.x-near.x,b.y-near.y))[0]||dock;
 }
 export function sailStep(world,ship,steer,throttle,dt) {
   if(ship.ramp||ship.launchRemaining>0)return false;

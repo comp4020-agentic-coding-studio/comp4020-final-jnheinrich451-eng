@@ -457,7 +457,18 @@ The author then approved completing the transport stage and pushing the pipeline
 See docs/ARMORED_TRANSPORT.md, which supersedes the transport deferral above.
 Keep one unoccupied ground vehicle in a saved ship cargo slot, removed from the
 active world atomically. Retain ownership/caps, health, loadout and salvage. Check
-nearby ground routes at both transfers, reject occupied vehicles and lock working
+nearby ground routes at both transfers, reject remote loading of occupied vehicles and lock working
 builders. Loading requires management permission; unloading retains ownership.
 Sink cargo with its ship, preserve normal tank replacement, and reject loaded
 recall. The transport has one bow turret; never change gunship mount counts.
+
+13 October local correction: ship replacement reuses its existing dock and checks
+only the water berth, rather than revalidating initial dock placement against
+people on the shore. Preserve repair/cooldown/cost gates and saved berth identity.
+E selects the nearest enabled interaction. The author clarified that completed
+3 x 5 offshore docks must be walkable and vehicles can drive aboard directly.
+Driving toward the marked ramp transfers the driver to the helm atomically;
+K drives cargo off directly into vehicle controls. Preserve a single seat and
+vehicle record across restart, ownership, blocked exits and builder locks.
+Retain completed deck flooring during hull replacement and dock damage; require
+a clear offshore deck before recall. See docs/ARMORED_TRANSPORT.md.

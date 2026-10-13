@@ -1,9 +1,9 @@
-import { boardingPoint } from './ship.js';
+import { boardingPoint, mooredDock, dockRects } from './ship.js';
 import { canStand } from './world.js';
 import { operational } from './vehicle.js';
 import { bridgeReady } from './bridge-geometry.js';
 
-export const TRANSPORT = Object.freeze({ reach:4, routeLimit:8 });
+export const TRANSPORT = Object.freeze({ reach:4, routeLimit:8, gateReach:1.1 });
 export const isTransport = ship => ship?.kind === 'transport';
 export const cargoName = cargo => cargo?.kind === 'tank' ? 'Tank' : cargo?.vehicle?.kind === 'builder' ? 'Bridge builder' : 'Recycler';
 export const carriedVehicles = world => (world.ships || []).flatMap(s => s.cargo ? [s.cargo] : []);
@@ -44,8 +44,9 @@ export function loadError(world,buildings,people,ship,cargo){
   if(!route(world,buildings,people,bank,v,v.id))return 'Clear a vehicle-width land route to the shore point.';
   return null;
 }
-export function unloadPoint(world,buildings,people,ship){
-  const bank=cargoAccess(world,buildings,ship);if(!bank||!ship.cargo)return null;
+export function unloadPoint(world,buildings,people,ship,drive=false){
+  const bank=drive?driveGate(world,buildings,ship):cargoAccess(world,buildings,ship);if(!bank||!ship.cargo)return null;
+  if(drive&&route(world,buildings,people,bank,bank,null))return bank;
   const candidates=[];
   for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
     const p={x:Math.floor(bank.x)+dx+.5,y:Math.floor(bank.y)+dy+.5},d=Math.hypot(p.x-bank.x,p.y-bank.y);
@@ -53,4 +54,26 @@ export function unloadPoint(world,buildings,people,ship){
     if(d>=1&&d<=3)candidates.push({...p,d});
   }
   return candidates.sort((a,b)=>a.d-b.d).find(p=>route(world,buildings,people,bank,p,null))||null;
+}
+
+// A short loading ramp joins the pier edge (or anchored beach ramp) to the hull.
+export function driveGate(world,buildings,ship){
+  if(!cargoAccess(world,buildings,ship))return null;
+  if(ship.ramp)return {x:ship.ramp.x,y:ship.ramp.y};
+  const dock=mooredDock(world,ship),owner=world.ships.find(s=>s.dock===dock),pier=owner&&dockRects(owner)[1];
+  if(!pier)return dock;
+  const dx=ship.x-pier.x,dy=ship.y-pier.y,d=Math.hypot(dx,dy);
+  return {x:pier.x+dx/d,y:pier.y+dy/d};
+}
+export function driveOnError(world,buildings,people,ship,cargo,driver,input){
+  if(!isTransport(ship)||ship.occupant||ship.cargo)return 'The transport must have an empty helm and cargo bay.';
+  const v=cargo.vehicle;
+  if(v.occupant!==driver)return 'Drive your vehicle to the loading ramp.';
+  const filtered={...world,tanks:(world.tanks||[]).filter(t=>t.id!==v.id)};
+  const gate=driveGate(filtered,buildings,ship);
+  if(!gate||Math.hypot(v.x-gate.x,v.y-gate.y)>TRANSPORT.gateReach)return 'Approach the marked vehicle ramp.';
+  if(!input||(ship.x-gate.x)*input.x+(ship.y-gate.y)*input.y<=.1)return 'Drive toward the transport to board.';
+  if(world.logistics?.bridges?.some(b=>b.builderId===v.id&&!bridgeReady(b)))return 'Finish the bridge before boarding.';
+  if(!route(filtered,buildings,people,gate,v,v.id))return 'Clear the loading ramp.';
+  return null;
 }
