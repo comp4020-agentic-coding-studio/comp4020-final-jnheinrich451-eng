@@ -100,3 +100,9 @@ airbase and bomber screenshots were inspected at both target sizes. Two phone
 cases were rerun sequentially with a separate artifact directory after concurrent
 Playwright runs collided during trace cleanup. The local preview was restarted
 from a backed-up world; existing saved rows were checked after startup.
+
+## Automatic mission extension (14 October)
+
+[Automatic HE bomber missions](AUTOMATIC_BOMBER.md) adds dispatch, recall, real
+flight and recovery to the existing bomber. Manual controls remain; H opens shared
+air orders. The prior support-network stage made hull repairs supply-funded.

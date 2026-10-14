@@ -7,7 +7,9 @@ The economy and support branch is now implemented locally in
 author's later instruction to build it before bomber automation. That stage record
 supersedes the unimplemented status of the relevant proposals below. Automatic
 bomber missions, new payloads, power simulation and friendly-wreck recycling remain
-future work.
+future work in that stage. The subsequently authorized automatic HE sortie is now
+implemented locally in [Automatic bomber missions](AUTOMATIC_BOMBER.md); that
+record settles home-base loss and supersedes the mission proposal below.
 
 Original design record: These are the author's requested direction and
 proposed implementation stages, not changes to the running game. Open decisions

@@ -54,7 +54,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     return (...args) => {
       const before = serial, result = fn(...args);
       if (auditContext) for (const p of [...shells.filter(s => s.weapon === 'HE'), ...salvos, ...barrages]) if (p.id > before) {
-        const context = { ...auditContext(), projectileId: p.id, sourceId: args[0].id, weapon: p.weapon };
+        const context = { ...(fn===bombRun&&args[0].mission?.context||auditContext()), projectileId: p.id, sourceId: args[0].id, weapon: p.weapon };
         causes.set(p.id, context); events.push({ event: 'weapon.launched', ...context });
       }
       return result;

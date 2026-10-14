@@ -32,9 +32,9 @@ export function deliverAircraft(base, kind) {
  if (!['bomber','attack-jet'].includes(kind)) return 'Choose a bomber or attack jet.';
  if (base.aircraft.occupant || base.aircraft.state !== 'parked' || base.aircraft.rearm > 0) return 'Land, finish rearming and disembark before exchanging aircraft.';
  const next=newAirbase(base.id,base.owner,base.x,base.y,kind).aircraft;
- Object.assign(base.aircraft,next,{state:'delivering',remaining:POD.duration});return null;
+ delete base.aircraft.mission;Object.assign(base.aircraft,next,{state:'delivering',remaining:POD.duration});return null;
 }
-export function launchError(plane){return plane.state==='delivering'?'Orbital delivery in progress.':plane.state==='destroyed'?'Replacement aircraft preparing at the airbase.':plane.state!=='parked'?'The aircraft is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
+export function launchError(plane){if(plane.mission&&!['complete','lost'].includes(plane.mission.phase))return 'Bomber reserved for an automatic mission.';return plane.state==='delivering'?'Orbital delivery in progress.':plane.state==='destroyed'?'Replacement aircraft preparing at the airbase.':plane.state!=='parked'?'The aircraft is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
 export function launchAircraft(plane){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:AIR.minSpeed,angle:0,leftBase:false});return null;}
 export function bombPattern(plane){
  const dx=Math.sin(plane.angle),dy=-Math.cos(plane.angle);
@@ -88,7 +88,7 @@ export function tickAircraft(world,base,input,dt){
   p.x+=Math.sin(p.angle)*p.speed*step;p.y-=Math.cos(p.angle)*p.speed*step;
   const park=parkingPoint(base),distance=Math.hypot(p.x-park.x,p.y-park.y);
   if(distance>12)p.leftBase=true;
-  if(!base.destroyed&&p.state==='flying'&&p.leftBase&&!releasing&&p.speed<=AIR.minSpeed+1&&distance<=AIR.landingRange){Object.assign(p,{state:'landing',remaining:AIR.transition,landingX:p.x,landingY:p.y});}
+  if(!base.destroyed&&!world.logistics?.jobs?.[base.id]&&(!p.mission||['complete','lost','return','landing'].includes(p.mission.phase))&&p.state==='flying'&&p.leftBase&&!releasing&&p.speed<=AIR.minSpeed+1&&distance<=AIR.landingRange){Object.assign(p,{state:'landing',remaining:AIR.transition,landingX:p.x,landingY:p.y});}
  }
  return true;
 }

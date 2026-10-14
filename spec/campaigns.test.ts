@@ -401,3 +401,31 @@ it('promotes a visiting guest to an account without replacing their campaign pil
   const state = (await guest.request(worldRoute(id))).data;
   expect(state.me.id).toBe(pilot); expect(state.cores[0].owner).toBe(pilot); expect(state.room.abandoned).not.toContain(pilot);
 }), 15000);
+
+it('shares one bomber order, preserves the caller body and checkpoints one accepted release across restart',async()=>fixture(async h=>{
+ const owner=await h.account('bomberowner'),friend=await h.account('bomberfriend'),id=await h.open(owner);
+ const code=(await owner.request('/api/campaigns/invite',{id})).data.code;await friend.request('/api/campaigns/join',{code});await h.connect(friend,id);
+ const a=(await owner.request(worldRoute(id))).data.me.id,b=(await friend.request(worldRoute(id))).data.me.id;await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const world=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);world.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
+  for(const [pilot,y] of [[a,10],[b,30]])db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('air-core-'+pilot,pilot,10,y,99);
+  for(const pilot of [a,b])db.prepare('UPDATE scouts SET x=53.8,y=56.5 WHERE id=?').run(pilot);
+  const base=newAirbase('mission-base',a,48,48);db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);for(const site of saved.sites)Object.assign(site,{state:'conquered',hp:0});saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
+ const route=worldRoute(id,'aircraft/mission'),orders=[{id:'mission-base',orderId:'owner-mission',target:{x:85,y:40},bearing:1},{id:'mission-base',orderId:'friend-mission',target:{x:85,y:40},bearing:1}];
+ const results=await Promise.all([owner,friend].map((c,i)=>c.request(route,orders[i])));expect(results.map(r=>r.status).sort()).toEqual([201,409]);const winner=results.findIndex(r=>r.status===201);
+ expect((await [owner,friend][winner].request(route,orders[winner])).status).toBe(200);expect((await friend.request(worldRoute(id,'aircraft/board'),{id:'mission-base'})).status).toBe(409);
+ expect((await owner.request(worldRoute(id))).data.me.body).toBe('robot');expect((await friend.request(worldRoute(id))).data.airbases[0].aircraft.mission.id).toBe(orders[winner].orderId);
+ await owner.request('/api/campaigns/leave',{});
+ // Resume just before release, exercising the real server tick and campaign transaction.
+ h.database(id,(db:DatabaseSync)=>{const base=JSON.parse(db.prepare('SELECT value FROM airbases WHERE id=?').get('mission-base')!.value as string),m=base.aircraft.mission;Object.assign(base.aircraft,{state:'flying',speed:6,x:m.release.x-.3,y:m.release.y,angle:m.angle,leftBase:true});m.phase='approach';db.prepare('UPDATE airbases SET value=? WHERE id=?').run(JSON.stringify(base),base.id);});
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.mission.released).toBe(true);
+ await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});
+ const first=(await owner.request(worldRoute(id))).data;expect(first.airbases[0].aircraft.runs).toBe(1);expect(first.combat.barrages).toHaveLength(1);const projectile=first.combat.barrages[0].id;
+ await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.x).toBe(first.airbases[0].aircraft.x);
+ await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.runs).toBe(1);
+ expect(h.logs.some((e:any)=>e.event==='weapon.launched'&&e.action==='aircraft/mission'&&e.pilotId===[a,b][winner])).toBe(true);
+}),15000);

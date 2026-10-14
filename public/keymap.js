@@ -13,6 +13,8 @@ const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, k
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
+  bind('bomber-close', ['escape'], 'Esc', 'aircraft', 'Close air support planner'),
+  bind('bomber-open', ['h'], 'H', 'global', 'Automatic bomber missions'),
   bind('bridge-cancel', ['escape'], 'Esc', 'recycler', 'Close bridge planner'),
   bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler / bridge builder'),
   bind('station-open', ['e'], 'E', 'recycler', 'Open a nearby launch station on foot'),

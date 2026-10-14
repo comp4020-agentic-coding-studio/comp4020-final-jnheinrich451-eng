@@ -7,6 +7,7 @@ import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from './public/recyc
 import { seedSettlement } from './public/settlement.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
+import { missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
 import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
 import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
@@ -94,7 +95,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world), 'world'); db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   }
-  world.airbases=db.prepare('SELECT value FROM airbases ORDER BY rowid').all().map(row=>{const base=JSON.parse(row.value);base.aircraft.releaseRemaining=0;return base;});
+  world.airbases=db.prepare('SELECT value FROM airbases ORDER BY rowid').all().map(row=>{const base=JSON.parse(row.value);if(!missionActive(base.aircraft))base.aircraft.releaseRemaining=0;return base;});
   const writeAirbase=db.prepare('INSERT INTO airbases VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value'),savedAirbases=new Map();
   const saveAirbase=base=>{const value=JSON.stringify(base,(key,value)=>key==='damageDirty'?undefined:value);if(savedAirbases.get(base.id)!==value){writeAirbase.run(base.id,value);savedAirbases.set(base.id,value);}};
   const pilotedBase=id=>world.airbases.find(b=>b.aircraft.occupant===id);
@@ -547,7 +548,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const current=boardedTank(player.id)||boardedRecycler(player.id);
             if(current?.id===data.vehicleId&&world.ships.some(s=>s.lastUnloaded===data.vehicleId))return json(res,200,{saved:true});
           }
-          if(boardedRecycler(player.id)&&!['/api/input','/api/logistics/exit','/api/logistics/bridge','/api/logistics/launch','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Exit your recycler before building or using weapons. Park to collect or unload.'});
+          const isMissionOrder=['/api/aircraft/mission','/api/aircraft/recall'].includes(url.pathname);
+          if(boardedRecycler(player.id)&&!isMissionOrder&&!['/api/input','/api/logistics/exit','/api/logistics/bridge','/api/logistics/launch','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Exit your recycler before building or using weapons. Park to collect or unload.'});
           if (playerBody(player) === 'orbital' && url.pathname !== '/api/cores') return json(res, 409, { error: 'You are in orbit. Choose a landing site and deploy your core first.' });
           if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
           if (url.pathname === '/api/revive') {
@@ -558,9 +560,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if (player.life !== 'active') return json(res, 409, { error: player.life === 'arriving' ? 'Replacement pod incoming. Controls unlock on landing.' : 'Robot disabled. Choose a friendly core for recovery.' });
           const plane=boardedAircraft(player.id);
-          if(plane&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/strafe','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
+          if(plane&&!isMissionOrder&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/strafe','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
           const ship = boardedShip(player.id);
-          if(ship && !['/api/input','/api/drill','/api/ships/board','/api/ships/exit','/api/ships/fire','/api/ships/secondary','/api/ships/ammo','/api/ships/contact','/api/ships/ramp','/api/ships/depth','/api/ships/cargo','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Disembark at a dock before using ground equipment.'});
+          if(ship && !isMissionOrder && !['/api/input','/api/drill','/api/ships/board','/api/ships/exit','/api/ships/fire','/api/ships/secondary','/api/ships/ammo','/api/ships/contact','/api/ships/ramp','/api/ships/depth','/api/ships/cargo','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Disembark at a dock before using ground equipment.'});
           if (url.pathname === '/api/vehicles/replace') {
             if (!streams.has(player.id) || playerBody(player)!=='robot' || incomingCore(player.id) || controlledBy(player.id)) return json(res,409,{error:'Return to your active robot to request a replacement.'});
             const naval = data.kind==='ship', list = naval ? world.ships : world.tanks, old = list.find(v=>v.id===data.id && v.owner===player.id);
@@ -796,7 +798,20 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             return json(res,404,{error:'Unknown logistics action.'});
           }
+          if(isMissionOrder){
+            if(!streams.has(player.id))return json(res,409,{error:'Connect to the battlefield before issuing air orders.'});
+            const base=world.airbases.find(b=>b.id===data.id);if(!base)return json(res,404,{error:'Choose an existing airbase.'});
+            if(url.pathname.endsWith('/recall')){abortMission(base.aircraft);checkpoint();broadcast();return json(res,200,{saved:true});}
+            if(typeof data.orderId!=='string'||! /^[a-zA-Z0-9-]{8,64}$/.test(data.orderId))return json(res,400,{error:'A mission request identifier is required.'});
+            if(base.aircraft.mission?.id===data.orderId)return json(res,200,{saved:true,mission:base.aircraft.mission});
+            const plan=strikePlan(world,data.target,data.bearing),error=missionError(world,base)||plan.error||validateMission(world,base,plan);
+            if(error)return json(res,409,{error});
+            const previous=structuredClone(base.aircraft);assignMission(base,plan,data.orderId,player.id);base.aircraft.mission.context=audit.context();
+            try{checkpoint();}catch(e){base.aircraft=previous;throw e;}
+            broadcast();return json(res,201,{saved:true,mission:base.aircraft.mission});
+          }
           if(url.pathname==='/api/airbases'){
+
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Deploy an airbase from your active robot.'});
             if(data.kind!==undefined&&!['bomber','attack-jet'].includes(data.kind))return json(res,400,{error:'Choose a bomber or attack jet.'});
             const old=world.airbases.find(b=>b.owner===player.id);if(old&&old.x===data.x&&old.y===data.y)return json(res,200,{saved:true,airbase:old});
@@ -1136,7 +1151,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(constructing(base.id)&&world.logistics.jobs[base.id].kind!=='repair')continue;
       const plane=base.aircraft,pilot=people.get(plane.occupant),before=plane.state;
       const input=pilot&&streams.has(pilot.id)&&pilot.inputUntil>now?{steer:pilot.input.x,throttle:-pilot.input.y}:null;
-      if(tickAircraft(world,base,input,dt)){changed=true;if(before!==plane.state)saveAirbase(base);}
+      if(missionActive(plane)){
+        const phase=plane.mission.phase,released=plane.mission.released;
+        tickMission(world,base,dt,p=>combat.bombRun(p));changed=true;
+        if(phase!==plane.mission.phase||released!==plane.mission.released)checkpoint();
+      }else if(tickAircraft(world,base,input,dt)){changed=true;if(before!==plane.state)saveAirbase(base);}
     }
     const recoveryOccupants = [...groundPeople(), ...combat.snapshot().enemies];
     for (const p of people.values()) {

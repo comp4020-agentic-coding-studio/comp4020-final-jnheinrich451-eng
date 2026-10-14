@@ -522,3 +522,10 @@ terrain, footprint and capacity. Completed 2-by-2 outposts add shared respawn an
 construction support. Cosmetic drone stores stay inside reserved footprints.
 Preserve existing native pod geometry, emergency recovery, refund currency and
 shipment cargo conservation; no worker agents or electricity simulation.
+
+Automatic HE bomber missions are implemented locally in docs/AUTOMATIC_BOMBER.md.
+The author confirmed abort/return on home-base loss, then emergency landing and a
+replacement wreck if the base is unavailable. Preserve the real flight/flak rules,
+one shared mission per aircraft, fixed accepted target, caller body, no duplicate
+release across named-campaign restart, and bounded failure recovery. Heavy bombs,
+new payloads and aircraft/base separation remain later stages.

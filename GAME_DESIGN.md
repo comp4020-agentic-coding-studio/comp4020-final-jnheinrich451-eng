@@ -632,3 +632,11 @@ prove rules and persistence; human review must judge whether danger is fair,
 weapons feel powerful and cooperation creates useful choices. Refine visuals
 after the mechanic is legible enough to evaluate, rather than adding the whole
 future roster before establishing the campaign loop.
+
+### Automatic HE bomber checkpoint (14 October)
+
+See [Automatic bomber missions](docs/AUTOMATIC_BOMBER.md): H opens shared air
+support; one existing bomber flies one HE carpet run and returns. Caller control
+remains with their current unit. Abort/base-loss recovery, saved mission identity
+and accepted projectile persistence are part of this local stage. New warheads
+and carrier operations remain future work.
