@@ -255,7 +255,7 @@ const logistics=logisticsUI({state:()=>({world,me,connected,buildings,canManage:
   deploy:(kind,emergency=false)=>deployLogistics(kind,emergency)
 });
 const bridges=bridgeUI({frame:b=>{camera.x=(b.from.x+b.to.x+1)*T/2;camera.y=(b.from.y+b.to.y+1)*T/2;camera.zoom=Math.min(.85,Math.max(120,width-80)/((Math.abs(b.to.x-b.from.x)+6)*T),Math.max(120,height-340)/((Math.abs(b.to.y-b.from.y)+6)*T));following=false;},state:()=>({world,me,buildings,players:groundPlayers().concat(combat.enemies||[]),truck:currentRecycler()}),api,notify,stop:()=>{keys.clear();stopFiring();void api('input',{x:0,y:0}).catch(()=>{});}});
-const bombers=bomberUI({state:()=>({world,me,connected}),api,notify,stop:()=>{keys.clear();stopFiring();bridges.close();setMode('explore');void api('input',{x:0,y:0}).catch(()=>{});},overview:()=>{following=false;camera={x:world.width*T/2,y:world.height*T/2,zoom:Math.min((width-24)/(world.width*T),(height-260)/(world.height*T))};if(width<650)camera.y+=height*.2/camera.zoom;}});
+const bombers=bomberUI({state:()=>({world,me,connected,players}),api,notify,stop:()=>{keys.clear();stopFiring();bridges.close();setMode('explore');void api('input',{x:0,y:0}).catch(()=>{});},overview:()=>{following=false;camera={x:world.width*T/2,y:world.height*T/2,zoom:Math.min((width-24)/(world.width*T),(height-260)/(world.height*T))};if(width<650)camera.y+=height*.2/camera.zoom;}});
 let airBusy=false;
 let deploymentAircraftKind='bomber', nextStrafe=0;
 async function requestAircraft(kind){
@@ -271,7 +271,7 @@ function updateAircraft(){
  const own=world.airbases.find(b=>b.owner===me.id);
  for(const id of ['airbase-card','attack-jet-card'])$(id).disabled=!connected||!alive()||me.body!=='robot'||!!controlledGun()||!!(own&&(own.destroyed||world.logistics?.jobs[own.id]||!['parked','destroyed'].includes(own.aircraft.state)||own.aircraft.state==='destroyed'&&own.aircraft.remaining>0||own.aircraft.occupant||own.aircraft.rearm>0));
  $('airbase-card').title=$('attack-jet-card').title=own?'Replace or exchange aircraft for 100 supplies at your airbase.':'Deploy a runway and aircraft.';
- $('air-delivery-help').textContent=own?'100 orbital SUP to exchange or replace aircraft; first bomber delivery per campaign is free. Rebuild a destroyed airbase through Logistics first.':'Choose an aircraft, then a clear 6 x 10 site with clear approaches.';
+ $('air-delivery-help').textContent=own?'One aircraft slot per base. If airborne without its pilot, use H / Recall aircraft. Exchange or replace here for 100 orbital SUP; first bomber delivery is free. Rebuild destroyed bases in Logistics.':'Choose an aircraft, then a clear 6 x 10 site with clear approaches.';
  $('airbase-find').disabled=!world.airbases.some(b=>b.owner===me.id);
  const button=$('aircraft-interact');button.hidden=!alive()||mode==='build'||!!controlledGun()||(!p&&(me.body!=='robot'||!near));
  button.textContent=p?'Disembark / E':['destroyed','delivering'].includes(near?.aircraft.state)?'Arrival / '+Math.ceil(near.aircraft.remaining)+'s':near?.aircraft.occupant?'Aircraft occupied':'Board + take off / E';

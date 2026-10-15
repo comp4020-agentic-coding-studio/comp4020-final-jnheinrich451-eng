@@ -7,7 +7,7 @@ import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from './public/recyc
 import { seedSettlement } from './public/settlement.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
-import { missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
+import { recoverAircraft, unattendedAircraft, missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
 import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
 import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
@@ -437,6 +437,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     combat.cancelCharge(id); releaseGun(id);
     if (person) { person.path = []; person.input = { x: 0, y: 0 }; person.inputUntil = 0; persist(person); }
     const old = streams.get(id); streams.delete(id); people.delete(id);
+    for(const base of world.airbases)if(base.aircraft.occupant===id)recoverAircraft(base,randomUUID(),'Pilot left / returning home');
     for (const response of old || []) {
       response.write(`event: ${options.campaign ? 'room-ended' : 'session-ended'}\ndata: ${JSON.stringify({ message })}\n\n`); response.end();
       setTimeout(() => response.destroy(), 1000).unref();
@@ -520,6 +521,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           const wasDisconnected = !streams.get(player.id)?.size;
           if (!streams.has(player.id)) streams.set(player.id, new Set());
           streams.get(player.id).add(res);
+          if(wasDisconnected){
+            const base=pilotedBase(player.id),p=base?.aircraft;
+            if(p){p.unattended=0;if(p.mission?.kind==='recovery'&&p.mission.phase==='return'){p.mission.phase='complete';p.mission.reason='Pilot reconnected / manual control';}saveAirbase(base);}
+          }
           if (wasDisconnected) audit.emit('participant.connected', { ...audit.context(), cause: 'event_stream_opened' });
           broadcast();
           req.on('close', () => {
@@ -801,7 +806,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if(isMissionOrder){
             if(!streams.has(player.id))return json(res,409,{error:'Connect to the battlefield before issuing air orders.'});
             const base=world.airbases.find(b=>b.id===data.id);if(!base)return json(res,404,{error:'Choose an existing airbase.'});
-            if(url.pathname.endsWith('/recall')){abortMission(base.aircraft);checkpoint();broadcast();return json(res,200,{saved:true});}
+            if(url.pathname.endsWith('/recall')){
+              const p=base.aircraft;
+              if(p.occupant&&p.occupant!==player.id&&streams.has(p.occupant))return json(res,409,{error:'Another connected pilot controls this aircraft.'});
+              recoverAircraft(base,randomUUID());checkpoint();broadcast();return json(res,200,{saved:true});
+            }
             if(typeof data.orderId!=='string'||! /^[a-zA-Z0-9-]{8,64}$/.test(data.orderId))return json(res,400,{error:'A mission request identifier is required.'});
             if(base.aircraft.mission?.id===data.orderId)return json(res,200,{saved:true,mission:base.aircraft.mission});
             const plan=strikePlan(world,data.target,data.bearing),error=missionError(world,base)||plan.error||validateMission(world,base,plan);
@@ -1150,12 +1159,29 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     if(streams.size)for(const base of world.airbases){
       if(constructing(base.id)&&world.logistics.jobs[base.id].kind!=='repair')continue;
       const plane=base.aircraft,pilot=people.get(plane.occupant),before=plane.state;
+      const returning=unattendedAircraft(base,!!plane.occupant&&streams.has(plane.occupant),dt,randomUUID);
+      if(returning)checkpoint();
       const input=pilot&&streams.has(pilot.id)&&pilot.inputUntil>now?{steer:pilot.input.x,throttle:-pilot.input.y}:null;
       if(missionActive(plane)){
         const phase=plane.mission.phase,released=plane.mission.released;
         tickMission(world,base,dt,p=>combat.bombRun(p));changed=true;
-        if(phase!==plane.mission.phase||released!==plane.mission.released)checkpoint();
+        if(phase!==plane.mission.phase||released!==plane.mission.released){
+          const casualty=disableAircraftPilot(plane);checkpoint(casualty?[casualty]:[]);
+        }
       }else if(tickAircraft(world,base,input,dt)){changed=true;if(before!==plane.state)saveAirbase(base);}
+      if(plane.state==='parked'&&plane.occupant&&!streams.has(plane.occupant)){
+        const id=plane.occupant,row=db.prepare('SELECT * FROM scouts WHERE id=?').get(id);
+        const person=people.get(id)||(row&&{...row,...freshLife(),...JSON.parse(readLife.get(id)?.value||'{}')});
+        if(person){
+          const gate=airbaseGate(base),positions=[];
+          for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++)positions.push({x:gate.x+x,y:gate.y+y});
+          const point=positions.sort((a,b)=>Math.hypot(a.x-gate.x,a.y-gate.y)-Math.hypot(b.x-gate.x,b.y-gate.y)).find(q=>canStand(world,obstacles,q.x,q.y)&&![...groundPeople(),...combat.snapshot().enemies].some(o=>o.id!==id&&o.life!=='disabled'&&(o.hp===undefined||o.hp>0)&&Math.hypot(o.x-q.x,o.y-q.y)<.8));
+          Object.assign(person,point||gate,{deployed:true,inputUntil:0,path:[],vx:0,vy:0});
+          if(!point){person.shield=0;hurtRobot(person,Math.max(1,person.health));person.lostVehicle='aircraft';}
+          plane.occupant=null;checkpoint([person]);
+        }else{plane.occupant=null;checkpoint();}
+        changed=true;
+      }
     }
     const recoveryOccupants = [...groundPeople(), ...combat.snapshot().enemies];
     for (const p of people.values()) {
@@ -1254,13 +1280,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     const disabledPilots = [];
     for (const base of world.airbases) if (base.aircraft.damageDirty) {
       const p = base.aircraft; delete p.damageDirty;
-      let pilot;
-      if (p.state === 'destroyed' && p.occupant) {
-        pilot = people.get(p.occupant);
-        if (!pilot) { const row = db.prepare('SELECT * FROM scouts WHERE id=?').get(p.occupant); if (row) pilot = { ...row, ...freshLife(), ...JSON.parse(readLife.get(row.id)?.value || '{}') }; }
-        if (pilot) { pilot.shield = 0; hurtRobot(pilot, Math.max(1, pilot.health)); pilot.lostVehicle = 'aircraft'; pilot.x = p.x; pilot.y = p.y; combat.cancelCharge(pilot.id); releaseGun(pilot.id); }
-        p.occupant = null;
-      }
+      const pilot=disableAircraftPilot(p);
       if (pilot) disabledPilots.push(pilot);
       aircraftDamaged = true; changed = true;
     }
@@ -1345,6 +1365,16 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     pendingDeletes.length=0;pendingLives.clear();
     for(const {event,...details}of logisticsEvents.splice(0))audit.emit(event,{...details,campaignId,saved:true});
     lastCheckpoint = Date.now();
+  }
+  function disableAircraftPilot(p) {
+    let pilot;
+    if(p.state==='destroyed'&&p.occupant){
+      pilot=people.get(p.occupant);
+      if(!pilot){const row=db.prepare('SELECT * FROM scouts WHERE id=?').get(p.occupant);if(row)pilot={...row,...freshLife(),...JSON.parse(readLife.get(row.id)?.value||'{}')};}
+      if(pilot){pilot.shield=0;hurtRobot(pilot,Math.max(1,pilot.health));pilot.lostVehicle='aircraft';pilot.x=p.x;pilot.y=p.y;combat.cancelCharge(pilot.id);releaseGun(pilot.id);}
+      p.occupant=null;
+    }
+    return pilot;
   }
   function stopInputs(pilot = null) {
     for (const p of people.values()) if (!pilot || p.id === pilot) {

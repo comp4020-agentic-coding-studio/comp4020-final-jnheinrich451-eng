@@ -4,6 +4,24 @@ import { isAttackJet } from './attack-jet.js';
 
 export const MISSION = Object.freeze({ approach: 18, margin: 9, timeout: 120 });
 export const missionActive = p => !!p?.mission && !['complete','lost'].includes(p.mission.phase);
+export const RECOVERY_GRACE=30;
+export const recoverableAircraft=p=>!!p&&['takeoff','flying','landing'].includes(p.state);
+export function recoverAircraft(base,id,reason='Crew requested return'){
+ const p=base.aircraft;if(missionActive(p)){abortMission(p,reason);return false;}
+ if(!recoverableAircraft(p))return false;
+ const home=parkingPoint(base);
+ p.mission={id,kind:'recovery',actorId:null,phase:p.state==='landing'?'landing':'return',elapsed:0,returnTime:0,released:false,reason,target:home,entry:home,release:home,points:[],bearing:0,angle:0};
+ return true;
+}
+// Only active room time counts. Existing unoccupied flights recover immediately;
+// a disconnected seat gets the same 30-second grace as the room reconnect policy.
+export function unattendedAircraft(base,connected,dt,id){
+ const p=base.aircraft;
+ if(connected||!recoverableAircraft(p)){p.unattended=0;return false;}
+ p.unattended=(p.unattended||0)+dt;
+ if(missionActive(p))return false;
+ return (!p.occupant||p.unattended>=RECOVERY_GRACE)&&recoverAircraft(base,typeof id==='function'?id():id,'Pilot disconnected / returning home');
+}
 export function missionError(world,base){
  if(!base||isAttackJet(base.aircraft))return 'Choose an HE bomber.';
  if(base.destroyed||world.logistics?.jobs?.[base.id])return 'A completed operational airbase is required.';

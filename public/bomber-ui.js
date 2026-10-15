@@ -1,4 +1,4 @@
-import {missionActive,missionError,strikePlan} from './bomber-mission.js';
+import {recoverableAircraft,missionActive,missionError,strikePlan} from './bomber-mission.js';
 import {isAttackJet} from './attack-jet.js';
 export function bomberUI({state,api,stop,notify,overview}){
  const $=id=>document.getElementById(id),panel=$('bomber-panel');let busy=false,orderId=null;
@@ -6,17 +6,19 @@ export function bomberUI({state,api,stop,notify,overview}){
  const preview=()=>missionActive(base()?.aircraft)?base().aircraft.mission:strikePlan(state().world,{x:Number($('bomber-x').value),y:Number($('bomber-y').value)},Number($('bomber-bearing').value));
  function update(){
   const {world,me,connected}=state();if(!world)return;
-  const bases=world.airbases.filter(b=>!isAttackJet(b.aircraft)),ids=bases.map(b=>b.id).join(',');
+  const bases=world.airbases,ids=bases.map(b=>b.id+':'+b.aircraft.kind).join(',');
   $('bomber-open').disabled=!connected||me.life!=='active'||me.body==='orbital';
   if(!active())return;
-  if($('bomber-select').dataset.ids!==ids){const chosen=$('bomber-select').value;$('bomber-select').replaceChildren(...bases.map((b,i)=>new Option('Bomber '+(i+1)+' / base '+b.x+':'+b.y,b.id)));if(bases.some(b=>b.id===chosen))$('bomber-select').value=chosen;$('bomber-select').dataset.ids=ids;}
+  if($('bomber-select').dataset.ids!==ids){const chosen=$('bomber-select').value;$('bomber-select').replaceChildren(...bases.map((b,i)=>new Option((isAttackJet(b.aircraft)?'Attack jet ':'Bomber ')+(i+1)+' / base '+b.x+':'+b.y,b.id)));if(bases.some(b=>b.id===chosen))$('bomber-select').value=chosen;$('bomber-select').dataset.ids=ids;}
   const b=base(),p=b?.aircraft,m=p?.mission,error=missionError(world,b),plan=preview();
   if(m&&panel.dataset.mission!==m.id){$('bomber-x').value=String(m.target.x);$('bomber-y').value=String(m.target.y);$('bomber-bearing').value=String(m.bearing);panel.dataset.mission=m.id;}
   for(const id of ['bomber-x','bomber-y','bomber-bearing'])$(id).disabled=missionActive(p);
   $('bomber-status').textContent=m?m.phase.toUpperCase()+(m.reason?' / '+m.reason:'')+' / '+(m.released?'Bombs released':'Bombs retained'):error||'READY / One HE run, then return and rearm';
   $('bomber-message').textContent=plan.error||'Click/tap the map or enter coordinates. Six HE bombs; the marked strip is a prediction. Flak can intercept.';
   $('bomber-dispatch').disabled=busy||!connected||me.life!=='active'||!!error||!!plan.error;
-  $('bomber-recall').disabled=busy||!connected||!missionActive(p)||['return','landing','service','emergency'].includes(m?.phase);
+  const otherPilot=p?.occupant&&p.occupant!==me.id&&state().players?.some(v=>v.id===p.occupant);
+  $('bomber-recall').textContent=missionActive(p)?'Abort and return':'Recall aircraft';
+  $('bomber-recall').disabled=busy||!connected||!!otherPilot||(!missionActive(p)&&!recoverableAircraft(p))||(missionActive(p)&&['return','landing','service','emergency'].includes(m?.phase));
  }
  function open(){stop();document.querySelector('.battlefield').classList.add('bomber-planning');panel.hidden=false;update();overview();if(!$('bomber-x').value){$('bomber-x').value=String(Math.floor(state().world.width*.7));$('bomber-y').value=String(Math.floor(state().world.height*.45));}$('bomber-select').focus();update();}
  function close(){panel.hidden=true;document.querySelector('.battlefield').classList.remove('bomber-planning');}

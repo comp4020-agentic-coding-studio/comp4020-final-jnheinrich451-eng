@@ -429,3 +429,38 @@ it('shares one bomber order, preserves the caller body and checkpoints one accep
  await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.runs).toBe(1);
  expect(h.logs.some((e:any)=>e.event==='weapon.launched'&&e.action==='aircraft/mission'&&e.pilotId===[a,b][winner])).toBe(true);
 }),15000);
+
+it('returns a departed manual pilot to base, frees the saved seat and lets a teammate reuse the aircraft',async()=>fixture(async h=>{
+ const owner=await h.account('recoveryowner'),friend=await h.account('recoverypilot'),id=await h.open(owner);
+ const code=(await owner.request('/api/campaigns/invite',{id})).data.code;await friend.request('/api/campaigns/join',{code});await h.connect(friend,id);
+ const a=(await owner.request(worldRoute(id))).data.me.id,b=(await friend.request(worldRoute(id))).data.me.id;await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const world=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);world.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
+  for(const [pilot,y] of [[a,10],[b,30]]){db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('return-core-'+pilot,pilot,10,y,99);db.prepare('UPDATE scouts SET x=53.8,y=56.5 WHERE id=?').run(pilot);}
+  const base=newAirbase('manual-base',a,48,48);Object.assign(base.aircraft,{state:'flying',x:85,y:60,angle:1,speed:12,leftBase:true,occupant:b});db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);for(const site of saved.sites)Object.assign(site,{state:'conquered',hp:0});saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
+ expect((await owner.request(worldRoute(id,'aircraft/recall'),{id:'manual-base'})).status).toBe(409);
+ await friend.request('/api/campaigns/leave',{});
+ let state=(await owner.request(worldRoute(id))).data;expect(state.airbases[0].aircraft.mission).toMatchObject({kind:'recovery',phase:'return'});
+ await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);expect((await friend.request(worldRoute(id))).data.airbases[0].aircraft.mission).toMatchObject({phase:'complete',reason:'Pilot reconnected / manual control'});
+ await friend.request('/api/campaigns/leave',{});
+ await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;const pose=state.airbases[0].aircraft.x;
+ await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.x).toBe(pose);await h.connect(owner,id);
+ await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.occupant,{timeout:18000}).toBeNull();
+ await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);expect((await friend.request(worldRoute(id))).data.me.body).toBe('robot');
+ await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.rearm,{timeout:10000}).toBe(0);
+ expect((await owner.request(worldRoute(id,'aircraft/board'),{id:'manual-base'})).status).toBe(200);state=(await owner.request(worldRoute(id))).data;expect(state.airbases).toHaveLength(1);expect(state.me.body).toBe('aircraft');expect(state.combat.barrages).toHaveLength(0);
+}),35000);
+
+it('checkpoints an emergency return wreck and an offline pilot loss together',async()=>fixture(async h=>{
+ const owner=await h.account('emergencyreturn'),id=await h.open(owner);await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run('lost-token','lost-pilot','Absent pilot',50,55.5,0);
+  const base:any=newAirbase('lost-base','lost-pilot',48,48);base.destroyed=true;Object.assign(base.aircraft,{state:'emergency-landing',remaining:.025,occupant:'lost-pilot',mission:{id:'lost-flight',kind:'recovery',phase:'emergency',elapsed:10,returnTime:8,released:false,target:{x:50,y:55.5},entry:{x:50,y:55.5},points:[],bearing:0,angle:0}});db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.state).toBe('destroyed');
+ h.database(id,(db:DatabaseSync)=>{const base=JSON.parse(db.prepare('SELECT value FROM airbases WHERE id=?').get('lost-base')!.value as string),life=JSON.parse(db.prepare('SELECT value FROM robot_states WHERE scout_id=?').get('lost-pilot')!.value as string);expect(base.aircraft.occupant).toBeNull();expect(base.wrecks).toHaveLength(1);expect(life).toMatchObject({life:'disabled',health:0,lostVehicle:'aircraft'});});
+ await h.restart();await owner.request('/api/campaigns/enter',{id});expect((await owner.request(worldRoute(id))).data.airbases[0].wrecks).toHaveLength(1);
+}),12000);

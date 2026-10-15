@@ -79,3 +79,29 @@ No new save version or world reset is required; old aircraft have no mission fie
   evidence of Fly capacity.
 
 No commit, push or production deployment is part of this local implementation.
+
+## Departed-pilot recovery — 16 October 2026
+
+Manual aircraft previously kept flying after their pilot left, retaining the seat
+and airbase slot. Automatic strike recall did not cover these flights.
+
+- Explicit departure now starts a return without dropping bombs. A disconnected
+  pilot gets 30 seconds of active room time to reconnect; paused/offline rooms do
+  not advance this grace period. Existing unoccupied flights recover immediately.
+- Reconnecting during the return restores manual control. Otherwise landing clears
+  the absent pilot's seat and saves their robot at a clear apron location. A blocked
+  apron uses normal robot revival instead of trapping the saved player.
+- H / Recall aircraft also recovers manually flown bombers and attack jets whose
+  pilot is offline. Another connected pilot cannot have their aircraft taken over.
+- Recovery uses the existing bounded return and emergency-wreck rules. Aircraft
+  loss and the absent pilot's disabled state checkpoint together. Existing saved
+  flights recover without a reset, another base, or a new deployment charge.
+
+Validation: typecheck and the full 56-file suite passed (365 tests). After a final
+checkpoint-order correction, both focused multiplayer tests passed, including the
+additional emergency-wreck persistence regression, and typecheck passed again.
+All three browser cases passed: desktop and phone automatic strikes, plus phone
+recall and boarding of an offline pilot's aircraft without spending orbital SUP.
+The browser runner was stopped after case completion because teardown lingered.
+The release uses the normal main-branch deployment workflow. Saved-flight
+recovery begins when the campaign resumes active simulation after deployment.

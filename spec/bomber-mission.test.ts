@@ -1,3 +1,4 @@
+import {recoverAircraft,unattendedAircraft,RECOVERY_GRACE} from '../public/bomber-mission.js';
 import {tickAntiAir} from '../public/anti-air.js';
 import {it,expect} from 'vitest';
 import {newAirbase,AIR,bombError,launchError} from '../public/aircraft.js';
@@ -26,3 +27,11 @@ it('checkpoints released bombs with the mission and never releases them again af
  run(nextWorld,saved.base,plane=>{repeat++;return next.bombRun(plane);});expect(repeat).toBe(0);expect(next.snapshot().barrages).toHaveLength(1);expect(saved.base.aircraft.mission.phase).toBe('complete');
 });
 it('retains accepted bombs on recall and aborts if bombardment capacity is occupied',()=>{const {w,b,p}=fixture();assignMission(b,strikePlan(w,{x:85,y:40},1),'capacity','caller');run(w,b,()=> 'Two bombardments are already in flight.');expect(p.mission).toMatchObject({phase:'complete',released:false,reason:'Two bombardments are already in flight.'});assignMission(b,strikePlan(w,{x:85,y:40},1),'after-release','caller');run(w,b,release,()=>p.mission.released);const spent=p.runs;abortMission(p);expect(p.runs).toBe(spent);expect(p.mission.released).toBe(true);});
+
+it('recovers old unoccupied manual flights and disconnected seats after reconnect grace',()=>{
+ const {w,b,p}=fixture();Object.assign(p,{state:'flying',x:85,y:60,speed:12,angle:Math.PI/2,leftBase:true,occupant:'gone'});
+ expect(unattendedAircraft(b,false,RECOVERY_GRACE-1,'recovery')).toBe(false);expect(unattendedAircraft(b,true,1,'recovery')).toBe(false);expect(p.unattended).toBe(0);
+ expect(unattendedAircraft(b,false,RECOVERY_GRACE,'recovery')).toBe(true);expect(p.mission.kind).toBe('recovery');let bombs=0;run(w,b,()=>{bombs++;});expect(p.state).toBe('parked');expect(bombs).toBe(0);
+ delete p.mission;Object.assign(p,{kind:'attack-jet',state:'flying',x:100,y:70,angle:0,speed:12,occupant:null});expect(unattendedAircraft(b,false,.1,'orphan')).toBe(true);run(w,b,()=>{bombs++;});expect(p.state).toBe('parked');expect(bombs).toBe(0);
+});
+it('manual recovery is bounded when the home base is destroyed and leaves a replacement wreck',()=>{const{w,b,p}=fixture();Object.assign(p,{state:'flying',x:85,y:60,speed:12,angle:1,leftBase:true});b.destroyed=true;expect(recoverAircraft(b,'wreck-return')).toBe(true);run(w,b,release);expect(p.state).toBe('destroyed');expect(b.wrecks).toHaveLength(1);});
