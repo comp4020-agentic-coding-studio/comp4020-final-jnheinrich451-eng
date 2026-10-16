@@ -5,6 +5,7 @@ import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
 import { submarineAim } from './submarine.js';
 import { AIR, bombError, makeBombRun } from './aircraft.js';
+import { bomberPayload, payloadProfile } from './bomber-payloads.js';
 import { JET, strafeError, strafePoint } from './attack-jet.js';
 import { fogRadius } from './contaminator.js';
 import { ALERT, damageSites, siteDistance, tickSites } from './conquest.js';
@@ -93,7 +94,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     enemies, shells, status, health, kills, jets, salvos, fields, barrages, acidShells, flakShells, causes: [...causes],
     navalCooldown, navalStatus, objective, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
   const snapshot = () => ({ sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
-    barrages: barrages.map(b => ({ ...b, box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: enemies.map(({ path, reroute, lurePath, ...e }) => e), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
+    barrages: barrages.map(b => ({ ...b, ...(b.profile?{profile:{...b.profile}}:{}), box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: enemies.map(({ path, reroute, lurePath, ...e }) => e), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
     flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
   function damage(enemy, amount) {
     if (enemy.hp > 0 && amount > 0) reportSectorAttack(world.sites, enemies, enemy.x, enemy.y, now, event => events.push(event));
@@ -428,13 +429,14 @@ export function createCombat(world, saved = null, auditContext = null) {
           impact(barrage.weapon, m.x, m.y, [], 1.2, m.craterSize, true);
           continue;
         }
+        const profile=barrage.profile||MISSILE_HE;
         for (const e of enemies) if (e.hp > 0 && inTargetBox(barrage.box, e.x, e.y)) {
-          const amount = blastDamage(Math.hypot(e.x - m.x, e.y - m.y), MISSILE_HE);
+          const amount = blastDamage(Math.hypot(e.x - m.x, e.y - m.y), profile);
           if (amount) hits.push(damage(e, amount));
         }
-        hits.push(...damageSites(world.sites, m.x, m.y, MISSILE_HE, now, blastDamage));
+        hits.push(...damageSites(world.sites, m.x, m.y, profile, now, blastDamage));
         objectiveHits(barrage, hits);
-        impact('HE', m.x, m.y, hits, MISSILE_HE.radius, m.craterSize ?? MISSILE_HE.craterSize);
+        impact('HE', m.x, m.y, hits, profile.radius, m.craterSize ?? MISSILE_HE.craterSize);
       }
     }
     barrages = barrages.filter(b => b.missiles.some(m => !m.landed));
@@ -531,7 +533,10 @@ export function createCombat(world, saved = null, auditContext = null) {
   function bombRun(plane){
     const error=bombError(world,plane);if(error)return error;
     if(barrages.length>=MISSILE.maxVolleys)return 'Two bombardments are already in flight.';
-    barrages.push(makeBombRun(plane,++serial));plane.runs--;plane.releaseRemaining=(AIR.count-1)*AIR.interval;return null;
+    const volley=makeBombRun(plane,serial+1),profile=payloadProfile(bomberPayload(plane));
+    const limit=fieldCapacityError(fields,salvos,volley.weapon,volley.box.width*volley.box.height);if(limit)return limit;
+    serial++;if(volley.weapon!=='HE')fields.push(makeBarrageField(volley,now));
+    barrages.push(volley);plane.runs-=profile.cost;plane.releaseRemaining=(profile.count-1)*AIR.interval;return null;
   }
   function strafe(plane){
     const error=strafeError(world,plane);if(error)return error;

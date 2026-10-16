@@ -8,6 +8,7 @@ import { seedSettlement } from './public/settlement.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
 import { recoverAircraft, unattendedAircraft, missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
+import { validPayload } from './public/bomber-payloads.js';
 import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
 import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
@@ -813,7 +814,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             if(typeof data.orderId!=='string'||! /^[a-zA-Z0-9-]{8,64}$/.test(data.orderId))return json(res,400,{error:'A mission request identifier is required.'});
             if(base.aircraft.mission?.id===data.orderId)return json(res,200,{saved:true,mission:base.aircraft.mission});
-            const plan=strikePlan(world,data.target,data.bearing),error=missionError(world,base)||plan.error||validateMission(world,base,plan);
+            const plan=strikePlan(world,data.target,data.bearing,data.payload),error=missionError(world,base,data.payload)||plan.error||validateMission(world,base,plan);
             if(error)return json(res,409,{error});
             const previous=structuredClone(base.aircraft);assignMission(base,plan,data.orderId,player.id);base.aircraft.mission.context=audit.context();
             try{checkpoint();}catch(e){base.aircraft=previous;throw e;}
@@ -845,7 +846,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/aircraft/launch'||url.pathname==='/api/aircraft/bomb'||url.pathname==='/api/aircraft/strafe'){
             if(!plane||!streams.has(player.id))return json(res,409,{error:'Board a connected aircraft first.'});
-            const error=url.pathname.endsWith('/strafe')?combat.strafe(plane):url.pathname.endsWith('/bomb')?combat.bombRun(plane):launchAircraft(plane);if(error)return json(res,409,{error});
+            if(missionActive(plane))return json(res,409,{error:'Aircraft is returning under automatic control.'});
+            if(url.pathname.endsWith('/bomb')&&data.payload!==undefined&&!validPayload(data.payload))return json(res,400,{error:'Choose a supported bomber payload.'});
+            const previousPayload=plane.payload;
+            if(url.pathname.endsWith('/bomb')&&data.payload!==undefined)plane.payload=data.payload;
+            const error=url.pathname.endsWith('/strafe')?combat.strafe(plane):url.pathname.endsWith('/bomb')?combat.bombRun(plane):launchAircraft(plane);if(error){plane.payload=previousPayload;return json(res,409,{error});}
             persist(player);broadcast();return json(res,200,{saved:true});
           }
           if(url.pathname==='/api/aircraft/exit'){

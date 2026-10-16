@@ -105,3 +105,57 @@ recall and boarding of an offline pilot's aircraft without spending orbital SUP.
 The browser runner was stopped after case completion because teardown lingered.
 The release uses the normal main-branch deployment workflow. Saved-flight
 recovery begins when the campaign resumes active simulation after deployment.
+
+## Payloads and dive approach - 16 October 2026
+
+The author requested heavy HE, incendiary and gas bombs on the existing aircraft,
+with a dive before release, and withdrew the proposed bomber strafing mode.
+This stage supersedes the HE-only restriction above. Existing attack jets keep
+their autocannon; no new airframe, streaming attack or economic branch is added.
+
+H / Air support offers a payload selector. The accepted payload, target and
+direction lock together and survive refresh/restart. The manual bomber HUD also
+offers the four payloads for LMB drops; manual flight remains pilot-controlled.
+
+| Payload | Drop | Gameplay | Bay charges |
+| --- | --- | --- | --- |
+| HE carpet | Six bombs | Existing 2-tile blast radius per bomb | 1 |
+| Heavy HE | One bomb | 5-tile blast radius; 300 centre damage, falling to 40 at the edge | 2 |
+| Incendiary | Six bombs | Six 1.8-tile fire patches; each lasts 18 seconds | 1 |
+| Gas | Six bombs | Six 1.8-tile gas patches sharing nine kills; no expiry timer | 1 |
+
+These are initial tuning values. Heavy HE leaves a 12-tile cosmetic crater; carpet
+impacts retain 4-tile crater artwork. Aiming rings show damage/field radius, not
+crater size. Fire and gas make minor fragmentation impacts and use the existing
+visible flames/clouds, avoidance/lure rules and friendly immunity. Only HE damages
+hostile facilities. A gas carpet cannot refill its shared pool as later bombs land.
+
+Automatic missions enter a dive over the final six tiles before release, then pull
+out after dropping. Foreshortening, tightening shadow and wing trails express pitch
+in overhead 2D. Reduced effects retain mission status without pitch animation or
+trails. Dive/release are still vulnerable to flak, recall and base loss. Actual
+impact coordinates use the existing flight momentum and fall time. This is not a
+new altitude/ballistics simulation; manual drops do not force a dive or steer the
+pilot. No extra particle entities or per-frame messages run on the server.
+
+Two bay charges still rearm together at the airbase. A heavy drop needs both, and
+cannot follow a carpet without rearming. Hazard carpets reserve one field and their
+full bounding area at release, sharing existing field/area and two-volley caps. If
+capacity is unavailable, the automatic bomber returns with its load retained.
+Old aircraft and accepted missions without payload data continue using HE.
+Named campaigns checkpoint bombs, hazard reservations and the spent load together;
+accepted bombs survive recall or aircraft loss and never release twice on restart.
+
+Validation: typecheck and the full suite passed (57 files, 377 tests), including
+multiplayer order races and restart persistence for all four payloads. New domain
+tests cover heavy damage versus crater size, friendly immunity, finite gas capacity,
+fire expiry, field limits, ammunition rejection, dive/recall and once-only release.
+Desktop heavy-HE and phone fire/gas browser missions passed through refresh,
+release and rearming. The first recovery browser case hit a Playwright file-stream
+error; its focused rerun passed, extended to board the recovered aircraft and fire
+heavy HE manually on a phone. Runners were stopped after case completion because
+Windows teardown lingered. Screenshot review confirmed the single heavy-bomb ring
+and active fire/gas fields. Process-evidence and whitespace checks also passed.
+
+The author approved release for online playtesting. This stage uses the normal
+main-branch checks and Fly deployment workflow; balancing remains provisional.

@@ -23,6 +23,7 @@ import { ConstructionEffects } from './construction-effects.js';
 import { drawLogistics } from './logistics-effects.js';
 import { CONSTRUCTION, constructionCores, constructionError, needsConstruction } from './construction.js';
 import { bomberUI } from './bomber-ui.js';
+import { BOMBER_PAYLOADS, payloadProfile } from './bomber-payloads.js';
 import { AIR, airbaseError, airbaseGate, bombError } from './aircraft.js';
 import { drawConquest, drawConquestMap } from './conquest-effects.js';
 import { drawConvertedGround } from './modifier-effects.js';
@@ -258,6 +259,10 @@ const bridges=bridgeUI({frame:b=>{camera.x=(b.from.x+b.to.x+1)*T/2;camera.y=(b.f
 const bombers=bomberUI({state:()=>({world,me,connected,players}),api,notify,stop:()=>{keys.clear();stopFiring();bridges.close();setMode('explore');void api('input',{x:0,y:0}).catch(()=>{});},overview:()=>{following=false;camera={x:world.width*T/2,y:world.height*T/2,zoom:Math.min((width-24)/(world.width*T),(height-260)/(world.height*T))};if(width<650)camera.y+=height*.2/camera.zoom;}});
 let airBusy=false;
 let deploymentAircraftKind='bomber', nextStrafe=0;
+let payloadAircraftId=null;
+$('aircraft-payload').replaceChildren(...Object.entries(BOMBER_PAYLOADS).map(([key,p])=>new Option(p.label,key)));
+$('aircraft-payload').onchange=()=>updateAircraft();
+const previewAircraft=()=>({...currentAircraft(),payload:$('aircraft-payload').value||'HE'});
 async function requestAircraft(kind){
  const base=world.airbases.find(b=>b.owner===me.id);deploymentAircraftKind=kind;
  if(!base){beginCoreSurvey('airbase');return;}
@@ -277,23 +282,26 @@ function updateAircraft(){
  button.textContent=p?'Disembark / E':['destroyed','delivering'].includes(near?.aircraft.state)?'Arrival / '+Math.ceil(near.aircraft.remaining)+'s':near?.aircraft.occupant?'Aircraft occupied':'Board + take off / E';
  button.disabled=!connected||airBusy||!!(near&&(near.destroyed||world.logistics?.jobs[near.id]))||(p?p.state!=='parked':!!near?.aircraft.occupant||near?.aircraft.state!=='parked'||near?.aircraft.rearm>0);
  for(const button of document.querySelectorAll('[data-direction]')){const key=button.dataset.direction;button.setAttribute('aria-label',(p?{up:'Increase airspeed',down:'Reduce airspeed',left:'Turn left',right:'Turn right'}:{up:'Move north',down:'Move south',left:'Move west',right:'Move east'})[key]);button.textContent=(p?{up:'W +',down:'S -',left:'A <',right:'D >'}:{up:'↑',down:'↓',left:'←',right:'→'})[key];}
- if(!p)return;
+ if(!p){payloadAircraftId=null;return;}
  const jet=isAttackJet(p);$('aircraft-name').textContent=aircraftName(p).toUpperCase();$('aircraft-controls').setAttribute('aria-label',jet?'Attack jet controls':'Bomber controls');
- $('aircraft-bomb').textContent=jet?'Hold LMB / Autocannon':'LMB / Drop 6 HE';
+ if(payloadAircraftId!==p.id){payloadAircraftId=p.id;$('aircraft-payload').value=p.payload||'HE';}
+ $('aircraft-payload-label').hidden=jet;$('aircraft-payload').disabled=airBusy||p.releaseRemaining>0||!!(p.mission&&!['complete','lost'].includes(p.mission.phase));
+ const payload=payloadProfile($('aircraft-payload').value);
+ $('aircraft-bomb').textContent=jet?'Hold LMB / Autocannon':'LMB / '+payload.short;
  document.querySelector('.mode-dock').hidden=true;$('build-mode').disabled=true;
  const threatened=world.sites.some(s=>s.state==='hostile'&&s.aa?.targetId===p.id)||(combat.flakShells||[]).some(s=>!s.impacted&&s.targetId===p.id);
  $('aircraft-status').textContent=threatened?'INCOMING FLAK / TURN':p.releaseRemaining>0?'RELEASING / HOLDING COURSE':p.edgeTurn?'BOUNDARY TURN':p.state.toUpperCase();
- $('aircraft-readout').textContent='HULL '+Math.ceil(aircraftHealth(p))+'/'+AIR_HULL.health+' / SPEED '+p.speed.toFixed(1)+' / '+(jet?p.rounds+' ROUNDS':p.runs+' OF 2 HE RUNS')+' / BASE '+Math.round(Math.hypot(p.x-(base.x+2),p.y-(base.y+7.5)))+' TILES';
- const error=jet?strafeError(world,p):bombError(world,p);$('aircraft-bomb').disabled=!connected||(!jet&&airBusy)||!!error;
+ $('aircraft-readout').textContent='HULL '+Math.ceil(aircraftHealth(p))+'/'+AIR_HULL.health+' / SPEED '+p.speed.toFixed(1)+' / '+(jet?p.rounds+' ROUNDS':p.runs+' / 2 BAY CHARGES')+' / BASE '+Math.round(Math.hypot(p.x-(base.x+2),p.y-(base.y+7.5)))+' TILES';
+ const error=jet?strafeError(world,p):bombError(world,previewAircraft());$('aircraft-bomb').disabled=!connected||(!jet&&airBusy)||!!error;
  $('aircraft-launch').hidden=p.state!=='parked';$('aircraft-launch').disabled=!connected||airBusy||p.rearm>0;
- $('aircraft-manual').textContent=p.state==='parked'?(p.rearm>0?'REARMING '+p.rearm.toFixed(1)+'s':'READY / Take off or E disembark'):(error||(jet?'Hold LMB / Forward HE autocannon':'LMB drops 6 HE'))+' / Slow to 7 or less near base to land';
+ $('aircraft-manual').textContent=p.state==='parked'?(p.rearm>0?'REARMING '+p.rearm.toFixed(1)+'s':'READY / Take off or E disembark'):(error||(jet?'Hold LMB / Forward HE autocannon':'LMB / '+payload.short+' / '+payload.cost+' bay charge'+(payload.cost>1?'s':'')))+' / Slow to 7 or less near base to land';
  $('map-hint').textContent='W faster / S slower / A D turn / '+(jet?'Hold LMB strafe':'LMB bomb')+' / C follow';
 }
 async function aircraftAction(action){
  if(airBusy||!connected||!alive()||(!['board','exit'].includes(action)&&!combatInputAllowed()))return;
  if(action==='bomb'&&isAttackJet(currentAircraft())){action='strafe';if(performance.now()<nextStrafe||strafeError(world,currentAircraft()))return;nextStrafe=performance.now()+JET.cooldown+20;}
  airBusy=true;if(action!=='strafe')stopFiring();
- try{await api('aircraft/'+action,{id:nearbyAirbase()?.id});if(!['bomb','strafe'].includes(action)){keys.clear();setMode('explore');recenter();camera.zoom=width<760?.25:.5;following=true;}canvas.focus({preventScroll:true});}
+ try{await api('aircraft/'+action,{id:nearbyAirbase()?.id,...(action==='bomb'?{payload:$('aircraft-payload').value}:{})});if(!['bomb','strafe'].includes(action)){keys.clear();setMode('explore');recenter();camera.zoom=width<760?.25:.5;following=true;}canvas.focus({preventScroll:true});}
  catch(e){if(!e.message.includes('reloading')){stopFiring();notify(e.message);}}finally{airBusy=false;updateAircraft();}
 }
 function locateAirbase(){const b=currentAirbase()||world.airbases.find(b=>b.owner===me.id);if(!b)return;toggleTray(false);camera={x:(b.x+3)*T,y:(b.y+5)*T,zoom:width<760?.35:.6};following=false;}
@@ -1269,7 +1277,7 @@ function frame(now) {
   drawHeavyAim();
   if (currentShip() && aim && mode !== 'build') drawShipAim(currentShip());
   bombers.draw(ctx,T,camera.zoom);
-  if (currentAircraft()) drawBombPrediction(ctx,world,currentAircraft(),currentAirbase(),T,camera.zoom, p => concealed(world.sites, p, combat.time));
+  if (currentAircraft()) drawBombPrediction(ctx,world,previewAircraft(),currentAirbase(),T,camera.zoom, p => concealed(world.sites, p, combat.time));
   for (const id of positions.keys()) if (!visible.some(p => p.id === id)) positions.delete(id);
   ctx.restore();
   if (coreMode) {

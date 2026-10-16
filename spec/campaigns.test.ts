@@ -402,7 +402,7 @@ it('promotes a visiting guest to an account without replacing their campaign pil
   expect(state.me.id).toBe(pilot); expect(state.cores[0].owner).toBe(pilot); expect(state.room.abandoned).not.toContain(pilot);
 }), 15000);
 
-it('shares one bomber order, preserves the caller body and checkpoints one accepted release across restart',async()=>fixture(async h=>{
+it.each(['HE','HEAVY','INCENDIARY','GAS'])('shares one %s bomber order, preserves the caller body and checkpoints one accepted release across restart',async(payload)=>fixture(async h=>{
  const owner=await h.account('bomberowner'),friend=await h.account('bomberfriend'),id=await h.open(owner);
  const code=(await owner.request('/api/campaigns/invite',{id})).data.code;await friend.request('/api/campaigns/join',{code});await h.connect(friend,id);
  const a=(await owner.request(worldRoute(id))).data.me.id,b=(await friend.request(worldRoute(id))).data.me.id;await owner.request('/api/campaigns/leave',{});
@@ -414,7 +414,7 @@ it('shares one bomber order, preserves the caller body and checkpoints one accep
   const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);for(const site of saved.sites)Object.assign(site,{state:'conquered',hp:0});saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
  });
  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
- const route=worldRoute(id,'aircraft/mission'),orders=[{id:'mission-base',orderId:'owner-mission',target:{x:85,y:40},bearing:1},{id:'mission-base',orderId:'friend-mission',target:{x:85,y:40},bearing:1}];
+ const route=worldRoute(id,'aircraft/mission'),orders=[{id:'mission-base',orderId:'owner-mission',payload,target:{x:85,y:40},bearing:1},{id:'mission-base',orderId:'friend-mission',payload,target:{x:85,y:40},bearing:1}];
  const results=await Promise.all([owner,friend].map((c,i)=>c.request(route,orders[i])));expect(results.map(r=>r.status).sort()).toEqual([201,409]);const winner=results.findIndex(r=>r.status===201);
  expect((await [owner,friend][winner].request(route,orders[winner])).status).toBe(200);expect((await friend.request(worldRoute(id,'aircraft/board'),{id:'mission-base'})).status).toBe(409);
  expect((await owner.request(worldRoute(id))).data.me.body).toBe('robot');expect((await friend.request(worldRoute(id))).data.airbases[0].aircraft.mission.id).toBe(orders[winner].orderId);
@@ -424,9 +424,9 @@ it('shares one bomber order, preserves the caller body and checkpoints one accep
  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
  await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.mission.released).toBe(true);
  await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});
- const first=(await owner.request(worldRoute(id))).data;expect(first.airbases[0].aircraft.runs).toBe(1);expect(first.combat.barrages).toHaveLength(1);const projectile=first.combat.barrages[0].id;
+ const first=(await owner.request(worldRoute(id))).data;expect(first.airbases[0].aircraft.runs).toBe(payload==='HEAVY'?0:1);expect(first.airbases[0].aircraft.mission.payload).toBe(payload);expect(first.combat.barrages[0].payload).toBe(payload);expect(first.combat.barrages[0].missiles).toHaveLength(payload==='HEAVY'?1:6);if(['INCENDIARY','GAS'].includes(payload))expect(first.combat.fields[0]).toMatchObject({weapon:payload,pending:6});expect(first.combat.barrages).toHaveLength(1);const projectile=first.combat.barrages[0].id;
  await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.x).toBe(first.airbases[0].aircraft.x);
- await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.runs).toBe(1);
+ await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.runs).toBe(payload==='HEAVY'?0:1);
  expect(h.logs.some((e:any)=>e.event==='weapon.launched'&&e.action==='aircraft/mission'&&e.pilotId===[a,b][winner])).toBe(true);
 }),15000);
 

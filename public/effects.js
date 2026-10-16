@@ -79,7 +79,8 @@ export class CombatEffects {
       for (const hit of event.hits) this.hits.set(hit.id, { born, killed: hit.killed });
       if (event.weapon !== 'HE' && !event.minorBlast) { if (age < .35) this.bulletHits.push({ ...event, born }); continue; }
       const rand = random(event.id + 23), count = event.minorBlast ? (this.reduced ? 6 : 14) : this.reduced ? 10 : 24;
-      const particles = Array.from({ length: count }, (_, i) => ({ a: rand() * TAU, speed: 35 + rand() * 160, size: 1 + rand() * 3, spin: rand() * TAU, dust: i % 3 === 0, hot: i % 3 === 1, heat: .75 + rand() * .25 }));
+      const scale=Math.max(1,Math.min(2.2,(event.radius||2)/2));
+      const particles = Array.from({ length: count }, (_, i) => ({ a: rand() * TAU, speed: (35 + rand() * 160)*scale, size: (1 + rand() * 3)*Math.sqrt(scale), spin: rand() * TAU, dust: i % 3 === 0, hot: i % 3 === 1, heat: .75 + rand() * .25 }));
       this.bursts.push({ ...event, born, particles });
     }
     for (const id of this.seen) if (!current.has(id)) this.seen.delete(id);
@@ -184,7 +185,7 @@ export class CombatEffects {
         c.globalAlpha=(1-age/.3)*(this.reduced?.2:.55);c.fillStyle='#a6e9e1';c.beginPath();c.ellipse(0,0,12+age*120,8+age*80,0,0,TAU);c.fill();
       }
       if (age < .23 && !water) {
-        const size = 35 + age * 220; c.globalAlpha = (1 - age / .23) * (this.reduced ? .3 : 1); c.drawImage(this.glow, -size / 2, -size / 2, size, size);
+        const size = (35 + age * 220)*Math.max(1,Math.min(2.2,(b.radius||2)/2)); c.globalAlpha = (1 - age / .23) * (this.reduced ? .3 : 1); c.drawImage(this.glow, -size / 2, -size / 2, size, size);
         c.fillStyle = '#fff2c8'; c.beginPath(); c.arc(0, 0, Math.max(1, 12 * (1 - age / .23)), 0, TAU); c.fill();
       }
       // A few purple flecks mark a hit, with no dismemberment.

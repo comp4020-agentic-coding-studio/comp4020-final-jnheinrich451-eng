@@ -638,5 +638,13 @@ future roster before establishing the campaign loop.
 See [Automatic bomber missions](docs/AUTOMATIC_BOMBER.md): H opens shared air
 support; one existing bomber flies one HE carpet run and returns. Caller control
 remains with their current unit. Abort/base-loss recovery, saved mission identity
-and accepted projectile persistence are part of this local stage. New warheads
-and carrier operations remain future work.
+and accepted projectile persistence are part of this local stage.
+
+### Bomber payload checkpoint (16 October)
+
+The same bomber now offers HE carpet, one heavy HE bomb, incendiary carpet and
+gas carpet. Heavy HE uses both bay charges; each carpet uses one. The automatic
+approach includes a visual dive and pull-out; collision, speed and flak rules stay
+2D. Manual LMB drops also support the four payloads. Fire/gas reuse bounded hazard
+fields, and the larger heavy-bomb crater is artwork rather than extra damage area.
+The author excluded bomber strafing. Carrier operations remain future work.

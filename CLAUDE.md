@@ -527,5 +527,9 @@ Automatic HE bomber missions are implemented locally in docs/AUTOMATIC_BOMBER.md
 The author confirmed abort/return on home-base loss, then emergency landing and a
 replacement wreck if the base is unavailable. Preserve the real flight/flak rules,
 one shared mission per aircraft, fixed accepted target, caller body, no duplicate
-release across named-campaign restart, and bounded failure recovery. Heavy bombs,
-new payloads and aircraft/base separation remain later stages.
+release across named-campaign restart, and bounded failure recovery.
+The 16 October payload stage in docs/AUTOMATIC_BOMBER.md adds heavy HE,
+incendiary and gas carpets, plus an automatic pre-release dive. Preserve distinct
+damage/crater sizes, a full-load cost for heavy HE, shared hazard reservations,
+fixed accepted payloads and departed-pilot recovery. Bomber strafing is excluded;
+the existing attack jet is unchanged. Aircraft/base separation remains future work.

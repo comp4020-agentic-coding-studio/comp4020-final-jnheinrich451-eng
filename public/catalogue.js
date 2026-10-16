@@ -49,7 +49,7 @@ export const ASSETS = Object.freeze([
     specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Reload', `${SUBMARINE.reload} s`]], limit: '1 per dock' },
   { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'ship', cost: 'transport', name: 'Armored transport', footprint: '2 x 4 hull / shipyard berth', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
   { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Airbase + bomber', footprint: `${AIR.width} × ${AIR.height}`,
-    specs: [['Bomber', `${AIR.count} HE × ${AIR.runs} runs`], ['Speed', `${AIR.minSpeed}–${AIR.maxSpeed} t/s`], ['Rearm', `${AIR.rearm} s`]] },
+    specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Load', '2 carpets or 1 heavy bomb'], ['Speed', `${AIR.minSpeed}–${AIR.maxSpeed} t/s`], ['Rearm', `${AIR.rearm} s`]] },
   { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'airbase', cost: 'aircraft', name: 'Orbital attack jet', footprint: 'Delivered to an airbase',
     specs: [['Autocannon', `${JET.ammo} HE rounds · ${JET.range} t`], ['Delivery', `Exchange at your base, or new airbase ${COSTS.airbase} SUP`]], placement: 'Your airbase, or a new airbase site' },
 ]);

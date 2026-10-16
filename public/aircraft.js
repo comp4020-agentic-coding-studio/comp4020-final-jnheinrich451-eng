@@ -2,6 +2,7 @@ import { placementError } from './world.js';
 import { angleDelta } from './turret.js';
 import { JET, isAttackJet } from './attack-jet.js';
 import { POD } from './pod.js';
+import { bomberPayload, payloadProfile, validPayload } from './bomber-payloads.js';
 
 export const AIR = Object.freeze({width:6,height:10,max:4,minSpeed:6,maxSpeed:12,acceleration:3,turnSpeed:1.8,count:6,interval:.25,fall:1.8,runs:2,rearm:8,transition:2,landingRange:5});
 export const airbaseGate = base => ({x:base.x+5.5,y:base.y+8.5});
@@ -37,24 +38,29 @@ export function deliverAircraft(base, kind) {
 export function launchError(plane){if(plane.mission&&!['complete','lost'].includes(plane.mission.phase))return 'Bomber reserved for an automatic mission.';return plane.state==='delivering'?'Orbital delivery in progress.':plane.state==='destroyed'?'Replacement aircraft preparing at the airbase.':plane.state!=='parked'?'The aircraft is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
 export function launchAircraft(plane){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:AIR.minSpeed,angle:0,leftBase:false});return null;}
 export function bombPattern(plane){
+ const profile=payloadProfile(bomberPayload(plane));
  const dx=Math.sin(plane.angle),dy=-Math.cos(plane.angle);
- return Array.from({length:AIR.count},(_,i)=>{const launch=i*AIR.interval,side=(i%2?1:-1)*.45;
+ return Array.from({length:profile.count},(_,i)=>{const launch=i*AIR.interval,side=profile.count===1?0:(i%2?1:-1)*.45;
   const originX=plane.x+dx*plane.speed*launch+dy*side,originY=plane.y+dy*plane.speed*launch-dx*side;
-  return{originX,originY,x:originX+dx*plane.speed*AIR.fall,y:originY+dy*plane.speed*AIR.fall,launch,flight:AIR.fall,landed:false,craterSize:4};
+  return{originX,originY,x:originX+dx*plane.speed*AIR.fall,y:originY+dy*plane.speed*AIR.fall,launch,flight:AIR.fall,landed:false,craterSize:profile.craterSize};
  });
 }
 export function bombError(world,plane){
  if(isAttackJet(plane))return 'The attack jet uses its autocannon, not bomb bays.';
+ if(!validPayload(bomberPayload(plane)))return 'Choose a supported bomber payload.';
+ const profile=payloadProfile(bomberPayload(plane));
  if(plane.state!=='flying')return 'Take off before releasing bombs.';
  if(plane.releaseRemaining>0)return 'Bomb release in progress. Holding course.';
  if(plane.runs<=0)return 'Bomb bays empty. Return to your airbase to rearm.';
+ if(plane.runs<profile.cost)return 'Heavy HE needs both bay charges. Return to rearm or choose a carpet.';
  if(plane.edgeTurn)return 'Finish the boundary turn before releasing bombs.';
- if(bombPattern(plane).some(b=>b.x<2||b.y<2||b.x>world.width-2||b.y>world.height-2))return 'Keep the complete bombing strip inside the map.';
+ if(bombPattern(plane).some(b=>b.x<profile.radius||b.y<profile.radius||b.x>world.width-profile.radius||b.y>world.height-profile.radius))return 'Keep the complete bombing area inside the map.';
  return null;
 }
 export function makeBombRun(plane,id){
- const missiles=bombPattern(plane),xs=missiles.map(m=>m.x),ys=missiles.map(m=>m.y),x=Math.min(...xs)-2,y=Math.min(...ys)-2;
- return{id,kind:'bomber',owner:plane.id,weapon:'HE',x:plane.x,y:plane.y,age:0,box:{x,y,width:Math.max(...xs)+2-x,height:Math.max(...ys)+2-y},missiles};
+ const payload=bomberPayload(plane),profile=payloadProfile(payload),r=profile.radius;
+ const missiles=bombPattern(plane),xs=missiles.map(m=>m.x),ys=missiles.map(m=>m.y),x=Math.min(...xs)-r,y=Math.min(...ys)-r;
+ return{id,kind:'bomber',payload,profile:{...profile},gasCapacity:profile.gasCapacity,owner:plane.id,weapon:profile.weapon,x:plane.x,y:plane.y,age:0,box:{x,y,width:Math.max(...xs)+r-x,height:Math.max(...ys)+r-y},missiles};
 }
 // Positive forward speed only. Bounded substeps keep turns independent of tick rate.
 export function tickAircraft(world,base,input,dt){
