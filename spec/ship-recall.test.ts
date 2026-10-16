@@ -40,7 +40,7 @@ it('recalls only the owner’s empty deployment, saves removal and permits the n
   // The shore panel ends at x=21 and placement reserves a .4-tile unit radius.
   // Wait beyond x=21.4; x>21.3 can still overlap depending on tick/poll timing.
   await connect();expect((await post('input',{x:1,y:0})).status).toBe(200);
-  await expect.poll(async()=>{await post('input',{x:1,y:0});return(await state()).me.x;},{timeout:3000,intervals:[50]}).toBeGreaterThan(21.6);await post('input',{x:0,y:0});
+  await expect.poll(async()=>{await post('input',{x:1,y:0});return(await state()).me.x;},{timeout:3000,interval:50}).toBeGreaterThan(21.6);await post('input',{x:0,y:0});
   const replacement=await post('ships',{x:17,y:12,dockStyle:'unfolding'});expect(replacement.status,JSON.stringify(replacement.body)).toBe(201);expect(replacement.body.ship.dockStyle).toBe('unfolding');
  }finally{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-recall-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}
 });
