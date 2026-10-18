@@ -22,16 +22,16 @@ for(const mobile of [false,true])test('deployment funding follows the selected f
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   await page.locator('#build-mode').click();await page.locator('[data-force-tab="logistics"]').click();
-  await expect(page.locator('#outpost-card')).toContainText(quote('outpost')+' ORB / '+quote('outpost',true)+' GND');
+  await expect(page.locator('#outpost-card')).toContainText(quote('outpost')+' ORB');await expect(page.locator('#outpost-card-ground')).toContainText(quote('outpost',true)+' GND');
   await page.screenshot({path:'.local/deploy-prices-'+mobile+'.png'});
-  await page.locator('#outpost-card').click();await page.locator('#coordinate-details summary').click();
+  await page.locator('#outpost-card-ground').click();await page.locator('#coordinate-details summary').click();
   async function site(x,y){await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();}
-  await site(20,18);await expect(page.locator('#construction-method option')).toHaveCount(2);
-  await page.locator('#construction-method').selectOption('core');await expect(page.locator('#deployment-cost')).toContainText(quote('outpost',true)+' GND');
+  await site(20,18);await expect(page.locator('#construction-method option')).toHaveCount(2);await expect(page.locator('#delivery-ground')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#delivery-ground').click();await expect(page.locator('#deployment-cost')).toContainText(quote('outpost',true)+' GND');
   // The old local source must not survive a move beyond its support circle.
-  await site(90,70);await expect(page.locator('#construction-method option')).toHaveCount(1);await expect(page.locator('#construction-method')).toHaveValue('orbital');await expect(page.locator('#construction-method')).toBeDisabled();
+  await site(90,70);await expect(page.locator('#construction-method option')).toHaveCount(1);await expect(page.locator('#construction-method')).toHaveValue('orbital');await expect(page.locator('#delivery-ground')).toBeHidden();
   await expect(page.locator('#deployment-cost')).toContainText(quote('outpost')+' ORB');await expect(page.locator('#construction-availability')).toContainText('Outside construction support');
-  await site(20,18);await page.locator('#construction-method').selectOption('core');await expect(page.locator('#place-building')).toBeEnabled();
+  await site(20,18);await page.locator('#delivery-ground').click();await expect(page.locator('#place-building')).toBeEnabled();
   await page.screenshot({path:'.local/deploy-local-choice-'+mobile+'.png'});await page.locator('#place-building').click();
   const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json());
   await expect.poll(async()=>(await state()).logistics.facilities.length).toBe(1);

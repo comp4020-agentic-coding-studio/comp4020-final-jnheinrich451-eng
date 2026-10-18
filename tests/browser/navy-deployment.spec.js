@@ -21,11 +21,11 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
   const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json());
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();
-  await expect(page.locator('#ship-card')).toBeVisible();await page.locator('#ship-card').click();await page.locator('#shipyard-new-dialog').click();
+  await expect(page.locator('#ship-card')).toBeVisible();await page.locator('#ship-card').click();await expect(page.locator('#shipyard-dialog')).toBeHidden();
   await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('17');await page.locator('#tile-y').fill('12');await page.locator('#select-tile').click();
-  await expect(page.locator('#place-building')).toBeEnabled();await page.screenshot({path:`docs/previews/navy-survey-${mobile?'mobile':'desktop'}.png`});
-  await page.locator('#place-building').click();await expect(page.locator('#shipyard-interact')).toBeVisible({timeout:7000});await page.locator('#shipyard-interact').click();await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state(peer)).ships[0]?.elapsed,{timeout:15000,intervals:[50]}).toBeGreaterThan(1.5);
-  await page.screenshot({path:`docs/previews/navy-arrival-${mobile?'mobile':'desktop'}.png`});
+  await expect(page.locator('#place-building')).toBeEnabled();await page.screenshot({path:`.local/navy-survey-${mobile?'mobile':'desktop'}.png`});
+  await page.locator('#place-building').click();await expect(page.locator('#shipyard-interact')).toBeVisible({timeout:7000});await page.locator('#shipyard-interact').click();await expect.poll(async()=>(await state(peer)).ships[0]?.elapsed,{timeout:15000,intervals:[50]}).toBeGreaterThan(1.5);
+  await page.screenshot({path:`.local/navy-arrival-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await state(page)).ships[0]?.elapsed,{timeout:15000}).toBe(4.5);
   await expect(page.locator('#yard-board')).toBeEnabled();await page.locator('#yard-board').click();
   await expect(page.locator('#ship-controls')).toBeVisible();expect((await state(page)).me.body).toBe('ship');
@@ -35,18 +35,18 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   await page.locator('#world-canvas').focus();await page.keyboard.press('2');await expect(page.locator('[data-ship-shell="INCENDIARY"]')).toHaveAttribute('aria-pressed','true');
   // Keyboard zoom is shared with the other vehicles; aim six or more tiles away.
   await page.keyboard.press('-');await page.keyboard.press('-');await page.keyboard.press('-');await page.keyboard.press('-');
-  const viewport=page.viewportSize(),point={x:viewport.width*.8,y:viewport.height*.46};
+  const viewport=page.viewportSize(),point={x:viewport.width*.15,y:viewport.height*.65};
   if(mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.move(point.x,point.y);
   await expect(page.locator('#ship-fire')).toBeEnabled();await page.waitForTimeout(3200);await page.locator('#ship-fire').click();
   await expect.poll(async()=>Math.max(...Object.values((await state(peer)).ships[0].mainReloads))).toBeGreaterThan(0);
   await expect.poll(async()=>(await state(peer)).combat.fields.some(f=>f.weapon==='INCENDIARY'),{timeout:5000}).toBe(true);
-  await page.screenshot({path:`docs/previews/navy-sailing-${mobile?'mobile':'desktop'}.png`});
+  await page.screenshot({path:`.local/navy-sailing-${mobile?'mobile':'desktop'}.png`});
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
   const resumed=await state(page);expect(resumed.me.shipId).toBe(resumed.ships[0].id);expect(resumed.ships[0].ammo).toBe('INCENDIARY');
   // Return in reverse without changing the heading: no automatic teleport to land.
   await page.locator('#world-canvas').focus();await page.keyboard.down('s');await expect.poll(async()=>(await state(page)).ships[0].x,{intervals:[50]}).toBeGreaterThan(17);await page.keyboard.up('s');
   await page.locator('#ship-interact').click();await expect.poll(async()=>(await state(page)).me.body).toBe('robot');expect((await state(page)).ships[0].occupant).toBeNull();
-  await page.screenshot({path:`docs/previews/navy-docked-${mobile?'mobile':'desktop'}.png`});
+  await page.screenshot({path:`.local/navy-docked-${mobile?'mobile':'desktop'}.png`});
   expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true);
  }finally{await context?.close();await other?.close();await app.close();if(!path.resolve(dataDir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-navy-browser-'))throw Error('Bad temp path');await rm(dataDir,{recursive:true,force:true});}
 });

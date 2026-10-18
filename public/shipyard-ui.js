@@ -40,7 +40,7 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
     $('ramp-repair').hidden=!active||!damaged;$('ramp-repair').disabled=busy||!!actorError||!moored||!!v?.occupant||world.logistics.groundSupplies+1e-8<25;
     $('shipyard-interact').hidden=!connected||!near()||me.body!=='robot'||placing||dialog.open;
   }
-  function open(kind=null,id=null){stop();update();if(id)$('shipyard-select').value=id;update();dialog.showModal();update();const b=kind&&$('yard-build-'+kind);if(b&&!b.disabled)b.focus();}
+  function open(kind=null,id=null){stop();update();if(id)$('shipyard-select').value=id;update();dialog.showModal();$('shipyard-close').focus();update();const b=kind&&$('yard-build-'+kind);if(b&&!b.disabled)b.focus();}
   async function action(route,data){if(busy)return false;busy=true;update();try{await api(route,data);notify('Order accepted.');return true;}catch(e){notify(e.message);$('shipyard-help').textContent=e.message;return false;}finally{busy=false;update();}}
   $('shipyard-select').onchange=update;
   for(const id of ['shipyard-new','shipyard-new-dialog'])$(id).onclick=()=>{dialog.close();deploy();};

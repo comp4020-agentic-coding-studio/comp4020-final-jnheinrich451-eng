@@ -1,5 +1,7 @@
 import { AIR_HULL, aircraftHealth, AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
 import { JET, isAttackJet, aircraftName, strafePoint, strafeError } from './attack-jet.js';
+import { ConstructionEffects } from './construction-effects.js';
+let droneArt;
 import { POD } from './pod.js';
 import { bomberPayload, payloadProfile, bomberDive } from './bomber-payloads.js';
 
@@ -17,6 +19,12 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
 }
 export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
  if(!p||['destroyed','vacant'].includes(p.state))return;
+ if(p.state==='delivering'&&p.deliveryMethod==='factory'){
+  const duration=p.assemblyDuration||60,reveal=1-p.remaining/duration;
+  drawAircraft(c,{...p,state:'parked'},T,zoom,mine,0,reduced);
+  droneArt ||= new ConstructionEffects(T);droneArt.tile=T;droneArt.draw(c,{cores:[]},p,3,{active:true,method:'factory',time:duration-p.remaining,reveal,droneBay:{x:Math.floor(p.x+1),y:Math.floor(p.y+1)}},zoom,reduced);
+  c.save();c.fillStyle='#edcd83';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('ASSEMBLING '+Math.ceil(p.remaining)+'s',p.x*T,(p.y-2)*T);c.restore();return;
+ }
  if(p.state==='delivering'){
   const time=POD.duration-p.remaining,fall=Math.max(0,1-time/POD.impact),open=Math.max(0,Math.min(1,(time-POD.unfold)/1.4));
   c.save();c.translate(p.x*T,p.y*T);c.strokeStyle='#edd496';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);c.strokeRect(-2*T,-2*T,4*T,4*T);c.setLineDash([]);

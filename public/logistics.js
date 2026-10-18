@@ -116,7 +116,7 @@ export function migrateLogistics(state) {
   if(state.version===1){state.groundSupplies=0;state.freeBomberUsed=false;for(const job of Object.values(state.jobs||{}))job.pool='supplies';state.version=2;}
   return state;
 }
-export const LOCAL_KINDS = ['airbase','ship','submarine','transport','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
+export const LOCAL_KINDS = ['airbase','ship','submarine','transport','carrier','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
 export const poolFor = (kind, local=false) => local || ['dockRepair','baseRepair','rampRepair'].includes(kind) ? 'groundSupplies' : 'supplies';
 export const poolLabel = pool => pool==='groundSupplies'?'ground SUP':'orbital SUP';
 export function supportSources(world){return [

@@ -605,3 +605,89 @@ DB before atomically remapping terrain and flattened logistics floor indices.
 No spherical travel or extra enemy/facility caps. New regions are expansion space,
 not a claim of a populated planet or validated Fly capacity. First orbital strike
 reference remains stable; strike planning uses a readable regional camera.
+
+### Land pursuit and local frenzy checkpoint, 18 October 2026
+
+The accepted pipeline in docs/LAND_AI_AND_SEEDED_FRONTS.md now implements ordinary
+ten/fourteen-tile acquisition/retention, four-second remembered positions and
+1.6-tile/s pursuit. Keep home limits, hazards, armor, windups and recovery.
+Enemy-only sparse routing has shared work and memory limits; player navigation
+is unchanged. Limited searches are not proof of unreachable terrain.
+The local owner-triggered frenzy has five-second warning, finite up-to-twelve
+roster, sixty-second signal, stable 75/25 hunter/raider assignment and thirty-
+second cooldown. It shares global spawn reservations, saves orders and timers,
+freezes with campaign lifecycle and never rolls back conquest. No eligible
+ground combatants/recovery structures resolves the event and gives its survivors
+a recovery grace; it does not declare permanent campaign loss. Disable manual
+test admission on Fly/production. Natural event triggers and coarse connectivity
+remain subsequent playtested stages.
+
+### Seeded compounds and Breaker checkpoint, 19 October 2026
+
+The author accepted the prior checkpoint. The next local stage in
+docs/LAND_AI_AND_SEEDED_FRONTS.md adds up to seven seeded compounds on the three
+large new continents, preserving original terrain and existing objects/progress.
+Back up the full DB, then atomically save actual site records and the versioned
+seed/membership/skip manifest. Never reroll existing saves or refill conquered
+sites. Unsafe placement is skipped permanently; preserve central staging space.
+Compound completion requires all saved member IDs; missing records are not wins.
+Finite initial guards are two Hunters and one Breaker per compound, with saved
+remaining roles and shared pending/live admission under the existing 24 cap.
+Only crowns call subsequent Hunter reinforcements. Breakers are slower, higher-HP
+melee with locked dodgeable windups, penetration 3 for existing facility armor,
+and a distinct plated silhouette. No new global enemy armor formula or hazard
+immunity. Keep fire/gas lethality, friendly immunity, loss/recovery and per-site
+salvage accounting. Spitters and natural event triggers remain later work.
+
+The author's density refinement targets 6 Aurora, 6 Haven and 12 Meridian
+compounds, distributed over broader continental areas. The v2 migration adds
+only the shortfall, counting conquered groups too; it preserves every existing
+site and backs up before atomically saving additions and the v2 manifest.
+Keep the v1 generator stable. Retain central staging/terrain/player-object
+exclusions and permanently skip unsafe slots. The living cap remains 24, not
+24 per compound. Local four-player/30-second server probes are evidence for this
+increment, not proof of the 256 MB Fly limit under multiple active rooms.
+
+### Bulwark and pursuit checkpoint, 19 October 2026
+
+The author explicitly approved a Bulwark damaged only by HE/explosives and
+MAGNETIC. This supersedes the earlier no-hazard-immunity rule for this role only.
+Keep Hunters/Breakers vulnerable to fire and gas. Bulwarks ignore heat and gas
+lures without consuming cloud charges; they still obey terrain, home limits,
+shared navigation budgets and locked melee windups. Hunter speed is now 2.6,
+robot 3.0; Breaker 0.95/180 HP; Bulwark 0.65/450 HP. Automatic bullet/fuel guards
+prefer damageable targets. Preserve truthful blocked-hit feedback.
+The separate backed-up bulwark-roster-v1 migration replaces one unspent Hunter
+in eligible mortar-bearing seeded compounds; do not reroll generation, transform
+living units, refill guards, change pending warnings or revive conquered sites.
+No live-cap, deployment, economy or Fly capacity change is implied.
+
+### Deployment catalogue checkpoint, 19 October 2026
+
+The latest section of docs/UI_REFINEMENT.md supersedes the older combined
+Airbase + bomber/jet catalogue and naval-management entry flow. Navy cards place
+ship plus dock directly. Airbase placement is empty; separate A-02 jet/A-03
+bomber cards choose an existing empty owned runway on the map and use server
+newOnly admission. Preserve shared fleet capacity, first free bomber and base
+service controls. Inside supported footprints, ORB/GND are separate blue/gold
+halves; outside, only ORB. WASD continues through ordinary panels; typing and
+actual pause/lifecycle gates still own input. Do not reintroduce hidden vehicle
+Deploy restrictions or implicit aircraft exchange when selecting a card.
+
+### Dock and airbase workshop checkpoint, 19 October 2026
+
+The author's latest accepted answers supersede combined naval placement:
+N-05 places an empty dock; ship cards choose existing empty docks. Robots
+entering their own completed docks/airbases see a nonmodal GND workshop.
+Keep WASD available and preserve E boarding/management and apron controls.
+Both workshops use 60-second drone assembly. Air catalogue ORB delivery and
+the first free orbital bomber remain distinct from local production.
+
+Trade-ins credit 80% of actual recorded payment in the same pool, rounded
+down and capped at the new price. Record only the new net payment for the
+next trade; no cash refund or ORB-to-GND conversion. Free/lost vehicles and
+legacy records without receipts get no credit. Validate ownership, occupancy,
+cargo, carrier aircraft, readiness and fleet/berth/runway capacity before an
+atomic debit and replacement. Persist order identifiers and vehicle revisions
+so retries/stale requests cannot double-charge or remove active vehicles.
+See docs/UI_REFINEMENT.md for the local validation and remaining test limits.

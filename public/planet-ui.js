@@ -1,4 +1,5 @@
 import { longitude, latitude, projectPoint, surfacePoint } from './planet.js';
+import { settlements } from './settlement.js';
 
 export function planetUI({ state, stop, visit }) {
   const $ = id => document.getElementById(id), dialog = $('planet-dialog'), canvas = $('planet-globe'), ctx = canvas.getContext('2d');
@@ -50,12 +51,14 @@ export function planetUI({ state, stop, visit }) {
     const { world, me } = state(); if (!world) return;
     stop(); $('planet-title').textContent = world.name || 'Caldera';
     $('planet-regions').replaceChildren(new Option('Current position', ''), ...world.regions.map(p => new Option(p.label, p.id)));
+    $('planet-fronts').replaceChildren(new Option('Choose a surveyed compound', ''), ...settlements(state().sites).map(g => new Option(`${g.name} / ${g.cleared}/${g.requiredIds.length}${g.state === 'conquered' ? ' secured' : ''}`, g.id)));
     dialog.showModal(); center(me || world.spawn); canvas.focus();
   }
   function go(point) { dialog.close(); visit(point); }
   $('planet-open').onclick = open;
   $('planet-close').onclick = () => dialog.close();
   $('planet-regions').onchange = () => center(state().world.regions.find(p => p.id === $('planet-regions').value) || state().me || state().world.spawn);
+  $('planet-fronts').onchange = () => { const group = settlements(state().sites).find(g => g.id === $('planet-fronts').value); if (group) center(group); };
   $('planet-visit').onclick = () => go(selected || surfacePoint(0, 0, state().world.width, state().world.height, lon, lat));
   for (const b of dialog.querySelectorAll('[data-planet-turn]')) b.onclick = () => { const [dx, dy] = b.dataset.planetTurn.split(',').map(Number); rotate(dx, dy); };
   canvas.onpointerdown = e => { canvas.setPointerCapture(e.pointerId); pointer = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false }; };

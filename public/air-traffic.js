@@ -40,3 +40,15 @@ export function deliveryError(world,base){
  }
  return null;
 }
+
+// Catalogue delivery creates aircraft only. Explicit exchanges stay at the base.
+export function newAircraftError(world, base, owner) {
+ if (!base || base.owner !== owner) return 'Choose one of your airbases or carriers on the map.';
+ if (parkedRecord(world, base)) return 'Runway occupied. Manage this aircraft at the airbase; deployment never replaces it.';
+ return deliveryError(world, base);
+}
+export function deliveryBaseAt(world, point) {
+ return airfields(world).find(b => b.carrier
+  ? Math.hypot(point.x + .5 - b.carrier.x, point.y + .5 - b.carrier.y) <= 3
+  : point.x >= b.x && point.x < b.x + 6 && point.y >= b.y && point.y < b.y + 10);
+}

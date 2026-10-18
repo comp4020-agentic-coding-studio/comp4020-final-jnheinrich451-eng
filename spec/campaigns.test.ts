@@ -14,6 +14,171 @@ import { resetWorld } from '../world-maintenance.js';
 const password = 'a unique campaign password 123!';
 const worldRoute = (id: string, action = 'world') => `/api/campaign-world/${id}/${action}`;
 
+it('backs up the Bulwark roster upgrade once without refilling guards or replacing living enemies', async () => fixture(async h => {
+  const owner = await h.account('armorowner'), id = await h.open(owner);
+  const initial = (await owner.request(worldRoute(id))).data;
+  expect(initial.combat.sites.some((s: any) => s.guardRoster?.includes('bulwark'))).toBe(true);
+  await owner.request('/api/campaigns/leave', {});
+  let original: any, eligible: string, expected: any;
+  h.database(id, (db: DatabaseSync) => {
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    for (const site of saved.sites) if (site.guardRoster) site.guardRoster = site.guardRoster.map((role: string) => role === 'bulwark' ? 'hunter' : role);
+    const groups = new Set(saved.sites.filter((s: any) => s.encounter && s.kind === 'mortar').map((s: any) => s.encounter.id));
+    const guards = saved.sites.filter((s: any) => groups.has(s.encounter?.id) && s.guardRoster?.length);
+    expect(guards.length).toBeGreaterThan(2); eligible = guards[0].id;
+    Object.assign(guards[1], { state: 'conquered', hp: 0, guardsRemaining: 0, guardRoster: [], pending: null });
+    guards[2].pending = { kind: 'guards', count: 3, remaining: 1, x: guards[2].x, y: guards[2].y };
+    saved.enemies = [{ id: ++saved.serial, kind: 'breaker', hp: 93, maxHp: 180, x: 24.5, y: 18.5, angle: 0, path: [], reroute: 0, eventSpawn: true }];
+    original = structuredClone(saved);
+    db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+    db.prepare("DELETE FROM meta WHERE key='bulwark-roster-v1'").run();
+  });
+  await owner.request('/api/campaigns/enter', { id });
+  const after = (await owner.request(worldRoute(id))).data;
+  expected = after.combat.sites;
+  expect(expected.find((s: any) => s.id === eligible!).guardRoster).toContain('bulwark');
+  expect(after.combat.enemies).toEqual(original.enemies.map(({ path, reroute, ...enemy }: any) => enemy));
+  expect(after.logistics).toEqual(initial.logistics); expect(after.world.terrain).toEqual(initial.world.terrain);
+  for (const old of original.sites) {
+    const current = expected.find((s: any) => s.id === old.id);
+    expect({ ...current, guardRoster: old.guardRoster }).toEqual(old);
+    if (old.pending || old.state === 'conquered') expect(current).toEqual(old);
+  }
+  await owner.request('/api/campaigns/leave', {}); await h.restart(); await owner.request('/api/campaigns/enter', { id });
+  expect((await owner.request(worldRoute(id))).data.combat.sites).toEqual(expected);
+  const backups = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-bulwark-roster-'));
+  expect(backups).toHaveLength(2);
+  expect(backups.some(file => {
+    const db = new DatabaseSync(path.join(h.dir, 'campaigns', id, 'backups', file), { readOnly: true });
+    try { return JSON.stringify(JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string)) === JSON.stringify(original); }
+    finally { db.close(); }
+  })).toBe(true);
+}), 15000);
+
+it('adds denser fronts once to a seven-compound save while preserving conquered sites, guards, construction and supplies', async () => fixture(async h => {
+  const owner = await h.account('denseowner'), id = await h.open(owner);
+  const initial = (await owner.request(worldRoute(id))).data;
+  const newSite = initial.combat.sites.find((s: any) => s.id.startsWith('front-v2-'));
+  expect(newSite).toBeTruthy(); await owner.request('/api/campaigns/leave', {});
+  let kept: any, economy: any, marker: any;
+  h.database(id, (db: DatabaseSync) => {
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    saved.sites = saved.sites.filter((s: any) => !s.id.startsWith('front-v2-'));
+    const groups = saved.sites.filter((s: any) => s.encounter);
+    Object.assign(groups[0], { hp: 0, state: 'conquered', conqueredAt: 20, guardsRemaining: 0, guardRoster: [], pending: null });
+    groups[1].hp = 52; kept = structuredClone(saved.sites);
+    db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+    db.prepare("DELETE FROM meta WHERE key='seeded-fronts-v2'").run();
+    db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run('dense-kept', newSite.x, newSite.y, initial.me.id, 'saved');
+    economy = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get()!.value as string);
+    economy.supplies = 400; economy.groundSupplies = 75; economy.salvage[groups[0].id] = 0;
+    db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(economy));
+  });
+  await owner.request('/api/campaigns/enter', { id });
+  const added = (await owner.request(worldRoute(id))).data;
+  expect(added.combat.sites.filter((s: any) => !s.id.startsWith('front-v2-'))).toEqual(kept);
+  expect(added.combat.sites.filter((s: any) => s.id.startsWith('front-v2-')).length).toBeGreaterThan(10);
+  expect(added.combat.sites.filter((s: any) => s.id.startsWith('front-v2-')).every((s: any) => Math.hypot(s.x + 1.5 - newSite.x, s.y + 1.5 - newSite.y) >= 40)).toBe(true);
+  expect(added.logistics).toEqual(economy); expect(added.world.terrain).toEqual(initial.world.terrain);
+  expect(added.buildings.some((b: any) => b.id === 'dense-kept')).toBe(true);
+  h.database(id, (db: DatabaseSync) => { marker = db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v2'").get()!.value; });
+  await owner.request('/api/campaigns/leave', {}); await h.restart(); await owner.request('/api/campaigns/enter', { id });
+  expect((await owner.request(worldRoute(id))).data.combat.sites).toEqual(added.combat.sites);
+  h.database(id, (db: DatabaseSync) => expect(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v2'").get()!.value).toBe(marker));
+  const backups = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-dense-fronts-'));
+  expect(backups).toHaveLength(2);
+  expect(backups.some(file => {
+    const db = new DatabaseSync(path.join(h.dir, 'campaigns', id, 'backups', file), { readOnly: true });
+    try { return JSON.stringify(JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string).sites) === JSON.stringify(kept); }
+    finally { db.close(); }
+  })).toBe(true);
+}), 15000);
+
+it('backs up seeded additions atomically, shares one layout, and retains partial conquest and supplies across restart', async () => fixture(async h => {
+  const owner = await h.account('seedowner'), friend = await h.account('seedfriend'), id = await h.open(owner);
+  const initial = (await owner.request(worldRoute(id))).data;
+  const otherId = await h.open(friend);
+  const other = (await friend.request(worldRoute(otherId))).data;
+  expect(initial.combat.sites.filter((s: any) => s.encounter).length).toBeGreaterThan(0);
+  expect(initial.combat.sites.filter((s: any) => s.encounter).map((s: any) => [s.x, s.y, s.kind]))
+    .not.toEqual(other.combat.sites.filter((s: any) => s.encounter).map((s: any) => [s.x, s.y, s.kind]));
+  await friend.request('/api/campaigns/leave', {});
+  const code = (await owner.request('/api/campaigns/invite', { id })).data.code;
+  await friend.request('/api/campaigns/join', { code });
+  const layout = (sites: any[]) => sites.map(s => ({ id: s.id, x: s.x, y: s.y, kind: s.kind, encounter: s.encounter }));
+  expect(layout((await friend.request(worldRoute(id))).data.combat.sites)).toEqual(layout(initial.combat.sites));
+  await owner.request('/api/campaigns/leave', {});
+  let preserved: any, marker: any, seeded: any;
+  h.database(id, (db: DatabaseSync) => {
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    saved.sites = saved.sites.filter((s: any) => !s.encounter);
+    Object.assign(saved.sites[0], { hp: 0, state: 'conquered', conqueredAt: 22, pending: null });
+    saved.sites[1].hp = 87; preserved = structuredClone(saved.sites);
+    db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+    db.prepare("DELETE FROM meta WHERE key='seeded-fronts-v1'").run();
+    db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run('seed-kept', 230, 94, initial.me.id, 'saved');
+    const economy = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get()!.value as string);
+    economy.supplies = 450; economy.groundSupplies = 125; economy.salvage[saved.sites[0].id] = 0;
+    db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(economy));
+  });
+  await owner.request('/api/campaigns/enter', { id });
+  const migrated = (await owner.request(worldRoute(id))).data;
+  expect(migrated.combat.sites.filter((s: any) => !s.encounter)).toEqual(preserved);
+  expect(migrated.world.terrain).toEqual(initial.world.terrain);
+  expect(migrated.buildings.some((b: any) => b.id === 'seed-kept')).toBe(true);
+  expect(migrated.logistics).toMatchObject({ supplies: 450, groundSupplies: 125, salvage: { [preserved[0].id]: 0 } });
+  const added = migrated.combat.sites.filter((s: any) => s.encounter);
+  expect(added.every((s: any) => Math.hypot(s.x + 1.5 - 230, s.y + 1.5 - 94) >= 40)).toBe(true);
+  await owner.request('/api/campaigns/leave', {});
+  h.database(id, (db: DatabaseSync) => {
+    marker = db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get()!.value;
+    const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    const members = saved.sites.filter((s: any) => s.encounter);
+    Object.assign(members[0], { hp: 0, state: 'conquered', conqueredAt: 33 }); members[1].hp = 42;
+    seeded = structuredClone(members);
+    db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+  });
+  await h.restart(); await owner.request('/api/campaigns/enter', { id });
+  expect((await owner.request(worldRoute(id))).data.combat.sites.filter((s: any) => s.encounter)).toEqual(seeded);
+  h.database(id, (db: DatabaseSync) => expect(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get()!.value).toBe(marker));
+  const backups = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-seeded-fronts-'));
+  expect(backups).toHaveLength(2);
+  // At least the migration rehearsal backup contains the exact pre-addition state.
+  expect(backups.some(file => {
+    const db = new DatabaseSync(path.join(h.dir, 'campaigns', id, 'backups', file), { readOnly: true });
+    try { return JSON.stringify(JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string).sites) === JSON.stringify(preserved); }
+    finally { db.close(); }
+  })).toBe(true);
+}), 20000);
+
+it('restricts the local frenzy to the owner and saves the shared warning through room closure',async()=>fixture(async h=>{
+ const owner=await h.account('frenzyowner'),friend=await h.account('frenzyfriend'),id=await h.open(owner);
+ const code=(await owner.request('/api/campaigns/invite',{id})).data.code;await friend.request('/api/campaigns/join',{code});
+ const pilot=(await owner.request(worldRoute(id))).data.me.id;
+ expect((await friend.request(worldRoute(id,'frenzy/test'),{})).status).toBe(403);
+ expect((await owner.request(worldRoute(id,'frenzy/test'),{})).status).toBe(409);
+ await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
+  db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('frenzy-core',pilot,30,30,99);
+  db.prepare('UPDATE scouts SET x=40.5,y=40.5 WHERE id=?').run(pilot);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot,JSON.stringify({...freshLife(),deployed:true}));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);for(const s of saved.sites)Object.assign(s,{hp:0,state:'conquered',pending:null});saved.enemies=[];
+  db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
+ expect((await owner.request(worldRoute(id,'frenzy/test'),{})).status).toBe(200);
+ const warned=(await owner.request(worldRoute(id))).data.combat.frenzy;
+ expect((await friend.request(worldRoute(id))).data.combat.frenzy).toEqual(warned);
+ expect((await owner.request(worldRoute(id,'frenzy/test'),{})).status).toBe(409);
+ await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});
+ const resumed=(await owner.request(worldRoute(id))).data;
+ expect(resumed.combat.frenzy).toEqual(warned);const time=resumed.combat.time;
+ await new Promise(r=>setTimeout(r,100));expect((await owner.request(worldRoute(id))).data.combat.time).toBe(time);
+ await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.combat.frenzy.phase,{timeout:7000}).toBe('surge');
+ expect(h.logs.filter((l:any)=>l.event==='frenzy.warning')).toHaveLength(1);
+ await expect.poll(()=>h.logs.filter((l:any)=>l.event==='frenzy.started').length).toBe(1);
+}),15000);
+
 it('shares distant planetary construction through terrain-free live updates and saves both fronts', async () => fixture(async h => {
   const owner = await h.account('planetowner'), friend = await h.account('planetfriend'), id = await h.open(owner);
   const code = (await owner.request('/api/campaigns/invite', { id })).data.code;
@@ -212,12 +377,12 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s 
   const marker = kind === 'anti-air' ? 'anti-air-v1' : kind === 'laser' ? 'laser-tower-v1' : kind === 'contaminator' ? 'air-contaminator-v1' : kind === 'mortar' ? 'mortar-outpost-v1' : 'environment-modifier-v1';
   const owner = await h.account('outpost'), id = await h.open(owner);
   const initial = (await owner.request(worldRoute(id))).data;
-  expect(initial.combat.sites.some((s: any) => s.kind === kind && !s.settlement)).toBe(true);
+  expect(initial.combat.sites.some((s: any) => s.kind === kind && !s.settlement && !s.encounter)).toBe(true);
   await owner.request('/api/campaigns/leave', {});
   let oldSite: any;
   h.database(id, (db: DatabaseSync) => {
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
-    saved.sites = saved.sites.filter((s: any) => s.kind !== kind || s.settlement);
+    saved.sites = saved.sites.filter((s: any) => s.kind !== kind || s.settlement || s.encounter);
     // Rehearse older migrations against a save from before the later fog stage.
     if (kind !== 'anti-air') {
       saved.sites = saved.sites.filter((s: any) => s.kind !== 'anti-air');
@@ -239,19 +404,19 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s 
   });
   await owner.request('/api/campaigns/enter', { id });
   const migrated = (await owner.request(worldRoute(id))).data;
-  expect(migrated.combat.sites.filter((s: any) => s.kind === kind && !s.settlement)).toHaveLength(1);
+  expect(migrated.combat.sites.filter((s: any) => s.kind === kind && !s.settlement && !s.encounter)).toHaveLength(1);
   expect(migrated.combat.sites.find((s: any) => s.kind === 'alert')).toEqual(oldSite);
   expect(migrated.buildings.some((b: any) => b.id === 'kept-sentry')).toBe(true);
   expect(migrated.world.terrain).toEqual(initial.world.terrain);
   await owner.request('/api/campaigns/leave', {});
   h.database(id, (db: DatabaseSync) => {
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
-    Object.assign(saved.sites.find((s: any) => s.kind === kind && !s.settlement), { state: 'conquered', hp: 0, conqueredAt: 50 });
+    Object.assign(saved.sites.find((s: any) => s.kind === kind && !s.settlement && !s.encounter), { state: 'conquered', hp: 0, conqueredAt: 50 });
     db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
   });
   await h.restart(); await owner.request('/api/campaigns/enter', { id });
   const resumed = (await owner.request(worldRoute(id))).data;
-  expect(resumed.combat.sites.filter((s: any) => s.kind === kind && !s.settlement)).toEqual([expect.objectContaining({ state: 'conquered', hp: 0, conqueredAt: 50 })]);
+  expect(resumed.combat.sites.filter((s: any) => s.kind === kind && !s.settlement && !s.encounter)).toEqual([expect.objectContaining({ state: 'conquered', hp: 0, conqueredAt: 50 })]);
   expect((await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith(`before-${kind}-`))).toHaveLength(2);
 }), 15000);
 

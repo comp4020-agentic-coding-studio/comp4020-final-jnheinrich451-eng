@@ -1,6 +1,7 @@
 import { FLAME, LASER, loadout } from './weapons.js';
 import { turnTurret, angleDelta } from './turret.js';
 import { raycast } from './raycast.js';
+import { canDamageEnemy } from './enemy-profiles.js';
 
 export const GUARD = Object.freeze({ searchInterval: .5, flameEnter: 4.5, tolerance: Math.PI / 90 });
 export function guardStep(robot, state, enemies, world, buildings, dt) {
@@ -8,7 +9,7 @@ export function guardStep(robot, state, enemies, world, buildings, dt) {
   const distance = e => Math.hypot(e.x - robot.x, e.y - robot.y);
   const visible = e => {
     const d = distance(e);
-    return e.hp > 0 && d <= LASER.range && d > .2 && raycast(world, buildings, robot, (e.x - robot.x) / d, (e.y - robot.y) / d, d + .01, enemies).enemy?.id === e.id;
+    return e.hp > 0 && canDamageEnemy(e, 'LASER') && d <= LASER.range && d > .2 && raycast(world, buildings, robot, (e.x - robot.x) / d, (e.y - robot.y) / d, d + .01, enemies).enemy?.id === e.id;
   };
   let target = enemies.find(e => e.id === state.targetId);
   if (target && !visible(target)) target = null;

@@ -21,8 +21,8 @@ test('catalogue tabs, spec sheet and keyboard placement on desktop', async ({ br
     await expect(page.locator('#deployment-tray')).toBeVisible();
     await expect(page.locator('[role=tab]')).toHaveCount(6);
     await expect(page.locator('#tab-ground')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('#sentry-card .asset-cost')).toHaveText('25 SUP');
-    await expect(page.locator('#core-card .asset-cost')).toContainText('IN FIELD');
+    await expect(page.locator('#sentry-card .asset-cost')).toHaveText('25 ORB');
+    await expect(page.locator('#core-card .asset-cost')).toContainText('120 ORB');
     await page.locator('#tank-card').hover();
     await expect(page.locator('#asset-spec')).toContainText('Tank drop pod');
     await expect(page.locator('#asset-spec')).toContainText('HE 14 t');
@@ -35,12 +35,12 @@ test('catalogue tabs, spec sheet and keyboard placement on desktop', async ({ br
     expect((await me(page)).x).toBe(before.x);
     await page.keyboard.press('z'); await page.keyboard.press('z');
     await expect(page.locator('#tab-ground')).toHaveAttribute('aria-selected', 'true');
-    await page.screenshot({ path: 'docs/previews/catalogue-desktop.png' });
+    await page.screenshot({ path: '.local/catalogue-desktop.png' });
     // 1 picks the first asset; Enter confirms; Shift+Enter keeps placing.
     await page.keyboard.press('1'); await expect(page.locator('#site-panel')).toBeVisible();
     await expect(page.locator('#state-banner')).toHaveText('PLACING · APCR SENTRY');
     await pickTile(page, 28, 21); await page.keyboard.press('Enter');
-    await expect(page.locator('#toast')).toContainText('placed and saved'); await expect(page.locator('#site-panel')).toBeHidden();
+    await expect(page.locator('#toast')).toContainText('deployment saved'); await expect(page.locator('#site-panel')).toBeHidden();
     await page.keyboard.press('b'); await page.keyboard.press('1'); await pickTile(page, 30, 22);
     await page.keyboard.press('Shift+Enter');
     await expect.poll(async () => (await page.evaluate(async () => (await (await fetch('/api/world')).json()).buildings.filter(b => !b.coreId).length))).toBe(2);
@@ -62,7 +62,7 @@ test('catalogue tabs, spec sheet and keyboard placement on desktop', async ({ br
     await expect(page.locator('#keys-dialog')).toBeVisible();
     await expect(page.locator('#keys-now')).toContainText('Deploy catalogue'); await expect(page.locator('#keys-now')).toContainText('Pointer and movement');
     await expect(page.locator('#keys-now')).not.toContainText('Cannon: HE / Magnetic');
-    await page.screenshot({ path: 'docs/previews/key-reference-desktop.png' });
+    await page.screenshot({ path: '.local/key-reference-desktop.png' });
     await page.keyboard.press('Escape'); await expect(page.locator('#keys-dialog')).toBeHidden();
     const zoom = await page.locator('#zoom-label').textContent();
     await page.locator('#world-canvas').focus(); await page.keyboard.press('m');
@@ -99,11 +99,11 @@ test('phone catalogue is a bottom sheet without page scrolling', async ({ browse
     await page.locator('#build-mode').tap(); await expect(page.locator('#deployment-tray')).toBeVisible();
     await expect(page.locator('#asset-spec')).toBeHidden();
     await page.locator('#tab-logistics').tap(); await expect(page.locator('#factory-card')).toBeInViewport();
-    await expect(page.locator('#factory-card .asset-cost')).toHaveText('150 SUP');
+    await expect(page.locator('#factory-card .asset-cost')).toHaveText('150 ORB');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
     const tray = await page.locator('#deployment-tray').boundingBox();
     expect(tray.height).toBeLessThanOrEqual(844 * .47);
-    await page.screenshot({ path: 'docs/previews/catalogue-mobile.png' });
+    await page.screenshot({ path: '.local/catalogue-mobile.png' });
     await page.locator('#recycler-card').tap(); await expect(page.locator('#site-panel')).toBeVisible();
   } finally { await context.close(); await arena.close(); }
 });

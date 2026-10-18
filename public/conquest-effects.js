@@ -32,7 +32,7 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
       c.lineWidth = 1.5 / zoom; c.setLineDash([8 / zoom, 6 / zoom]);
       c.beginPath(); c.arc(group.x * tile, group.y * tile, group.radius * tile, 0, TAU); c.fill(); c.stroke();
       c.fillStyle = dead ? '#b0e6df' : '#f9c0ae'; c.textAlign = 'center'; c.font = `${12 / zoom}px monospace`;
-      c.fillText(`${group.name.toUpperCase()} / ${group.cleared}/3${dead ? ' SECURED' : ''}`, group.x * tile, (group.y - group.radius) * tile - 10 / zoom);
+      c.fillText(`${group.name.toUpperCase()} / ${group.cleared}/${group.requiredIds.length}${dead ? ' SECURED' : ''}`, group.x * tile, (group.y - group.radius) * tile - 10 / zoom);
     }
     c.restore();
   }

@@ -1,5 +1,6 @@
+import { assignBulwarkGuards } from './public/enemy-profiles.js';
 import { isCarrier, CARRIER, carrierReady, prepareCarrier, deckAircraft, deckLocked, syncCarrierDeck, tickCarrierService } from './public/carrier.js';
-import { airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
+import { airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, newAircraftError, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
 import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, yardBuildError, rememberWreck, tickDockRepair } from './public/shipyard.js';
 import { newRampGun } from './public/ramp-sentry.js';
 import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint, driveOnError } from './public/transport.js';
@@ -7,6 +8,7 @@ import { BRIDGE, isBuilder, bridgeReady, bridgeDuration, bridgeCost } from './pu
 import { bridgeError, bridgeSupplyError } from './public/bridge.js';
 import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from './public/recycler.js';
 import { seedSettlement } from './public/settlement.js';
+import { seedFronts, seedDenseFronts } from './public/seeded-fronts.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
 import { launchCruise, recoverAircraft, unattendedAircraft, missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
@@ -19,6 +21,7 @@ import { createAudit } from './observability.js';
 import { isSubmarine } from './public/submarine.js';
 import { VEHICLE, hullMaximum, hullHealth, operational } from './public/vehicle.js';
 import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
+import { serviceState, serviceError, serviceQuote, serviceVersion } from './public/facility-service.js';
 import { SHIP, dockComplete, shipKind, shipSite, replacementShipError, mooredDock, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
 import { TANK, tankPodCells, tankPlacementError, tankArrivalPosition } from './public/tank.js';
 import { readFile, stat } from 'node:fs/promises';
@@ -54,13 +57,14 @@ for (const name of readdirSync(publicDir).filter(name => /\.(js|css|html)$/.test
 const clientBuild = buildHash.digest('hex').slice(0, 16);
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.local', 'data'), emailDelivery = smtpMailer(), logSink = line => console.log(line) } = {}) {
+export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.local', 'data'), emailDelivery = smtpMailer(), logSink = line => console.log(line), testEvents = !process.env.FLY_APP_NAME && process.env.NODE_ENV !== 'production' } = {}) {
   const release = lockWorld(dataDir);
   const audit = createAudit(logSink);
   try {
     let campaigns;
-    const app = createWorldApp(dataDir, emailDelivery, { audit, onRevoke: (...args) => campaigns?.revoke(...args) });
-    campaigns = createCampaigns({ dataDir, legacy: app, audit, createRuntime: (dir, options) => createWorldApp(dir, emailDelivery, { ...options, audit }) });
+    const localTestEvents=!!testEvents&&!process.env.FLY_APP_NAME&&process.env.NODE_ENV!=='production';
+    const app = createWorldApp(dataDir, emailDelivery, { audit, testEvents:localTestEvents, onRevoke: (...args) => campaigns?.revoke(...args) });
+    campaigns = createCampaigns({ dataDir, legacy: app, audit, createRuntime: (dir, options) => createWorldApp(dir, emailDelivery, { ...options, audit, testEvents:localTestEvents }) });
     const handler = app.server.listeners('request')[0];
     app.server.removeListener('request', handler);
     app.server.on('request', (req, res) => audit.run(req, res, () => campaigns.route(req, res, handler)));
@@ -152,7 +156,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   const boardedRecycler = id => world.logistics.recyclers.find(r=>r.occupant===id);
   const constructing = id => !!world.logistics.jobs[id];
   // The same transaction pays for an accepted placement and saves its object.
-  function purchase(kind, data, object, write, yardBuild = false) {
+  function purchase(kind, data, object, write, yardBuild = false, exchange = null) {
     if(!Object.hasOwn(COSTS,kind))return 'Unknown deployment type.';
     const l=world.logistics, factory=data.method==='factory', local=factory||yardBuild;
     if(data.method!==undefined&&!['orbital','factory'].includes(data.method))return 'Choose orbital or factory construction.';
@@ -166,20 +170,23 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       const support=constructionError({...world,cores:workshop.kind==='core'?[workshop]:[],logistics:{facilities:workshop.kind==='core'?[]:[workshop]}},['submarine','transport','carrier'].includes(kind)?'ship':kind,siteX,siteY,object);
       if(support)return support;
     }
-    let price=quote(kind,local);const pool=poolFor(kind,local),freeBomber=kind==='aircraft'&&object.aircraft?.kind==='bomber'&&!l.freeBomberUsed;if(freeBomber)price=0;
+    let price=quote(kind,local);const pool=poolFor(kind,local),freeBomber=kind==='aircraft'&&object.aircraft?.kind==='bomber'&&!local&&!l.freeBomberUsed;if(freeBomber)price=0;
     if(kind==='core'&&(!l.deployments[object.owner]||!world.cores.length))price=0;
     const emergency=kind==='tank'&&data.emergency===true;
     if(emergency){const error=emergencyTankError(world);if(error)return error;price=0;object.emergency=true;object.weapon='HE';object.secondary='APCR';}
+    const trade = exchange ? serviceQuote(exchange.kind,exchange.previous) : null;
+    if(trade)price=trade.due;
     if((l[pool]||0)+1e-8<price)return `Need ${price} ${poolLabel(pool)}; ${Math.floor(l[pool]||0)} available.`;
     const previous=structuredClone(l);
     db.exec('BEGIN IMMEDIATE');
     try {
       l[pool]-=price;
+      if(['ship','submarine','transport','carrier','aircraft'].includes(kind)){const vehicle=kind==='aircraft'?object.aircraft:object;vehicle.purchase={id:randomUUID(),pool,paid:price,orderId:exchange?.orderId||null,kind:vehicle.kind};}
       if(freeBomber)l.freeBomberUsed=true;
       if(emergency)l.emergency=ECONOMY.emergencyCooldown;
       if(kind==='core')l.deployments[object.owner]=true;
-      if(factory)l.jobs[object.id]={remaining:ECONOMY.factoryTime,duration:ECONOMY.factoryTime,method:'factory',factoryId:workshop.id,kind,cost:price,pool,droneBay:{x:Math.floor(object.x),y:Math.floor(object.y)}};
-      else if(yardBuild){object.assemblyRemaining=ECONOMY.factoryTime;object.assemblyDuration=ECONOMY.factoryTime;}
+      if(factory)l.jobs[object.id]={remaining:ECONOMY.factoryTime,duration:ECONOMY.factoryTime,method:'factory',factoryId:workshop.id,kind,cost:price,pool,droneBay:{x:Math.floor(object.dock?.x??object.x),y:Math.floor(object.dock?.y??object.y)}};
+      else if(yardBuild){if(kind==='aircraft')Object.assign(object.aircraft,{remaining:ECONOMY.factoryTime,assemblyDuration:ECONOMY.factoryTime,deliveryMethod:'factory'});else {object.assemblyRemaining=ECONOMY.factoryTime;object.assemblyDuration=ECONOMY.factoryTime;}}
       else if(['airbase','artillery','missile','sentry'].includes(kind)){const duration=orbitalDuration(kind);l.jobs[object.id]={remaining:duration,duration,method:'orbital',kind,cost:price,pool};}
       if(['factory','uplink','outpost','recycler','builder'].includes(kind)){if(factory)object.remaining=ECONOMY.factoryTime;else object.remaining=object.deliveryDuration=orbitalDuration(kind);}
       write();saveLogistics();db.exec('COMMIT');
@@ -209,13 +216,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='mortar-outpost-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, `before-mortar-${randomUUID()}.sqlite`));
-    const additions = world.sites.some(s => s.kind === 'mortar' && !s.settlement) ? [] : seedConquest(world, buildings,
+    const additions = world.sites.some(s => s.kind === 'mortar' && !s.settlement && !s.encounter) ? [] : seedConquest(world, buildings,
       [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'mortar');
     world.sites.push(...additions);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
-      db.prepare('INSERT INTO meta VALUES (?,?)').run('mortar-outpost-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'mortar' && !s.settlement) }));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('mortar-outpost-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'mortar' && !s.settlement && !s.encounter) }));
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'mortar_outpost_added_with_backup', count: additions.length, saved: true });
@@ -223,13 +230,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='environment-modifier-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, `before-modifier-${randomUUID()}.sqlite`));
-    const additions = world.sites.some(s => s.kind === 'modifier' && !s.settlement) ? [] : seedConquest(world, buildings,
+    const additions = world.sites.some(s => s.kind === 'modifier' && !s.settlement && !s.encounter) ? [] : seedConquest(world, buildings,
       [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'modifier');
     world.sites.push(...additions);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
-      db.prepare('INSERT INTO meta VALUES (?,?)').run('environment-modifier-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'modifier' && !s.settlement) }));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('environment-modifier-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'modifier' && !s.settlement && !s.encounter) }));
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'environment_modifier_added_with_backup', count: additions.length, saved: true });
@@ -250,13 +257,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='air-contaminator-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-contaminator-' + randomUUID() + '.sqlite'));
-    const additions = world.sites.some(s => s.kind === 'contaminator') ? [] : seedConquest(world, buildings,
+    const additions = world.sites.some(s => s.kind === 'contaminator' && !s.encounter) ? [] : seedConquest(world, buildings,
       [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'contaminator');
     world.sites.push(...additions);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
-      db.prepare('INSERT INTO meta VALUES (?,?)').run('air-contaminator-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'contaminator') }));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('air-contaminator-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'contaminator' && !s.encounter) }));
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'air_contaminator_added_with_backup', count: additions.length, saved: true });
@@ -264,13 +271,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='laser-tower-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-laser-' + randomUUID() + '.sqlite'));
-    const additions = world.sites.some(s => s.kind === 'laser') ? [] : seedConquest(world, buildings,
+    const additions = world.sites.some(s => s.kind === 'laser' && !s.encounter) ? [] : seedConquest(world, buildings,
       [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'laser');
     world.sites.push(...additions);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
-      db.prepare('INSERT INTO meta VALUES (?,?)').run('laser-tower-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'laser') }));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('laser-tower-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'laser' && !s.encounter) }));
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'laser_tower_added_with_backup', count: additions.length, saved: true });
@@ -278,16 +285,58 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='anti-air-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-anti-air-' + randomUUID() + '.sqlite'));
-    const additions = world.sites.some(s => s.kind === 'anti-air') ? [] : seedConquest(world, buildings,
+    const additions = world.sites.some(s => s.kind === 'anti-air' && !s.encounter) ? [] : seedConquest(world, buildings,
       [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], 'anti-air');
     world.sites.push(...additions);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
-      db.prepare('INSERT INTO meta VALUES (?,?)').run('anti-air-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'anti-air') }));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('anti-air-v1', JSON.stringify({ placed: world.sites.some(s => s.kind === 'anti-air' && !s.encounter) }));
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'anti_air_added_with_backup', count: additions.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-seeded-fronts-' + randomUUID() + '.sqlite'));
+    const planned = seedFronts(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], randomUUID());
+    world.sites.push(...planned.sites);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      // The marker and complete membership manifest commit with the actual sites.
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('seeded-fronts-v1', JSON.stringify(planned.manifest));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'seeded_fronts_added_with_backup', count: planned.sites.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v2'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-dense-fronts-' + randomUUID() + '.sqlite'));
+    const seed = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get().value).seed;
+    const planned = seedDenseFronts(world, buildings,
+      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], seed);
+    world.sites.push(...planned.sites);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('seeded-fronts-v2', JSON.stringify(planned.manifest));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'dense_fronts_added_with_backup', count: planned.sites.length, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='bulwark-roster-v1'").get()) {
+    const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
+    db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-bulwark-roster-' + randomUUID() + '.sqlite'));
+    const upgraded = assignBulwarkGuards(world.sites);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('bulwark-roster-v1', JSON.stringify({ version: 1, upgraded }));
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    audit.emit('campaign.migrated', { campaignId, cause: 'bulwark_roster_added_with_backup', count: upgraded, saved: true });
   }
   let revision = 0, closed = false, combatDirty = false;
   const save = db.prepare('UPDATE scouts SET x=?,y=?,angle=? WHERE id=?');
@@ -360,7 +409,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     for(const [id,job]of Object.entries(l.jobs)){
       job.remaining=Math.max(0,job.remaining-dt);
       if(job.remaining<1e-8){
-        if(job.method==='factory'){const f=[...l.facilities,...l.recyclers].find(o=>o.id===id);if(f)f.remaining=0;const t=world.tanks.find(o=>o.id===id);if(t){t.elapsed=TANK.duration;Object.assign(t,tankArrivalPosition(t));saveTank(t);}}
+        if(job.method==='factory'){if(job.kind==='shipyard'){const yard=dockRecords(world).find(y=>y.id===id);if(yard){yard.elapsed=SHIP.duration;yard.dockReady=true;}}const f=[...l.facilities,...l.recyclers].find(o=>o.id===id);if(f)f.remaining=0;const t=world.tanks.find(o=>o.id===id);if(t){t.elapsed=TANK.duration;Object.assign(t,tankArrivalPosition(t));saveTank(t);}}
         if(job.kind==='repair'){
           const object=job.repair==='dock'?dockRecords(world).find(s=>s.id===id):world.airbases.find(b=>b.id===id);
           if(object){if(job.repair==='dock')object.dockDestroyed=false;else object.destroyed=false;delete l.durability[job.repair+':'+id];}
@@ -525,7 +574,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         if (req.method !== 'GET' && (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host))) return json(res, 403, { error: 'Use the game page to change this world.' });
         if (req.method !== 'GET' && !req.headers['content-type']?.startsWith('application/json')) return json(res, 415, { error: 'JSON is required.' });
         const player = session(req, res);
-        if (req.method === 'GET' && url.pathname === '/api/world') return json(res, 200, { world, ...snapshot(), me: playerView(player), accountKind: accounts.account(req)?.kind || null });
+        if (req.method === 'GET' && url.pathname === '/api/world') return json(res, 200, { world, ...snapshot(), me: playerView(player), testEvents:!!options.testEvents, accountKind: accounts.account(req)?.kind || null });
         if (req.method === 'GET' && url.pathname === '/api/events') {
           if ([...streams.values()].reduce((n, set) => n + set.size, 0) >= 16) return json(res, 503, { error: 'The test world is full. Try again shortly.' });
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -558,6 +607,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             : db.prepare('SELECT token FROM scouts WHERE id=?').get(player.id)?.token === player.token;
           if (options.campaign && options.authorized(req) && options.frozen()) return json(res, 409, { error: 'The campaign is paused or waiting for its owner.' });
           if (!stillAuthorized) return json(res, options.campaign ? 403 : 401, { error: 'Your session or room changed. Return to the lobby before controlling this player.' });
+          if(url.pathname==='/api/frenzy/test'){
+            if(!options.testEvents)return json(res,404,{error:'Test events are disabled on this server.'});
+            if(options.campaign&&options.roomView().ownerPilot!==player.id)return json(res,403,{error:'Only the campaign owner can start a test frenzy.'});
+            if(!streams.has(player.id)||player.life!=='active'||!['robot','tank','rover'].includes(playerBody(player))||incomingCore(player.id))return json(res,409,{error:'Connect and deploy on land before starting a test frenzy.'});
+            const error=combat.startFrenzy(player,allBuildings(),groundPeople());if(error)return json(res,409,{error});
+            combatDirty=true;broadcast();return json(res,200,{saved:true});
+          }
           if(url.pathname==='/api/recovery/orbit'){
             if(!streams.has(player.id)||player.life!=='disabled'||recoveryCores(world).length)return json(res,409,{error:'Emergency orbital recovery is available after all cores are lost.'});
             Object.assign(player,freshLife(),{deployed:false,inputUntil:0,path:[]});persist(player);broadcast();return json(res,200,{saved:true});
@@ -637,7 +693,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const site=shipyardSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id);
             const error=site.error;if(error)return json(res,409,{error});
             const yard=yardFromShip({...site.ship,id:randomUUID()});
-            const payment=purchase('shipyard',{method:'orbital'},yard,()=>world.logistics.shipyards.push(yard));if(payment)return json(res,409,{error:payment});broadcast();return json(res,201,{yard,saved:true});
+            const payment=purchase('shipyard',data,yard,()=>world.logistics.shipyards.push(yard));if(payment)return json(res,409,{error:payment});broadcast();return json(res,201,{yard,saved:true});
           }
           if(url.pathname==='/api/shipyards/retire'){
             const yard=world.logistics.shipyards.find(y=>y.id===data.id&&y.owner===player.id);
@@ -656,6 +712,34 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if(url.pathname==='/api/ships/contact') {
             if(!ship||!streams.has(player.id))return json(res,409,{error:'Board a ship to request a naval contact.'});
             const error=combat.contact(ship);if(error)return json(res,409,{error});broadcast();return json(res,200,{ok:true});
+          }
+          if(url.pathname==='/api/facilities/vehicle'){
+            if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Use your active robot to order a vehicle.'});
+            if(!['dock','airbase'].includes(data.type)||typeof data.orderId!=='string'||data.orderId.length<8||data.orderId.length>80)return json(res,400,{error:'Choose a facility and provide an order identifier.'});
+            const {facility,record,vehicle}=serviceState(world,data.type,data.id);
+            if(!facility||facility.owner!==player.id)return json(res,409,{error:'Choose your own facility.'});
+            if(vehicle?.purchase?.orderId===data.orderId&&vehicle.purchase.kind===data.kind)return json(res,200,{saved:true,replayed:true});
+            if(data.expected!==serviceVersion(vehicle))return json(res,409,{error:'The vehicle changed. Review the updated order before buying.'});
+            const error=serviceError(world,data.type,data.id,player.id,data.kind,[...groundPeople().map(p=>({...p,body:playerBody(p)})),...combat.snapshot().enemies]);
+            if(error)return json(res,409,{error});
+            const trade=serviceQuote(data.kind,vehicle);
+            const exchange={kind:data.kind,previous:vehicle,orderId:data.orderId};
+            if(data.type==='dock'){
+              const next={id:vehicle?.id||randomUUID(),kind:data.kind,owner:player.id,x:facility.berthX,y:facility.berthY,angle:facility.dock.angle,turret:facility.dock.angle,elapsed:0,health:data.kind==='carrier'?CARRIER.health:VEHICLE.ship,hurt:0,ammo:'HE',reload:0,occupant:null};
+              linkYard(next,facility);prepareCarrier(next);resetDepth(next);next.rampGun=newRampGun(next);
+              const payment=purchase(data.kind==='gunship'?'ship':data.kind,{method:'orbital'},next,()=>{delete world.logistics.durability['ramp:'+next.id];saveShip(next);},true,exchange);
+              if(payment)return json(res,409,{error:payment});
+              if(record)world.ships[world.ships.indexOf(record)]=next;else world.ships.push(next);
+            }else{
+              const storage=record||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
+              if(!storage)return json(res,409,{error:'Replacement cargo is preparing.'});
+              const next=structuredClone(storage);next.aircraft=newAirbase(facility.id,player.id,facility.x,facility.y,data.kind).aircraft;
+              const invalid=deliverAircraft({...facility,aircraft:next.aircraft},data.kind);if(invalid)return json(res,409,{error:invalid});
+              next.aircraft.id=storage.aircraft.id;next.aircraft.angle=facility.angle||0;
+              const payment=purchase('aircraft',{method:'orbital'},next,()=>saveAirbase(next),true,exchange);
+              if(payment)return json(res,409,{error:payment});Object.assign(storage,next);
+            }
+            broadcast();return json(res,201,{saved:true,...trade});
           }
           if(url.pathname==='/api/ships') {
             if(!streams.has(player.id)||incomingCore(player.id)||controlledBy(player.id)||playerBody(player)!=='robot')return json(res,409,{error:'Return to your active robot to call an orbital ship.'});
@@ -861,7 +945,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||(playerBody(player)!=='robot'&&!(base?.carrier&&ship?.id===base.id))||incomingCore(player.id)||controlledBy(player.id)||!base||base.owner!==player.id)return json(res,409,{error:'Call a replacement from your robot to your own airbase.'});
             const parked=parkedRecord(world,base);
             if(parked?.aircraft.state==='delivering'&&parked.aircraft.kind===data.kind)return json(res,200,{saved:true});
-            const error=deliveryError(world,base);if(error)return json(res,409,{error});
+            const error=data.newOnly===true?newAircraftError(world,base,player.id):deliveryError(world,base);if(error)return json(res,409,{error});
             const record=parked||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
             if(!record)return json(res,409,{error:'Replacement cargo is preparing.'});
             const next=structuredClone(record),replacement=newAirbase(base.id,player.id,base.x,base.y,data.kind).aircraft;

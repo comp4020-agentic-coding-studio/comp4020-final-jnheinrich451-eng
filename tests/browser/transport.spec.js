@@ -21,10 +21,10 @@ for(const mobile of [false,true])test(`walk offshore dock, drive recycler onto t
     context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
     const state=()=>page.evaluate(async()=>await(await fetch('/api/world')).json());
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#transport-card').click();await page.locator('#shipyard-new-dialog').click();
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#transport-card').click();
     await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('25');await page.locator('#select-tile').click();
     await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
-    await expect(page.locator('#shipyard-interact')).toBeVisible({timeout:8000});await page.locator('#shipyard-interact').click();await page.locator('#yard-build-transport').click();await expect(page.locator('#yard-board')).toBeEnabled({timeout:15000});await page.locator('#shipyard-close').click();
+    await expect(page.locator('#shipyard-interact')).toBeVisible({timeout:8000});await page.locator('#shipyard-interact').click();await expect(page.locator('#yard-board')).toBeEnabled({timeout:15000});await page.locator('#shipyard-close').click();
     const drive=async(key,direction,predicate)=>{
       await page.locator('#world-canvas').focus();
       if(mobile){const b=await page.locator('[data-direction="'+direction+'"]').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();}else await page.keyboard.down(key);
@@ -37,6 +37,12 @@ for(const mobile of [false,true])test(`walk offshore dock, drive recycler onto t
     await drive('a','left',s=>s.me.x<19.6);
     await page.locator('#recycler-interact').click();
     await drive('d','right',s=>s.me.x>23.3);
+    // Align with the narrow marked ramp after key-release/network latency.
+    await page.waitForTimeout(450);
+    for(let i=0;i<8;i++){
+      const s=await state(),x=s.me.x;if(Math.abs(x-23.5)<.7)break;
+      await drive(x>23.5?'a':'d',x>23.5?'left':'right',q=>x>23.5?q.me.x<23.8:q.me.x>23.2);await page.waitForTimeout(450);
+    }
     await drive('s','down',s=>!!s.me.shipId);
     await expect(page.locator('#transport-status')).toContainText('CARGO / Recycler');
     await page.screenshot({path:`.local/transport-fix-loaded-${mobile?'mobile':'desktop'}.png`});

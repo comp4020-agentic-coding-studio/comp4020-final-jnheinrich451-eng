@@ -248,6 +248,8 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 #planet-dialog h2 { margin:8px 0; font-size:28px; }
 #planet-status { font:12px var(--mono,monospace); color:#a7cad3; }
 #planet-open { font:9px var(--mono); letter-spacing:0; }
+#frenzy-test { margin-top:8px; width:100%; min-height:32px; font:10px var(--mono); }
+#frenzy-status { margin-top:6px; color:#ff9b87; font:10px/1.5 var(--mono); }
 #planet-globe { display:block; width:min(100%,52dvh); height:auto; aspect-ratio:1; margin:0 auto; touch-action:none; cursor:grab; }
 #planet-globe:active { cursor:grabbing; }
 #planet-globe:focus-visible { outline:1px solid #dfc375; outline-offset:2px; }
@@ -259,3 +261,34 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 .planet-legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; }
 .planet-legend span:nth-child(1) { color:#ff707c; }.planet-legend span:nth-child(2) { color:#79caff; }.planet-legend span:nth-child(3) { color:#ffe19a; }
 @media(max-width:650px) { #planet-dialog { padding:18px; }.planet-route { flex-direction:column; }#planet-globe { width:min(100%,40dvh); } }
+
+/* Direct deployment: one orbital button, or two equal funding halves. */
+.deployment-choice { display:grid; grid-template-columns:minmax(0,1fr); min-width:0; }
+.deployment-choice.split { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
+.deployment-choice .unit-card { width:100%; min-width:0; height:100%; border-color:#5686a2; background:#18313d; }
+.deployment-choice .ground-choice { border-color:#d6b657; background:#302b1b; }
+.deployment-choice.split .unit-card { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:10px; }
+.deployment-choice.split .unit-art { width:28px; height:28px; min-width:28px; color:#a5d5f0; }
+.deployment-choice.split .ground-choice .unit-art,.ground-choice .asset-cost { color:#f1cf76; }
+.deployment-choice .asset-cost { white-space:normal; }
+.deployment-choice.split .unit-body { width:100%; min-width:0; }
+.deployment-choice.split .asset-line { display:none; }
+.deployment-choice .unit-card:focus-visible { outline:2px solid #e9f5ff; outline-offset:2px; }
+.delivery-buttons { display:flex; gap:6px; margin:12px 0; }
+.delivery-buttons button { flex:1; min-height:44px; background:#18313d; border:1px solid #5686a2; }
+#delivery-ground { background:#302b1b; border-color:#d6b657; color:#f1cf76; }
+.delivery-buttons button[aria-pressed="true"] { box-shadow:inset 0 0 0 2px currentColor; }
+#construction-method-row[hidden],#deployment-management-legacy[hidden],.deployment-choice[hidden],.ground-choice[hidden],.delivery-buttons[hidden],.delivery-buttons button[hidden] { display:none!important; }
+/* Context workshops stay nonmodal: movement and the battlefield remain live. */
+.facility-service { position:absolute; z-index:45; right:18px; bottom:112px; width:min(350px,calc(100% - 36px)); max-height:calc(100% - 220px); overflow:auto; padding:16px; border:1px solid #bba65a; background:#102128f5; box-shadow:0 8px 30px #0005; color:#e1e8e9; }
+.facility-service[hidden] { display:none!important; }
+.facility-service h2 { font-size:18px; margin:0 30px 10px 0; }
+.facility-service p { font-size:12px; line-height:1.45; }
+.facility-service .service-close { position:absolute; top:6px; right:8px; padding:6px 10px; }
+.service-choices { display:grid; gap:6px; }
+.service-choices button { text-align:left; min-height:44px; padding:10px; color:#f1d580; background:#302b1b; border:1px solid #9e884b; }
+.service-choices button:disabled { opacity:.5; }
+.service-help { color:#b6c7ca; }
+#dock-card .unit-art { color:#a5d5f0; }
+@media (max-width:760px) { .facility-service { right:10px; bottom:100px; width:min(320px,calc(100% - 20px)); max-height:45%; padding:12px; } .facility-service .service-help { font-size:11px; } }
+.service-choices button small { display:block; margin-top:3px; font-size:11px; color:#c5bc9d; }

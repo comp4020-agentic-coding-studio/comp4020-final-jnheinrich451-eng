@@ -10,7 +10,10 @@ const requiredIds = KINDS.map(kind => `${ID}-${kind}`);
 // every explicitly required structure must exist and be permanently conquered.
 export function settlements(sites = []) {
   const groups = new Map();
-  for (const site of sites) if (site.settlement) groups.set(site.settlement.id, site.settlement);
+  for (const site of sites) {
+    const group = site.settlement || site.encounter;
+    if (group) groups.set(group.id, group);
+  }
   return [...groups.values()].map(group => {
     const members = group.requiredIds.map(id => sites.find(s => s.id === id));
     const cleared = members.filter(s => s?.state === 'conquered').length;

@@ -1,4 +1,5 @@
 import { airRecords } from './air-traffic.js';
+import { newGroundEnemy } from './enemy-profiles.js';
 import { ANTI_AIR } from './anti-air.js';
 import { LASER } from './laser-tower.js';
 import { CONTAMINATOR } from './contaminator.js';
@@ -79,7 +80,7 @@ function arrivalPoints(site, world, buildings, people, enemies, blocked, origin 
   return points;
 }
 
-export function tickSites(sites, world, buildings, people, enemies, now, nextId, blocked = () => false) {
+export function tickSites(sites, world, buildings, people, enemies, now, nextId, blocked = () => false, reserved = 0) {
   let changed = false;
   const occupants = people.filter(p => p.body !== 'orbital');
   const contacts = sensorContacts(world, people);
@@ -97,7 +98,7 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
     if (site.alarm !== alarm) { site.alarm = alarm; changed = true; }
     if (!site.awake) continue;
     const capacity = () => Math.max(0, Math.min(ALERT.max - enemies.filter(e => e.hp > 0 && e.siteId === site.id).length,
-      ALERT.globalMax - enemies.filter(e => e.hp > 0).length - sites.filter(s => s.id !== site.id && s.state === 'hostile').reduce((n, s) => n + (s.pending?.points.length || 0), 0)));
+      ALERT.globalMax - reserved - enemies.filter(e => e.hp > 0).length - sites.filter(s => s.id !== site.id && s.state === 'hostile').reduce((n, s) => n + (s.pending?.points.length || 0), 0)));
     if (site.pending) {
       changed = true;
       if (!alarm && site.pending.kind === 'reinforcement') site.pending = null;
@@ -106,10 +107,11 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
         let spawned = 0;
         for (const point of site.pending.points) {
           if (!capacity() || !valid.some(p => p.x === point.x && p.y === point.y)) continue;
-          enemies.push({ id: nextId(), ...point, hp: 60, angle: 0, path: [], reroute: 0,
+          const role = site.pending.kind === 'guards' ? site.guardRoster?.[spawned] : 'hunter';
+          enemies.push({ ...newGroundEnemy(role, nextId(), point),
             siteId: site.id, homeX: point.x, homeY: point.y, emergedAt: now, behavior: 'guarding' }); spawned++;
         }
-        if (site.pending.kind === 'guards') site.guardsRemaining -= spawned;
+        if (site.pending.kind === 'guards') { site.guardsRemaining -= spawned; site.guardRoster?.splice(0, spawned); }
         site.pending = null; site.nextCall = now + (spawned ? ALERT.interval : 2000);
       }
     }

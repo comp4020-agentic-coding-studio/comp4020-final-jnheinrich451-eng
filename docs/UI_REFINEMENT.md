@@ -501,3 +501,114 @@ domain checks; browser coverage verifies separate-pool spending and movement
 inside/outside support at desktop and phone sizes. Strike browser checks cover
 all four payloads, confirmation, committed targets and reload. These are local
 checks, not a deployment or Fly performance claim.
+
+## 19 October: placement catalogue, funding halves and movement through panels
+
+The catalogue now places new equipment. Navy cards immediately open shore
+placement for the selected ship and its unfolding dock; they do not open the
+shipyard management dialog. Existing ship repair, replacement and retirement
+remain dock interactions (E). Tank replacement/location and artillery/switch
+management move to Logistics (L), preserving recovery outside Deploy.
+
+Air has three independent entries: Empty airbase (A-01), Attack jet (A-02),
+and Bomber (A-03). An airbase placed through the catalogue is always empty.
+Aircraft cards enter map selection for a completed, empty owned airbase or
+carrier. Clicking a card does not spend resources or replace an aircraft.
+Confirmation sends a new-only delivery request; the server rejects occupied or
+reserved runways, including a runway occupied after the preview was shown.
+The first bomber remains free once per campaign. Cruise/boarding/recall remain
+at the apron, flight deck and H air-support controls. Existing saved aircraft
+and shared fleet capacity are unchanged; the legacy explicit exchange API is
+still available to carrier service controls.
+
+Inside construction coverage, eligible cards have adjacent blue ORB and gold
+GND halves. Each half is a separate accessible button with its own price.
+Outside coverage, only the full-width ORB card remains. Before placement,
+coverage follows the selected footprint (or the current unit when first opening
+Deploy). The site preview repeats the funding buttons and checks the complete
+footprint. A preferred GND choice can resume when moving back into coverage;
+outside it, the actual quote and confirmation use ORB. Unaffordable choices
+remain visibly disabled. Costs and 60-second local assembly remain unchanged.
+Carrier local construction now uses the same supported-kind admission as the
+other ships; its existing price and geometry are unchanged.
+
+WASD movement continues through Deploy, placement, logistics and support panels
+for robots, tanks, utility vehicles, ships and aircraft. Panels own the pointer,
+so opening them stops held fire and prevents cursor motion from retargeting
+weapons. Editing an input/select/contenteditable element owns its keys; key
+release, lost focus and hidden tabs clear held movement. Help, key reference,
+room pause, orbit, death and deployment still prevent movement. Arrow keys on
+category tabs retain normal tab navigation. Vehicle crews can browse Deploy
+with B, but must disembark to place ground equipment.
+
+Validation is local: deployment-flow browser cases exercise desktop/phone
+empty-airbase and aircraft admission, direct naval placement, and panel movement
+for all five body types. Funding browser cases verify both pools and changing
+coverage; air-cruise regression cases retain shared runway travel. No save
+migration, commit, push or Fly deployment is part of this UI stage.
+
+Validation checkpoint: `pnpm check` passed 472 tests across 69 files and type
+checking. The 13 catalogue/funding/deployment browser cases passed; the added
+tank-replacement-in-Logistics case also passed. Shared-airfield cruise passed
+on desktop and phone; attack-jet delivery/fire passed on desktop and phone.
+Screenshots were reviewed at desktop and 390-pixel phone widths.
+
+Broader regression limits: the updated legacy aircraft/navy/transport browser
+suite is not fully green. Runs encountered native Node/V8 errors and
+`v is not a function` evaluation errors, plus delivery/steering/firing polling
+failures. A separate run with Node JIT disabled also hit timing/approach
+failures. These failures are not established as regressions or as pre-existing
+bugs; retain their tests for follow-up. Passing focused tests does not replace
+manual review of flight, naval firing and transport ramp approaches.
+
+### Separate docks and contextual workshops — 19 October 2026
+
+This supersedes the preceding combined ship-and-dock catalogue behavior.
+N-05 deploys an empty dock; N-01 through N-04 select an existing empty dock
+on the map and build the selected vessel for GND. Deploy never exchanges a
+live vehicle. Empty airbases stay separate from aircraft. Aircraft catalogue
+cards retain rapid ORB delivery, including the first free orbital bomber;
+local airbase workshops offer slower GND assembly instead.
+
+An active robot entering its own completed dock or airbase sees a nonmodal
+workshop at the bottom right. It shows the resident vehicle, available shared
+GND, vehicle choices, price, trade-in credit and net payment. Leaving closes
+it; dismissing it keeps it closed until re-entry. WASD remains available.
+E and Dock controls retain the existing naval boarding/management dialog.
+Aircraft boarding and cruise controls remain at the apron.
+
+Both workshops assemble for 60 seconds using cosmetic drones and saved
+server timers. Empty docks support ORB or discounted GND construction inside
+a friendly support circle, just like airbases. Each dock still reserves one
+ship, even while it is away; aircraft still share fleet capacity and runways.
+
+Trade-in credit is floor(80% of the prior recorded net payment), only in the
+same GND pool, capped at the new price. The next receipt records the new net
+payment, not list price or credit. No extra cash is refunded. Free vehicles,
+ORB purchases, lost vehicles and older vehicles without purchase receipts
+have no GND credit. All new ship and aircraft purchases record their pool and
+actual cost; existing save records remain playable without a migration.
+
+The server validates ownership, readiness, fleet capacity, berth/runway
+availability, current vehicle revision, passengers, cargo and carrier aircraft.
+A ship must be stationary at its original dock; aircraft must be parked and
+unoccupied. Successful orders replace the saved vehicle and debit supplies
+in one SQLite transaction. An order identifier makes retries harmless; stale
+orders, insufficient funds and foreign ownership preserve the current vehicle.
+Existing sunk wrecks remain. Legacy combined-deployment APIs remain compatible
+for old clients and tests; the new catalogue does not use them.
+
+Local validation: `pnpm check` passed type checking and 477 tests in 70 files.
+Six focused service tests additionally cover receipts, replay/concurrent
+orders, restart, ownership, insufficient funds, active vehicles, reserved
+runways and empty-dock GND construction. The last test was added after the
+full-suite run. Broader legacy flight/naval browser limitations documented
+above remain; this change does not claim to resolve those suites. No README,
+account configuration, live saves, commit, push or Fly deployment was changed.
+
+Final focused browser run: all 18 catalogue, funding and deployment-flow cases
+passed, including automatic dock/airbase workshops and exchanges on desktop
+and phone, dismissal, map-selected empty-dock orders, and WASD for all five
+body types. Final targeted service tests (6) and typecheck also passed after
+fixing recovery for a ship destroyed during unfinished assembly: its loss
+countdown still applies, but the old assembly timer no longer blocks rebuilding.

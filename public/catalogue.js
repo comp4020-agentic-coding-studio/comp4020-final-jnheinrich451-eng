@@ -50,16 +50,19 @@ export const ASSETS = Object.freeze([
     specs: [['Drive', 'E board / WASD / park to collect'], ['Cargo', `${ECONOMY.cargo} per trip`], ['Collect', `${ECONOMY.collectTime} s at conquered ruins`]] },
   { code: 'L-04', tab: 'logistics', card: 'builder-card', kind: 'builder', cost: 'builder', hp: 'recycler', name: 'Bridge builder', footprint: '1 x 1 pod', specs: [['Role','E board / WASD drive / plan bank endpoints'],['Bridge','3 tiles wide / cables then rolling deck']], limit:'1 per scout' },
   { code: 'L-05', tab: 'logistics', card: 'outpost-card', kind: 'outpost', cost: 'outpost', hp: 'outpost', name: 'Support outpost', footprint: '2 x 2', specs: [['Support','Shared robot respawn and local construction'],['Receiver','Raw salvage to shared ground supplies']] },
-  { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'ship', cost: 'ship', name: 'Coastal gunship', footprint: '2 x 4 hull / shipyard berth',
+  { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'vessel', cost: 'ship', name: 'Coastal gunship', footprint: '2 x 4 hull / shipyard berth',
     specs: [['Main guns', `${SHIP.minRange}–${SHIP.range} t · ${SHIP.reload} s per turret`], ['Side guns', `${NAVAL_GUN.range} t · ${degrees(NAVAL_GUN.halfArc * 2)}° arcs`]], limit: '1 per dock' },
-  { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'ship', cost: 'submarine', name: 'Missile submarine', footprint: '2 x 4 hull / shipyard berth',
+  { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'vessel', cost: 'submarine', name: 'Missile submarine', footprint: '2 x 4 hull / shipyard berth',
     specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Reload', `${SUBMARINE.reload} s`]], limit: '1 per dock' },
-  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'ship', cost: 'transport', name: 'Armored transport', footprint: '2 x 4 hull / shipyard berth', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
-  { code:'N-04',tab:'navy',card:'carrier-card',kind:'ship',cost:'carrier',name:'Aircraft carrier',footprint:'3 x 5 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
-  { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Airbase + bomber', footprint: `${AIR.width} × ${AIR.height}`,
-    specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Load', '2 carpets or 1 heavy bomb'], ['Speed', `${AIR.minSpeed}–${AIR.maxSpeed} t/s`], ['Rearm', `${AIR.rearm} s`]] },
-  { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'airbase', cost: 'aircraft', name: 'Orbital attack jet', footprint: 'Delivered to an airbase',
-    specs: [['Autocannon', `${JET.ammo} HE rounds · ${JET.range} t`], ['Delivery', `Exchange at your base, or new airbase ${COSTS.airbase} SUP`]], placement: 'Your airbase, or a new airbase site' },
+  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'vessel', cost: 'transport', name: 'Armored transport', footprint: '2 x 4 hull / shipyard berth', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
+  { code:'N-04',tab:'navy',card:'carrier-card',kind: 'vessel',cost:'carrier',name:'Aircraft carrier',footprint:'3 x 5 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
+  { code:'N-05',tab:'navy',card:'dock-card',kind:'ship',cost:'shipyard',name:'Empty dock',footprint:'3 x 1 shore / 3 x 5 pier',specs:[['Role','One ship slot; build or exchange separately']],limit:'4 per scout / 8 per campaign' },
+  { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Empty airbase', footprint: `${AIR.width} × ${AIR.height}`,
+    specs: [['Role', 'Runway, aircraft parking and service'], ['Aircraft', 'Order separately after construction']] },
+  { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'aircraft', aircraftKind: 'attack-jet', cost: 'aircraft', name: 'Attack jet', footprint: 'Existing free runway',
+    specs: [['Autocannon', JET.ammo + ' HE rounds'], ['Delivery', 'Select a runway on the map']], placement: 'Your completed, empty airbase or carrier' },
+  { code: 'A-03', tab: 'air', card: 'bomber-card', kind: 'aircraft', aircraftKind: 'bomber', cost: 'aircraft', name: 'Bomber', footprint: 'Existing free runway',
+    specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Delivery', 'First bomber free per campaign']], placement: 'Your completed, empty airbase or carrier' },
 ]);
 
 export const assetsIn = tab => ASSETS.filter(a => a.tab === tab);
@@ -77,6 +80,7 @@ export function specRows(asset) {
   rows.push(['Placement', asset.placement || 'Global orbital; local builds need nearby friendly support']);
   const price = orbitalPrice(asset), local = factoryPrice(asset);
   if(asset.kind==='orbitalStrike')rows.push(['Cost',ORBITAL_PAYLOADS[asset.payload].cost + ' ORB']);
+  else if(asset.kind==='vessel')rows.push(['Cost',quote(asset.cost,true)+' GND / 60s at an existing dock']);
   else rows.push(['Cost', price ? `${price} ORB orbital${local ? ` · ${local} GND local` : ''}${asset.costNote ? ` · ${asset.costNote}` : ''}` : 'Free']);
   return rows;
 }

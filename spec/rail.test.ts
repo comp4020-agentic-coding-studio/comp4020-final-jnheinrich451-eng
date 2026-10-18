@@ -91,8 +91,10 @@ it('high and low trajectories agree on range while high elevation gives a longer
 });
 
 it('heavy HE flies over intervening cover, damages once on arrival and leaves an independent eight-tile decal', () => {
-  const world = field(), combat = createCombat(world); combat.start([]);
-  const enemy = combat.snapshot().enemies[0];
+  const world = field(), initial = createCombat(world); initial.start([]);
+  // This tests ballistic arrival/damage, independent of pursuit speed.
+  const saved = initial.checkpoint(); saved.enemies[0].frenzyRecoveryUntil = 1e6;
+  const combat = createCombat(world, saved), enemy = combat.snapshot().enemies[0];
   world.terrain[Math.floor(enemy.y) * 48 + Math.floor(enemy.x) - 4] = 3;
   const original = [...world.terrain];
   expect(combat.lob({ id: 'gun', x: enemy.x - 8, y: enemy.y }, enemy.x, enemy.y)).toBeNull();

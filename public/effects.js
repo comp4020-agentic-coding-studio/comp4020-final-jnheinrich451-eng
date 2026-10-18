@@ -9,7 +9,10 @@ function cloud(inner, outer) {
 
 export function drawCrawler(c, e, time, hit = 0, dead = false) {
   c.save(); c.translate(e.x, e.y); c.rotate(e.angle || 0);
-  const gait = dead ? 0 : Math.sin(time * 13 + e.id) * 4;
+  const bulwark = e.kind === 'bulwark', breaker = e.kind === 'breaker' || bulwark;
+  if (bulwark) c.scale(1.2, 1.15);
+  if (breaker) c.scale(1.28, 1.22);
+  const gait = dead ? 0 : Math.sin(time * (breaker ? 7 : 13) + e.id) * (breaker ? 2 : 4);
   ellipse(c, 3, 5, 22, 27, '#1c231944');
   // Six articulated limbs, with alternating strides and pale claws.
   for (let side = -1; side <= 1; side += 2) for (let leg = 0; leg < 3; leg++) {
@@ -32,6 +35,36 @@ export function drawCrawler(c, e, time, hit = 0, dead = false) {
       ellipse(c, x + side * 3, -25 + bob, 1.6, 2.3, '#f2d087');
       c.strokeStyle = '#d5ba8d'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 4, -28 + bob); c.lineTo(x - 2, -32 + bob); c.moveTo(x + 4, -28 + bob); c.lineTo(x + 2, -32 + bob); c.stroke();
     }
+  }
+  if (breaker) {
+    // Broad overlapping chitin plates and two heavy forelimbs distinguish the
+    // role by silhouette even without color or particle effects.
+    for (let i = 0; i < 3; i++) {
+      const y = -10 + i * 10;
+      c.fillStyle = dead ? '#493535' : hit ? '#e0b690' : '#663b32';
+      c.strokeStyle = '#b79269'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(-16, y - 5); c.lineTo(0, y - 9); c.lineTo(16, y - 5);
+      c.lineTo(12, y + 6); c.lineTo(0, y + 9); c.lineTo(-12, y + 6); c.closePath(); c.fill(); c.stroke();
+    }
+    for (const side of [-1, 1]) {
+      ellipse(c, side * 24, -20 + gait, 9, 15, dead ? '#493535' : '#773c30', side * -.25);
+      c.strokeStyle = '#d4b98b'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(side * 27, -27 + gait); c.lineTo(side * 25, -39 + gait); c.stroke();
+    }
+  }
+  if (bulwark) {
+    // A wide sealed carapace and lateral spikes distinguish the cannon target.
+    for (let i = 0; i < 4; i++) {
+      const y = -19 + i * 11, width = i === 3 ? 15 : 22;
+      c.fillStyle = dead ? '#3b3a36' : hit ? '#c4c9b4' : i % 2 ? '#41473f' : '#555b4c';
+      c.strokeStyle = '#c9b98b'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(0, y - 7); c.lineTo(width, y - 1);
+      c.lineTo(width + 5, y - 5); c.lineTo(width, y + 7);
+      c.lineTo(0, y + 10); c.lineTo(-width, y + 7);
+      c.lineTo(-width - 5, y - 5); c.lineTo(-width, y - 1); c.closePath(); c.fill(); c.stroke();
+    }
+    c.strokeStyle = '#9e5740'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(0, -24); c.lineTo(0, 20); c.stroke();
   }
   if (e.behavior === 'fleeing' && !dead) {
     ellipse(c, 0, 0, 11, 18, '#202324aa');
@@ -76,7 +109,7 @@ export class CombatEffects {
       // when the first snapshot arrives after that very short visual would expire.
       if (event.owner !== undefined) { if (age < .25) this.muzzles.push({ ...event, born: clock - Math.min(age, .025) * 1000 }); continue; }
       if (age >= 1.6) continue;
-      for (const hit of event.hits) this.hits.set(hit.id, { born, killed: hit.killed });
+      for (const hit of event.hits) if (!hit.blocked) this.hits.set(hit.id, { born, killed: hit.killed });
       if (event.weapon !== 'HE' && !event.minorBlast) { if (age < .35) this.bulletHits.push({ ...event, born }); continue; }
       const rand = random(event.id + 23), count = event.minorBlast ? (this.reduced ? 6 : 14) : this.reduced ? 10 : 24;
       const scale=Math.max(1,Math.min(2.2,(event.radius||2)/2));
@@ -142,7 +175,7 @@ export class CombatEffects {
       c.save(); c.translate(hit.x * this.tile, hit.y * this.tile); c.globalAlpha = Math.max(0, 1 - age / .35);
       for (let i = 0; i < (this.reduced ? 2 : 5); i++) {
         const a = hit.id + i * 2.4, radius = 2 + age * (18 + i * 9);
-        const color = hit.weapon === 'GAS' ? '#d5eea5' : hit.weapon === 'LASER' ? '#ff8b91' : ['FLAME', 'BURN', 'INCENDIARY'].includes(hit.weapon) ? '#ffbe61' : hit.hits.length ? '#985a83' : '#d0ba83';
+        const color = hit.hits.some(h => h.blocked) ? '#ffe3a2' : hit.weapon === 'GAS' ? '#d5eea5' : hit.weapon === 'LASER' ? '#ff8b91' : ['FLAME', 'BURN', 'INCENDIARY'].includes(hit.weapon) ? '#ffbe61' : hit.hits.length ? '#985a83' : '#d0ba83';
         ellipse(c, Math.cos(a) * radius, Math.sin(a) * radius, 1.7, .9, color, a);
       }
       c.restore();
@@ -192,7 +225,7 @@ export class CombatEffects {
       for (const victim of b.hits) for (let i = 0; i < (this.reduced ? 3 : 6); i++) {
         if (age > .45) continue;
         const a = i / 6 * TAU + victim.id, r = age * (35 + i * 7);
-        c.globalAlpha = Math.max(0, 1 - age / .45); ellipse(c, (victim.x - b.x) * this.tile + Math.cos(a) * r, (victim.y - b.y) * this.tile + Math.sin(a) * r, 2.8, 1.8, '#81516e', a);
+        c.globalAlpha = Math.max(0, 1 - age / .45); ellipse(c, (victim.x - b.x) * this.tile + Math.cos(a) * r, (victim.y - b.y) * this.tile + Math.sin(a) * r, 2.8, 1.8, victim.blocked ? '#ffe3a2' : '#81516e', a);
       }
       c.restore();
     }

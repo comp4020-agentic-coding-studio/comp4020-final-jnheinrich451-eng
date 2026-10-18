@@ -65,10 +65,13 @@ it('starts 15s reload after the staggered launch and preserves spent time withou
 });
 
 it('applies HE damage to monsters while preserving friendly construction and terrain', () => {
-  const world = field(), combat = createCombat(world), saved = JSON.stringify(world);
+  const world = field(); let combat = createCombat(world); const saved = JSON.stringify(world);
   combat.barrage(battery(), { x: 24.5, y: 18.5 }, false);
-  for (let i = 0; i < 30; i++) combat.tick(.1, []);
-  combat.start([]);
+  // Put a stationary defender at a committed impact. This checks HE damage,
+  // not whether a particular crawler speed happens to cross the barrage.
+  const checkpoint=combat.checkpoint(),point=checkpoint.barrages[0].missiles[0];
+  checkpoint.enemies=[{id:++checkpoint.serial,x:point.x,y:point.y,hp:60,angle:0,path:[],reroute:20000}];
+  combat=createCombat(world,checkpoint);
   for (let i = 0; i < 130; i++) combat.tick(.1, []);
-  expect(combat.snapshot().kills).toBeGreaterThan(0); expect(JSON.stringify(world)).toBe(saved);
+  expect(combat.snapshot().kills).toBe(1); expect(JSON.stringify(world)).toBe(saved);
 });

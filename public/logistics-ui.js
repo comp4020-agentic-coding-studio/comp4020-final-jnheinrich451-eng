@@ -10,7 +10,7 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     select.dataset.signature=signature;if(entries.some(e=>e[0]===old))select.value=old;
   }
   async function action(route,data){try{await api('logistics/'+route,data);}catch(error){$('logistics-message').textContent=error.message;}}
-  function open(stationId){stop();update();if(stationId)$('uplink-select').value=stationId;update();dialog.showModal();}
+  function open(stationId){stop();update();if(stationId)$('uplink-select').value=stationId;update();dialog.showModal();dialog.querySelector('button').focus();}
   $('supplies-button').onclick=()=>open();
   for(const button of document.querySelectorAll('[data-logistics-deploy]'))button.onclick=()=>{dialog.close();deploy(button.dataset.logisticsDeploy);};
   $('emergency-tank').onclick=()=>{dialog.close();deploy('tank',true);};

@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {newAirbase,parkingPoint,launchAircraft,tickAircraft,bombError} from '../public/aircraft.js';
 import {launchCruise,isCruising,unattendedAircraft,assignMission,strikePlan,validateMission,tickMission,recoverAircraft,missionError} from '../public/bomber-mission.js';
-import {flightBase,parkedRecord,fleetCount,fleetCapacity,deliveryError,reserveLanding,runwayAvailable,freeAirbase} from '../public/air-traffic.js';
+import {flightBase,parkedRecord,fleetCount,fleetCapacity,deliveryError,newAircraftError,deliveryBaseAt,reserveLanding,runwayAvailable,freeAirbase} from '../public/air-traffic.js';
 function fixture(){const a:any=newAirbase('a','owner',48,48),b:any=newAirbase('b','owner',85,48);b.aircraft.state='vacant';b.aircraft.health=0;return{a,b,p:a.aircraft,w:{width:128,height:96,airbases:[a,b],logistics:{jobs:{},groundSupplies:0}}};}
 function advance(w:any,a:any,seconds:number,release=(p:any)=>{const e=bombError(w,p);if(!e){p.runs--;p.releaseRemaining=1.25;}return e;}){for(let t=0;t<seconds;t+=.05)tickMission(w,flightBase(w,a),.05,release);}
 it('holds intentional unmanned cruise across restart without orphan recovery or automatic landing',()=>{
@@ -33,4 +33,11 @@ it('uses the destination for manual landing and does not overwrite another aircr
  const {w,a,b,p}=fixture();Object.assign(p,{...parkingPoint(b),baseId:'b',state:'flying',speed:6,leftBase:true,occupant:'owner'});
  tickAircraft(w,flightBase(w,a),null,.1);expect(p.state).toBe('landing');tickAircraft(w,flightBase(w,a),null,2);
  expect(p).toMatchObject({...parkingPoint(b),state:'parked',occupant:'owner'});expect(b.aircraft.state).toBe('vacant');
+});
+
+it('catalogue delivery requires an empty owned runway and cannot exchange a parked aircraft',()=>{
+ const {w,a,b,p}=fixture();expect(deliveryError(w,a)).toBeNull();expect(newAircraftError(w,a,'owner')).toContain('occupied');
+ expect(newAircraftError(w,b,'owner')).toBeNull();expect(newAircraftError(w,b,'visitor')).toContain('your airbases');
+ expect(deliveryBaseAt(w,{x:b.x+3,y:b.y+5})).toBe(b);expect(deliveryBaseAt(w,{x:0,y:0})).toBeUndefined();
+ Object.assign(p,{state:'flying',baseId:b.id,mission:{phase:'return'}});expect(newAircraftError(w,b,'owner')).toContain('reserved');
 });

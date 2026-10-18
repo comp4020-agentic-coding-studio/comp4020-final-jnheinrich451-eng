@@ -689,3 +689,60 @@ contact. Fire/gas footprints must stay on land. All four share ORB spending and
 recovery, with committed targets and progress preserved through saves. See the
 [orbital stage brief](docs/ORBITAL_STRIKES.md) for provisional prices, limits and
 validation. Review this small roster before expanding maps and refining AI.
+
+### Land AI and campaign variation proposal (18 October)
+
+The author's next direction is more committed ground pursuit, different seeded
+facility combinations per campaign, then additional enemy roles. See
+[Land pursuit and seeded hostile fronts](docs/LAND_AI_AND_SEEDED_FRONTS.md) for
+current-code findings, the proposed three-stage order and acceptance checks.
+The dated checkpoints below record which parts of that proposal are implemented.
+Preserve permanent conquest, shared campaign state and bounded simulation work.
+
+The follow-up accepts ordinary pursuit and proposes a temporary frenzy layer:
+most event enemies hunt players while a smaller assigned group raids facilities,
+without ordinary distance leashes. The same brief records proposed shared quotas,
+global route eligibility, a telegraphed targeting signal and recoverable defeat.
+These event details remain design proposals; neither campaign erasure nor a
+change to existing emergency recovery is authorized.
+
+The approved pipeline now has its first local playable checkpoint: stronger
+ordinary pursuit and an owner-triggered local frenzy test. The brief above
+records ten/fourteen-tile awareness, last-position memory, shared bounded enemy
+navigation, finite warned arrivals, player/facility assignment, saved event
+timers and recovery cooldown. Existing campaign progress and recovery remain.
+The author accepted this checkpoint in playtesting. The manual test trigger
+remains disabled on Fly/production.
+
+The 19 October local checkpoint adds saved, campaign-seeded compounds in Aurora,
+Haven and Meridian, preserving the original region and existing progress. Up to
+seven spaced compounds reuse two/three-structure objectives with explicit saved
+membership; completed objectives never regenerate. A backed-up transaction saves
+the layout/seed/version once, and unsafe occupied slots are skipped. Planet
+overview provides a compound selector and permanent completion counts.
+
+Each compound has two Hunters and one new Breaker in a finite initial roster,
+under the same 24-enemy cap. Breakers have 180 HP, slower movement, a 1.4-second
+locked strike warning and facility penetration 3. They favor damageable vehicles
+and infrastructure; fire/gas remain lethal. Plated artwork adds no new global
+armor formula. See the linked brief for provisional numbers and validation.
+Spitters, natural frenzy triggers and coarse region navigation remain later
+stages after reviewing these encounters.
+
+The subsequent density refinement targets 6 Aurora, 6 Haven and 12 Meridian
+compounds instead of 2/2/3, spread across larger continental areas. A separate
+backed-up v2 migration adds safe sites to existing saves without relocating old
+ones; conquered groups count toward the target. Central landing space and the
+shared 24-living-enemy cap remain. Busy/obstructed areas can yield fewer clusters.
+
+### Enemy role refinement, 19 October 2026
+
+Hunters now pursue at 2.6 tiles/s (robot: 3.0). The existing slow Breaker remains
+180 HP at 0.95 tiles/s. The new Bulwark has 450 HP and moves at 0.65 tiles/s;
+the author explicitly approved HE/explosives plus magnetic rounds as its only
+weapon counters. Bullet weapons, all lasers, fuel, fire and gas cannot hurt it.
+This exception does not change ordinary enemy hazard vulnerability or friendly
+immunity. Its heavy melee attack is telegraphed and dodgeable. Eligible seeded
+mortar compounds trade one finite, unspent Hunter guard for a Bulwark; no cap
+increase, conquest rollback or guard refill. Details and migration boundaries:
+`docs/LAND_AI_AND_SEEDED_FRONTS.md`.
