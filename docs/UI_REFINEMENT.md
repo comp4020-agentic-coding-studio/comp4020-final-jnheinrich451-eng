@@ -470,3 +470,34 @@ rules, not of this stage. They are still failing and need their own fix.
     fire button stays disabled (no in-range solution). On `6ce4c67` it fails
     one step earlier, on the side-arc readout. The cause is not yet diagnosed.
 - Screenshots were checked at 1920×1080 (plus a resize) and 390×844.
+
+
+## 18 October: direct orbital cards and explicit deployment funding
+
+The Strike catalogue now exposes walking HE (S-02), fire curtain (S-03), gas
+seeding (S-04) and cutting beam (S-05) directly. Selecting a card keeps targeting
+in a slim strip inside the bottom deployment tray. V uses the same tray.
+The mouse previews the target, R rotates HE/fire by 90 degrees, and LMB calls
+the strike immediately. Gas uses a circular pattern. Beam uses one click to
+anchor its start and a second to choose its endpoint and call. Selecting a card
+or moving the pointer does not spend or launch. The direction dropdown,
+coordinate form and separate call button have been removed. A small rotation
+button supports phones; tapping calls a strike while dragging pans.
+Committed orders, shared cooldowns, prices and server validation are unchanged.
+
+Eligible facility cards show both ORB and GND prices. At the selected site,
+Delivery lists orbital delivery and only the completed friendly cores, outposts
+or factories whose circle contains the whole footprint. Local construction costs
+25% (rounded up) in shared GND and takes 60 seconds. Moving outside support
+removes local choices and visibly returns to ORB; returning inside requires a
+new explicit local selection. Blue circles remain visible during eligible
+placement even while orbital delivery is selected. Insufficient GND does not
+hide the choice: the placement reason reports the shortage. Existing special
+rules remain: first core/emergency tank, free rails, orbital-only empty shipyards
+and aircraft delivery, and GND vessel construction at an existing shipyard.
+
+Local validation: type checking and the catalogue, support-network and orbital
+domain checks; browser coverage verifies separate-pool spending and movement
+inside/outside support at desktop and phone sizes. Strike browser checks cover
+all four payloads, confirmation, committed targets and reload. These are local
+checks, not a deployment or Fly performance claim.

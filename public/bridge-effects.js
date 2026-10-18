@@ -3,6 +3,7 @@ import { BRIDGE, bridgeCells, bridgeLength, bridgeReady } from './bridge-geometr
 export function drawBridges(c,world,T,zoom,preview=null){
   c.save();
   for(const b of [...(world.logistics?.bridges||[]),...(preview?[preview]:[])]){
+    if(!b.from||!b.to)continue;
     const ghost=b===preview,ready=!ghost&&bridgeReady(b),n=bridgeLength(b),dx=Math.sign(b.to.x-b.from.x),dy=Math.sign(b.to.y-b.from.y);
     if(n<1||n>BRIDGE.maxSpan||(dx&&dy))continue;
     const rows=ready?n:Math.max(0,Math.min(n,((b.elapsed||0)-BRIDGE.cableTime)/BRIDGE.rowTime));

@@ -7,12 +7,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-async function fixture(landing=false){
+async function fixture(landing=false,visitor=false){
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-air-'));let app=createApp({dataDir:dir});await app.close();
  const db=new DatabaseSync(path.join(dir,'world.sqlite')),tokens=[randomUUID(),randomUUID()];
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify({...createWorld(),width:128,height:96,version:2,terrain:Array(128*96).fill(2)}),'world');
  for(const [i,id] of ['a','b'].entries()){db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(tokens[i],id,id,54.6,56.5+i,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core'+id,id,63,60+i*16,4.5);}
  if(landing){const b:any=newAirbase('base','a',48,48);Object.assign(b.aircraft,{occupant:'a',state:'flying',y:parkingPoint(b).y+5.1,leftBase:true,speed:6,runs:0});db.prepare('INSERT INTO airbases VALUES (?,?)').run(b.id,JSON.stringify(b));}
+ if(visitor){const source:any=newAirbase('source','a',85,48),destination:any=newAirbase('destination','a',48,48);source.aircraft.baseId=destination.id;Object.assign(source.aircraft,parkingPoint(destination));destination.aircraft.state='vacant';destination.aircraft.health=0;for(const b of [source,destination])db.prepare('INSERT INTO airbases VALUES (?,?)').run(b.id,JSON.stringify(b));}
  db.close();app=createApp({dataDir:dir});let base='',controllers:AbortController[]=[];
  async function listen(){await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${(app.server.address() as any).port}`;}await listen();
  const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
@@ -71,3 +72,25 @@ it('lands automatically, persists servicing while idle, allows apron exit and re
   expect((await f.post('aircraft/board',{id:'base'})).status).toBe(200);
  }finally{await f.close();}
 },20000);
+
+it('boards visiting aircraft, saves cruise orders and serializes free-runway recalls without duplicating planes',async()=>{
+ const f=await fixture(false,true);try{
+  await f.connect();await f.connect(1);
+  expect((await f.post('aircraft/cruise',{id:'source'})).status).toBe(409);
+  expect((await f.post('aircraft/cruise',{id:'destination'})).status).toBe(200);
+  await expect.poll(async()=>(await f.state()).airbases.find((b:any)=>b.id==='source').aircraft.mission.phase,{timeout:4000}).toBe('cruise');
+  expect((await f.state()).me.body).toBe('robot');await f.restart();
+  const get=async()=>(await f.state()).airbases.find((b:any)=>b.id==='source').aircraft;
+  expect(await get()).toMatchObject({baseId:'destination',state:'flying',occupant:null,mission:{kind:'cruise',phase:'cruise'}});
+  await f.connect();await f.connect(1);
+  const second=await f.post('aircraft/deliver',{id:'source',kind:'attack-jet'});expect(second.status).toBe(200);
+  expect((await f.post('aircraft/deliver',{id:'destination',kind:'bomber'})).status).toBe(409);
+  expect((await f.post('aircraft/recall',{id:'source',landingBaseId:'source'})).status).toBe(409);
+  expect((await f.post('aircraft/recall',{id:'source',landingBaseId:'destination'})).status).toBe(200);
+  await f.restart();expect(await get()).toMatchObject({baseId:'destination',mission:{phase:'return'}});await f.connect();await f.connect(1);
+  await expect.poll(async()=>(await get()).mission.phase,{timeout:24000}).toBe('complete');
+  const admissions=await Promise.all([f.post('aircraft/board',{id:'destination'}),f.post('aircraft/board',{id:'destination'},1)]);
+  expect(admissions.map(r=>r.status).sort()).toEqual([200,409]);expect((await get()).occupant).toMatch(/^[ab]$/);
+  expect((await f.state()).airbases).toHaveLength(2);
+ }finally{await f.close();}
+},35000);

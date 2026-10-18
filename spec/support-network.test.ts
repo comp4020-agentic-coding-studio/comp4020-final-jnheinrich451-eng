@@ -1,4 +1,6 @@
 import { bridgeReady } from '../public/bridge-geometry.js';
+import { POD, CARGO_POD_DURATION } from '../public/pod.js';
+import { assemblyStage } from '../public/construction-effects.js';
 import { RECYCLER, recyclerStep, recyclerExit, parkedTask } from '../public/recycler.js';
 import { addRemains } from '../public/logistics.js';
 import { expect, it } from 'vitest';
@@ -74,8 +76,26 @@ it('admits global orbital placement and preserves migrated budgets across restar
  const f=await fixture((_db,_w,l)=>{l.version=1;l.supplies=423;delete l.groundSupplies;});try{
   expect((await f.state()).logistics).toMatchObject({version:2,supplies:423,groundSupplies:0});await f.connect();
   const r=await f.post('missiles',{x:90,y:60});expect(r.status).toBe(201);
+  const job=(await f.state()).logistics.jobs[r.data.gun.id];expect(job.duration).toBe(CARGO_POD_DURATION);
   expect((await f.state()).logistics.supplies).toBe(203);expect((await f.post('artillery/control',{id:r.data.gun.id})).status).toBe(409);
   await f.restart();expect((await f.state()).logistics.groundSupplies).toBe(0);expect((await f.state()).logistics.supplies).toBeGreaterThanOrEqual(203);
+ }finally{await f.close();}
+});
+it('opens orbital cargo walls before revealing contents, with a one-second deployment phase',()=>{
+  const opened=POD.unfold+POD.panelDuration;expect(CARGO_POD_DURATION-opened).toBeCloseTo(1);
+  expect(assemblyStage(CARGO_POD_DURATION-POD.unfold,CARGO_POD_DURATION)).toMatchObject({phase:'UNFOLDING',reveal:0,active:true});
+  expect(assemblyStage(CARGO_POD_DURATION-opened,CARGO_POD_DURATION).reveal).toBe(0);
+  expect(assemblyStage(.5,CARGO_POD_DURATION)).toMatchObject({phase:'DEPLOYING',reveal:.5,active:true});
+  expect(assemblyStage(.001,CARGO_POD_DURATION,20).active).toBe(true);
+  expect(assemblyStage(0,CARGO_POD_DURATION)).toMatchObject({phase:'READY',reveal:1,active:false});
+});
+it('saves a short orbital facility delivery and keeps it unusable until completion',async()=>{
+ const f=await fixture();try{
+  await f.connect();const r=await f.post('logistics/deploy',{kind:'outpost',x:90,y:60,method:'orbital'});expect(r.status).toBe(201);
+  const id=r.data.facility.id;
+  let facility=(await f.state()).logistics.facilities.find((v:any)=>v.id===id);expect(facility.deliveryDuration).toBe(CARGO_POD_DURATION);expect(facility.remaining).toBeGreaterThan(0);
+  await f.restart();facility=(await f.state()).logistics.facilities.find((v:any)=>v.id===id);expect(facility.deliveryDuration).toBe(CARGO_POD_DURATION);expect(facility.remaining).toBeGreaterThan(0);
+  await f.connect();await expect.poll(async()=>(await f.state()).logistics.facilities.find((v:any)=>v.id===id).remaining,{timeout:5000}).toBe(0);
  }finally{await f.close();}
 });
 it('serializes competing local purchases across teammates and refunds to ground only',async()=>{

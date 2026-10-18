@@ -10,7 +10,7 @@ import { raycast } from '../public/raycast.js';
 function fixture(){const w:any={...createWorld(),width:128,height:96,terrain:Array(128*96).fill(2),airbases:[],cores:[],tanks:[],ships:[],rails:[],artillery:[]},b=newAirbase('base','a',48,48);w.airbases.push(b);return{w,b,p:b.aircraft};}
 it('reserves an entire land airbase without rebuilding terrain or blocking its walkable runway',()=>{
  const {w,b}=fixture();const empty={...w,airbases:[]};expect(airbaseError(empty,[],[],48,48,'a')).toBeNull();
- expect(airbaseError(w,[],[],48,48,'b')).toContain('airbase');expect(airbaseError(w,[],[],70,48,'a')).toContain('One');
+ expect(airbaseError(w,[],[],48,48,'b')).toContain('airbase');expect(airbaseError(w,[],[],70,48,'a')).toBeNull();
  expect(airbaseError(empty,[],[],3,30,'a')).toContain('16');empty.terrain[50*128+50]=0;expect(airbaseError(empty,[],[],48,48,'a')).toContain('water');empty.terrain[50*128+50]=2;
  expect(placementError(w,[],[],50,50)).toContain('airbase');expect(corePlacementError(w,[],[],50,50,'b')).toBeTruthy();expect(tankPlacementError(w,[],[],50,50,'b')).toBeTruthy();expect(missilePlacementError(w,[],[],50,50,'b')).toBeTruthy();expect(railError(w,[],50,50,'EW',1,'b')).toBeTruthy();
  expect(canStand(w,[],b.x+2,b.y+3)).toBe(true);expect(canStand(w,[],b.x+4.5,b.y+2)).toBe(false);

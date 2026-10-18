@@ -1,3 +1,5 @@
+import {orbitalPlan,ORBITAL} from '../public/orbital.js';
+import {freshLife} from '../public/survival.js';
 import { expect, it, vi } from 'vitest';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -11,6 +13,33 @@ import { resetWorld } from '../world-maintenance.js';
 
 const password = 'a unique campaign password 123!';
 const worldRoute = (id: string, action = 'world') => `/api/campaign-world/${id}/${action}`;
+
+it('shares distant planetary construction through terrain-free live updates and saves both fronts', async () => fixture(async h => {
+  const owner = await h.account('planetowner'), friend = await h.account('planetfriend'), id = await h.open(owner);
+  const code = (await owner.request('/api/campaigns/invite', { id })).data.code;
+  await friend.request('/api/campaigns/join', { code });
+  const pilots = [(await owner.request(worldRoute(id))).data.me.id, (await friend.request(worldRoute(id))).data.me.id];
+  await owner.request('/api/campaigns/leave', {});
+  h.database(id, (db: DatabaseSync) => {
+    for (const [i, pilot] of pilots.entries()) {
+      const x = i ? 370 : 225, y = i ? 250 : 94;
+      db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('planet-core-' + pilot, pilot, x - 10, y - 10, 99);
+      db.prepare('UPDATE scouts SET x=?,y=? WHERE id=?').run(x, y, pilot);
+      db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot, JSON.stringify({ ...freshLife(), deployed: true }));
+    }
+  });
+  await owner.request('/api/campaigns/enter', { id }); const ownerStream = await h.connect(owner, id);
+  expect((await friend.request('/api/campaigns/enter', { id })).status).toBe(200);
+  const streams = [ownerStream, await h.connect(friend, id)];
+  const built = await Promise.all([owner.request(worldRoute(id, 'buildings'), { x: 230, y: 94 }), friend.request(worldRoute(id, 'buildings'), { x: 375, y: 250 })]);
+  expect(built.map(r => r.status)).toEqual([201, 201]);
+  await expect.poll(() => streams.every(s => built.every(b => s.output().includes(b.data.building.id)))).toBe(true);
+  for (const stream of streams) expect(stream.output()).not.toContain('"terrain"');
+  await owner.request('/api/campaigns/leave', {}); await h.restart(); await owner.request('/api/campaigns/enter', { id });
+  const saved = (await owner.request(worldRoute(id))).data;
+  expect([saved.world.width, saved.world.height]).toEqual([512, 384]);
+  expect(saved.buildings).toEqual(expect.arrayContaining(built.map(r => expect.objectContaining(r.data.building))));
+}), 15000);
 
 it.each([false, true])('saves flak consumption, aircraft loss and an offline=%s pilot together before reporting damage', async offline => fixture(async h => {
   const owner = await h.account('flak-save'), id = await h.open(owner);
@@ -464,3 +493,55 @@ it('checkpoints an emergency return wreck and an offline pilot loss together',as
  h.database(id,(db:DatabaseSync)=>{const base=JSON.parse(db.prepare('SELECT value FROM airbases WHERE id=?').get('lost-base')!.value as string),life=JSON.parse(db.prepare('SELECT value FROM robot_states WHERE scout_id=?').get('lost-pilot')!.value as string);expect(base.aircraft.occupant).toBeNull();expect(base.wrecks).toHaveLength(1);expect(life).toMatchObject({life:'disabled',health:0,lostVehicle:'aircraft'});});
  await h.restart();await owner.request('/api/campaigns/enter',{id});expect((await owner.request(worldRoute(id))).data.airbases[0].wrecks).toHaveLength(1);
 }),12000);
+
+it('saves shared orbital spending, successive impacts, pause and caller departure without replay',async()=>fixture(async h=>{
+ const owner=await h.account('orbitalowner'),friend=await h.account('orbitalfriend'),id=await h.open(owner);
+ const code=(await owner.request('/api/campaigns/invite',{id})).data.code;await friend.request('/api/campaigns/join',{code});
+ const a=(await owner.request(worldRoute(id))).data.me.id,b=(await friend.request(worldRoute(id))).data.me.id;
+ await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
+  for(const [pid,y] of [[a,10],[b,25]] as const){db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('orbital-core-'+pid,pid,10,y,99);db.prepare('UPDATE scouts SET x=15,y=? WHERE id=?').run(y,pid);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pid,JSON.stringify({...freshLife(),deployed:true}));}
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string),p:any=orbitalPlan(w,{x:64,y:48},1);
+  saved.sites=[{...saved.sites[0],id:'orbital-test',x:p.points[0].x-1.5,y:p.points[0].y-1.5,hp:100,state:'hostile',pending:null}];saved.enemies=[];
+  db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
+ const order={orderId:'orbital-http-first',sequence:1,payload:'HE',target:{x:64,y:48},bearing:1};
+ const results=await Promise.all([owner.request(worldRoute(id,'orbital/strike'),order),friend.request(worldRoute(id,'orbital/strike'),{...order,orderId:'orbital-http-second'})]);
+ expect(results.map(r=>r.status).sort()).toEqual([200,409]);const winner=results[0].status===200?owner:friend,accepted=results[0].status===200?order:{...order,orderId:'orbital-http-second'};
+ expect((await winner.request(worldRoute(id,'orbital/strike'),accepted)).status).toBe(200);
+ let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(1200-ORBITAL.cost);expect(state.logistics.groundSupplies).toBe(0);
+ await friend.request('/api/campaigns/leave',{});expect((await owner.request('/api/campaigns/pause',{id,paused:true})).status).toBe(200);const age=(await owner.request(worldRoute(id))).data.logistics.orbital.order.age;
+ await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.logistics.orbital.order.age).toBe(age);expect((await owner.request(worldRoute(id,'orbital/strike'),{...order,sequence:2})).status).toBe(409);
+ await owner.request('/api/campaigns/pause',{id,paused:false});
+ await expect.poll(async()=>(await owner.request(worldRoute(id))).data.logistics.orbital.order.points.filter((p:any)=>p.landed).length,{timeout:11000,interval:40}).toBeGreaterThan(0);
+ await owner.request('/api/campaigns/leave',{});await h.restart();
+ await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;const landed=state.logistics.orbital.order.points.filter((p:any)=>p.landed).length;
+ expect(landed).toBeGreaterThan(0);expect(landed).toBeLessThan(15);expect(state.combat.sites.find((s:any)=>s.id==='orbital-test').state).toBe('conquered');expect(state.logistics.supplies).toBe(1200-ORBITAL.cost);
+ await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.logistics.orbital.order.points.filter((p:any)=>p.landed).length,{timeout:10000}).toBe(15);
+ state=(await owner.request(worldRoute(id))).data;expect(state.logistics.orbital.cooldown).toBeGreaterThan(40);expect(state.logistics.supplies).toBe(1200-ORBITAL.cost);
+ expect(h.logs.filter((l:any)=>l.event==='orbital.ordered')).toHaveLength(1);expect(h.logs.filter((l:any)=>l.event==='objective.conquered'&&l.targetId==='orbital-test')).toHaveLength(1);
+ await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;expect(state.logistics.orbital.order.points.every((p:any)=>p.landed)).toBe(true);expect(state.combat.sites.find((s:any)=>s.id==='orbital-test').state).toBe('conquered');
+}),30000);
+
+it.each(['INCENDIARY','GAS','BEAM'])('checkpoints orbital %s payload, reservation and effects without recharge on resume',async payload=>fixture(async h=>{
+ const owner=await h.account('orbitalpayload'),id=await h.open(owner),pilot=(await owner.request(worldRoute(id))).data.me.id;await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
+  db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('payload-core',pilot,10,10,99);db.prepare('UPDATE scouts SET x=15,y=15 WHERE id=?').run(pilot);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot,JSON.stringify({...freshLife(),deployed:true}));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);saved.sites=[];saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ const data={orderId:'orbital-saved-'+payload,sequence:1,payload,target:{x:64,y:48},bearing:1,end:{x:80,y:48}};
+ expect((await owner.request(worldRoute(id,'orbital/strike'),data)).status).toBe(200);expect((await owner.request(worldRoute(id,'orbital/strike'),data)).status).toBe(200);
+ let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(payload==='BEAM'?1020:1100);if(payload!=='BEAM')expect(state.combat.fields).toHaveLength(1);
+ await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;const age=state.logistics.orbital.order.age;expect(state.logistics.orbital.order.payload).toBe(payload);
+ if(payload!=='BEAM')expect(state.combat.fields).toHaveLength(1);await new Promise(r=>setTimeout(r,100));expect((await owner.request(worldRoute(id))).data.logistics.orbital.order.age).toBe(age);
+ await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.logistics.orbital.order.points.every((p:any)=>p.landed),{timeout:15000}).toBe(true);
+ await owner.request('/api/campaigns/pause',{id,paused:true});state=(await owner.request(worldRoute(id))).data;
+ if(payload==='BEAM')expect(state.logistics.orbital.scars).toHaveLength(1);else expect(state.combat.fields[0].sectors).toHaveLength(7);
+ const before=structuredClone(state.logistics.orbitalFields||[]);await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;
+ expect(state.logistics.supplies).toBe(payload==='BEAM'?1020:1100);expect(state.logistics.orbitalFields||[]).toEqual(before);expect(state.combat.fields).toHaveLength(payload==='BEAM'?0:1);
+ if(payload==='BEAM')expect(state.logistics.orbital.scars).toHaveLength(1);
+}),25000);

@@ -1,3 +1,4 @@
+import { isCarrier } from './carrier.js';
 import { operational, hullHealth, VEHICLE, SHIP_REPAIR_DELAY } from './vehicle.js';
 import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock } from './ship.js';
 
@@ -31,13 +32,14 @@ export function shipyardSite(world, buildings, occupants, x, y, owner) {
 }
 export function yardBuildError(world, yard, owner, kind, previous = null, people = []) {
   if (!yard || yard.owner !== owner) return 'Choose your own shipyard.';
-  if (!['gunship', 'submarine', 'transport'].includes(kind)) return 'Choose a supported vessel.';
+  if (!['gunship', 'submarine', 'transport','carrier'].includes(kind)) return 'Choose a supported vessel.';
   if (yard.dockDestroyed) return 'Repair this shipyard in Logistics (L) first.';
   if (!dockComplete(yard) || world.logistics?.jobs?.[yard.id]) return 'Wait for the shipyard to finish assembly or repairs.';
   if ((world.ships || []).some(s => s.id !== previous?.id && (s.yardId || s.id) === yard.id)) return 'This shipyard already supports a vessel. Retire it before changing type.';
   if (world.ships.filter(s=>!s.destroyed&&s.id!==previous?.id).length >= SHIP.max) return 'Fleet limit: four vessels per campaign.';
+  if(previous?.aircraft&&!['vacant','destroyed'].includes(previous.aircraft.state)&&kind!=='carrier')return 'An airborne aircraft still uses this carrier slot. Rebuild as a carrier.';
   if (previous && (!previous.destroyed || previous.replacement > .001)) return 'Wait for the lost vessel replacement countdown.';
-  const next = { ...yard, id: previous?.id || 'preview', x: yard.berthX, y: yard.berthY, angle: yard.dock.angle };
+  const next = { ...yard, kind, id: previous?.id || 'preview', x: yard.berthX, y: yard.berthY, angle: yard.dock.angle };
   if (!canSail(world, next, next.x, next.y, next.angle, true)) return 'Clear the shipyard water berth.';
   if (people.some(p => p.body !== 'aircraft' && p.life !== 'disabled' && (p.hp === undefined || p.hp > 0) && rectanglesOverlap(hull(next, true), { x: p.x, y: p.y, w: .8, h: .8, angle: 0 }))) return 'A unit blocks the shipyard berth.';
   return null;
@@ -55,7 +57,7 @@ export const DOCK_REPAIR = Object.freeze({ rate: 10, perHp: .2, delay: SHIP_REPA
 export function tickDockRepair(world, ship, dt) {
   const oldDelay=ship.repairDelay||0,wasRepairing=!!ship.repairing;
   ship.repairDelay=Math.max(0,oldDelay-dt);ship.repairing=false;
-  if(!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||Math.abs(ship.speed||0)>.05||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
+  if(isCarrier(ship)||!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||Math.abs(ship.speed||0)>.05||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
   const dock=mooredDock(world,ship),yard=dockRecords(world).find(y=>y.dock===dock);
   if(!yard||world.logistics?.jobs?.[yard.id])return wasRepairing||oldDelay>0;
   const restored=Math.min(VEHICLE.ship-hullHealth(ship),DOCK_REPAIR.rate*dt,world.logistics.groundSupplies/DOCK_REPAIR.perHp);

@@ -55,21 +55,26 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
     // makes each phase reviewable without racing a 1.35-second landing window.
     const result=await page.evaluate(async()=>{
       const {ConstructionEffects,assemblyStage}=await import('/construction-effects.js');
-      const {drawLogistics}=await import('/logistics-effects.js');
+      const {drawLogistics}=await import('/logistics-effects.js');const {CARGO_POD_DURATION}=await import('/pod.js');
       const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=540;canvas.id='assembly-review';document.body.append(canvas);
       Object.assign(canvas.style,{position:'fixed',inset:'0',zIndex:'100',width:'100vw',height:'auto',background:'#24433c'});
       const c=canvas.getContext('2d'),T=42,effects=new ConstructionEffects(T);
       const w={width:24,height:12,terrain:Array(288).fill(2),cores:[{x:1,y:3,elapsed:4.5}],tanks:[],ships:[],airbases:[],artillery:[],sites:[],logistics:{facilities:[],recyclers:[],salvage:{},crates:[],jobs:{},durability:{}}};
-      for(const [i,remaining]of[7.7,4.5,0].entries()){
-        const x=3+i*7;w.logistics.facilities.push({id:'uplink-'+i,kind:'uplink',x,y:5,remaining,cargo:0,launch:0});
-        w.logistics.recyclers.push({id:'recycler-'+i,kind:'recycler',x:x+1.5,y:10,remaining:i===0?4.2:i===1?1:0,angle:0,cargo:0});
+      for(const [i,remaining]of[CARGO_POD_DURATION-.3,.6,0].entries()){
+        const x=3+i*7;w.logistics.facilities.push({id:'uplink-'+i,kind:'uplink',x,y:5,remaining,deliveryDuration:CARGO_POD_DURATION,cargo:0,launch:0});
+        w.logistics.recyclers.push({id:'recycler-'+i,kind:'recycler',x:x+1.5,y:10,remaining,deliveryDuration:CARGO_POD_DURATION,angle:0,cargo:0});
       }
       c.fillStyle='#24433c';c.fillRect(0,0,1000,540);drawLogistics(c,w,[],T,1,false,'pilot',effects,0);
       const pixels=()=>c.getImageData(0,0,1000,540).data.reduce((n,v)=>n+v,0);
       const before=pixels();c.clearRect(0,0,1000,540);c.fillStyle='#24433c';c.fillRect(0,0,1000,540);drawLogistics(c,w,[],T,1,false,'pilot',effects,0);const same=before===pixels();
-      return {same,phase:assemblyStage(.01,8,20).phase,active:assemblyStage(.01,8,20).active};
+      let orbitalWorkers=0;const workers=effects.workers;effects.workers=()=>orbitalWorkers++;
+      effects.draw(c,w,{x:2,y:2},2,assemblyStage(.6,CARGO_POD_DURATION),1,false,true);
+      const orbitalCount=orbitalWorkers;
+      effects.draw(c,w,{x:2,y:2},2,{active:true,method:'factory',time:30,reveal:.5},1,false,true);
+      effects.workers=workers;
+      return {same,phase:assemblyStage(.01,8,20).phase,active:assemblyStage(.01,8,20).active,orbitalCount,localCount:orbitalWorkers-orbitalCount};
     });
-    expect(result).toEqual({same:true,phase:'ASSEMBLING',active:true});
+    expect(result).toEqual({same:true,phase:'DEPLOYING',active:true,orbitalCount:0,localCount:1});
     await page.locator('#assembly-review').screenshot({path:`.local/construction-phases-${mobile?'phone':'desktop'}.png`});
     await page.evaluate(async()=>{
       const {ShipEffects,drawShip}=await import('/ship-effects.js'),{ConstructionEffects}=await import('/construction-effects.js'),{drawWrecks,drawShipAssembly}=await import('/shipyard-effects.js');

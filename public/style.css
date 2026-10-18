@@ -212,3 +212,50 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 .bomber-panel{position:absolute;right:16px;bottom:110px;width:min(360px,calc(100% - 32px));z-index:30;padding:16px;max-height:60vh;overflow:auto}.bomber-panel label{display:block;margin:8px 0}.bomber-panel select{width:100%}.bomber-panel p{font-size:12px;line-height:1.5}.bomber-panel input{width:100%;min-width:0}.bomber-panel .coordinate-inputs{grid-template-columns:1fr 1fr}.bomber-panel .aircraft-actions{flex-wrap:wrap}@media(max-width:650px){.bomber-panel{bottom:95px;right:10px;max-height:48vh;padding:12px}}
 
 @media(max-width:650px){.bomber-planning .objective,.bomber-planning .survey,.bomber-planning #aircraft-interact{display:none!important}}
+
+.cruise-launch{width:100%;min-height:36px;margin-bottom:6px;background:var(--panel-solid);border-color:var(--rule-strong)}.bomber-planning #aircraft-cruise{display:none!important}
+
+.carrier-controls{border-top:1px solid var(--rule);padding-top:8px}.carrier-controls>div{display:flex;gap:6px;margin-top:6px}.carrier-controls button{flex:1;font-size:11px;min-height:38px}.carrier-controls select{min-width:0;max-width:45%}.carrier-controls p{font:11px/1.5 var(--mono);color:var(--actual)}
+
+@media(max-width:760px){.ship-control:has(#carrier-controls:not([hidden])) .touch-pad{bottom:450px!important}}
+
+.orbital-live{position:absolute;top:84px;left:50%;transform:translateX(-50%);padding:8px 12px;font:11px var(--mono);color:var(--intent);pointer-events:none;z-index:12;max-width:calc(100% - 24px)}
+#orbital-reason{color:var(--muted)}.orbital-planning .touch-pad{display:none!important}
+@media(max-width:650px){.orbital-planning .objective,.orbital-planning .survey,.orbital-planning .bottom-hud,.orbital-planning .fire-button,.orbital-planning .machine-gun-button{display:none!important}#orbital-panel{bottom:12px;max-height:53vh}.orbital-live{top:70px;width:calc(100% - 24px);text-align:center;font-size:10px}.orbital-planning .map-tools{top:110px}}
+
+#orbital-open,#bomber-open{font:600 13px var(--mono)}
+
+/* Direct strike controls share the slim catalogue bar. */
+#orbital-panel.orbital-inline{position:static;transform:none;width:auto;max-width:none;max-height:none;flex-shrink:0;margin:6px 0 0;padding:6px 0 0;border:0;border-top:1px solid var(--rule);box-shadow:none;background:transparent}
+.orbital-planning .deployment-tray{overflow-y:auto}
+.orbital-planning .tray-body{display:block;flex-shrink:0}
+.orbital-planning .asset-spec,.orbital-planning .in-field,.orbital-planning .unit-art,.orbital-planning .asset-line{display:none}
+.orbital-planning .unit-grid{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}
+.orbital-planning .unit-grid .unit-card{flex:0 0 156px;min-height:70px;padding:8px}
+.unit-card[aria-pressed=true]{border-color:var(--intent);background:#f0c44c12}
+.orbital-inline p{margin:3px 0;font:11px/1.4 var(--mono)}
+.orbital-command-row{display:flex;gap:8px;align-items:center}.orbital-command-row p{flex:1;min-width:0}.orbital-command-row button{min-height:36px;flex-shrink:0;padding:0 10px;font:11px var(--mono)}
+.orbital-inline #orbital-reason{color:var(--hostile)}
+@media(max-width:760px){.orbital-planning .deployment-tray{bottom:12px;max-height:40dvh}.orbital-planning .tray-supplies{font-size:10px}.orbital-planning .unit-grid .unit-card{flex-basis:145px}.orbital-inline p{font-size:10px}}
+
+#bridge-coordinates[hidden],#bridge-direction-label[hidden]{display:none}.bridge-planner>label{display:block;margin-top:8px}.bridge-planner select{display:block;width:100%;padding:8px;background:var(--field);color:var(--ink);border:1px solid var(--line)}.bridge-planner{max-height:calc(100vh - 180px);overflow-y:auto}
+@media(max-width:650px){.bridge-planner{max-height:50vh}.battlefield:has(#bridge-planner:not([hidden])) .objective,.battlefield:has(#bridge-planner:not([hidden])) .touch-pad{display:none!important}}
+@media(max-width:650px){.battlefield:has(#bridge-planner:not([hidden])) .survey,.battlefield:has(#bridge-planner:not([hidden])) .map-tools button:not(#zoom-in):not(#zoom-out){display:none}.battlefield:has(#bridge-planner:not([hidden])) .map-tools{top:100px}}
+@media(max-width:650px){.orbital-planning .map-tools button:not(#zoom-in):not(#zoom-out){display:none}}
+
+/* Campaign globe: bounded browser rendering, no effect on simulation. */
+#planet-dialog { width:min(650px,94vw); max-height:94dvh; padding:24px; overflow:auto; background:radial-gradient(ellipse at 50% 35%,#17313e,#0d1a23 72%); }
+#planet-dialog h2 { margin:8px 0; font-size:28px; }
+#planet-status { font:12px var(--mono,monospace); color:#a7cad3; }
+#planet-open { font:9px var(--mono); letter-spacing:0; }
+#planet-globe { display:block; width:min(100%,52dvh); height:auto; aspect-ratio:1; margin:0 auto; touch-action:none; cursor:grab; }
+#planet-globe:active { cursor:grabbing; }
+#planet-globe:focus-visible { outline:1px solid #dfc375; outline-offset:2px; }
+.planet-turns { display:flex; justify-content:center; gap:8px; margin:6px 0 16px; }
+.planet-turns button { min-width:44px; min-height:36px; }
+.planet-route { display:flex; gap:8px; margin:6px 0; }
+.planet-route select { min-width:0; flex:1; }
+.planet-route button { white-space:nowrap; }
+.planet-legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; }
+.planet-legend span:nth-child(1) { color:#ff707c; }.planet-legend span:nth-child(2) { color:#79caff; }.planet-legend span:nth-child(3) { color:#ffe19a; }
+@media(max-width:650px) { #planet-dialog { padding:18px; }.planet-route { flex-direction:column; }#planet-globe { width:min(100%,40dvh); } }

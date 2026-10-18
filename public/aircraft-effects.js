@@ -13,10 +13,10 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.fillStyle='#233b40';c.fillRect(4*T,T,2*T,3*T);c.fillStyle='#758b8b';c.fillRect(4.1*T,1.1*T,1.8*T,2.8*T);
  c.strokeStyle='#b8c6bb';for(let y=1.3;y<3.8;y+=.35){c.beginPath();c.moveTo(4.1*T,y*T);c.lineTo(5.9*T,y*T);c.stroke();}
  c.fillStyle='#96aa98';c.fillRect(4*T,6*T,2*T,3.5*T);c.fillStyle='#f2d693';c.beginPath();c.arc(5.5*T,8.5*T,.27*T,0,Math.PI*2);c.fill();
- c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText(b.aircraft?.state==='destroyed'?'REPLACEMENT / '+Math.ceil(b.aircraft.remaining)+'s':'AIRBASE / '+aircraftName(b.aircraft).toUpperCase(),0,-7/zoom);c.restore();
+ c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText(b.aircraft?.state==='destroyed'?'REPLACEMENT / '+Math.ceil(b.aircraft.remaining)+'s':'AIRBASE / '+(b.aircraft?aircraftName(b.aircraft).toUpperCase():'FREE RUNWAY'),0,-7/zoom);c.restore();
 }
 export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
- if(p.state==='destroyed')return;
+ if(!p||['destroyed','vacant'].includes(p.state))return;
  if(p.state==='delivering'){
   const time=POD.duration-p.remaining,fall=Math.max(0,1-time/POD.impact),open=Math.max(0,Math.min(1,(time-POD.unfold)/1.4));
   c.save();c.translate(p.x*T,p.y*T);c.strokeStyle='#edd496';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);c.strokeRect(-2*T,-2*T,4*T,4*T);c.setLineDash([]);

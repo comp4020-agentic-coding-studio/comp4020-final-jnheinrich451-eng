@@ -11,7 +11,7 @@ hostile forces and eventually secure the planet.
 Arrive quickly, deploy a robot and support core, then build the means to survive
 and advance. Players should move between fighting directly, piloting vehicles
 and operating facilities. Ground, naval and air forces should offer different
-ways to solve a problem; orbital support belongs to the later vision. Players
+ways to solve a problem, alongside shared orbital support. Players
 can defend, position artillery or fly bombing runs, leaving a base worth revisiting.
 
 The 12 October logistics stage adds two ways around a blocked crossing: an
@@ -19,6 +19,13 @@ The 12 October logistics stage adds two ways around a blocked crossing: an
 an [armored transport](docs/ARMORED_TRANSPORT.md) ferries a tank or utility vehicle
 to another shore. These support the same combat loop: open a route, recover alien
 salvage, ship it to orbit and fund the next deployment.
+
+The 18 October checkpoint adds a carrier, shared airfield access and orbital
+strikes, with a 512-by-384 battlefield and a rotatable campaign globe. The globe
+helps players inspect distant terrain; map edges remain closed. Existing progress
+survives expansion. More space should make transport and remote bases useful;
+populating and balancing the new regions remains future work. See the
+[planet stage](docs/PLANET_EXPANSION.md) for its boundaries and local evidence.
 
 ## What makes that experience good
 

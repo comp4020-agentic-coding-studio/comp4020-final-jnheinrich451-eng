@@ -1,3 +1,4 @@
+import { isCarrier, CARRIER, deckLocked } from './carrier.js';
 import { dockRecords, SHIPYARD } from './shipyard.js';
 import { bridgeAt } from './bridge-geometry.js';
 import { airbaseAt } from './footprints.js';
@@ -9,10 +10,10 @@ import { angleDelta } from './turret.js';
 import { hullPoint, operational } from './vehicle.js';
 
 export const SHIP = Object.freeze({ ...POD, max:4, width:2, length:4, speed:2.5, reverse:1.5, turnSpeed:Math.PI/5, turretSpeed:Math.PI/3, minRange:6, range:40, reload:6, dockRange:.8, boardRange:1.4 });
-export const shipKind = ship => ship?.kind==='submarine'?'submarine':ship?.kind==='transport'?'transport':'gunship';
-export const shipName = ship => shipKind(ship)==='submarine'?'Missile submarine':shipKind(ship)==='transport'?'Armored transport':'Coastal gunship';
+export const shipKind = ship => isCarrier(ship)?'carrier':ship?.kind==='submarine'?'submarine':ship?.kind==='transport'?'transport':'gunship';
+export const shipName = ship => isCarrier(ship)?'Aircraft carrier':shipKind(ship)==='submarine'?'Missile submarine':shipKind(ship)==='transport'?'Armored transport':'Coastal gunship';
 export function hull(ship, cradle=false) {
-  return { x:cradle?ship.berthX:ship.x, y:cradle?ship.berthY:ship.y, angle:cradle?ship.dock.angle:ship.angle, w:cradle?3:SHIP.width, h:cradle?5:SHIP.length };
+  return { x:cradle?ship.berthX:ship.x, y:cradle?ship.berthY:ship.y, angle:cradle?ship.dock.angle:ship.angle, w:cradle?3:isCarrier(ship)?CARRIER.width:SHIP.width, h:cradle?5:isCarrier(ship)?CARRIER.length:SHIP.length };
 }
 // Separating axes for two rectangles; exact oriented clearance, not a square apron.
 export function rectanglesOverlap(a,b) {
@@ -51,7 +52,7 @@ export function canSail(world,ship,x=ship.x,y=ship.y,angle=ship.angle,cradle=fal
 /** @param {{dock:{x:number,y:number,angle:number},berthX:number,berthY:number} | null} [original] */
 export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dockStyle='legacy',original=null,yardOnly=false) {
   const fail=error=>({error,ship:null});
-  if(!['gunship','submarine','transport'].includes(kind))return fail('Choose a gunship, missile submarine or armored transport.');
+  if(!['gunship','submarine','transport','carrier'].includes(kind))return fail('Choose a gunship, missile submarine or armored transport.');
   if(!['legacy','unfolding'].includes(dockStyle))return fail('Choose a supported dock layout.');
   if(![x,y].every(Number.isInteger))return fail('Select a coastal water tile for the ship center.');
   if(dockRecords(world).length>=SHIPYARD.max||dockRecords(world).filter(d=>d.owner===owner).length>=SHIPYARD.perOwner)return fail('Shipyard limit: four per scout, eight per campaign.');
@@ -96,6 +97,7 @@ export function recallShipError(world,ship,people=[],keepYard=false) {
   if(ship.elapsed<SHIP.duration)return 'Wait for deployment to finish before recalling it.';
   const pier=dockRects(ship)[1];
   if(!keepYard&&pier&&[...people,...(world.tanks||[]).filter(v=>!v.destroyed),...(world.logistics?.recyclers||[]).filter(v=>!v.destroyed)].some(p=>p.body!=='aircraft'&&p.body!=='ship'&&p.life!=='disabled'&&rectanglesOverlap(pier,{x:p.x,y:p.y,w:.84,h:.84,angle:0})))return 'Clear all units from the offshore dock before recalling it.';
+  if(isCarrier(ship)&&[...(world.airbases||[]),...(world.ships||[]).filter(s=>s.aircraft)].some(b=>!['destroyed','vacant'].includes(b.aircraft.state)&&(b.id===ship.id||b.aircraft.baseId===ship.id)))return 'Recover or lose the assigned aircraft before retiring this carrier.';
   if(ship.cargo)return 'Unload the vehicle before recalling this ship.';
   if(ship.occupant)return 'Disembark before recalling the ship and dock.';
   if(ship.launchRemaining>0)return 'Wait for the missile launch to finish.';
@@ -158,12 +160,12 @@ export function boardingPoint(world,ship,buildings=[],near=null) {
   return points.filter(p=>canStand(world,buildings,p.x,p.y)).sort((a,b)=>Math.hypot(a.x-near.x,a.y-near.y)-Math.hypot(b.x-near.x,b.y-near.y))[0]||dock;
 }
 export function sailStep(world,ship,steer,throttle,dt) {
-  if(ship.ramp||ship.launchRemaining>0)return false;
+  if(deckLocked(world,ship)||ship.ramp||ship.launchRemaining>0)return false;
   const steps=Math.max(1,Math.ceil(dt/.025));let changed=false;
   for(let i=0;i<steps;i++) {
-    const step=dt/steps,angle=ship.angle+steer*SHIP.turnSpeed*step;
+    const step=dt/steps,angle=ship.angle+steer*(isCarrier(ship)?CARRIER.turnSpeed:SHIP.turnSpeed)*step;
     if(steer&&canSail(world,ship,ship.x,ship.y,angle)){ship.angle=Math.atan2(Math.sin(angle),Math.cos(angle));changed=true;}
-    const speed=throttle>0?SHIP.speed:SHIP.reverse;
+    const speed=throttle>0?(isCarrier(ship)?CARRIER.speed:SHIP.speed):(isCarrier(ship)?CARRIER.reverse:SHIP.reverse);
     const x=ship.x+Math.sin(ship.angle)*throttle*speed*step,y=ship.y-Math.cos(ship.angle)*throttle*speed*step;
     if(throttle&&canSail(world,ship,x,y,ship.angle)){ship.x=x;ship.y=y;changed=true;}
   }

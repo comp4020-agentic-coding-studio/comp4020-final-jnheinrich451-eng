@@ -173,7 +173,7 @@ battles on the configured shared CPU and 256 MB server.
 | --- | --- |
 | Opponents | Agreed: cooperative players versus computer-controlled aliens. PvP and friendly weapon damage are outside the present direction. |
 | Player role | Agreed: directly control one body or facility at a time; switch between fighting, operating and building. Whole-army command is not required. |
-| World scope | Agreed target: a large explorable planet with a territory overview and local battles. Current locally: isolated host-owned saves retaining teammates' changes, plus the preserved legacy world. Owner exit saves and closes the room. Exact planet scale remains open. |
+| World scope | Agreed target: a large explorable planet with a territory overview and local battles. Current locally: isolated host-owned saves retaining teammates' changes, plus the preserved legacy world. Owner exit saves and closes the room. The first expanded field is 512 by 384 with a rotatable campaign globe; ground travel retains closed rectangular boundaries. See docs/PLANET_EXPANSION.md. |
 | Building | Current locally, 12 October: large infrastructure requires a completed friendly core or factory within construction range. Tanks, sentries, recyclers and rails retain global deployment subject to terrain/footprints/caps. Conquest is not a permission gate. Facility HP and numeric armor now apply to ground claws and acid; friendly fire remains disabled. |
 | Forces | Current: ground weapons/vehicles, artillery, missiles, gunship, submarine and first bomber. More force types do not by themselves complete the game. |
 | Long-term progress | Current locally: alert station, mortar and environment modifier, with safe additive placement in named campaigns. HE conquest is permanent; red regions disappear and surviving defenders remain. The modifier's ground coating clears. No recapture or regeneration. Settlements and planet victory remain ahead. |
@@ -648,3 +648,44 @@ approach includes a visual dive and pull-out; collision, speed and flak rules st
 2D. Manual LMB drops also support the four payloads. Fire/gas reuse bounded hazard
 fields, and the larger heavy-bomb crater is artwork rather than extra damage area.
 The author excluded bomber strafing. Carrier operations remain future work.
+
+### Shared airfields and cruise checkpoint (16 October)
+
+See [Shared airfields and cruise](docs/AIR_TRAFFIC.md). Beside a parked aircraft,
+Launch to cruise starts a saved unmanned patrol; E still boards. Air support
+assigns bomber strikes from cruise and recalls to a chosen free friendly runway.
+Aircraft in flight retain fleet capacity; empty bases enable cross-map transport.
+This is the shared landing foundation for carriers, which remain future work.
+
+### Aircraft carrier checkpoint (17 October)
+
+See [Aircraft carrier](docs/AIRCRAFT_CARRIER.md). One movable deck reuses shared
+airfields, cruise, bomber orders and visitor landing. Stop to launch or recover;
+return reservations prevent sailing away beneath an incoming aircraft. A compact
+3 x 5 hull carries defensive side guns and a 120 GND store for paid hull and
+aircraft repairs, refilled at docks. Shipyard assembly costs 100 GND / 60 seconds.
+Carrier loss preserves airborne aircraft identities and attempts diversion; deck
+aircraft are lost. This locally implemented stage supersedes the earlier carrier
+deferral. More deck slots, dimensions and balance remain playtest decisions.
+
+### Orbital weapons checkpoint (17 October)
+
+The approved [orbital roster](docs/ORBITAL_STRIKES.md) proceeds through walking
+HE, an incendiary curtain, gas seeding and an optional cutting beam. Only walking
+HE is implemented in this stage. V or Deploy > Strike > S-02 opens its planner.
+A global committed target, travel delay, shared ORB payment and shared recovery
+time distinguish orbital intervention from repeated local artillery. Five rows
+advance along a selected direction; every teammate sees the call and countdown.
+Named campaigns preserve impact progress and permanent conquest across restart.
+Balance and visuals need playtesting before the next payload.
+
+### Completed orbital roster checkpoint (17 October)
+
+The next authorized stage adds incendiary curtain, gas seeding and cutting beam
+to the same V planner, superseding the HE-only checkpoint above. Fire divides
+ground approaches; gas attracts enemies and spends a shared finite kill budget;
+the beam sweeps a chosen line and damages hostile structures at its moving
+contact. Fire/gas footprints must stay on land. All four share ORB spending and
+recovery, with committed targets and progress preserved through saves. See the
+[orbital stage brief](docs/ORBITAL_STRIKES.md) for provisional prices, limits and
+validation. Review this small roster before expanding maps and refining AI.

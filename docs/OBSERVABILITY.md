@@ -50,11 +50,27 @@ every bullet impact and every enemy kill are deliberately outside the event set.
 
 ## Rehearsal
 
-Locally, watch `pnpm dev`. After an approved deployment, watch:
+Locally, watch the terminal running `pnpm dev`. For the deployed app, open a
+terminal in the repository with access to the Fly account and run:
 
 ```sh
 mise exec -- flyctl logs -a comp4020-final-jnheinrich451-eng
 ```
+
+Keep that terminal open while participants use the deployed URL; Ctrl+C stops
+watching logs without stopping the game. This reads the deployed server's
+stdout, not the local development server. No game code change is needed to
+watch the stream.
+
+Browser developer tools (F12) serve a different purpose: **Console** shows
+browser-side messages and errors, and **Network** shows that browser's requests
+and event stream. They do not expose the server's shared activity log.
+
+Read `name`/`actorId`, `campaignId`, `action`, `outcome` and `reason` together to
+explain who did what and why a submitted action was refused. Movement and
+rapid-fire summaries arrive in five-second groups, so these updates can appear
+in batches. A disabled interface button sends no request and therefore produces
+no server rejection event; inspect its displayed reason and browser state too.
 
 Two classmates start from the URL in separate profiles. One registers a Demo
 account, activates it in the private simulated inbox, selects Caldera, creates

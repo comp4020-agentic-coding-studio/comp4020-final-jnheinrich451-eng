@@ -1,7 +1,8 @@
 # Frontier: process overview
 
-Stage checkpoint updated 11 October 2026, following the Crit 8 account of
-5 October. This account was assembled with
+Stage checkpoint updated 18 October 2026 for Crit 10, following the earlier
+Crit 8 and Crit 9 accounts. Dated sections below retain their historical evidence;
+the latest checkpoint is at the end. This account was assembled with
 agent assistance from the development conversation, implementation and stage
 records. File links show present evidence; they do not establish commit chronology.
 
@@ -265,3 +266,91 @@ browser scenarios exercise both routes. Stage notes and previews are retained in
 [Bridge builder](docs/BRIDGE_BUILDER.md) and
 [Armored transport](docs/ARMORED_TRANSPORT.md). Local checks and later CI deployment
 are distinct evidence; no new author playtest or Fly capacity result is inferred.
+
+## Support networks, planetary space and Crit 10, 18 October
+
+The next stages exposed dependencies between mechanics. A weapon needed somewhere
+to land, repair and be replaced; a recycler needed a usable route and somewhere
+to unload. The author directed these relationships through playtests, rather than
+adding each vehicle as an isolated feature. The
+[support network](docs/SUPPORT_NETWORK_STAGE.md) now separates two campaign-wide
+budgets: local salvage processing supplies ground construction/repair, while
+rocket shipments supply orbital delivery. All teammates and cores share each
+pool. Migration preserved existing orbital credit without duplicating it into
+the new ground balance.
+
+The bridge was a useful correction to both mechanics and explanation. Screenshots
+showed that uneven banks made precise endpoints awkward, so the planner gained a
+bounded "find shore ahead" search and an explicit route preview. A later grey
+Build button looked like the same bug, but the actual restriction was insufficient
+ground supplies despite available orbital credit. The response was to expose the
+correct budget and shortfall, not remove the admission rule. Deployment cards now
+show both applicable prices and offer local construction only within a completed
+support area. [Bridge rules](docs/BRIDGE_BUILDER.md) and
+[UI decisions](docs/UI_REFINEMENT.md) preserve the distinction.
+
+Aircraft work followed the same pattern. A departed pilot left an airborne bomber
+occupying its base and blocking recovery. That report led to unattended-aircraft
+recovery, then explicit cruise and shared runway reservations. An aircraft keeps
+one identity while landing at another base or the
+[carrier](docs/AIRCRAFT_CARRIER.md); a free runway is distinct from permission to
+manufacture another aircraft. The carrier reuses flight, docking and repair rules.
+[Air traffic](docs/AIR_TRAFFIC.md) and [bomber missions](docs/AUTOMATIC_BOMBER.md)
+record loss, return and saved-order behavior.
+
+Reusable shell behavior supported the [orbital roster](docs/ORBITAL_STRIKES.md):
+walking HE, incendiary curtain, gas seeding and a cutting beam. A request commits
+one shared order and one payment. Saved impact flags and hazard reservations
+prevent reloading or retrying from duplicating a strike. Cosmetic descent,
+fragments and pod unfolding remain browser work; the server owns damage, costs
+and completion. This reuse reduced separate rule sets without making different
+weapons tactically identical.
+
+Large facilities then made the battlefield feel cramped. The author selected a
+larger seamless field and globe overview before spherical travel. The
+[planet stage](docs/PLANET_EXPANSION.md) expands terrain to 512 by 384 while keeping
+old coordinates and backing up the complete save before remapping floor indices.
+The globe navigates the camera; it does not teleport units or wrap map edges.
+Entity caps remain unchanged. Regression checks also caught an indirect change:
+using the new map centre would lengthen the first orbital strike's delay. Its
+starting reference now remains stable, and strike planning keeps a readable
+regional view.
+
+## Current evidence and what the crit still needs
+
+The latest local validation passed type checking and **425 tests across 63 files**.
+Coverage includes account/permission boundaries, shared construction races,
+persistence, resource conservation and accepted attacks across restart. A new
+integration case builds on two distant continents, observes both results through
+both clients' event streams and reopens the saved campaign. Static terrain is
+absent from those live messages. Eleven planet/orbital browser scenarios and two
+deployment-funding cases passed, including desktop and phone controls; screenshots
+were inspected. These are automated local checks, not independent player feedback.
+
+A short four-client idle probe used about 103 MiB server RSS with a roughly
+397 KB initial response and 2.6 KB live snapshot. It is not a populated-combat
+benchmark or evidence that four busy players fit the Fly limit. The existing
+one-shared-CPU/256 MB deployment configuration is unchanged. More distant active
+fronts and balance testing remain future work.
+
+For Crit 10, [the logging guide](docs/OBSERVABILITY.md) distinguishes the deployed
+server's stdout, viewed with `flyctl logs`, from the browser's F12 console. Logs
+identify actors, rooms, accepted/denied actions and delayed combat consequences;
+rapid activity is summarised. A disabled button sends no request, so logs alone
+cannot explain every interface problem. The [reflection](reflections/crit-10.md)
+is drafted from the author's actual identity and resource-gate playtests.
+The two-classmate URL-only narration exercise and deployed latency observations
+still need to happen; no results are invented here.
+
+This checkpoint groups the accumulated reviewed work into a real commit instead
+of reconstructing an artificial sequence of earlier commits. Pushing main runs
+[the existing checks and Fly deployment](.github/workflows/checks.yml). Its result
+and the live site must be checked separately from local test success. The personal
+introduction-video edits are outside this release. The next gameplay work is
+populating and balancing the new regions and refining AI, rather than increasing
+the weapon roster again.
+
+Release preparation reran `pnpm check` (425 tests plus type checking), the
+Crit 10 evidence checker and nine additional desktop/phone browser scenarios
+covering cruise, bridges, carrier deck operations and funded ship replacement.
+All passed before the commit and push.

@@ -1,3 +1,5 @@
+import { ORBITAL, ORBITAL_PAYLOADS } from './orbital.js';
+import { CARRIER } from './carrier.js';
 // Deployment catalogue: client-only asset codes, tab order and spec sheets.
 // Codes never reach the server or saves; requests keep using each asset's kind.
 // Every number below is read from the module that owns it, never copied here.
@@ -35,6 +37,11 @@ export const ASSETS = Object.freeze([
     specs: [['Range', `${ARTILLERY_HE.minRange}–${ARTILLERY_HE.range} t`], ['Shells', 'HE · Fire · Gas'], ['Reload', `${ARTILLERY_HE.cooldown / 1000} s`]] },
   { code: 'S-01', tab: 'strike', card: 'missile-card', kind: 'missile', cost: 'missile', hp: 'missile', name: 'Missile battery', footprint: `${MISSILE.size} × ${MISSILE.size} fixed`,
     specs: [['Strike', `${MISSILE.count} missiles · ${MISSILE.width} × ${MISSILE.height} area`], ['Range', `${MISSILE.minRange}–${MISSILE.range} t`], ['Reload', `${MISSILE.reload} s after last launch`]] },
+  ...Object.entries(ORBITAL_PAYLOADS).map(([payload, profile], index) => ({
+    code: 'S-0' + (index + 2), tab: 'strike', card: index ? 'orbital-' + payload.toLowerCase() + '-card' : 'orbital-card',
+    kind: 'orbitalStrike', payload, name: profile.label, footprint: 'Orbital strike',
+    specs: [['Recovery', profile.cooldown + ' s']], placement: 'Choose a target on the map', limit: 'One shared orbital weapon',
+  })),
   { code: 'L-01', tab: 'logistics', card: 'factory-card', kind: 'factory', cost: 'factory', hp: 'factory', name: 'Factory', footprint: '2 × 2',
     specs: [['Support', `${CONSTRUCTION.radius} t construction radius`], ['Orders', `${Math.round((1 - ECONOMY.factoryDiscount) * 100)}% cheaper · ${ECONOMY.factoryTime} s build`]] },
   { code: 'L-02', tab: 'logistics', card: 'uplink-card', kind: 'uplink', cost: 'uplink', hp: 'uplink', name: 'Launch station', footprint: '3 × 3',
@@ -48,6 +55,7 @@ export const ASSETS = Object.freeze([
   { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'ship', cost: 'submarine', name: 'Missile submarine', footprint: '2 x 4 hull / shipyard berth',
     specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Reload', `${SUBMARINE.reload} s`]], limit: '1 per dock' },
   { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'ship', cost: 'transport', name: 'Armored transport', footprint: '2 x 4 hull / shipyard berth', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
+  { code:'N-04',tab:'navy',card:'carrier-card',kind:'ship',cost:'carrier',name:'Aircraft carrier',footprint:'3 x 5 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
   { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Airbase + bomber', footprint: `${AIR.width} × ${AIR.height}`,
     specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Load', '2 carpets or 1 heavy bomb'], ['Speed', `${AIR.minSpeed}–${AIR.maxSpeed} t/s`], ['Rearm', `${AIR.rearm} s`]] },
   { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'airbase', cost: 'aircraft', name: 'Orbital attack jet', footprint: 'Delivered to an airbase',
@@ -56,7 +64,7 @@ export const ASSETS = Object.freeze([
 
 export const assetsIn = tab => ASSETS.filter(a => a.tab === tab);
 export const assetByCard = id => ASSETS.find(a => a.card === id);
-export const orbitalPrice = asset => asset.cost ? quote(asset.cost) : 0;
+export const orbitalPrice = asset => asset.payload ? ORBITAL_PAYLOADS[asset.payload].cost : asset.cost ? quote(asset.cost) : 0;
 // Factory orders exist only for these kinds (see deliveryData in app.js and the server).
 const FACTORY_KINDS = LOCAL_KINDS;
 export const factoryPrice = asset => asset.cost && asset.placement === undefined && FACTORY_KINDS.includes(asset.kind) ? quote(asset.cost, true) : null;
@@ -68,6 +76,7 @@ export function specRows(asset) {
   if (asset.limit) rows.push(['Limit', asset.limit]);
   rows.push(['Placement', asset.placement || 'Global orbital; local builds need nearby friendly support']);
   const price = orbitalPrice(asset), local = factoryPrice(asset);
-  rows.push(['Cost', price ? `${price} ORB orbital${local ? ` · ${local} GND local` : ''}${asset.costNote ? ` · ${asset.costNote}` : ''}` : 'Free']);
+  if(asset.kind==='orbitalStrike')rows.push(['Cost',ORBITAL_PAYLOADS[asset.payload].cost + ' ORB']);
+  else rows.push(['Cost', price ? `${price} ORB orbital${local ? ` · ${local} GND local` : ''}${asset.costNote ? ` · ${asset.costNote}` : ''}` : 'Free']);
   return rows;
 }

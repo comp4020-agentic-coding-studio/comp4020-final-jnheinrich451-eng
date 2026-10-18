@@ -159,3 +159,9 @@ and active fire/gas fields. Process-evidence and whitespace checks also passed.
 
 The author approved release for online playtesting. This stage uses the normal
 main-branch checks and Fly deployment workflow; balancing remains provisional.
+
+The subsequent [shared-airfield stage](AIR_TRAFFIC.md) adds intentional cruise and
+cross-base recovery. Parked automatic sorties retain return/rearm behavior;
+strikes assigned from cruise resume cruise, including when empty or unable to
+release. Recall explicitly chooses a free runway. This supersedes fixed-home
+parking without changing payloads or manual flight physics.

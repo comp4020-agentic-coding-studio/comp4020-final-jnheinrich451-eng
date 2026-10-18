@@ -1,5 +1,6 @@
 import { createWorld } from './world.js';
 import { expandWorld } from './expansion.js';
+import { expandPlanet } from './planet-world.js';
 
 const $ = id => document.getElementById(id);
 let state, selectedPlanet = null;
@@ -17,7 +18,7 @@ updateMotion();
 
 // A one-time painting of the existing terrain, animated only by the browser.
 // This globe previews a template, never another player's saved world/progress.
-const terrain = expandWorld(createWorld());
+const terrain = expandPlanet(expandWorld(createWorld()));
 const preview = document.createElement('canvas'); preview.width = terrain.width; preview.height = terrain.height;
 const context = preview.getContext('2d'), palette = ['#254c55', '#b7ad7c', '#769365', '#606e61', '#8c9987'];
 for (let y = 0; y < terrain.height; y++) for (let x = 0; x < terrain.width; x++) {

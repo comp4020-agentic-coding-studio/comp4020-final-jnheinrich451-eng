@@ -3,13 +3,13 @@ import { turnTurret, angleDelta } from './turret.js';
 export const NAVAL_GUN = Object.freeze({range:8,halfArc:80*Math.PI/180,turnSpeed:Math.PI*1.5,tolerance:4*Math.PI/180});
 export const MAIN_MOUNTS = Object.freeze([{id:'fore',y:-1.05,key:'turret'},{id:'aft',y:1.05,key:'aftTurret'}]);
 export const SIDE_MOUNTS = Object.freeze([{id:'port',x:-1.02,center:-Math.PI/2,key:'portTurret'},{id:'starboard',x:1.02,center:Math.PI/2,key:'starboardTurret'}]);
-export const mainMounts = ship => ship?.kind==='transport' ? MAIN_MOUNTS.slice(0,1) : MAIN_MOUNTS;
+export const mainMounts = ship => ship?.kind==='carrier' ? [] : ship?.kind==='transport' ? MAIN_MOUNTS.slice(0,1) : MAIN_MOUNTS;
 export const mainReload = (ship,id) => ship.mainReloads?.[id] ?? ship.reload ?? 0;
 export const readyMainMounts = ship => mainMounts(ship).filter(m=>mainReload(ship,m.id)<=.001);
 export function tickMainReloads(ship,dt) {
  const before=mainMounts(ship).map(m=>mainReload(ship,m.id));
  ship.mainReloads=Object.fromEntries(mainMounts(ship).map((m,i)=>[m.id,Math.max(0,before[i]-dt)]));
- ship.reload=Math.max(...Object.values(ship.mainReloads)); // legacy summary, not a firing gate
+ ship.reload=Math.max(0,...Object.values(ship.mainReloads)); // legacy summary, not a firing gate
  return before.some(v=>v>0);
 }
 export function mountPoint(ship,x,y) {const c=Math.cos(ship.angle),s=Math.sin(ship.angle);return{x:ship.x+x*c-y*s,y:ship.y+x*s+y*c};}

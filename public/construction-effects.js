@@ -8,8 +8,9 @@ const smooth=n=>{n=clamp(n);return n*n*(3-2*n);};
 export function assemblyStage(remaining,duration,advance=0){
   const active=remaining>0;
   const time=active?Math.min(duration-.001,Math.max(0,duration-remaining+Math.min(.1,Math.max(0,advance)))):duration;
-  const reveal=active?smooth((time-POD.unfold)/(duration-POD.unfold)) :1;
-  return {active,time,reveal,phase:!active?'READY':time<POD.impact?'INBOUND':time<POD.unfold?'LANDED':'ASSEMBLING'};
+  const opened=POD.unfold+POD.panelDuration;
+  const reveal=active?smooth((time-opened)/Math.max(.001,duration-opened)) :1;
+  return {active,time,reveal,phase:!active?'READY':time<POD.impact?'INBOUND':time<POD.unfold?'LANDED':time<opened?'UNFOLDING':'DEPLOYING'};
 }
 
 // Reuses core capsule art, with short cosmetic panels inside the reserved footprint.
@@ -39,7 +40,7 @@ export class ConstructionEffects extends CoreEffects {
       if(!reduced){c.translate(fall*4*T,-fall*7*T);c.strokeStyle='#ffc07999';c.lineWidth=.14*T;c.beginPath();c.moveTo(0,0);c.lineTo(fall*T,-fall*2*T);c.stroke();c.scale(1+fall*.6,1+fall*.6);}
       this.box(c,0);
     }else{
-      const open=smooth((t-POD.unfold)/.85),edge=Math.min(size*.46,.85)*T;
+      const open=smooth((t-POD.unfold)/POD.panelDuration),edge=Math.min(size*.46,.85)*T;
       for(let side=0;side<4;side++){
         c.save();c.rotate(side*Math.PI/2);c.translate(0,-edge*open);
         c.fillStyle='#607778';c.fillRect(-T*.32,-T*.08,T*.64,T*.16);
@@ -47,7 +48,7 @@ export class ConstructionEffects extends CoreEffects {
       }
       if(open<1){c.save();c.globalAlpha=1-open;this.box(c,t-POD.impact);c.restore();}
       if(!reduced&&t-POD.impact<.85)this.dust(c,0,0,t-POD.impact,.85,8,2,.5);
-      if(drones&&t>=POD.unfold)this.workers(c,world,point,size,stage,reduced);
+      // Orbital cargo arrives assembled; only factory builds use worker drones.
       // A steady progress edge remains visible with reduced effects.
       c.fillStyle='#17373c';c.fillRect(-size*T/2,(size/2+.14)*T,size*T,.06*T);
       c.fillStyle='#aaddc0';c.fillRect(-size*T/2,(size/2+.14)*T,size*T*stage.reveal,.06*T);

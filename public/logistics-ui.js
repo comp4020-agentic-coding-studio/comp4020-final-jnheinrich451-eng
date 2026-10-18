@@ -45,7 +45,6 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     $('cargo-launch').textContent=station?.cooldown>0?'Rocket returns / '+Math.ceil(station.cooldown)+'s':'Launch cargo to orbit';
     $('logistics-rebuild').disabled=!allowed||!$('logistics-repair').value;
     $('logistics-cancel').disabled=!allowed||!$('logistics-order').value;
-    options('construction-method',[['orbital','Orbital / ORB / rapid drop'],...supportSources(world).map(f=>[f.id,`Local ${f.kind} ${f.x}:${f.y} / GND / 25% cost / 60s`])]);
   }
   $('uplink-select').onchange=()=>update();
   return {update,open};

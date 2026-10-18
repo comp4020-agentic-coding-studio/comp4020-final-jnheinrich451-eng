@@ -128,7 +128,7 @@ it('completes a saved rocket once and drops unlaunched cargo when the station is
 it('retains deployed identity and safe flooring when the last core is destroyed, including its offline owner',async()=>{
   const f=await fixture((_db,w,l)=>{w.terrain[27*128+37]=3;l.durability['core:friendly']={health:0,max:500,armor:2};});try{
     await f.connect();await expect.poll(async()=>(await f.state()).cores.length).toBe(0);
-    const s=await f.state(1);expect(s.me.body).toBe('robot');expect(s.logistics.floors).toContain(27*128+37);expect(canStand(s.world,[],37.5,27.5)).toBe(true);
+    const s=await f.state(1);expect(s.me.body).toBe('robot');expect(s.logistics.floors).toContain(27*s.world.width+37);expect(canStand(s.world,[],37.5,27.5)).toBe(true);
     await f.restart();expect((await f.state(1)).me.body).toBe('robot');expect((await f.state()).cores).toHaveLength(0);
   }finally{await f.close();}
 });
@@ -206,9 +206,10 @@ it('losing an occupied recycler disables its driver and drops its cargo, includi
   }finally{await f.close();}
 });
 
-it('admits one paid bridge from a boarded builder, locks construction, and resumes saved unfolding',async()=>{
+it('admits one paid bridge across uneven shores, locks construction, and resumes saved unfolding',async()=>{
   const f=await fixture((db,w,l)=>{
     for(let y=0;y<w.height;y++)for(let x=35;x<=40;x++)w.terrain[y*w.width+x]=0;
+    w.terrain[41*w.width+35]=1;w.terrain[41*w.width+36]=1;w.terrain[43*w.width+40]=2;
     l.recyclers=[{id:'builder',kind:'builder',owner:'a',x:33.5,y:42.5,remaining:0,cargo:0,path:[],angle:0}];
   });try{
     await f.connect();const data={from:{x:34,y:42},to:{x:41,y:42}};

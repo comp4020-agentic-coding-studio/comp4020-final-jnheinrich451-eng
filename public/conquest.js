@@ -1,3 +1,4 @@
+import { airRecords } from './air-traffic.js';
 import { ANTI_AIR } from './anti-air.js';
 import { LASER } from './laser-tower.js';
 import { CONTAMINATOR } from './contaminator.js';
@@ -67,7 +68,7 @@ export function damageSites(sites, x, y, profile, now, blastDamage) {
 
 function arrivalPoints(site, world, buildings, people, enemies, blocked, origin = siteCenter(site)) {
   const center = origin, points = [];
-  const vehicles = [...(world.tanks || []), ...(world.ships || []), ...(world.airbases || []).map(b => b.aircraft).filter(Boolean)];
+  const vehicles = [...(world.tanks || []), ...(world.ships || []), ...airRecords(world).map(b => b.aircraft).filter(p => p && p.state !== 'vacant')];
   const occupied = people.concat(vehicles);
   for (let i = 0; i < 16; i++) {
     const angle = i * Math.PI / 8, x = Math.floor(center.x + Math.cos(angle) * 5) + .5, y = Math.floor(center.y + Math.sin(angle) * 5) + .5;

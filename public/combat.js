@@ -1,3 +1,5 @@
+import { orbitalProfile, orbitalHazard, orderOrbital, tickOrbital } from './orbital.js';
+import { makeOrbitalField, landOrbitalField } from './orbital-fields.js';
 import { rampSentryStep } from './ramp-sentry.js';
 import { addRemains, facilityTargets, facilityPoint, facilityDistance, hurtFacility } from './logistics.js';
 import { tickAntiAir } from './anti-air.js';
@@ -90,8 +92,19 @@ export function createCombat(world, saved = null, auditContext = null) {
     for (const entry of saved.cooldowns) cooldowns.set(...entry);
     for (const entry of saved.sentryMounts) sentryMounts.set(...entry);
   }
+  fields=fields.filter(f=>!f.orbital).concat(world.logistics?.orbitalFields||[]);
+  serial=Math.max(serial,...fields.map(f=>f.id));
+  function orbitalOrder(data,caller){
+    const result=orderOrbital(world,data,caller,plan=>orbitalHazard(plan.payload)?fieldCapacityError(fields,salvos,plan.payload,plan.box.width*plan.box.height):null);
+    if(result.order&&!result.duplicate&&orbitalHazard(result.order.payload)){
+      const field=makeOrbitalField(result.order,++serial,now);result.order.fieldId=field.id;
+      fields.push(field);(world.logistics.orbitalFields ||= []).push(field);
+    }
+    return result;
+  }
+  const rollbackOrbital=id=>{fields=fields.filter(f=>f.id!==id);};
   const checkpoint = () => JSON.parse(JSON.stringify({ version: 1, serial, now, sites: world.sites,
-    enemies, shells, status, health, kills, jets, salvos, fields, barrages, acidShells, flakShells, causes: [...causes],
+    enemies, shells, status, health, kills, jets, salvos, fields:fields.filter(f=>!f.orbital), barrages, acidShells, flakShells, causes: [...causes],
     navalCooldown, navalStatus, objective, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
   const snapshot = () => ({ sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
     barrages: barrages.map(b => ({ ...b, ...(b.profile?{profile:{...b.profile}}:{}), box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: enemies.map(({ path, reroute, lurePath, ...e }) => e), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
@@ -177,6 +190,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     return null;
   }
   function navalSalvo(ship,target,mode='salvo') {
+    if(ship.kind==='carrier')return 'The carrier has defensive side guns only.';
     if(isSubmarine(ship))return 'Use the submarine missile tubes.';
     if(!operational(ship))return 'This ship cannot fire.';
     if(!['volley','salvo'].includes(mode))return 'Choose volley or salvo.';
@@ -273,6 +287,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     let expiredSector = false;
     for (const f of fields) expiredSector = tickField(f, dt) || expiredSector;
     fields = fields.filter(keepField);
+    if(world.logistics?.orbitalFields)world.logistics.orbitalFields=fields.filter(f=>f.orbital);
     if (now - lastAutomaticSummary >= 5000) {
       for (const detail of automatic.values()) events.push({ event: 'defense.activity', ...detail });
       automatic.clear(); lastAutomaticSummary = now;
@@ -419,6 +434,18 @@ export function createCombat(world, saved = null, auditContext = null) {
     }
     for(const ship of world.ships||[])if(rampSentryStep(world,ship,enemies,buildings,dt,shoot))changed=true;
     let hazardsLanded = false;
+    changed = tickOrbital(world,dt,(order,point)=>{
+      const profile=orbitalProfile(order);
+      if(orbitalHazard(order.payload)){
+        landOrbitalField(fields.find(f=>f.id===order.fieldId),point,order,now);hazardsLanded=true;
+        impact(order.payload,point.x,point.y,[],1.2,profile.craterSize,true);return;
+      }
+      const weapon=order.payload==='BEAM'?'BEAM':'HE',projectile={id:++serial,weapon},hits=[];
+      causes.set(projectile.id,{...order.context,actorId:order.context?.actorId||order.callerId,sourceId:'orbital',projectileId:projectile.id,weapon});
+      for(const e of enemies)if(e.hp>0){const amount=blastDamage(Math.hypot(e.x-point.x,e.y-point.y),profile);if(amount)hits.push(damage(e,amount));}
+      hits.push(...damageSites(world.sites,point.x,point.y,profile,now,blastDamage));
+      objectiveHits(projectile,hits);impact(weapon,point.x,point.y,hits,profile.radius,profile.craterSize);causes.delete(projectile.id);
+    }) || changed;
     for (const barrage of barrages) {
       barrage.age += dt;
       for (const m of barrage.missiles) if (!m.landed && barrage.age >= m.launch + m.flight) {
@@ -506,6 +533,7 @@ export function createCombat(world, saved = null, auditContext = null) {
     }
     shells = shells.filter(s => s.remaining > 0);
     fields = fields.filter(keepField);
+    if(world.logistics?.orbitalFields)world.logistics.orbitalFields=fields.filter(f=>f.orbital);
     for(const v of [...(world.tanks||[]),...(world.ships||[])]) if(v.lossPending){delete v.lossPending;impact('HE',v.x,v.y,[],v.berthX!==undefined?2:1.2,2.2,true);}
     for(const e of enemies)if(e.hp<=0&&tileAt(world,e.x,e.y)!==0)addRemains(world.logistics,e,epoch+':'+e.id);
     kills += enemies.filter(e => e.hp <= 0).length; enemies = enemies.filter(e => e.hp > 0);
@@ -547,5 +575,5 @@ export function createCombat(world, saved = null, auditContext = null) {
     shots.push({id,weapon:'APCR',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});
     plane.rounds--;cooldowns.set(key,now+JET.cooldown);return null;
   }
-  return { checkpoint, drainEvents, strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
+  return { checkpoint, drainEvents, orbitalOrder, rollbackOrbital, strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
 }

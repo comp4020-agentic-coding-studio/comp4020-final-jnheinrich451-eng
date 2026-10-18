@@ -1,5 +1,7 @@
 // Shared footprint for orbital cargo: a square center and four hinged panels.
 export const POD = Object.freeze({ impact: 1.35, unfold: 1.75, panelDuration: .85, stagger: .22, exit: 3.65, duration: 4.5 });
+// Compact facility cargo opens its four walls together, then deploys in a second.
+export const CARGO_POD_DURATION = POD.unfold + POD.panelDuration + 1;
 export function podCells(x, y, size = 3, length = 4) {
   const cells = [];
   for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) cells.push({ x: x + dx, y: y + dy, panel: -1, role: 'core' });

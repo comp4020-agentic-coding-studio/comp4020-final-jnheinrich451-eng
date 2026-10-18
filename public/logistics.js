@@ -1,12 +1,13 @@
-import { POD } from './pod.js';
+import { ORBITAL } from './orbital.js';
+import { POD, CARGO_POD_DURATION } from './pod.js';
 import { dockRecords } from './shipyard.js';
 // All balance values for the first conquest economy live here. Server-owned;
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
   rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
-export const COSTS = Object.freeze({ core: 120, sentry: 25, tank: 100, ship: 240,
-  submarine: 280, transport: 200, airbase: 300, artillery: 180, missile: 220, outpost: 80, factory: 150,
+export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, tank: 100, ship: 240,
+  submarine: 280, transport: 200, carrier:400, airbase: 300, artillery: 180, missile: 220, outpost: 80, factory: 150,
   uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
 export const LOGISTICS_SIZE = Object.freeze({ outpost: 2, factory: 2, uplink: 3, recycler: 1, builder: 1 });
 export const FACILITY_HP = Object.freeze({ core: 500, sentry: 140, artillery: 350,
@@ -19,7 +20,7 @@ export const facilityCenter = f => ({ x: f.x + (LOGISTICS_SIZE[f.kind] || 1) / 2
 export const quote = (kind, local = false) => Math.ceil(COSTS[kind] * (local ? ECONOMY.factoryDiscount : 1));
 export function usableExplosives(world) {
   return (world.tanks || []).some(t => !t.destroyed) || (world.artillery || []).some(g => !g.remaining)
-    || (world.ships || []).some(s => !s.destroyed) || (world.airbases || []).some(b => !b.destroyed && b.aircraft?.state !== 'destroyed');
+    || (world.ships || []).some(s => !s.destroyed) || (world.airbases || []).some(b => b.aircraft && !['destroyed','vacant'].includes(b.aircraft.state));
 }
 export function emergencyTankError(world) {
   if (usableExplosives(world)) return 'The room still has an explosive weapon platform. Recover or use it first.';
@@ -135,4 +136,4 @@ export function unloadSalvage(world,truck,id,dt){
  }
  const amount=credit(l,Math.min(truck.cargo,ECONOMY.processRate*dt),'groundSupplies');truck.cargo-=amount;return amount;
 }
-export const orbitalDuration = kind => ['airbase','artillery','missile','shipyard'].includes(kind)?12:['factory','uplink','outpost'].includes(kind)?8:4.5;
+export const orbitalDuration = kind => CARGO_POD_DURATION;

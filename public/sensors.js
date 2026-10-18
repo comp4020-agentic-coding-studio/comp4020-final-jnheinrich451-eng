@@ -1,3 +1,4 @@
+import { airRecords } from './air-traffic.js';
 import { raycast } from './raycast.js';
 import { angleDelta, turnTurret } from './turret.js';
 
@@ -12,7 +13,7 @@ export function sensorContacts(world, people) {
     const tank = (world.tanks || []).find(v => !v.destroyed && v.occupant === p.id);
     const ship = (world.ships || []).find(v => !v.destroyed && v.occupant === p.id);
     if (ship?.kind === 'submarine' && ship.depth === 'submerged') return [];
-    const plane = (world.airbases || []).map(b => b.aircraft).find(v => v && v.occupant === p.id);
+    const plane = airRecords(world).map(b => b.aircraft).find(v => v && v.occupant === p.id);
     const physical = tank || ship || plane || p;
     return [{ id: p.id, targetId: tank ? 'vehicle:' + tank.id : ship ? 'ship:' + ship.id : plane ? 'aircraft:' + plane.id : p.id,
       x: physical.x, y: physical.y, ground: !ship && !plane && p.body !== 'aircraft' && p.body !== 'ship' }];

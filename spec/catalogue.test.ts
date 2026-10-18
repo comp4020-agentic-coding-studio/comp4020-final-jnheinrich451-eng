@@ -1,3 +1,4 @@
+import { ORBITAL_PAYLOADS } from '../public/orbital.js';
 import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { ASSETS, TABS, assetsIn, orbitalPrice, factoryPrice, specRows } from '../public/catalogue.js';
@@ -18,7 +19,7 @@ it('keeps catalogue cards and page markup in step', () => {
 });
 
 it('quotes prices from the shared economy table', () => {
-  for (const a of ASSETS) expect(orbitalPrice(a)).toBe(a.cost ? COSTS[a.cost as keyof typeof COSTS] : 0);
+  for (const a of ASSETS) expect(orbitalPrice(a)).toBe('payload' in a ? ORBITAL_PAYLOADS[a.payload as keyof typeof ORBITAL_PAYLOADS].cost : 'cost' in a && a.cost ? COSTS[a.cost as keyof typeof COSTS] : 0);
   const cannon = ASSETS.find(a => a.code === 'R-02')!, factory = ASSETS.find(a => a.code === 'L-01')!;
   expect(factoryPrice(cannon)).toBe(quote('artillery', true));
   expect(factoryPrice(factory)).toBe(quote('factory', true)); // factories can now be built by friendly local support

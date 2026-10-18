@@ -90,8 +90,8 @@ it('migrates a legacy world once, retaining the original terrain backup and cons
       app = createApp({ dataDir }); await app.close();
       const saved = new DatabaseSync(path.join(dataDir, 'world.sqlite'), { readOnly: true });
       const expanded = JSON.parse(saved.prepare('SELECT value FROM meta WHERE key=?').get('world')!.value as string);
-      expect([expanded.width, expanded.height]).toEqual([128, 96]);
-      for (let y = 0; y < 36; y++) expect(expanded.terrain.slice(y * 128, y * 128 + 48)).toEqual(old.terrain.slice(y * 48, (y + 1) * 48));
+      expect([expanded.width, expanded.height]).toEqual([512, 384]);
+      for (let y = 0; y < 36; y++) expect(expanded.terrain.slice(y * expanded.width, y * expanded.width + 48)).toEqual(old.terrain.slice(y * 48, (y + 1) * 48));
       expect(saved.prepare('SELECT value FROM meta WHERE key=?').get('world-before-expansion-v2')!.value).toBe(original);
       expect(saved.prepare('SELECT * FROM rails').all()).toMatchObject([{ x: 20, y: 13, shape: 'EW', owner: 'a' }]);
       expect(saved.prepare('SELECT * FROM buildings').all()).toMatchObject([{ id: 'saved-sentry', x: 28, y: 18, owner: 'a' }]); saved.close();

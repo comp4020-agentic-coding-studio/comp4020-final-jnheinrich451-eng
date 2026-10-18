@@ -1,7 +1,7 @@
 import { COSTS, quote } from './logistics.js';
 import { dockRecords, yardBuildError, nearbyShipyard, dockBoardingShip, SHIPYARD } from './shipyard.js';
 import { shipName, dockComplete, recallShipError, boardingPoint, SHIP, mooredDock } from './ship.js';
-import { hullHealth, VEHICLE } from './vehicle.js';
+import { hullHealth, hullMaximum, VEHICLE } from './vehicle.js';
 
 export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
   const $=id=>document.getElementById(id),dialog=$('shipyard-dialog');
@@ -19,9 +19,9 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
     const actorError=!connected?'Reconnect first.':me.body!=='robot'?'Return to your robot first.':me.life==='disabled'?'Revive your robot first.':me.life!=='active'?'Wait for your robot to finish landing.':null;
     $('shipyard-select-label').hidden=yards.length<2;
     $('shipyard-title').textContent=yard?`Shipyard / ${Math.floor(yard.dock.x)}:${Math.floor(yard.dock.y)}`:'Shipyard';
-    $('shipyard-status').textContent=!yard?'Deploy a dock to create your first ship slot.':yard.dockDestroyed?'Dock destroyed. Rebuild it through Logistics (L).':!dockComplete(yard)?'Dock unfolding...':!v?'Empty berth / choose a vessel':v.destroyed?'Vessel lost / choose its replacement':v.assemblyRemaining>0?`${shipName(v)} / assembling ${Math.ceil(v.assemblyRemaining)}s`:`${shipName(v)} / ${Math.ceil(hullHealth(v))}/${VEHICLE.ship} HP / ${v.repairing?'REPAIRING':moored?'DOCKED':'AT SEA'}`;
+    $('shipyard-status').textContent=!yard?'Deploy a dock to create your first ship slot.':yard.dockDestroyed?'Dock destroyed. Rebuild it through Logistics (L).':!dockComplete(yard)?'Dock unfolding...':!v?'Empty berth / choose a vessel':v.destroyed?'Vessel lost / choose its replacement':v.assemblyRemaining>0?`${shipName(v)} / assembling ${Math.ceil(v.assemblyRemaining)}s`:`${shipName(v)} / ${Math.ceil(hullHealth(v))}/${hullMaximum(v)} HP / ${v.repairing?'REPAIRING':moored?'DOCKED':'AT SEA'}`;
     $('shipyard-choices').hidden=!!active;
-    for(const kind of ['gunship','submarine','transport']){
+    for(const kind of ['gunship','submarine','transport','carrier']){
       const price=quote(kind==='gunship'?'ship':kind,true),b=$('yard-build-'+kind);
       const reason=actorError||yardBuildError(world,yard,me.id,kind,v?.destroyed?v:null,players)||(world.logistics.groundSupplies+1e-8<price?`Need ${price} ground SUP.`:null);
       b.disabled=busy||!!reason;b.title=reason||'60 seconds to assemble';$('yard-reason-'+kind).textContent=reason||'60s assembly';
@@ -48,7 +48,7 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
   $('shipyard-close').onclick=()=>dialog.close();dialog.addEventListener('close',update);
   $('ship-dock-find').onclick=()=>{const y=selected();if(y){dialog.close();locate(y.dock);}};
   $('ship-find').onclick=()=>{const v=selectedShip();if(v){dialog.close();locate(v);}};
-  for(const kind of ['gunship','submarine','transport'])$('yard-build-'+kind).onclick=()=>{const v=selectedShip();return v?.destroyed?action('vehicles/replace',{kind:'ship',vesselKind:kind,id:v.id,yardId:selected()?.id}):action('ships',{kind,yardId:selected()?.id});};
+  for(const kind of ['gunship','submarine','transport','carrier'])$('yard-build-'+kind).onclick=()=>{const v=selectedShip();return v?.destroyed?action('vehicles/replace',{kind:'ship',vesselKind:kind,id:v.id,yardId:selected()?.id}):action('ships',{kind,yardId:selected()?.id});};
   $('shipyard-retire').onclick=()=>{if(window.confirm('Dismantle this empty dock? No supplies are refunded.'))return action('shipyards/retire',{id:selected()?.id});};
   $('ship-recall').onclick=()=>{const v=selectedShip();if(v&&window.confirm('Retire '+shipName(v)+'? Its dock stays. No supplies are refunded.'))return action('ships/recall',{id:v.id,keepYard:true});};
   $('ramp-repair').onclick=()=>action('ships/ramp-repair',{id:selectedShip()?.id});

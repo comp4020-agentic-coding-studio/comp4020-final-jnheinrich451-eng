@@ -1,3 +1,4 @@
+import { airRecords } from './air-traffic.js';
 import { assemblyStage } from './construction-effects.js';
 import { LOGISTICS_SIZE, ECONOMY, facilityTargets } from './logistics.js';
 
@@ -8,7 +9,7 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
   for(const site of world.sites||[])if(site.state==='conquered'&&(l.salvage[site.id]??ECONOMY.salvage)>0)label('SALVAGE '+(l.salvage[site.id]??ECONOMY.salvage),site.x+1.5,site.y+3.4);
   for(const f of l.facilities){
     const size=LOGISTICS_SIZE[f.kind],x=f.x*T,y=f.y*T,s=size*T;
-    const job=l.jobs[f.id],stage=job?jobStage(job,advance):assemblyStage(f.remaining,8,advance);
+    const job=l.jobs[f.id],stage=job?jobStage(job,advance):assemblyStage(f.remaining,f.deliveryDuration||8,advance);
     c.save();if(stage.active){c.beginPath();c.rect(x,y+s*(1-stage.reveal),s,s*stage.reveal);c.clip();}
     c.fillStyle='#293e43';c.fillRect(x,y,s,s);c.strokeStyle='#adbea0';c.lineWidth=2/zoom;c.strokeRect(x+3,y+3,s-6,s-6);
     for(let i=0;i<size*3;i++){c.fillStyle=i%2?'#d3ab58':'#26373b';c.fillRect(x+i*s/(size*3),y+s-7,s/(size*3),7);}
@@ -35,7 +36,7 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
     label(f.kind==='outpost'?'OUTPOST / GROUND SUP':f.kind==='factory'?'FACTORY':f.cooldown>0?'ROCKET / '+Math.ceil(f.cooldown)+'s':'UPLINK / '+f.cargo+' CARGO',f.x+size/2,f.y+size+.25);
   }
   for(const r of l.recyclers){
-    const job=l.jobs[r.id],stage=job?jobStage(job,advance):assemblyStage(r.remaining,4.5,advance);
+    const job=l.jobs[r.id],stage=job?jobStage(job,advance):assemblyStage(r.remaining,r.deliveryDuration||4.5,advance);
     c.save();if(stage.active)c.globalAlpha=stage.reveal;
     c.save();c.translate(r.x*T,r.y*T);c.rotate(r.angle);c.fillStyle='#172d30';c.fillRect(-.43*T,-.48*T,.86*T,.96*T);
     for(const side of [-1,1])for(const axle of [-.3,.3]){c.fillStyle='#101d21';c.fillRect((side*.4-.09)*T,(axle-.15)*T,.18*T,.3*T);}
@@ -47,7 +48,7 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
     label(r.remaining>0?stage.phase+' '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':r.cargo),r.x,r.y+.85);
   }
   for(const tank of world.tanks||[]){const job=l.jobs[tank.id];if(job)construction?.draw(c,world,tank,1,jobStage(job,advance),zoom,reduced,true);}
-  for(const b of world.airbases||[])if(b.aircraft?.repairing)label('REPAIR / GROUND SUP',b.aircraft.x,b.aircraft.y+1.5);
+  for(const b of airRecords(world))if(b.aircraft?.repairing)label('REPAIR / GROUND SUP',b.aircraft.x,b.aircraft.y+1.5);
   for(const box of l.crates){
     if(box.kind==='remains'){
       c.save();c.translate(box.x*T,box.y*T);c.rotate(box.angle||0);c.fillStyle='#653454';c.beginPath();c.ellipse(0,0,.55*T,.34*T,0,0,Math.PI*2);c.fill();c.fillStyle='#823c43';c.beginPath();c.ellipse(0,0,.35*T,.2*T,0,0,Math.PI*2);c.fill();c.strokeStyle='#4d2a38';c.lineWidth=.07*T;

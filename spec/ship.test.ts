@@ -177,7 +177,7 @@ it('anchors and saves a remote shore ramp, exits, reboards after restart and ret
 
 it('deploys and restores a submarine beside the same owners gunship without replacing it',async()=>{
  const f=await fixture(true);try{await f.connect();expect((await f.post('ships/exit',{})).status).toBe(200);
- expect((await f.post('ships',{x:17,y:24,kind:'carrier'})).status).toBe(400);
+ expect((await f.post('ships',{x:17,y:24,kind:'unsupported-vessel'})).status).toBe(400);
  const drop=await f.post('ships',{x:17,y:24,kind:'submarine'});expect(drop.status).toBe(201);expect(drop.body.ship.kind).toBe('submarine');
  expect((await f.post('ships',{x:17,y:24,kind:'submarine'})).body.ship.id).toBe(drop.body.ship.id);
  expect((await f.post('ships',{x:17,y:30,kind:'submarine'})).status).toBe(409);

@@ -13,6 +13,9 @@ const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, k
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
+  bind('orbital-rotate', ['r'], 'R', 'global', 'Rotate orbital strike preview'),
+  bind('orbital-close', ['escape'], 'Esc', 'global', 'Close orbital strike planner'),
+  bind('orbital-open', ['v'], 'V', 'global', 'Orbital strike planner'),
   bind('bomber-close', ['escape'], 'Esc', 'aircraft', 'Close air support planner'),
   bind('bomber-open', ['h'], 'H', 'global', 'Automatic bomber missions'),
   bind('bridge-cancel', ['escape'], 'Esc', 'recycler', 'Close bridge planner'),
@@ -46,6 +49,7 @@ export const BINDINGS = Object.freeze([
   bind('ship-ramp', ['g'], 'G', 'ship', 'Deploy or retract the shore ramp'),
   bind('grid', ['g'], 'G', 'global', 'Toggle tile grid'),
   bind('logistics', ['l'], 'L', 'global', 'Logistics and supplies'),
+  bind('planet-open', ['n'], 'N', 'global', 'Campaign globe'),
   bind('overview', ['m'], 'M', 'global', 'Toggle survey overview'),
   bind('objective-next', ['o'], 'O', 'global', 'Locate next hostile site', { shift: false }),
   bind('objective-prev', ['o'], 'Shift+O', 'global', 'Locate previous hostile site', { shift: true }),

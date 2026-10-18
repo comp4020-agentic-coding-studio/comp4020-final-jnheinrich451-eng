@@ -533,3 +533,75 @@ incendiary and gas carpets, plus an automatic pre-release dive. Preserve distinc
 damage/crater sizes, a full-load cost for heavy HE, shared hazard reservations,
 fixed accepted payloads and departed-pilot recovery. Bomber strafing is excluded;
 the existing attack jet is unchanged. Aircraft/base separation remains future work.
+
+The 16 October shared-airfield stage is in docs/AIR_TRAFFIC.md. Cruise is an
+explicit persisted unmanned order; E boards parked aircraft. A bomber dispatched
+from cruise resumes holding even with empty bays, until recalled. Aircraft may
+land at any free friendly airbase. Preserve stable saved aircraft identities,
+movable destination tags, exclusive runway reservations and shared fleet counts
+including aircraft in flight/delivery. Empty airbases are permitted; one owner may
+place multiple bases within the existing four-base campaign cap. Production stays
+locked when base loss leaves surviving aircraft above operational capacity. This
+supersedes fixed home-airbase parking; carriers remain a subsequent stage.
+
+The 17 October carrier stage is implemented locally in docs/AIRCRAFT_CARRIER.md.
+A carrier is one fleet slot and one physical runway with stationary operations;
+parked aircraft move with it, and incoming recovery locks helm movement. Preserve
+stable aircraft identities across land/carrier transfers and carrier rebuilds.
+Sinking destroys deck aircraft but diverts airborne aircraft where possible.
+The carrier has side guns only, including unmanned swimmer defence. Its bounded
+onboard GND store transfers supplies from the shared pool at docks and pays for
+stationary hull/deck-aircraft repairs. Rebuilding never restores free supplies.
+Local checks do not establish deployed performance or large-fleet capacity.
+
+The 17 October orbital roster and staged implementation are recorded in
+docs/ORBITAL_STRIKES.md. Walking HE is the first local stage: V opens targeting,
+120 ORB commits five rows of three impacts to one shared orbital weapon.
+Preserve fixed previewed points, monotonic request sequences, single payment,
+saved landed flags and pause/offline semantics. Target damage and strike progress
+checkpoint together in named campaigns; friendly immunity stays intact. Fire
+curtain, gas seeding and an optional cutting beam remain future stages. Orbital
+ship delivery/resupply is separately recorded, not implemented by this stage.
+
+The subsequent orbital payload stage completes the same planner with an
+incendiary curtain, gas seeding and a cutting beam. docs/ORBITAL_STRIKES.md records
+their provisional values and supersedes the payload deferral above. Preserve
+land-only fire/gas footprints, shared hazard reservations, finite gas capacity,
+saved payload profiles and remaining fire lifetimes. Orbital hazard fields have
+one canonical copy in logistics, excluded from the combat checkpoint to prevent
+duplicates. Beam damage follows its moving ground contact and can conquer hostile
+facilities; the sky ray and bounded scars are cosmetic. All payloads share ORB,
+the one-order slot, recovery and friendly immunity. Local tests do not establish
+Fly performance; orbital ship delivery/resupply remains separate future work.
+
+The 17 October bridge correction in docs/BRIDGE_BUILDER.md permits mixed clear
+land/water deck spans so anchors can sit inland of uneven shores. Require some
+water, clear full-width land anchors and approaches, and retain obstacle/unit
+checks. The 24-row limit, GND price and construction timer count every interior
+deck row, including land. Preserve existing bridge saves, traffic reservations
+and cable/roller animation; no terrain rewrite or diagonal bridges.
+
+The next bridge refinement defaults to Find shore ahead: cardinal facing/menu
+direction, bounded nearby corridor search, full preview and explicit confirmation.
+Manual endpoints remain optional. Survey at most three tiles laterally, keep the
+near anchor within four tiles, and stop at the first suitable opposite shore.
+Send exact preview endpoints through existing server admission; do not silently
+replace an invalidated route or spend before confirmation. See docs/BRIDGE_BUILDER.md.
+
+The author clarified orbital cargo in docs/ORBITAL_CARGO_PRESENTATION.md: finished
+equipment arrives in a metal crate, unfolds, then deploys in one second. New
+compact cargo timers are 3.6 seconds; preserve saved countdowns and native pod
+geometry/timing. Never draw construction drones for orbital cargo. Local builds
+and repairs retain workers and their existing timers. Bridge funding remains
+shared GND only; show both balances, shortfall and core/outpost unloading advice
+instead of implying ORB or onboard carrier stores can pay for a crossing.
+
+### Planet terrain and overview, 18 October 2026
+
+The approved first stage is implemented locally in docs/PLANET_EXPANSION.md:
+512 by 384 saved terrain with a camera-only campaign globe (N), plus the existing
+flat tactical overview (M). Preserve all old coordinates and back up the complete
+DB before atomically remapping terrain and flattened logistics floor indices.
+No spherical travel or extra enemy/facility caps. New regions are expansion space,
+not a claim of a populated planet or validated Fly capacity. First orbital strike
+reference remains stable; strike planning uses a readable regional camera.

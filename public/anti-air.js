@@ -1,3 +1,4 @@
+import { airRecords } from './air-traffic.js';
 import { airborne, hurtAircraft } from './aircraft.js';
 import { turnTurret } from './turret.js';
 
@@ -8,7 +9,7 @@ export const ANTI_AIR = Object.freeze({ hp: 600, guards: 2, region: 11, range: 2
 // Predict once at acquisition. Turning or changing speed escapes the fixed burst.
 // Air sensing ignores ground cover; parked aircraft and ground bodies are immune.
 export function tickAntiAir(world, shells, now, dt, nextId, emit = event => {}) {
-  const planes = (world.airbases || []).map(b => b.aircraft).filter(airborne);
+  const planes = airRecords(world).map(b => b.aircraft).filter(airborne);
   let changed = shells.length > 0;
   for (const shell of shells) if (!shell.impacted && now >= shell.landAt) {
     shell.impacted = true;
