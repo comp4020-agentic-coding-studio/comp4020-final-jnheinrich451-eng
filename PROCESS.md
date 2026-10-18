@@ -354,3 +354,9 @@ Release preparation reran `pnpm check` (425 tests plus type checking), the
 Crit 10 evidence checker and nine additional desktop/phone browser scenarios
 covering cruise, bridges, carrier deck operations and funded ship replacement.
 All passed before the commit and push.
+
+The first CI run then passed 424 tests but hit the default five-second total
+timeout in the submarine dive/restart/surface test. That sequence allows four
+seconds for each depth transition, so its total budget was inconsistent. A
+follow-up gives that test twelve seconds while retaining every assertion and
+the individual polling limits; gameplay timing is unchanged.

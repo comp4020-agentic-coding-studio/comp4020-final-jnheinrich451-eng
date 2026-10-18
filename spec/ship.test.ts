@@ -75,7 +75,9 @@ it('authorizes submarine depth changes, blocks underwater operations and saves p
   await expect.poll(async()=>(await f.state()).ships[0].depth,{timeout:4000}).toBe('surfaced');
   expect((await f.state()).combat.barrages).toHaveLength(0);expect((await f.post('ships/exit',{})).status).toBe(200);
  }finally{await f.close();}
-});
+// Dive and surface each have a four-second polling budget, plus restart and
+// paused-state checks. The default five-second total truncates this on CI.
+},12000);
 it('saves orbital arrival, exclusive seat, sailing and ammunition; pauses unused worlds and resumes at sea',async()=>{
  const f=await fixture();try{
  await f.connect();await f.connect(1);expect((await f.post('ships',{x:25,y:12})).status).toBe(409);
