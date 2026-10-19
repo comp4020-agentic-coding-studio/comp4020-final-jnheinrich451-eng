@@ -7,7 +7,7 @@ ENV NODE_ENV=production PORT=8080 DATA_DIR=/data
 RUN npm install --global pnpm@11.9.0
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
-COPY server.js world-maintenance.js observability.js README.md ./
+COPY server.js world-maintenance.js observability.js action-narration.js README.md ./
 COPY accounts/ ./accounts/
 COPY campaigns/ ./campaigns/
 COPY public/ ./public/
