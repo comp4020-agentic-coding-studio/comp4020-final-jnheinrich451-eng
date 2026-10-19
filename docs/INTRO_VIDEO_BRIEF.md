@@ -116,8 +116,8 @@ where your answers left a gap.
 
 | # | Time | Camera | What happens | Light / colour | Sound |
 | --- | --- | --- | --- | --- | --- |
-| 1a | 0-3 s | Fixed, film directly to the head/helmet, and the zoom out slowly. | From pure dark, the red light lit, the helmet is activated, there is no light on the helmet, we use buzz sound to express the activation. AI activates the agent. The area is not for human sustaination, then only pipes, cables, chips, radiators within, I may need to design an image as well. | Black + pulsing red | Low hum, alarm beep |
-| 1b | 3-5 s | Close-up | Cables twitch or flicker with data light. A visor glint shows the pilot is "online" | Red + thin cyan data lines | Electrical crackle |
+| 1a | 0-3 s | Fixed in angle, film directly to the head/helmet, and the zoom out slowly. | From pure dark, the red light lit, the helmet is activated, there is no light on the helmet, we use buzz sound to express the activation. AI activates the agent. The area is not for human sustaination, then only pipes, cables, chips, radiators within, I may need to design an image as well. | Black + pulsing red | No human sound, only the electronic chips, the radiator's sound. |
+| 1b | 3-5 s | Keep zooming out,  | Cables twitch or flicker with data light. A visor glint shows the pilot is "online" | Red + thin cyan data lines | Electrical crackle |
 | 2a | 5-9 s | Pull back along the cables | The bridge is a machine with no seats or life support: steel, devices, racks, weapon mounts. **Ship name** appears | Cold, reflective steel, red accents | Machinery |
 | 2b | 9-13 s | Tilt down through a floor port in the bridge's belly | The planet below, its rim glowing with sunlight. **Planet name** appears | Deep blue/black, bright rim | Drone swells |
 | 3a | 13-16 s | Ground level, looking up | The small pod hits the ground. The big pod is still a streak high in the sky (assumed) | Planet daylight, dust | Whistle, impact |
