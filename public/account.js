@@ -68,6 +68,19 @@ try {
     if (!state.account) location.replace('/login/');
     else {
       $('profile').hidden = false; const a = state.account;
+      // Use the server's active room, rather than the root URL (the planet lobby).
+      if (new URLSearchParams(location.search).get('legacy') === '1') {
+        $('return-battle').href = '/?legacy=1'; $('return-battle').textContent = 'Return to battlefield';
+      } else {
+        const response = await fetch('/api/campaigns/list', { cache: 'no-store' });
+        if (response.ok) {
+          const rooms = await response.json();
+          if (rooms.active) {
+            $('return-battle').href = '/?campaign=' + encodeURIComponent(rooms.active);
+            $('return-battle').textContent = 'Return to battlefield';
+          }
+        }
+      }
       $('identity').textContent = `${a.name} · ${a.email} · ${a.kind === 'demo' ? 'Demo (simulated verification)' : 'Verified email'}`;
       $('open-inbox').hidden = a.kind !== 'demo'; $('reset-link').href = '/forgot-password/?mode=' + a.kind;
     }

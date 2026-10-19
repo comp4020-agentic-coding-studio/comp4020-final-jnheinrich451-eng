@@ -19,7 +19,7 @@ export const readyFactory = f => ['factory','outpost'].includes(f.kind) && !f.de
 export const facilityCenter = f => ({ x: f.x + (LOGISTICS_SIZE[f.kind] || 1) / 2, y: f.y + (LOGISTICS_SIZE[f.kind] || 1) / 2 });
 export const quote = (kind, local = false) => Math.ceil(COSTS[kind] * (local ? ECONOMY.factoryDiscount : 1));
 export function usableExplosives(world) {
-  return (world.tanks || []).some(t => !t.destroyed) || (world.artillery || []).some(g => !g.remaining)
+  return (world.tanks || []).some(t => !t.destroyed) || (world.ships||[]).some(s=>s.cargo?.kind==='tank'&&!s.cargo.vehicle.destroyed) || (world.artillery || []).some(g => !g.remaining)
     || (world.ships || []).some(s => !s.destroyed) || (world.airbases || []).some(b => b.aircraft && !['destroyed','vacant'].includes(b.aircraft.state));
 }
 export function emergencyTankError(world) {
@@ -48,13 +48,16 @@ export function collectSalvage(state, site, truck, dt) {
   return true;
 }
 // Corpse salvage is bounded and durable. Merge nearby piles first; once the
-// shared 64-pile budget is full, further bodies are cosmetic and grant no cargo.
+// shared 64-pile budget is full, preserve the cargo in the nearest existing pile.
 export function addRemains(state, enemy, id) {
   if (!state || enemy.kind === 'swimmer') return;
   const near=state.crates.find(c=>c.kind==='remains'&&Math.hypot(c.x-enemy.x,c.y-enemy.y)<2);
-  if(near){near.amount+=ECONOMY.remainsValue;return;}
-  if(state.crates.length>=64)return;
-  state.crates.push({id,kind:'remains',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount:ECONOMY.remainsValue});
+  if(near){near.amount+=ECONOMY.remainsValue;near.enemyKind ||= enemy.kind || 'hunter';return;}
+  if(state.crates.length>=64){
+    const nearest=state.crates.reduce((best,c)=>Math.hypot(c.x-enemy.x,c.y-enemy.y)<Math.hypot(best.x-enemy.x,best.y-enemy.y)?c:best);
+    nearest.amount+=ECONOMY.remainsValue;return;
+  }
+  state.crates.push({id,kind:'remains',enemyKind:enemy.kind||'hunter',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount:ECONOMY.remainsValue});
 }
 export function tickLaunch(state, station, dt) {
   const active=station.launch>0||station.cooldown>0;

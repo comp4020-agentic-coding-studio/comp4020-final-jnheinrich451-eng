@@ -47,3 +47,35 @@ Focused tests cover actual Bulwark kills, turret timing, line of sight, priority
 charge restoration, reload handoff, interrupted charges and inactive vehicles.
 Browser tests cover both weapons attacking autonomously, yielding on boarding,
 resuming after exit and retaining the parked position on refresh.
+
+## Supply-funded tank fleet, 19 October 2026
+
+The author requested no fixed tank count so parked tanks can serve as cannon
+sentries. Both the one-per-player and eight-per-campaign limits are removed.
+Normal deployment remains 100 ORB or 25 GND inside friendly construction support,
+with the existing pod arrival or 60-second local assembly. Footprints, terrain,
+ownership, shared supply pools and server admission still apply.
+
+L → Field equipment now lists each owned tank, its weapon, status and location.
+Select the specific tank to find or replace; carried tanks locate their transport.
+Replacement retains the chosen tank's ID, costs the existing 100 ORB, and uses its
+original drop site after the loss countdown. Other tanks are unaffected. A wreck
+does not prevent a separately funded new deployment at another clear site.
+
+Deployment retries match the owner's exact pod coordinates across all tanks,
+including transported vehicles, rather than returning the owner's first tank.
+Transporting one tank does not prevent building another elsewhere. Emergency
+recovery keeps its existing room-wide explosive-platform and cooldown checks;
+it is not a source of free additional combat tanks. No save migration is needed.
+
+Each parked tank keeps independent targeting and weapon cooldowns. Enemy caps
+and the normal guard search interval are unchanged. Removing a gameplay cap is
+not evidence that an arbitrarily large active fleet fits Fly's memory/CPU budget;
+populated fleet profiling remains outstanding.
+
+Validation: type checking and all 543 tests across 81 files passed. Coverage
+includes ten tanks owned by one player, both funding pools, duplicate requests,
+restart, transported tanks, selecting the correct wreck and two parked tanks
+defending separate approaches for the same owner. Desktop and phone browser
+checks passed for adding a third tank and replacing the selected wreck while
+leaving its sibling intact. This stage is local, not yet deployed.

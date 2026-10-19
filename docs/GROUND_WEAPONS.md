@@ -11,6 +11,9 @@ Tank armor, destruction, repair and resource costs remain later stages.
   The choice also works for your core's sentry. Only its owner can change it.
 - In the rover, the Cannon selector chooses HE or Magnetic. Click LMB / press
   Space once to fire or begin charging; holding is unnecessary.
+- Press 1 to toggle the tank's LMB weapon between HE and Magnetic; press 2
+  to toggle its RMB weapon between Machine gun and Fuel jet. Each press changes
+  only that slot; holding a number key does not repeatedly switch weapons.
 - The RMB selector chooses Machine gun or Fuel jet. Hold RMB / J to fire.
   The default remains HE plus machine gun. Phones have labelled action buttons.
 - Both weapons follow the actual stabilized turret, including during charge-up.
@@ -56,8 +59,9 @@ restart persistence and phone controls. Screenshots are in `docs/previews/`.
 
 ## Orbital tank deployment
 
-Ground forces now includes Tank drop pod. It requires a deployed robot, with a
-temporary allowance of one tank per scout and eight per world. Select the central
+Ground forces now includes Tank drop pod. It requires a deployed robot. The
+19 October fleet stage removes the prototype's per-player and world caps; every
+tank still needs paid deployment and clear space. Select the central
 1-by-1 pod tile in orbital survey. Four 1-by-4 panels form a 17-tile cross within
 a 9-by-9 boundary; the corners remain untouched. All 17 cells must be land and
 clear of units, rails, other pods and facilities. Rocks become walkable flooring

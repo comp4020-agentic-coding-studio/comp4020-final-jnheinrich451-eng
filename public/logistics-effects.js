@@ -1,7 +1,9 @@
+import { drawCrawler } from './effects.js';
 import { isHelipad } from './helicopter.js';
 import { airRecords } from './air-traffic.js';
 import { assemblyStage } from './construction-effects.js';
 import { LOGISTICS_SIZE, ECONOMY, facilityTargets } from './logistics.js';
+import { dockRecords } from './shipyard.js';
 
 export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construction=null,advance=0){
   const l=world.logistics;if(!l)return;
@@ -52,8 +54,9 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
   for(const b of airRecords(world))if(b.aircraft?.repairing)label('REPAIR / GROUND SUP',b.aircraft.x,b.aircraft.y+1.5);
   for(const box of l.crates){
     if(box.kind==='remains'){
-      c.save();c.translate(box.x*T,box.y*T);c.rotate(box.angle||0);c.fillStyle='#653454';c.beginPath();c.ellipse(0,0,.55*T,.34*T,0,0,Math.PI*2);c.fill();c.fillStyle='#823c43';c.beginPath();c.ellipse(0,0,.35*T,.2*T,0,0,Math.PI*2);c.fill();c.strokeStyle='#4d2a38';c.lineWidth=.07*T;
-      for(const side of [-1,1])for(const dy of [-.14,.12]){c.beginPath();c.moveTo(side*.2*T,dy*T);c.lineTo(side*.47*T,(dy+.16)*T);c.stroke();}c.restore();label('REMAINS '+box.amount,box.x,box.y+.7,'#daa6c2');
+      // Retain the creature's silhouette instead of replacing every body with a tiny oval.
+      drawCrawler(c,{id:0,kind:box.enemyKind||'hunter',x:box.x*T,y:box.y*T,angle:box.angle||0},0,0,true);
+      label('REMAINS '+box.amount,box.x,box.y+(['breaker','bulwark','heavy-lens'].includes(box.enemyKind)?1.4:1.1),'#daa6c2');
     }else{c.fillStyle='#cda463';c.fillRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);c.strokeStyle='#45392d';c.strokeRect((box.x-.3)*T,(box.y-.3)*T,.6*T,.6*T);label('CARGO '+box.amount,box.x,box.y+.65);}
   }
   for(const f of facilityTargets(world,buildings)){
@@ -65,9 +68,15 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
     }
     if(f.hp.health<f.hp.max){c.fillStyle='#301f23';c.fillRect((f.x-.5)*T,(f.y-f.h/2-.18)*T,T,4/zoom);c.fillStyle='#e0a36b';c.fillRect((f.x-.5)*T,(f.y-f.h/2-.18)*T,T*f.hp.health/f.hp.max,4/zoom);}
   }
-  for(const b of world.airbases)if(b.destroyed)label(isHelipad(b)?'HELIPAD LOST / REBUILD':'AIRBASE LOST / REBUILD',b.x+(isHelipad(b)?1.5:3),b.y+(isHelipad(b)?3.5:5),'#f0a48d');
-  for(const s of world.ships)if(s.dockDestroyed)label('DOCK LOST / REBUILD',s.dock.x,s.dock.y,'#f0a48d');
+  const ruin=(object,name,point,size)=>{
+    const job=l.jobs[object.id],repairing=job?.kind==='repair';
+    if(repairing)construction?.draw(c,world,point,size,jobStage(job,advance),zoom,reduced,true);
+    label(repairing?`${name} / REBUILD ${Math.ceil(job.remaining)}s`:`${name} DESTROYED / L REBUILD`,point.x,point.y+size/2+.35,'#f0a48d');
+  };
+  for(const b of world.airbases)if(b.destroyed)ruin(b,isHelipad(b)?'HELIPAD':'AIRBASE',{x:b.x+(isHelipad(b)?1.5:3),y:b.y+(isHelipad(b)?1.5:5)},isHelipad(b)?3:6);
+  // Empty shipyards have no vessel record, but still need wreck/repair feedback.
+  for(const s of dockRecords(world))if(s.dockDestroyed)ruin(s,'DOCK',s.dock,3);
   c.restore();
 }
 
-function jobStage(job,advance){const duration=job.duration||60;if(job.method==='orbital')return assemblyStage(job.remaining,duration,advance);return {active:true,method:'factory',droneBay:job.droneBay,time:duration-job.remaining,reveal:Math.max(0,Math.min(1,1-job.remaining/duration)),phase:'BUILDING'};}
+function jobStage(job,advance){const duration=job.duration||(job.kind==='repair'?8:60);if(job.method==='orbital')return assemblyStage(job.remaining,duration,advance);return {active:true,method:'factory',droneBay:job.droneBay,time:duration-job.remaining,reveal:Math.max(0,Math.min(1,1-job.remaining/duration)),phase:job.kind==='repair'?'REBUILDING':'BUILDING'};}

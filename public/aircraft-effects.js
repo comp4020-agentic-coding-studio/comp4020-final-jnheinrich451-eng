@@ -3,11 +3,13 @@ import { drawHelipad, drawHelicopter, drawHelicopterAim } from './helicopter-eff
 import { AIR_HULL, aircraftHealth, AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
 import { JET, isAttackJet, aircraftName, strafePoint, strafeError } from './attack-jet.js';
 import { ConstructionEffects } from './construction-effects.js';
+import { drawRuinedAirfield } from './facility-ruins.js';
 let droneArt;
 import { POD } from './pod.js';
 import { bomberPayload, payloadProfile, bomberDive } from './bomber-payloads.js';
 
 export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
+ if(b.destroyed&&!ghost)return drawRuinedAirfield(c,b,T,zoom,isHelipad(b));
  if(isHelipad(b))return drawHelipad(c,b,T,zoom,ghost,valid);
  c.save();c.translate(b.x*T,b.y*T);c.globalAlpha=ghost?.65:1;
  c.fillStyle='#506460';c.fillRect(0,0,AIR.width*T,AIR.height*T);c.strokeStyle=ghost?(valid?'#f4d18b':'#ef867d'):'#b8bfa7';c.lineWidth=2/zoom;c.strokeRect(0,0,AIR.width*T,AIR.height*T);

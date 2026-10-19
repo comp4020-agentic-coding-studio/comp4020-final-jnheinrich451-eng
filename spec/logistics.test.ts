@@ -77,6 +77,23 @@ async function fixture(seed:(db:DatabaseSync,w:any,l:any)=>void=()=>{}){
   const connect=async(i=0)=>{const c=new AbortController();controllers.push(c);const r=await fetch(base+'/api/events',{headers:{Cookie:'frontier='+tokens[i]},signal:c.signal});void(async()=>{try{for await(const chunk of r.body as any){}}catch{}})();return c;};
   return{state,post,connect,restart:async()=>{controllers.forEach(c=>c.abort());controllers=[];await app.close();await open();},close:async()=>{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-logistics-'))throw Error('Unexpected test path');await rm(dir,{recursive:true,force:true});}};
 }
+it('funds more than eight tanks for one owner, deduplicates every drop and keeps local construction through restart',async()=>{
+  const f=await fixture();try{
+    await f.connect();const drops=[];
+    for(const y of [10,30,50])for(const x of [70,90,110]){
+      const result=await f.post('tanks',{x,y});expect(result.status).toBe(201);drops.push(result.data.tank);
+    }
+    expect((await f.state()).tanks).toHaveLength(9);expect((await f.state()).logistics.supplies).toBe(300);
+    for(const t of drops){const retry=await f.post('tanks',{x:t.podX,y:t.podY});expect(retry.status).toBe(200);expect(retry.data.tank.id).toBe(t.id);}
+    expect((await f.state()).logistics.supplies).toBe(300);
+    const local=await f.post('tanks',{x:40,y:45,method:'factory',factoryId:'friendly'});expect(local.status).toBe(201);
+    expect((await f.state()).logistics.groundSupplies).toBe(1175);
+    expect((await f.post('tanks',{x:70,y:10},1)).status).toBe(409);
+    await f.restart();const saved=await f.state();expect(saved.tanks).toHaveLength(10);expect(saved.logistics.supplies).toBe(300);
+    expect(saved.logistics.jobs[local.data.tank.id].method).toBe('factory');
+    await f.connect();expect((await f.post('tanks',{x:90,y:30})).data.tank.id).toBe(drops[4].id);expect((await f.state()).logistics.supplies).toBe(300);
+  }finally{await f.close();}
+});
 it('enforces remote placement at HTTP admission, spends only accepted deployments and retains them through restart',async()=>{
   const f=await fixture();try{
     await f.connect();const before=(await f.state()).logistics.supplies;

@@ -30,7 +30,7 @@ export const ASSETS = Object.freeze([
   { code: 'G-02', tab: 'ground', card: 'core-card', kind: 'core', cost: 'core', hp: 'core', name: 'Orbital core', footprint: '57-cell cross',
     specs: [['Delivers', 'Robot · core sentry · flooring'], ['Support', `${CONSTRUCTION.radius} t construction radius`]], limit: `1 per scout · ${CORE.max} per world`, costNote: 'first landing free' },
   { code: 'G-03', tab: 'ground', card: 'tank-card', kind: 'tank', cost: 'tank', name: 'Tank drop pod', footprint: '17-cell cross',
-    specs: [['Cannon', `HE ${HE.range} t or magnetic ${MAGNETIC.range} t`], ['Secondary', `APCR ${APCR.range} t or fuel ${HEAVY_FLAME.range} t`]], limit: '1 per scout' },
+    specs: [['Cannon', `HE ${HE.range} t or magnetic ${MAGNETIC.range} t`], ['Secondary', `APCR ${APCR.range} t or fuel ${HEAVY_FLAME.range} t`]], limit: 'No fixed cap / supplies and clear sites' },
   { code: 'R-01', tab: 'rail', card: 'rail-card', kind: 'rail', name: 'Rail track', footprint: '1 tile · corners · junctions',
     specs: [['Corridor', '3 tiles wide'], ['Lay', '1 or 5 tiles per order']] },
   { code: 'R-02', tab: 'ground', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',

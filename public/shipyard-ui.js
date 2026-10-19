@@ -17,9 +17,17 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
     const signature=JSON.stringify(entries);if(select.dataset.signature!==signature){select.replaceChildren(...entries.map(([value,textContent])=>Object.assign(document.createElement('option'),{value,textContent})));if(entries.some(e=>e[0]===old))select.value=old;select.dataset.signature=signature;}
     const yard=selected(),v=selectedShip(),active=v&&!v.destroyed,moored=active&&mooredDock(world,v);
     const actorError=!connected?'Reconnect first.':me.body!=='robot'?'Return to your robot first.':me.life==='disabled'?'Revive your robot first.':me.life!=='active'?'Wait for your robot to finish landing.':null;
+    const repairJob=yard&&world.logistics.jobs[yard.id],repairing=repairJob?.kind==='repair';
+    const repairReason=actorError||(repairJob?'Dock rebuild in progress.':world.logistics.groundSupplies+1e-8<COSTS.dockRepair?`Need ${COSTS.dockRepair} GND; ${Math.floor(world.logistics.groundSupplies)} available.`:null);
+    $('dock-rebuild').hidden=!yard?.dockDestroyed;
+    $('dock-rebuild').disabled=busy||!yard?.dockDestroyed||!!repairReason;
+    $('dock-rebuild').textContent=repairing?`Rebuilding dock / ${Math.ceil(repairJob.remaining)}s`:`Rebuild dock / ${COSTS.dockRepair} GND / 8s`;
+    $('dock-rebuild').title=repairReason||'Rebuild this dock in its original position. Your vessel is kept.';
+    $('dock-rebuild-help').hidden=!yard?.dockDestroyed;
+    $('dock-rebuild-help').textContent=repairing?'Construction drones are rebuilding this dock.':repairReason||'Rebuild in place. Your assigned vessel is kept; no new dock is needed.';
     $('shipyard-select-label').hidden=yards.length<2;
     $('shipyard-title').textContent=yard?`Shipyard / ${Math.floor(yard.dock.x)}:${Math.floor(yard.dock.y)}`:'Shipyard';
-    $('shipyard-status').textContent=!yard?'Deploy a dock to create your first ship slot.':yard.dockDestroyed?'Dock destroyed. Rebuild it through Logistics (L).':!dockComplete(yard)?'Dock unfolding...':!v?'Empty berth / choose a vessel':v.destroyed?'Vessel lost / choose its replacement':v.assemblyRemaining>0?`${shipName(v)} / assembling ${Math.ceil(v.assemblyRemaining)}s`:`${shipName(v)} / ${Math.ceil(hullHealth(v))}/${hullMaximum(v)} HP / ${v.repairing?'REPAIRING':moored?'DOCKED':'AT SEA'}`;
+    $('shipyard-status').textContent=!yard?'Deploy a dock to create your first ship slot.':yard.dockDestroyed?'Dock destroyed. Use Rebuild dock below, or press L for Field logistics → Damaged infrastructure.':!dockComplete(yard)?'Dock unfolding...':!v?'Empty berth / choose a vessel':v.destroyed?'Vessel lost / choose its replacement':v.assemblyRemaining>0?`${shipName(v)} / assembling ${Math.ceil(v.assemblyRemaining)}s`:`${shipName(v)} / ${Math.ceil(hullHealth(v))}/${hullMaximum(v)} HP / ${v.repairing?'REPAIRING':moored?'DOCKED':'AT SEA'}`;
     $('shipyard-choices').hidden=!!active;
     for(const kind of ['gunship','submarine','transport','carrier']){
       const price=quote(kind==='gunship'?'ship':kind,true),b=$('yard-build-'+kind);
@@ -52,6 +60,7 @@ export function shipyardUI({state,api,notify,deploy,locate,stop,boarded}) {
   $('shipyard-retire').onclick=()=>{if(window.confirm('Dismantle this empty dock? No supplies are refunded.'))return action('shipyards/retire',{id:selected()?.id});};
   $('ship-recall').onclick=()=>{const v=selectedShip();if(v&&window.confirm('Retire '+shipName(v)+'? Its dock stays. No supplies are refunded.'))return action('ships/recall',{id:v.id,keepYard:true});};
   $('ramp-repair').onclick=()=>action('ships/ramp-repair',{id:selectedShip()?.id});
+  $('dock-rebuild').onclick=()=>action('logistics/repair',{kind:'dock',id:selected()?.id});
   $('yard-board').onclick=async()=>{const v=boardingVessel();if(await action('ships/board',{id:v?.id})){dialog.close();boarded(v);}};
   return {update,open,near,selectedShip};
 }

@@ -61,7 +61,7 @@ test('catalogue tabs, spec sheet and keyboard placement on desktop', async ({ br
     await page.locator('#world-canvas').focus(); await page.keyboard.press('F1');
     await expect(page.locator('#keys-dialog')).toBeVisible();
     await expect(page.locator('#keys-now')).toContainText('Deploy catalogue'); await expect(page.locator('#keys-now')).toContainText('Pointer and movement');
-    await expect(page.locator('#keys-now')).not.toContainText('Cannon: HE / Magnetic');
+    await expect(page.locator('#keys-now')).not.toContainText('Toggle LMB: HE / Magnetic');
     await page.screenshot({ path: '.local/key-reference-desktop.png' });
     await page.keyboard.press('Escape'); await expect(page.locator('#keys-dialog')).toBeHidden();
     const zoom = await page.locator('#zoom-label').textContent();
@@ -80,12 +80,21 @@ test('tank weapon keys and the context key reference', async ({ browser }) => {
   try {
     const page = await context.newPage(); await page.goto(arena.base + '/?legacy=1');
     await expect(page.locator('#connection')).toContainText('live'); await page.locator('#world-canvas').focus();
-    await page.keyboard.press('2'); await expect.poll(async () => (await me(page)).tankWeapon).toBe('MAGNETIC');
+    await page.keyboard.press('1'); await expect.poll(async () => (await me(page)).tankWeapon).toBe('MAGNETIC');
+    expect((await me(page)).tankSecondary).toBe('APCR');
     await page.keyboard.press('1'); await expect.poll(async () => (await me(page)).tankWeapon).toBe('HE');
-    await page.keyboard.press('q'); await expect.poll(async () => (await me(page)).tankSecondary).toBe('HEAVY_FLAME');
-    await page.keyboard.press('q'); await expect.poll(async () => (await me(page)).tankSecondary).toBe('APCR');
+    await page.keyboard.press('2'); await expect.poll(async () => (await me(page)).tankSecondary).toBe('HEAVY_FLAME');
+    await page.keyboard.press('2'); await expect.poll(async () => (await me(page)).tankSecondary).toBe('APCR');
+    expect((await me(page)).tankWeapon).toBe('HE');
+    // Repeated keydown events from a held key must not toggle the slot back.
+    await page.keyboard.down('1'); await expect.poll(async () => (await me(page)).tankWeapon).toBe('MAGNETIC');
+    await page.keyboard.down('1'); await page.keyboard.up('1');
+    expect((await me(page)).tankWeapon).toBe('MAGNETIC');
+    await expect(page.locator('#tank-primary')).toHaveValue('MAGNETIC');
+    await expect(page.locator('#tank-secondary')).toHaveValue('APCR');
     await expect(page.locator('.battlefield')).toHaveAttribute('data-state', 'vehicle');
-    await page.keyboard.press('F1'); await expect(page.locator('#keys-now')).toContainText('Cannon: HE / Magnetic');
+    await page.keyboard.press('F1'); await expect(page.locator('#keys-now')).toContainText('Toggle LMB: HE / Magnetic');
+    await expect(page.locator('#keys-now')).toContainText('Toggle RMB: machine gun / fuel jet');
     await page.keyboard.press('Escape');
   } finally { await context.close(); await arena.close(); }
 });

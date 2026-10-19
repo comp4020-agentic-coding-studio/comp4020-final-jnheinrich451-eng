@@ -26,7 +26,7 @@ import { VEHICLE, hullMaximum, hullHealth, operational } from './public/vehicle.
 import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
 import { serviceState, serviceError, serviceQuote, serviceVersion } from './public/facility-service.js';
 import { SHIP, dockComplete, shipKind, shipSite, replacementShipError, mooredDock, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
-import { TANK, tankPodCells, tankPlacementError, tankArrivalPosition } from './public/tank.js';
+import { TANK, tankPodCells, tankPlacementError, tankArrivalPosition, tankRecords, emergencyTankWreck } from './public/tank.js';
 import { readFile, stat } from 'node:fs/promises';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -1031,7 +1031,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if (url.pathname === '/api/tanks') {
             if (!streams.has(player.id) || incomingCore(player.id) || controlledBy(player.id) || playerBody(player) !== 'robot') return json(res, 409, { error: 'Deploy your core and return to your active robot before calling a tank.' });
-            const old = world.tanks.find(t => t.owner === player.id);
+            const prior=tankRecords(world).find(({tank:t})=>t.owner===player.id&&t.podX===data.x&&t.podY===data.y);
+            if(!data.emergency&&prior?.carrier)return json(res,409,{error:'The tank from this drop site is aboard a transport. Choose a new drop site.'});
+            const old = data.emergency ? emergencyTankWreck(world,player.id) : prior?.tank;
             if (old && !data.emergency && old.podX === data.x && old.podY === data.y) return json(res, 200, { tank: old, saved: true });
             const tankWorld = data.emergency && old?.destroyed ? {...world,tanks:world.tanks.filter(t=>t!==old)} : world;
             const error = tankPlacementError(tankWorld, allBuildings(), [...groundPeople(), ...combat.snapshot().enemies], data.x, data.y, player.id);

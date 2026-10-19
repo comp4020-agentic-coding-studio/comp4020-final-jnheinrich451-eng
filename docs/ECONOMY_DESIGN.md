@@ -98,9 +98,13 @@ route command while it is empty. Depletion is saved by site ID. It removes the c
 retains the objective, conquest state and checklist. No direct conquest payment is
 also granted for the same material.
 
-New ground alien deaths leave eight units of reclaimable remains. Nearby corpses
+New ground alien deaths leave eight units of reclaimable remains. New piles save
+the enemy type and render its stationary dead-body silhouette (including armored
+and laser enemies); older untyped piles use the hunter corpse. Nearby corpses
 merge within two tiles; their saved piles share the 64-object cargo-crate budget.
-At the cap, further corpses yield no new salvage unless they merge nearby. Swimmers
+At the cap, corpse cargo merges into the nearest existing remains/cargo pile;
+no salvage is discarded and the pile stays at its existing location. This applies
+to magnetic-cannon kills as well as other ground kills. Swimmers
 do not leave land salvage, and old cosmetic corpses are not retroactively credited.
 Park within two tiles to pick up loose remains/cargo. Moving cancels ruin collection;
 parked unloading has priority over collection. No direct kill payment is also given.

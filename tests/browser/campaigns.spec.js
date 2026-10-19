@@ -37,9 +37,27 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     const id = new URL(page.url()).searchParams.get('campaign');
     const state = () => owner.request.get(base + `/api/campaign-world/${id}/world`).then(r => r.json());
     expect((await state()).me.body).toBe('orbital');
+    // DEMO opens the same live room menu, without navigating to the account/lobby.
+    const battleURL = page.url();
+    const accountPage = await owner.newPage();
+    await accountPage.goto(base + '/account/');
+    await expect(accountPage.locator('#return-battle')).toHaveAttribute('href', '/?campaign=' + id);
+    await accountPage.close(); await page.bringToFront();
+    await page.locator('#account-link').click();
+    await expect(page.locator('#room-dialog')).toBeVisible();
+    await expect(page.locator('#room-status')).toContainText('paused');
+    await page.locator('#room-code').focus(); await page.keyboard.press('Escape');
+    await expect(page.locator('#room-dialog')).toBeHidden();
+    await expect.poll(async () => (await state()).room.paused).toBe(false);
+    expect(page.url()).toBe(battleURL);
+    await page.locator('#account-link').click();
+    await page.locator('#room-resume').click();
+    await expect(page.locator('#room-dialog')).toBeHidden();
+    expect(page.url()).toBe(battleURL);
+
     await page.locator('#room-button').click(); await expect(page.locator('#room-dialog')).toBeVisible();
     await expect(page.locator('#room-status')).toContainText('paused');
-    await page.locator('#room-invite').click(); const code = await page.locator('#room-code').inputValue(); expect(code).toMatch(/^[A-F0-9-]{27}$/);
+    await page.locator('#room-invite').click(); await expect(page.locator('#room-code')).toHaveValue(/^[A-F0-9-]{27}$/); const code = await page.locator('#room-code').inputValue();
     await page.screenshot({ path: info.outputPath('campaign-room.png') });
     await visitor.goto(base + '/campaigns/'); await expect(visitor.locator('#create-panel')).toBeHidden();
     await visitor.locator('#join input').fill(code); await visitor.locator('#join button').click();
@@ -47,7 +65,7 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await expect(page.locator('#room-status')).toContainText('resumed');
     await page.locator('#room-resume').click();
     const core = await post(owner, `/api/campaign-world/${id}/cores`, { x: 24, y: 18 }); expect(core.status()).toBe(201);
-    await expect.poll(async () => (await state()).me.deploying).toBe(false);
+    await expect.poll(async () => (await state()).me.deploying, { timeout: 12000 }).toBe(false);
     await page.locator('#world-canvas').focus(); await page.keyboard.down('w'); await page.waitForTimeout(350); await page.keyboard.up('w');
     await page.locator('#room-button').click(); await page.locator('#room-leave').click();
     await expect(page).toHaveURL(/\/campaigns\//); await expect(visitor).toHaveURL(/\/campaigns\//);

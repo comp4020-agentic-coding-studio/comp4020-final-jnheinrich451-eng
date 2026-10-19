@@ -27,7 +27,7 @@ it('rejects ocean, edges, overlapping pods, units and parked tanks while allowin
   expect(tankPlacementError(w,[],[],1,1,'a')).toBeTruthy();
   w.terrain[18*48+30]=0;expect(tankPlacementError(w,[],[],30,19,'a')).toContain('Ocean');w.terrain[18*48+30]=2;
   expect(tankPlacementError(w,[],[{x:30.5,y:15.5}],30,19,'a')).toContain('unit');
-  w.tanks.push(tank());expect(tankPlacementError(w,[],[],35,20,'a')).toContain('already');
+  w.tanks.push(tank());expect(tankPlacementError(w,[],[],40,20,'a')).toBeNull();
   expect(tankPlacementError(w,[],[],30,19,'b')).toContain('pod');
 });
 it('reserves incoming pods against every construction type and parked tanks against rails and sentries', () => {
@@ -65,7 +65,9 @@ it('saves a resumable drop, pauses unused worlds, boards exclusively, drives, sa
   const f=await fixture();try{
     await f.connect();await f.connect(1);
     const deployed=await f.post('tanks',{x:30,y:19});expect(deployed.status).toBe(201);const id=deployed.body.tank.id;
-    expect((await f.post('tanks',{x:30,y:19})).body.tank.id).toBe(id);expect((await f.post('tanks',{x:38,y:22})).status).toBe(409);
+    expect((await f.post('tanks',{x:30,y:19})).body.tank.id).toBe(id);
+    const second=await f.post('tanks',{x:40,y:24});expect(second.status).toBe(201);expect(second.body.tank.id).not.toBe(id);
+    expect((await f.post('tanks',{x:40,y:24})).body.tank.id).toBe(second.body.tank.id);expect((await f.state()).tanks).toHaveLength(2);
     expect((await f.post('tanks/board',{id})).status).toBe(409);
     await expect.poll(async()=>(await f.state()).tanks[0].elapsed).toBeGreaterThan(.3);
     await f.restart();const paused=(await f.state()).tanks[0].elapsed;await new Promise(r=>setTimeout(r,250));expect((await f.state()).tanks[0].elapsed).toBe(paused);

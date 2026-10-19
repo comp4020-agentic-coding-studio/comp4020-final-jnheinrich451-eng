@@ -14,6 +14,15 @@ it('an empty HE tank destroys a Bulwark without moving, using normal cannon dama
  expect(combat.snapshot().kills).toBe(1);expect(combat.snapshot().enemies).toHaveLength(0);
  expect(tank).toMatchObject({x:20.5,y:20.5,angle:0,occupant:null});
 });
+it('multiple parked tanks belonging to one player defend separate approaches independently',()=>{
+ const {world,tank,combat}=field(),second={...tank,id:'second',y:40.5};world.tanks.push(second);
+ const saved=combat.checkpoint();saved.serial=2;saved.enemies.push({...newGroundEnemy('bulwark',2,{x:26.5,y:40.5}),frenzyRecoveryUntil:1e8});
+ const battle=createCombat(world,saved);for(let i=0;i<140;i++)battle.tick(.05,[]);
+ expect(battle.snapshot().kills).toBe(2);expect(battle.snapshot().enemies).toHaveLength(0);
+ expect(world.tanks.map((t:typeof tank)=>({owner:t.owner,x:t.x,y:t.y,occupant:t.occupant}))).toEqual([
+   {owner:'owner',x:20.5,y:20.5,occupant:null},{owner:'owner',x:20.5,y:40.5,occupant:null}
+ ]);
+});
 it('prefers visible Bulwarks, rotates before firing and does not shoot through rocks or friendly structures',()=>{
  const {world,tank}=field();tank.turret=0;
  const units=[newGroundEnemy('hunter',2,{x:22.5,y:21.5}),newGroundEnemy('bulwark',1,{x:26.5,y:20.5})];

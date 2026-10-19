@@ -19,7 +19,8 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   $('recycler-stop').onclick=()=>action('command',{id:$('recycler-select').value,action:'stop'});
   $('recycler-deliver').onclick=()=>action('command',{id:$('recycler-select').value,action:'deliver',targetId:$('uplink-select').value});
   $('cargo-launch').onclick=async()=>{const station=state().world.logistics.facilities.find(f=>f.id===$('uplink-select').value);try{await api('logistics/launch',{id:station?.id});dialog.close();locate({x:station.x+1.5,y:station.y+1.5});notify('Cargo rocket launching. Supplies arrive when it clears the atmosphere.');}catch(e){$('logistics-message').textContent=e.message;}};
-  $('logistics-rebuild').onclick=()=>{const [kind,id]=$('logistics-repair').value.split(':');return action('repair',{kind,id});};
+  const repairSelection=()=>{const value=$('logistics-repair').value,split=value.indexOf(':');return {kind:value.slice(0,split),id:value.slice(split+1)};};
+  $('logistics-rebuild').onclick=()=>action('repair',repairSelection());
   $('logistics-cancel').onclick=()=>action('cancel',{id:$('logistics-order').value});
   $('recycler-locate').onclick=()=>{const r=state().world.logistics.recyclers.find(r=>r.id===$('recycler-select').value);if(r){dialog.close();locate(r);}};
   function update(){
@@ -43,9 +44,14 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     const station=l.facilities.find(f=>f.id===$('uplink-select').value&&f.kind==='uplink');
     $('cargo-launch').disabled=!operating||!station||station.remaining>0||station.cooldown>0||!station.cargo||l.supplies>=ECONOMY.capacity;
     $('cargo-launch').textContent=station?.cooldown>0?'Rocket returns / '+Math.ceil(station.cooldown)+'s':'Launch cargo to orbit';
-    $('logistics-rebuild').disabled=!allowed||!$('logistics-repair').value;
+    const repair=repairSelection(),job=l.jobs[repair.id],cost=repair.kind==='dock'?COSTS.dockRepair:COSTS.baseRepair;
+    const repairReason=!repairs.length?'No destroyed docks or airbases you can manage.':!connected?'Reconnect first.':!allowed?'Use an active robot to rebuild infrastructure.':job?`Rebuilding / ${Math.ceil(job.remaining)}s remaining.`:l.groundSupplies+1e-8<cost?`Need ${cost} GND; ${Math.floor(l.groundSupplies||0)} available.`:null;
+    $('logistics-rebuild').disabled=!!repairReason;
+    $('logistics-rebuild').textContent=job?`Rebuilding / ${Math.ceil(job.remaining)}s`:`Rebuild original facility${repairs.length?' / '+cost+' GND':''} / 8s`;
+    $('logistics-repair-help').textContent=repairReason||'Rebuild in the original position; the assigned vehicle is kept.';
     $('logistics-cancel').disabled=!allowed||!$('logistics-order').value;
   }
   $('uplink-select').onchange=()=>update();
+  $('logistics-repair').onchange=()=>update();
   return {update,open};
 }

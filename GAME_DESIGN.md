@@ -765,6 +765,12 @@ cap, with at most four lens creatures alive. Their full combat state persists.
 
 ## 19 October parked tank defence
 
+The subsequent fleet decision removes the old per-player and campaign tank caps:
+players may fund multiple tanks and park them as cannon defenders. Each still
+costs supplies and needs a legal deployment site. L → Field equipment selects
+individual tanks for location and replacement; transport and hull identities
+persist. See [Tank guard and fleet rules](docs/TANK_GUARD.md).
+
 [Parked tank guard](docs/TANK_GUARD.md) gives unoccupied, operational tanks
 stationary automatic HE/magnetic main-gun defence, prioritising visible Bulwarks.
 Manual boarding cancels automatic charging; hull-owned reloads survive handoff.

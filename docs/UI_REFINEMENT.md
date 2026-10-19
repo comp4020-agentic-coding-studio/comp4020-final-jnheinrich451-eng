@@ -655,3 +655,63 @@ Remote includes cruising aircraft with a compact map-targeting bar, R approach
 rotation and LMB/tap commitment; WASD continues controlling the robot. Phone
 movement buttons sit above the targeting bar. See docs/AIR_TRAFFIC.md for the
 accepted anti-air avoidance, finite jet pass and post-strike cruise behavior.
+
+## Destroyed dock recovery, 19 October 2026
+
+Deploy → Logistics places equipment; Field logistics (L or the GND/ORB counter)
+contains Recovery and construction → Damaged infrastructure. The old direction
+to "check Logistics" confused these two screens. Dock controls now also offers
+Rebuild dock directly, using the existing server repair order: 90 GND and eight
+seconds, in the original position, retaining the assigned vessel. Both repair
+panels show insufficient GND and live rebuild progress instead of inviting a
+duplicate order. Field logistics preserves the full facility ID when submitting
+a repair, including older IDs containing colons. Airbase rebuilding remains
+150 GND through Field logistics. Prices, ownership and persistence rules are
+unchanged.
+
+Validation: type checking and 38 focused UI, shipyard and logistics tests passed,
+including repair affordability, selection changes, duplicate-order protection
+and the existing server rebuild/restart coverage. Implemented locally; not yet
+pushed or deployed.
+
+### Ruin artwork and tank placement feedback
+
+Destroyed docks (including old narrow docks and empty shipyards), runways and
+helipads now use deterministic scorched/cracked surfaces and bent metal panels.
+Operational lights and berth markings disappear; the destroyed label stays
+visible. Existing eight-second repair jobs show drones and a countdown and
+restore normal art when complete. No extra particles, server entities, save
+fields or collision changes are introduced. Other destroyed structures keep
+their existing salvage/removal rules.
+
+The first clarification retained the one-tank-per-player rule pending a
+fleet-size decision; the subsequent [tank fleet stage](TANK_GUARD.md) removes
+that limit and adds an individual tank selector under L → Field equipment.
+Blocked placement no longer universally says "Choose a clear site". Finding a
+tank closes the logistics modal and can locate one carried by a transport.
+
+Validation: type checking, 25 tank/transport/repair-UI tests and the browser
+blocked-placement-to-replacement flow passed. Intact/destroyed/rebuilding dock
+and airfield previews were rendered and inspected locally. Not yet deployed.
+
+## Menu navigation and map tools, 19 October 2026
+
+Escape closes the current dialog, planner, catalogue or placement, even while
+an input has focus or the room is paused. From combat it opens the Room menu
+(the field guide in the legacy test world); closing Room resumes the battle.
+It does not save-and-leave the campaign. The single keymap entry also appears
+in F1. Switching between help and key reference keeps a solo room paused.
+
+In a campaign, the DEMO/ID link opens the same Room menu without navigating or
+disconnecting the pilot. Account settings remains available there; its return
+link uses the active campaign instead of the planet lobby.
+
+The map toolbar contains only zoom in/out, recenter, alert-station location,
+planet overview, survey overview and tile grid. A shared layout stacks it below
+the minimap and captions on desktop and phone. Other hostile-site locations
+remain available through O/Shift+O. Site inspection and orbital/air support
+shortcuts are available under L > Field equipment; deployment and V/H remain.
+
+Validation: desktop/phone campaign and account browser checks, focused menu
+navigation and toolbar layout checks (including phone landscape), type checking
+and catalogue/tank-guard tests. Implemented locally; not yet pushed or deployed.

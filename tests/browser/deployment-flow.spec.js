@@ -23,6 +23,7 @@ async function field(browser,body='robot',mobile=false){
  if(body==='aircraft'){Object.assign(a.aircraft,{occupant:'pilot',state:'flying',x:65,y:40,speed:8,leftBase:true});x=65;y=40;}
  if(body==='ship'){const ship={...shipSite(w,[],[],27,40,'pilot','gunship','unfolding').ship,id:'ship',elapsed:SHIP.duration,occupant:'pilot',x:20,y:40};db.prepare('INSERT INTO ships VALUES (?,?)').run(ship.id,JSON.stringify(ship));x=20;y=40;}
  if(body==='rover'||body==='wreck')db.prepare('INSERT INTO tanks VALUES (?,?)').run('tank',JSON.stringify({id:'tank',owner:'pilot',occupant:body==='wreck'?null:'pilot',destroyed:body==='wreck',replacement:0,x,y,podX:40,podY:40,elapsed:99,health:body==='wreck'?0:200,angle:0,turret:0,weapon:'HE',secondary:'APCR'}));
+ if(body==='wreck')db.prepare('INSERT INTO tanks VALUES (?,?)').run('sibling',JSON.stringify({id:'sibling',owner:'pilot',occupant:null,x:70.5,y:30.5,podX:68,podY:30,elapsed:99,health:200,angle:0,turret:0,weapon:'HE',secondary:'APCR'}));
  if(body==='recycler')l.recyclers=[{id:'recycler',owner:'pilot',occupant:'pilot',x,y,remaining:0,angle:0,cargo:0,path:[]}];
  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
  db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));
@@ -91,9 +92,15 @@ for(const body of ['robot','rover','recycler','ship','aircraft'])test('WASD cont
  }finally{await f.close();}
 });
 
-test('tank replacement remains in Logistics after leaving the Ground catalogue',async({browser})=>{
- const f=await field(browser,'wreck'),p=f.page;try{
+for(const mobile of [false,true])test('tank fleet deploys and selects the correct replacement on '+(mobile?'phone':'desktop'),async({browser})=>{
+ const f=await field(browser,'wreck',mobile),p=f.page;try{
+  await p.locator('#build-mode').click();await p.locator('#tab-ground').click();await p.locator('#tank-card').click();
+  await p.locator('#coordinate-details').evaluate(el=>el.open=true);await p.locator('#tile-x').fill('100');await p.locator('#tile-y').fill('40');await p.locator('#select-tile').click();
+  await expect(p.locator('#place-building')).toBeEnabled();await p.locator('#place-building').click();
+  await expect.poll(async()=>(await f.state()).tanks.length).toBe(3);
   await p.locator('#build-mode').click();await p.locator('#tab-air').click();await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.press('l');
+  await expect(p.locator('#tank-select option')).toHaveCount(3);await p.locator('#tank-select').selectOption('sibling');await expect(p.locator('#tank-replace')).toBeHidden();await p.locator('#tank-select').selectOption('tank');
   await expect(p.locator('#tank-replace')).toBeVisible();await expect(p.locator('#tank-replace')).toBeEnabled();await p.locator('#tank-replace').click();await expect.poll(async()=>(await f.state()).tanks[0].destroyed).toBe(false);expect(f.errors).toEqual([]);
+  const s=await f.state();expect(s.tanks).toHaveLength(3);expect(s.tanks.find(t=>t.id==='sibling').health).toBe(200);expect(s.logistics.supplies).toBe(1600);
  }finally{await f.close();}
 });

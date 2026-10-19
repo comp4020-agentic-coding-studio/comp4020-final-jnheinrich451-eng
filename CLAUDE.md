@@ -774,3 +774,15 @@ The author approved natural hostile-compound replenishment and seeded raids.
 plans for named campaigns. Keep permanent conquest, shared active/reserved caps,
 saved active-play deadlines and damageable sleeping survivors. No offline catch-up
 or invisible deletion/healing to free enemy slots. Legacy drills remain separate.
+
+## 19 October: supply-funded tank fleets
+
+The author explicitly requested unlimited tank counts for parked cannon defence.
+Remove the old one-per-player and eight-per-world tank caps; do not silently
+replace them with another fixed cap. Keep supply costs, deployment geometry,
+construction timers, ownership and emergency-recovery admission. L → Field
+equipment selects a specific tank for Find/Replace, including carried tanks.
+Deployment retries must match the exact owned pod site, not the first tank of
+that owner. Preserve independent guard/cooldown state and all saved hulls.
+See docs/TANK_GUARD.md; unlimited gameplay count is not a claim of unbounded
+Fly performance.

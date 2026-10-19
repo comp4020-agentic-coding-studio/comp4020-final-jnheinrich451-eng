@@ -33,7 +33,7 @@ export function shipyardSite(world, buildings, occupants, x, y, owner) {
 export function yardBuildError(world, yard, owner, kind, previous = null, people = []) {
   if (!yard || yard.owner !== owner) return 'Choose your own shipyard.';
   if (!['gunship', 'submarine', 'transport','carrier'].includes(kind)) return 'Choose a supported vessel.';
-  if (yard.dockDestroyed) return 'Repair this shipyard in Logistics (L) first.';
+  if (yard.dockDestroyed) return 'Rebuild this dock in Dock controls, or press L for Field logistics → Damaged infrastructure.';
   if (!dockComplete(yard) || world.logistics?.jobs?.[yard.id]) return 'Wait for the shipyard to finish assembly or repairs.';
   if ((world.ships || []).some(s => s.id !== previous?.id && (s.yardId || s.id) === yard.id)) return 'This shipyard already supports a vessel. Retire it before changing type.';
   if (world.ships.filter(s=>!s.destroyed&&s.id!==previous?.id).length >= SHIP.max) return 'Fleet limit: four vessels per campaign.';

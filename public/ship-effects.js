@@ -3,6 +3,7 @@ import { SHIP, hull, hullCells, shipName, shipKind, dockRects, dockComplete } fr
 import { mainMounts, SIDE_MOUNTS } from './ship-armament.js';
 import { hullPoint } from './vehicle.js';
 import { CoreEffects } from './core-effects.js';
+import { drawRuinedSlab } from './facility-ruins.js';
 const clamp=n=>Math.max(0,Math.min(1,n));
 export class ShipEffects extends CoreEffects {
   ramp(c,ship,point,zoom,preview=false) {
@@ -35,6 +36,16 @@ export class ShipEffects extends CoreEffects {
     c.restore();
   }
   dock(c,s,zoom,preview=false) {
+    if(s.dockDestroyed&&!preview){
+      const rects=dockRects(s);
+      if(!rects.length){
+        const dx=s.berthX-s.dock.x,dy=s.berthY-s.dock.y,length=Math.hypot(dx,dy),span=Math.max(.5,length-SHIP.length/2);
+        rects.push({x:s.dock.x,y:s.dock.y,w:.9,h:.9,angle:s.dock.angle},
+          {x:s.dock.x+dx/Math.max(length,.001)*span/2,y:s.dock.y+dy/Math.max(length,.001)*span/2,w:.55,h:span,angle:Math.atan2(dx,-dy)});
+      }
+      for(const rect of rects)drawRuinedSlab(c,rect,this.tile,zoom,true);
+      return;
+    }
     if(s.dockStyle==='unfolding'){this.unfoldingDock(c,s,zoom,preview||dockComplete(s)?SHIP.duration:s.elapsed,preview);return;}
     const T=this.tile,d=s.dock,dx=s.berthX-d.x,dy=s.berthY-d.y,length=Math.hypot(dx,dy),end={x:s.berthX-dx/length*SHIP.length/2,y:s.berthY-dy/length*SHIP.length/2};
     c.save();c.lineCap='butt';c.strokeStyle='#162f36';c.lineWidth=T*.55;c.beginPath();c.moveTo(d.x*T,d.y*T);c.lineTo(end.x*T,end.y*T);c.stroke();
