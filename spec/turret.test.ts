@@ -64,8 +64,13 @@ it('the HTTP server owns traverse and ignores forged firing angles while the hul
     expect((await post('fire', { x: initial.me.x + 5, y: initial.me.y, weapon: 'HE', turret: Math.PI / 2 })).status).toBe(200);
     expect((await state()).combat.shots[0].angle).toBe(0);
     await expect.poll(async () => (await state()).me.turret).toBeCloseTo(Math.PI / 2, 4);
-    await post('input', { x: -1, y: 0, aim: Math.PI / 2, turret: -Math.PI / 2 });
-    await expect.poll(async () => angleDelta((await state()).me.angle, -Math.PI / 2)).toBeCloseTo(0, 4);
+    // The client refreshes held keys; one packet expires after 400 ms, before
+    // the tank's gradual hull traverse can finish a quarter turn.
+    await expect.poll(async () => {
+      expect((await post('input', { x: -1, y: 0, aim: Math.PI / 2, turret: -Math.PI / 2 })).status).toBe(200);
+      return angleDelta((await state()).me.angle, -Math.PI / 2);
+    }, { interval: 50, timeout: 3000 }).toBeCloseTo(0, 4);
+    expect((await post('input', { x: 0, y: 0, aim: Math.PI / 2 })).status).toBe(200);
     const turned = await state();
     expect(turned.me.x).toBeLessThan(initial.me.x);
     expect(turned.me.turret).toBeCloseTo(Math.PI / 2);
