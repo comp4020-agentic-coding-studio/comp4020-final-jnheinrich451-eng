@@ -73,12 +73,14 @@ it('airbase repairs consume only ground supplies for actual health restored',()=
  base.destroyed=true;w.logistics.groundSupplies=10;tickAirRepair(w,base,2);expect(base.aircraft.health).toBe(175);
 });
 it('admits global orbital placement and preserves migrated budgets across restart',async()=>{
- const f=await fixture((_db,_w,l)=>{l.version=1;l.supplies=423;delete l.groundSupplies;});try{
-  expect((await f.state()).logistics).toMatchObject({version:2,supplies:423,groundSupplies:0});await f.connect();
+ // Keep the post-purchase balance above the passive-income reserve so real
+ // simulation ticks cannot change the exact debit/persistence assertions.
+ const f=await fixture((_db,_w,l)=>{l.version=1;l.supplies=523;delete l.groundSupplies;});try{
+  expect((await f.state()).logistics).toMatchObject({version:2,supplies:523,groundSupplies:0});await f.connect();
   const r=await f.post('missiles',{x:90,y:60});expect(r.status).toBe(201);
   const job=(await f.state()).logistics.jobs[r.data.gun.id];expect(job.duration).toBe(CARGO_POD_DURATION);
-  expect((await f.state()).logistics.supplies).toBe(203);expect((await f.post('artillery/control',{id:r.data.gun.id})).status).toBe(409);
-  await f.restart();expect((await f.state()).logistics.groundSupplies).toBe(0);expect((await f.state()).logistics.supplies).toBeGreaterThanOrEqual(203);
+  expect((await f.state()).logistics.supplies).toBe(303);expect((await f.post('artillery/control',{id:r.data.gun.id})).status).toBe(409);
+  await f.restart();expect((await f.state()).logistics).toMatchObject({version:2,groundSupplies:0,supplies:303});
  }finally{await f.close();}
 });
 it('opens orbital cargo walls before revealing contents, with a one-second deployment phase',()=>{
