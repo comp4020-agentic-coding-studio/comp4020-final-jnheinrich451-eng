@@ -62,6 +62,7 @@ export const BINDINGS = Object.freeze([
 export const POINTER = Object.freeze([
   ['WASD / arrows', 'Move, drive, sail; rail travel; aircraft speed and turn'],
   ['WASD with panels', 'Movement continues unless typing or the game is paused'],
+  ['Tank driving', 'World-direction steering; slower reverse; release to brake'],
   ['Mouse', 'Aim (gold crosshair = desired target)'],
   ['LMB / Space', 'Primary weapon'],
   ['RMB / J (hold)', 'Secondary weapon'],

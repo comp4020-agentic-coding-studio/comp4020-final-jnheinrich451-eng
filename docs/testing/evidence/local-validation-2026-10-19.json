@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-19",
+  "timezone": "Australia/Sydney",
+  "source": "local working tree with uncommitted changes",
+  "scope": "isolated temporary saves; no Fly mutation",
+  "typecheck": "passed",
+  "targetedVitest": {
+    "files": 5,
+    "tests": 51,
+    "result": "passed",
+    "durationSeconds": 95.22,
+    "filesRun": [
+      "spec/campaigns.test.ts",
+      "spec/multiplayer-crash.test.ts",
+      "spec/persistence.test.ts",
+      "spec/tank-motion.test.ts",
+      "spec/tank.test.ts"
+    ]
+  },
+  "browser": {
+    "scenarios": 5,
+    "result": "all passed across final targeted runs",
+    "filesRun": [
+      "tests/browser/campaigns.spec.js (desktop and phone)",
+      "tests/browser/multiplayer-identity.spec.js",
+      "tests/browser/multiplayer-latency.spec.js",
+      "tests/browser/multiplayer-lifecycle.spec.js"
+    ],
+    "initialFailures": [
+      "Chromium revision absent; installed matching version",
+      "Identity deployment still progressing at original 6-second setup timeout; changed to 12 seconds",
+      "Latency quiet fixture admitted new director reinforcements; postponed director in fixture only",
+      "Added readiness GET encountered ECONNRESET on idle connection; bounded read-only setup retry added"
+    ]
+  },
+  "latencySummaries": [
+    {
+      "players": 2,
+      "samples": 13,
+      "medianMs": 63,
+      "p95Ms": 422,
+      "maxMs": 422
+    },
+    {
+      "players": 4,
+      "samples": 39,
+      "medianMs": 92,
+      "p95Ms": 512,
+      "maxMs": 523
+    }
+  ],
+  "lifecycle": {
+    "categories": [
+      "a",
+      "b",
+      "d",
+      "e",
+      "f"
+    ],
+    "propagationMs": 99,
+    "scope": "one local process, two isolated rooms; not Fly capacity evidence"
+  },
+  "liveFly": {
+    "scaleTwoMachines": "not run; state sharing architecture missing",
+    "restartMachine": "not run; local SIGKILL analogue passed"
+  }
+}

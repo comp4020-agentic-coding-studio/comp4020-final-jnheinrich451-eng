@@ -36,7 +36,9 @@ test('accounts created in one browser get independent robots and cores when join
    const w={...s.world,cores:s.cores,sites:s.combat.sites,airbases:s.airbases,ships:s.ships,tanks:s.tanks,artillery:s.artillery,rails:s.rails};
    for(let y=6;y<w.height-7&&!point;y++)for(let x=6;x<w.width-7&&!point;x++)if(!corePlacementError(w,s.buildings,s.players.filter(v=>v.body!=='orbital'),x,y,s.me.id))point={x,y};
    expect(point).toBeTruthy();await post(c,route+'/cores',point);
-   await expect.poll(async()=>(await state(p)).me.deploying,{timeout:6000}).toBe(false);expect((await state(p)).me.body).toBe('robot');
+   // Deployment is simulation time; allow the same startup margin as the room UI
+   // test on a large world. This is preparation, not the peer-latency assertion.
+   await expect.poll(async()=>(await state(p)).me.deploying,{timeout:12000}).toBe(false);expect((await state(p)).me.body).toBe('robot');
   }
   const beforeA=(await state(a)).me,beforeB=(await state(b)).me;
   expect(new Set((await state(a)).cores.map(c=>c.owner))).toEqual(new Set([aid,bid]));

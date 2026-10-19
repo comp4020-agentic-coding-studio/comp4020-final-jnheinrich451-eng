@@ -786,3 +786,17 @@ Deployment retries must match the exact owned pod site, not the first tank of
 that owner. Preserve independent guard/cooldown state and all saved hulls.
 See docs/TANK_GUARD.md; unlimited gameplay count is not a claim of unbounded
 Fly performance.
+
+## 19 October: first tank physics slice
+
+The author approved gradual tank acceleration/braking, bounded hull turning and
+stronger firing feedback. Preserve world-direction WASD, slower automatic reverse,
+independent turret aim, existing collision footprint and friendly immunity.
+`public/tank-motion.js` uses bounded substeps within the existing server tick.
+Momentum is transient and clears on control loss/restart; position and heading
+keep existing persistence. Recoil remains browser-only and reduced motion disables
+the added hull kick. See docs/GROUND_WEAPONS.md for provisional tuning and offline
+checks. A later multiplayer review resolved the dependency blocker: TypeScript
+and the targeted tank motion/lifecycle tests pass. Tank-specific browser driving,
+transport regression and Fly validation remain pending; see docs/testing/multi-user-test-report.md.
+Ship/jet handling, terrain height and armor are not part of this first slice.

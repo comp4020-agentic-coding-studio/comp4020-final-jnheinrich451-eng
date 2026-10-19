@@ -289,8 +289,15 @@ it('serializes named-room construction and boarding races, with private attribut
   });
   await owner.request('/api/campaigns/enter', { id }); await h.connect(owner, id);
   await friend.request('/api/campaigns/enter', { id }); await h.connect(friend, id);
+  // c: prove server admission in the same wall-clock second, not just Promise.all.
+  await new Promise(resolve => setTimeout(resolve, 1020 - Date.now() % 1000));
+  const raceLogStart = h.logs.length;
   const placed = await Promise.all([owner, friend].map(c => c.request(worldRoute(id, 'buildings'), { x: 30, y: 22 })));
   expect(placed.map(r => r.status).sort()).toEqual([201, 409]);
+  const raceLogs = h.logs.slice(raceLogStart).filter((e: any) => e.action === 'buildings' && e.event === 'action.result');
+  expect(raceLogs).toHaveLength(2);
+  expect(new Set(raceLogs.map((e: any) => e.at.slice(0, 19))).size).toBe(1);
+  expect(new Set(raceLogs.map((e: any) => e.actorId))).toEqual(new Set([a, b]));
   const winner = placed.findIndex(r => r.status === 201), building = placed[winner].data.building;
   expect((await [owner, friend][1 - winner].request(worldRoute(id, 'dismantle'), { id: building.id })).status).toBe(403);
   const boards = await Promise.all([owner, friend].map(c => c.request(worldRoute(id, 'tanks/board'), { id: 'shared-tank' })));

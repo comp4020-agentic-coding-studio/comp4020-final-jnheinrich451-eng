@@ -37,6 +37,9 @@ test('two then four participants display shared construction and conquest prompt
       const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get().value);
       // Measure delivery/rendering of one objective, independent of later encounters.
       saved.enemies = [];
+      // Named campaigns now replenish defenders through the encounter director,
+      // independently of nextCall. Keep this delivery fixture free of combatants.
+      if (saved.director) Object.assign(saved.director, { sleeping: [], nextPulse: 1e9, nextRaid: 1e9, lastEvent: null });
       for (const encounter of saved.sites) {
         encounter.guardsRemaining = 0; encounter.nextCall = 1e9; encounter.pending = null;
         if (encounter.id !== site.id) { encounter.state = 'conquered'; encounter.hp = 0; }
@@ -77,6 +80,10 @@ test('two then four participants display shared construction and conquest prompt
     await addPeer(); let hp = site.hp;
     for (const count of [2, 4]) {
       while (pages.length < count) await addPeer();
+      // Joining/deploying a peer can outlive an idle HTTP keep-alive connection.
+      const ready = await (await owner.request.get(base + `/api/campaign-world/${id}/world`, { maxRetries: 1 })).json();
+      expect(ready.combat.enemies).toHaveLength(0);
+      expect(ready.me.life).toBe('active');
       await post(owner, `/api/campaign-world/${id}/tanks/exit`, {});
       for (let i = 0; i < 5; i++) {
         const built = await measure('place', () => post(owner, `/api/campaign-world/${id}/buildings`, { x: 30, y: 22 }), '#building-count', `${count + 1} FOUNDATIONS`);

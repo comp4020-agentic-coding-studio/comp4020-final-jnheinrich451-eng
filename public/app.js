@@ -1229,10 +1229,11 @@ function drawScout(player, dt, now) {
   if (player.body === 'robot') {
     drawRobot(ctx, position.turret, player.vx || 0, player.vy || 0, position.phase, mine);
   } else {
-    ctx.save(); ctx.rotate(position.angle); ctx.globalAlpha = .18; ctx.fillStyle = '#0e2b2a'; ctx.fillRect(-7, -10, 20, 31); ctx.globalAlpha = 1;
+    const recoil = effects.tankRecoil(player.id, now);
+    ctx.save(); ctx.translate(recoil.x, recoil.y); ctx.rotate(position.angle); ctx.globalAlpha = .18; ctx.fillStyle = '#0e2b2a'; ctx.fillRect(-7, -10, 20, 31); ctx.globalAlpha = 1;
     ctx.drawImage(images[mine ? 'tankBody_sand.png' : 'tankBody_dark.png'], -14, -17, 28, 34);
     ctx.rotate(position.turret - position.angle);
-    ctx.drawImage(images[mine ? 'tankSand_barrel1.png' : 'tankDark_barrel1.png'], -5, -25 + effects.recoil(player.id, now), 10, 27);
+    ctx.drawImage(images[mine ? 'tankSand_barrel1.png' : 'tankDark_barrel1.png'], -5, -25 + recoil.barrel, 10, 27);
     ctx.fillStyle = '#354238'; ctx.fillRect(8, -27 + effects.recoil(player.id, now, 'APCR'), 4, 20); ctx.restore();
   }
   ctx.font = `${10 / camera.zoom}px monospace`; ctx.textAlign = 'center';

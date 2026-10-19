@@ -57,9 +57,10 @@ async function fixture(occupied=false, blocked=false) {
   await listen();
   const state=async(i=0)=>(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[i]}})).json();
   const post=async(route:string,data:any,i=0)=>{const r=await fetch(base+'/api/'+route,{method:'POST',headers:{Cookie:'frontier='+tokens[i],'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};};
-  const connect=async(i=0)=>{const controller=new AbortController();controllers.push(controller);const res=await fetch(base+'/api/events',{headers:{Cookie:'frontier='+tokens[i]},signal:controller.signal});void (async()=>{try{for await(const chunk of res.body as any){} }catch{}})();};
+  const frames = new Map<number, any>();
+  const connect=async(i=0)=>{const controller=new AbortController();controllers.push(controller);const res=await fetch(base+'/api/events',{headers:{Cookie:'frontier='+tokens[i]},signal:controller.signal});void (async()=>{let pending='';const decoder=new TextDecoder();try{for await(const chunk of res.body as any){pending+=decoder.decode(chunk,{stream:true});let end;while((end=pending.indexOf('\n\n'))>=0){const event=pending.slice(0,end);pending=pending.slice(end+2);if(event.startsWith('data: '))frames.set(i,JSON.parse(event.slice(6)));}} }catch{}})();return controller;};
   const restart=async()=>{controllers.forEach(c=>c.abort());controllers=[];await app.close();app=createApp({dataDir:dir});await listen();};
-  return{dir,state,post,connect,restart,close:async()=>{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-tank-'))throw Error('Invalid temporary directory');await rm(dir,{recursive:true,force:true});}};
+  return{dir,state,post,connect,restart,frames,close:async()=>{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-tank-'))throw Error('Invalid temporary directory');await rm(dir,{recursive:true,force:true});}};
 }
 it('saves a resumable drop, pauses unused worlds, boards exclusively, drives, saves loadout and exits without duplicating robots', async()=>{
   const f=await fixture();try{
@@ -93,3 +94,34 @@ it('saves a resumable drop, pauses unused worlds, boards exclusively, drives, sa
 it('keeps the robot aboard when every adjacent exit is obstructed',async()=>{
   const f=await fixture(true,true);try{await f.connect();expect((await f.post('tanks/exit',{})).status).toBe(409);expect((await f.state()).me.vehicleId).toBe('tank');}finally{await f.close();}
 });
+it('shares tank motion with a peer and clears momentum on expired input, disconnect and restart',async()=>{
+  const f=await fixture(true);let held:ReturnType<typeof setInterval>|undefined;
+  try{
+    const driver=await f.connect();await f.connect(1);
+    const initial=(await f.state()).me;
+    const forward=()=>f.post('input',{x:1,y:0,aim:0});
+    await forward();held=setInterval(()=>{void forward();},100);
+    await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBeGreaterThan(2.5);
+    await expect.poll(()=>f.frames.get(1)?.players.find((p:any)=>p.id==='a')?.x).toBeGreaterThan(initial.x+.4);
+    clearInterval(held);held=undefined;
+    await f.post('input',{x:0,y:0,aim:0});
+    const braking=(await f.state()).me.x;
+    await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBe(0);
+    const stopped=await f.state();
+    expect(stopped.me.x).toBeGreaterThan(braking);expect(stopped.me.x-braking).toBeLessThan(.7);
+    await expect.poll(()=>f.frames.get(1)?.tanks[0].x).toBe(stopped.me.x);
+    await forward();await expect.poll(async()=>(await f.state()).me.vx,{interval:40}).toBeGreaterThan(0);
+    await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBe(0);
+    const expired=(await f.state()).me.x;
+    await new Promise(r=>setTimeout(r,250));expect((await f.state()).me.x).toBe(expired);
+    await forward();await expect.poll(async()=>(await f.state()).me.vx,{interval:40}).toBeGreaterThan(0);
+    driver.abort();
+    await expect.poll(()=>f.frames.get(1)?.players.some((p:any)=>p.id==='a')).toBe(false);
+    const parked=(await f.state(1)).tanks[0].x;
+    await new Promise(r=>setTimeout(r,250));expect((await f.state(1)).tanks[0].x).toBe(parked);
+    await f.restart();await f.connect();const resumed=await f.state();
+    expect(resumed.me.x).toBe(parked);expect(resumed.me.vx).toBe(0);
+    expect(resumed.tanks[0].x).toBe(parked);
+    await new Promise(r=>setTimeout(r,250));expect((await f.state()).me.x).toBe(parked);
+  }finally{if(held)clearInterval(held);await f.close();}
+},15000);

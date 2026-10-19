@@ -126,6 +126,14 @@ simulation and the automatic bomber remain separate future work.
 
 ## 1. How to use this document
 
+19 October tank handling: the author approved the first semi-realistic vehicle
+slice. Tanks now accelerate/brake, turn their hull gradually and reverse more
+slowly while preserving world-direction controls and independent turret aiming.
+HE/Magnetic firing adds cosmetic barrel/hull recoil. See the latest section of
+[Ground weapons](docs/GROUND_WEAPONS.md) for tuning, safe-stop behavior and the
+validation scope. Ships, aircraft and terrain-height changes remain
+separate stages; this local implementation has not been deployed or load-tested.
+
 11 October stage: build the [corrosive-mortar outpost](docs/MORTAR_OUTPOST.md)
 after the alert station. The [orbital cleanup unit](docs/ORBITAL_CLEANUP.md) is an
 author-requested future idea, recorded only; it must preserve permanent conquest.

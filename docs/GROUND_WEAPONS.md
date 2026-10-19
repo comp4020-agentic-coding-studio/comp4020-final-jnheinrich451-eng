@@ -110,3 +110,56 @@ Magnetic main gun, prioritising visible Bulwarks, while occupied tanks remain
 manual. Reload belongs to the hull across boarding/exiting. Named campaigns save
 automatic charges and accepted shells; the earlier transient-attack description
 above refers to the original tank prototype.
+
+## 19 October: tank weight and firing feedback
+
+The first semi-realistic movement slice is implemented locally, with full
+integration/browser validation still pending. Tanks retain world-direction
+WASD/arrows and phone controls. The hull turns toward the requested direction;
+requests more than 120 degrees behind the hull use slower reverse. Turret aiming
+stays independent, so the driver can retreat while firing forward.
+
+`public/tank-motion.js` supplies provisional tuning: 3 tiles/s forward,
+1.6 tiles/s reverse, 4 tiles/s² acceleration, 8 tiles/s² braking and up to
+153 degrees/s hull turning, reduced at speed. Release brakes to rest in about
+0.375 seconds and roughly half a tile from full speed. Reversing brakes through
+zero. Poor alignment reduces drive speed while the hull turns. Collision stops
+translation; it does not slide the tank sideways along an obstacle.
+
+The server retains its 100 ms tick. Movement uses at most six 25 ms substeps
+per update with the existing 0.42-tile clearance, bridge/dock flooring, other
+tanks and active walkers. Directional armor, traction, terrain height, damage,
+projectile rules and ship/aircraft handling are unchanged. No new global physics
+engine, persistent velocity fields or network particle records are introduced.
+
+Drive speed is transient on the seated player. Expired input, disconnected or
+inactive drivers, boarding/exiting, and lifecycle stop commands clear momentum;
+saved hull position and heading retain the existing checkpoint policy. Reopening
+a campaign starts stationary. Ordinary release gets braking, while loss of
+control gets a safe stop. Transport transfers retain their existing atomic seat
+and cargo changes and invalidate the previous input lease.
+
+Accepted HE and Magnetic shots now animate barrel recovery and a small hull
+kick opposite the actual shot bearing. These are browser-only offsets: they do
+not move the hitbox, affect aim or damage, or add server simulation. Reduced
+motion suppresses the added hull kick. The key reference explains reverse and
+release-to-brake behavior.
+
+Validation on 19 October: dependency-free Node assertions passed acceleration,
+braking distance, reverse speed, 10 Hz/40 Hz trajectory agreement, completed
+bridge crossing, water/obstacle stopping, bounded timesteps, shot-bearing recoil
+and reduced-motion behavior. JavaScript syntax and `git diff --check` passed.
+Added Vitest coverage includes these cases and a two-viewer HTTP/SSE scenario
+for movement, release, input expiry, disconnect and restart. That suite, existing
+transport/lifecycle regressions, TypeScript and desktop/phone browser inspection
+could not run: dependencies are absent, sandbox npm access fails, and automatic
+approval review failed at capacity on both authorized install attempts. This is
+not Fly deployment or sustained-load evidence. Review driving feel and narrow
+turns before extending the model to ships or jets.
+
+Later 19 October validation: dependency installation succeeded during the
+multiplayer-report review. TypeScript and all 51 targeted tests passed, including
+the new tank motion and tank HTTP/SSE lifecycle cases. See
+[Multiplayer test report](testing/multi-user-test-report.md) for the executed
+scope. Tank-specific browser driving/recoil and transport regressions remain
+separate from those multiplayer browser checks; no Fly capacity claim is added.

@@ -130,6 +130,14 @@ export class CombatEffects {
     for (const [id, hit] of this.hits) if (clock - hit.born > 400) this.hits.delete(id);
   }
   recoil(id, clock, weapon = 'HE') { const shot = this.muzzles.findLast(s => s.owner === id && (s.weapon || 'HE') === weapon); return shot ? Math.max(0, 1 - (clock - shot.born) / 250) * (weapon === 'HE' ? 6 : 2) : 0; }
+  tankRecoil(id, clock) {
+    const shot = this.muzzles.findLast(s => s.owner === id && ['HE', 'MAGNETIC'].includes(s.weapon));
+    if (!shot) return { x: 0, y: 0, barrel: 0 };
+    const age = Math.max(0, (clock - shot.born) / 250), strength = shot.weapon === 'MAGNETIC' ? 9 : 7;
+    const barrel = Math.max(0, 1 - age) ** 2 * strength;
+    const kick = this.reduced ? 0 : Math.sin(Math.min(1, age) * Math.PI) * strength * .35;
+    return { x: -Math.sin(shot.angle) * kick, y: Math.cos(shot.angle) * kick, barrel };
+  }
   hit(id, clock) { const hit = this.hits.get(id); return hit ? Math.max(0, 1 - (clock - hit.born) / 250) : 0; }
   offset(clock, camera, zoom) {
     if (this.reduced || !this.shakeEnabled) return { x: 0, y: 0 };

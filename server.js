@@ -27,6 +27,7 @@ import { stepShipMounts, tickMainReloads } from './public/ship-armament.js';
 import { serviceState, serviceError, serviceQuote, serviceVersion } from './public/facility-service.js';
 import { SHIP, dockComplete, shipKind, shipSite, replacementShipError, mooredDock, boardingPoint, shoreRampSite, sailStep, shipSolution, recallShipError } from './public/ship.js';
 import { TANK, tankPodCells, tankPlacementError, tankArrivalPosition, tankRecords, emergencyTankWreck } from './public/tank.js';
+import { driveTank } from './public/tank-motion.js';
 import { readFile, stat } from 'node:fs/promises';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -1049,7 +1050,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (Math.hypot(player.x - tank.x, player.y - tank.y) > TANK.boardRange) return json(res, 409, { error: 'Move within 1.8 tiles of the tank to board.' });
             combat.cancelCharge(tank.id);if(tank.guard)tank.guard.targetId=null;
             tank.occupant = player.id;
-            Object.assign(player, { x: tank.x, y: tank.y, angle: tank.angle, turret: tank.turret, aim: tank.turret, inputUntil: 0, path: [] });
+            Object.assign(player, { x: tank.x, y: tank.y, angle: tank.angle, turret: tank.turret, aim: tank.turret, inputUntil: 0, path: [], driveSpeed: 0 });
             combat.cancelCharge(player.id); persist(player, tank); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname === '/api/tanks/exit') {
@@ -1061,7 +1062,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             const point = offsets.map(([dx,dy]) => ({x:vehicle.x+dx,y:vehicle.y+dy})).find(p => canStand(world,exitBuildings,p.x,p.y) && clearPassage(p) && !occupants.some(o => o.life !== 'disabled' && Math.hypot(o.x-p.x,o.y-p.y)<.8));
             if (!point) return json(res, 409, { error: 'No clear exit beside the tank. Move to open ground first.' });
             vehicle.occupant = null; combat.cancelCharge(player.id);
-            Object.assign(player, point, { inputUntil:0,path:[],vx:0,vy:0 }); persist(player, vehicle); broadcast(); return json(res, 200, { saved: true });
+            Object.assign(player, point, { inputUntil:0,path:[],vx:0,vy:0,driveSpeed:0 }); persist(player, vehicle); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname.startsWith('/api/rail') || url.pathname.startsWith('/api/artillery') || url.pathname === '/api/missiles') {
             if (!streams.has(player.id) || incomingCore(player.id)) return json(res, 409, { error: 'Connect with an active body before using the railway.' });
@@ -1214,6 +1215,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(ship && data.target && [data.target.x,data.target.y].every(Number.isFinite) && data.target.x>=0 && data.target.y>=0 && data.target.x<world.width && data.target.y<world.height)ship.target={x:data.target.x,y:data.target.y};
             else if(ship && data.aim!==undefined)ship.target=null;
             if(isHelicopter(plane)&&data.target&&[data.target.x,data.target.y].every(Number.isFinite))plane.target={x:Math.max(0,Math.min(world.width-.001,data.target.x)),y:Math.max(0,Math.min(world.height-.001,data.target.y))};
+            if (player.inputUntil <= Date.now()) player.driveSpeed = 0;
             player.input = { x: data.x, y: data.y }; player.inputUntil = Date.now() + 400; player.path = [];
             return json(res, 200, { ok: true });
           }
@@ -1383,6 +1385,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     for (const p of people.values()) {
       if (p.vx || p.vy) changed = true;
       p.vx = 0; p.vy = 0;
+      if (!streams.has(p.id) || p.life !== 'active' || p.inputUntil <= now || !boardedTank(p.id)) p.driveSpeed = 0;
       if (!streams.has(p.id)) { if (now - p.touched > 60000) { if (p.dirty || p.lifeDirty) persist(p); people.delete(p.id); } continue; }
       if (playerBody(p) === 'orbital' || incomingCore(p.id)) continue;
       if (tickLife(p, dt, world, obstacles, recoveryOccupants)) changed = true;
@@ -1417,6 +1420,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         dx *= step / (SPEED * dt); dy *= step / (SPEED * dt);
       }
       const length = Math.hypot(dx, dy);
+      if (vehicle) {
+        const walkers = groundPeople().filter(other => other.id !== p.id && streams.has(other.id) && !boardedTank(other.id) && other.life === 'active');
+        const clear = (x, y) => canStand(world, obstacles, x, y, vehicle.id, TANK.radius) &&
+          !walkers.some(other => Math.abs(other.x-x) < .65 && Math.abs(other.y-y) < .65);
+        if (driveTank(p, { x: dx, y: dy }, dt, clear)) { p.dirty = true; changed = true; }
+        continue;
+      }
       if (!length) continue;
       if (length > 1) { dx /= length; dy /= length; }
       const nx = p.x + dx * SPEED * dt, ny = p.y + dy * SPEED * dt;
@@ -1578,7 +1588,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   }
   function stopInputs(pilot = null) {
     for (const p of people.values()) if (!pilot || p.id === pilot) {
-      p.input = { x: 0, y: 0 }; p.inputUntil = 0; p.path = []; p.vx = 0; p.vy = 0; combat.cancelCharge(p.id);
+      p.input = { x: 0, y: 0 }; p.inputUntil = 0; p.path = []; p.vx = 0; p.vy = 0; p.driveSpeed = 0; combat.cancelCharge(p.id);
       const gun = controlledBy(p.id); if (gun) { gun.input = null; gun.inputTime = 0; }
     }
   }
