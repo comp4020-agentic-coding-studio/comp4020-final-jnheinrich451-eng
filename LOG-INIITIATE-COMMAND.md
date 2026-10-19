@@ -1,0 +1,1 @@
+mise exec -- flyctl logs -a comp4020-final-jnheinrich451-eng
