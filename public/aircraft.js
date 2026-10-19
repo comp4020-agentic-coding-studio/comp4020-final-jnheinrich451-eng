@@ -1,3 +1,4 @@
+import { HELI, isHelicopter, isHelipad, airSize, compatibleAirfield, heliParking, helicopterLoad, tickHelicopter } from './helicopter.js';
 import { runwayAvailable } from './air-traffic.js';
 import { placementError } from './world.js';
 import { angleDelta } from './turret.js';
@@ -6,8 +7,8 @@ import { POD } from './pod.js';
 import { bomberPayload, payloadProfile, validPayload } from './bomber-payloads.js';
 
 export const AIR = Object.freeze({width:6,height:10,max:4,minSpeed:6,maxSpeed:12,acceleration:3,turnSpeed:1.8,count:6,interval:.25,fall:1.8,runs:2,rearm:8,transition:2,landingRange:5});
-export const airbaseGate = base => base.carrier ? {x:base.carrier.x,y:base.carrier.y} : ({x:base.x+5.5,y:base.y+8.5});
-export const parkingPoint = base => base.parking || ({x:base.x+2,y:base.y+7.5});
+export const airbaseGate = base => isHelipad(base) ? {x:base.x+2.5,y:base.y+2.5} : base.carrier ? {x:base.carrier.x,y:base.carrier.y} : ({x:base.x+5.5,y:base.y+8.5});
+export const parkingPoint = base => isHelipad(base) ? heliParking(base) : base.parking || ({x:base.x+2,y:base.y+7.5});
 export const AIR_HULL = Object.freeze({ health: 180, replacement: 20 });
 export const aircraftHealth = p => p.health ?? AIR_HULL.health;
 export const airborne = p => !!p && ['takeoff', 'flying', 'landing'].includes(p.state) && aircraftHealth(p) > 0;
@@ -17,26 +18,28 @@ export function hurtAircraft(p, amount) {
  if (!p.health) Object.assign(p, { state:'destroyed', remaining:AIR_HULL.replacement, speed:0, releaseRemaining:0, edgeTurn:false });
  return true;
 }
-export function airbaseError(world,buildings,occupants,x,y,owner){
+export function airbaseError(world,buildings,occupants,x,y,owner,kind='airbase'){
  if(![x,y].every(Number.isInteger))return 'Choose the top-left tile for the airbase.';
- if((world.airbases?.length||0)>=AIR.max)return 'Four airbases are allowed in this flight test.';
- if(x<16||y<16||x+AIR.width>world.width-16||y+AIR.height>world.height-16)return 'Keep the whole airbase 16 tiles inside the map for safe flight approaches.';
- for(let cy=y;cy<y+AIR.height;cy++)for(let cx=x;cx<x+AIR.width;cx++){
+ const pad=kind==='helipad',size=airSize({kind}),margin=pad?2:16;
+ if((world.airbases?.filter(b=>isHelipad(b)===pad).length||0)>=(pad?HELI.max:AIR.max))return pad?'Four helipads are allowed per campaign.':'Four airbases are allowed in this flight test.';
+ if(x<margin||y<margin||x+size.width>world.width-margin||y+size.height>world.height-margin)return pad?'Keep the whole helipad two tiles inside the map.':'Keep the whole airbase 16 tiles inside the map for safe flight approaches.';
+ for(let cy=y;cy<y+size.height;cy++)for(let cx=x;cx<x+size.width;cx++){
   const error=placementError(world,buildings,occupants,cx,cy);if(error)return error;
  }
  return null;
 }
-export function newAirbase(id,owner,x,y,kind='bomber'){
- const base={id,owner,x,y};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,kind,rounds:JET.ammo,health:AIR_HULL.health,...parkingPoint(base),angle:base.angle||0,speed:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false}};
+export function newAirbase(id,owner,x,y,kind='bomber',facilityKind='airbase'){
+ const base={id,owner,x,y,kind:facilityKind};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,kind,rounds:JET.ammo,health:AIR_HULL.health,...parkingPoint(base),angle:base.angle||0,speed:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false,...(isHelicopter({kind})?helicopterLoad():{})}};
 }
 export function deliverAircraft(base, kind) {
- if (!['bomber','attack-jet'].includes(kind)) return 'Choose a bomber or attack jet.';
+ if (!['bomber','attack-jet','helicopter'].includes(kind)) return 'Choose a bomber or attack jet.';
  if (base.aircraft.occupant || base.aircraft.state !== 'parked' || base.aircraft.rearm > 0) return 'Land, finish rearming and disembark before exchanging aircraft.';
- const next=newAirbase(base.id,base.owner,base.x,base.y,kind).aircraft;
+ if(!compatibleAirfield(base,{kind}))return 'Helicopters need a helipad; fixed-wing aircraft need a runway.';
+ const next=newAirbase(base.id,base.owner,base.x,base.y,kind,base.kind).aircraft;
  delete base.aircraft.mission;Object.assign(base.aircraft,next,{state:'delivering',remaining:POD.duration});return null;
 }
 export function launchError(plane){if(plane.mission&&!['complete','lost'].includes(plane.mission.phase))return 'Bomber reserved for an automatic mission.';return plane.state==='delivering'?'Orbital delivery in progress.':plane.state==='destroyed'?'Replacement aircraft preparing at the airbase.':plane.state!=='parked'?'The aircraft is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
-export function launchAircraft(plane,angle=0){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:AIR.minSpeed,angle,leftBase:false});return null;}
+export function launchAircraft(plane,angle=0){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:isHelicopter(plane)?0:AIR.minSpeed,angle,leftBase:false});return null;}
 export function bombPattern(plane){
  const profile=payloadProfile(bomberPayload(plane));
  const dx=Math.sin(plane.angle),dy=-Math.cos(plane.angle);
@@ -46,6 +49,7 @@ export function bombPattern(plane){
  });
 }
 export function bombError(world,plane){
+ if(isHelicopter(plane))return 'Use the helicopter cannon or rocket pods.';
  if(isAttackJet(plane))return 'The attack jet uses its autocannon, not bomb bays.';
  if(!validPayload(bomberPayload(plane)))return 'Choose a supported bomber payload.';
  const profile=payloadProfile(bomberPayload(plane));
@@ -68,9 +72,10 @@ export function tickAircraft(world,base,input,dt){
  if(p.state==='delivering'){p.remaining=Math.max(0,p.remaining-dt);if(p.remaining<.000001)Object.assign(p,{state:'parked',remaining:0});return true;}
  if(p.state==='destroyed'){
   p.remaining=Math.max(0,p.remaining-dt);
-  if(p.remaining<.000001&&!world.logistics&&!base.destroyed)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y,p.kind||'bomber').aircraft});
+  if(p.remaining<.000001&&!world.logistics&&!base.destroyed)Object.assign(p,{...newAirbase(base.id,base.owner,base.x,base.y,p.kind||'bomber',base.kind).aircraft});
   return true;
  }
+ if(isHelicopter(p))return tickHelicopter(world,base,input,dt,runwayAvailable(world,base,p));
  if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.rounds=JET.ammo;if(!world.logistics)p.health=AIR_HULL.health;}return true;}
  const steps=Math.ceil(dt/.025),step=dt/steps;
  for(let i=0;i<steps;i++){

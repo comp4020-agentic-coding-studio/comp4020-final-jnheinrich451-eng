@@ -61,6 +61,10 @@ export function drawRailGun(c, gun, tile, elapsed, recoil = 0, selected = false)
 }
 export function drawSalvos(c, salvos, tile, elapsed, reduced) {
   for (const s of salvos || []) {
+    if(s.kind==='heli-rocket'){
+      const t=Math.min(1,(s.elapsed+elapsed)/s.duration),prior=Math.max(0,t-.22),dx=s.targetX-s.x,dy=s.targetY-s.y;
+      c.save();c.strokeStyle='#d8c5a380';c.lineWidth=2;c.beginPath();c.moveTo((s.x+dx*prior)*tile,(s.y+dy*prior)*tile);c.lineTo((s.x+dx*t)*tile,(s.y+dy*t)*tile);c.stroke();c.translate((s.x+dx*t)*tile,(s.y+dy*t)*tile);c.rotate(Math.atan2(dy,dx));c.fillStyle='#ffb45b';c.fillRect(-tile*.25,-tile*.04,tile*.2,tile*.08);c.fillStyle='#ded6b5';c.fillRect(-tile*.08,-tile*.055,tile*.22,tile*.11);c.restore();continue;
+    }
     if(s.kind==='strafe'){
       const t=Math.min(1,(s.elapsed+elapsed)/s.duration),before=Math.max(0,t-.18);
       c.save();c.strokeStyle='#ffe4a3';c.lineWidth=2;c.beginPath();c.moveTo((s.x+(s.targetX-s.x)*before)*tile,(s.y+(s.targetY-s.y)*before)*tile);c.lineTo((s.x+(s.targetX-s.x)*t)*tile,(s.y+(s.targetY-s.y)*t)*tile);c.stroke();c.restore();continue;

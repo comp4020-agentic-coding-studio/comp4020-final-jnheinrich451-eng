@@ -1,10 +1,11 @@
+import { airSize, isHelipad } from './helicopter.js';
 import { quote } from './logistics.js';
 import { dockRecords, nearbyShipyard, yardBuildError } from './shipyard.js';
 import { dockRects, hullCells, recallShipError } from './ship.js';
 import { airfields, airRecords, parkedRecord, liveAircraft, deliveryError } from './air-traffic.js';
 
-export const SERVICE_KINDS = { dock: ['gunship', 'submarine', 'transport', 'carrier'], airbase: ['bomber', 'attack-jet'] };
-export const serviceName = kind => ({gunship:'Coastal gunship',submarine:'Missile submarine',transport:'Armored transport',carrier:'Aircraft carrier',bomber:'Bomber','attack-jet':'Attack jet'})[kind];
+export const SERVICE_KINDS = { dock: ['gunship', 'submarine', 'transport', 'carrier'], airbase: ['bomber', 'attack-jet', 'helicopter'] };
+export const serviceName = kind => ({gunship:'Coastal gunship',submarine:'Missile submarine',transport:'Armored transport',carrier:'Aircraft carrier',bomber:'Bomber',helicopter:'Helicopter','attack-jet':'Attack jet'})[kind];
 export const serviceVersion = vehicle => vehicle ? vehicle.purchase?.id || vehicle.id : null;
 // Only the net amount actually paid is carried into the next exchange. Missing
 // legacy receipts, free craft and purchases in the other pool earn no credit.
@@ -25,7 +26,7 @@ export function serviceError(world, type, id, owner, kind, people=[]) {
   const {facility,vehicle} = serviceState(world,type,id);
   if (!facility || facility.owner !== owner) return 'Choose your own completed dock or airbase.';
   if (vehicle && vehicle.owner !== owner) return 'A teammate owns this vehicle.';
-  if (type === 'airbase') return deliveryError(world,facility);
+  if (type === 'airbase') return deliveryError(world,facility,kind);
   if (vehicle) {
     if (!vehicle.destroyed) {
     if (vehicle.assemblyRemaining > 0) return 'Wait for vehicle assembly to finish.';
@@ -44,6 +45,6 @@ export function nearbyService(world, person) {
   if (!person || person.body !== 'robot' || person.life !== 'active') return null;
   const yard=nearbyShipyard(world,person)?.yard;
   if(yard)return {type:'dock',id:yard.id};
-  const base=(world.airbases||[]).find(b=>b.owner===person.id&&!b.destroyed&&!world.logistics.jobs[b.id]&&person.x>=b.x&&person.x<b.x+6&&person.y>=b.y&&person.y<b.y+10);
+  const base=(world.airbases||[]).find(b=>b.owner===person.id&&!b.destroyed&&!world.logistics.jobs[b.id]&&person.x>=b.x&&person.x<b.x+airSize(b).width&&person.y>=b.y&&person.y<b.y+airSize(b).height);
   return base ? {type:'airbase',id:base.id} : null;
 }

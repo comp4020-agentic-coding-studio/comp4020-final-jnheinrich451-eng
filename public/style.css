@@ -292,3 +292,28 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 #dock-card .unit-art { color:#a5d5f0; }
 @media (max-width:760px) { .facility-service { right:10px; bottom:100px; width:min(320px,calc(100% - 20px)); max-height:45%; padding:12px; } .facility-service .service-help { font-size:11px; } }
 .service-choices button small { display:block; margin-top:3px; font-size:11px; color:#c5bc9d; }
+/* Remote control is a map mode, with no selection sidebar. */
+#remote-markers { position:absolute; inset:0; z-index:12; pointer-events:none; overflow:hidden; }
+#remote-markers[hidden] { display:none!important; }
+.remote-marker { position:absolute; transform:translate(-50%,-50%); min-height:44px; width:58px; padding:4px; pointer-events:auto; border:2px solid #f0c44c; border-radius:5px; background:#252718e8; color:#ffe6a1; box-shadow:0 0 0 4px #f0c44c25; font:700 10px var(--mono); }
+.remote-marker:hover:not(:disabled),.remote-marker:focus-visible { background:#665323; outline:2px solid #fff0ba; outline-offset:4px; }
+.remote-marker.unavailable { border-color:#87938e; box-shadow:none; background:#1c2b2de8; color:#bcc5c0; }
+.remote-selecting .objective,.remote-selecting .survey,.remote-selecting .weapon-display,.remote-selecting .fire-button,.remote-selecting .machine-gun-button { visibility:hidden; }
+#remote-mode[aria-pressed="true"] { color:#f0c44c; border-color:#f0c44c; background:#f0c44c18; }
+@media(max-width:760px) { .mode-dock .weapon-display { min-width:100px; } .mode-dock .weapon-readout { font-size:8px; padding:3px; } .mode-dock #remote-mode { padding:0 4px; } }
+
+.remote-selecting .map-tools { top:96px; }
+.remote-selecting .map-tools button:not(#zoom-in):not(#zoom-out) { display:none; }
+.remote-selecting .weapon-display { display:none; }
+
+#remote-air { position:absolute;z-index:14;left:50%;transform:translateX(-50%);bottom:18px;width:min(630px,calc(100% - 24px));padding:10px;font:11px var(--mono); }
+#remote-air>div { display:flex;align-items:center;gap:8px;flex-wrap:wrap; } #remote-air strong { margin-right:auto; }
+#remote-air select { background:var(--field);color:var(--ink);max-width:180px;min-height:40px; } #remote-air button { padding:4px 10px; }
+#remote-air p { margin-top:6px;line-height:1.5; } .remote-air-planning .mode-dock,.remote-air-planning .map-hint { visibility:hidden; }
+
+@media(max-width:760px) { .remote-air-planning .touch-pad { bottom:190px!important; } }
+
+/* Shared encounter warning stays visible in robot, vehicle and aircraft HUDs. */
+#frenzy-status{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:24;max-width:min(720px,90vw);padding:8px 12px;border:1px solid #e3a358;background:#17201fee;color:#ffe3b1;font:11px/1.5 var(--font-mono,monospace);text-align:center;pointer-events:none}
+#frenzy-status[hidden]{display:none}
+@media(max-width:700px){#frenzy-status{top:88px;font-size:10px;max-width:90vw}}

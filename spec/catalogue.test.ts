@@ -6,10 +6,11 @@ import { COSTS, quote } from '../public/logistics.js';
 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 
-it('gives every asset a unique, stable code that matches its tab and order', () => {
+it('keeps stable asset codes when ground weapons move between categories', () => {
   expect(new Set(ASSETS.map(a => a.code)).size).toBe(ASSETS.length);
   const prefix: Record<string, string> = { ground: 'G', rail: 'R', strike: 'S', logistics: 'L', navy: 'N', air: 'A' };
-  for (const tab of TABS) assetsIn(tab.id).forEach((a, i) => expect(a.code).toBe(`${prefix[tab.id]}-${String(i + 1).padStart(2, '0')}`));
+  expect(assetsIn('ground').map(a=>a.code)).toEqual(['G-01','G-02','G-03','R-02','S-01']);
+  for (const tab of TABS.filter(t=>t.id!=='ground')) assetsIn(tab.id).forEach((a, i) => expect(a.code).toBe(`${prefix[tab.id]}-${String(i + (tab.id==='strike'?2:1)).padStart(2, '0')}`));
 });
 
 it('keeps catalogue cards and page markup in step', () => {

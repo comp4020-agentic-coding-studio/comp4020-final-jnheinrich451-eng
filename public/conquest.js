@@ -1,3 +1,6 @@
+import { groupKey, ENCOUNTERS } from './encounter-director.js';
+import { mobileLaser } from './mobile-laser.js';
+import { airborne } from './aircraft.js';
 import { airRecords } from './air-traffic.js';
 import { newGroundEnemy } from './enemy-profiles.js';
 import { ANTI_AIR } from './anti-air.js';
@@ -80,10 +83,18 @@ function arrivalPoints(site, world, buildings, people, enemies, blocked, origin 
   return points;
 }
 
-export function tickSites(sites, world, buildings, people, enemies, now, nextId, blocked = () => false, reserved = 0) {
+export function queuePressure(site,world,buildings,people,enemies,roster,now,blocked){
+ if(site.state!=='hostile'||site.pending)return false;
+ const points=arrivalPoints(site,world,buildings,people,enemies,blocked).slice(0,roster.length).map((p,i)=>({...p,kind:roster[i]}));
+ if(!points.length)return false;
+ site.pending={kind:'pressure',points,at:now+ALERT.warning};return true;
+}
+
+export function tickSites(sites, world, buildings, people, enemies, now, nextId, blocked = () => false, reserved = 0, director = null) {
   let changed = false;
   const occupants = people.filter(p => p.body !== 'orbital');
   const contacts = sensorContacts(world, people);
+  const aircraft=airRecords(world).map(b=>b.aircraft).filter(airborne);
   for (const site of sites) {
     const previousMarks = site.sensor?.marks.length || 0;
     const scanner = isAlertSite(site);
@@ -93,11 +104,15 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
     changed = true; // Shared pulse/beam/mark time, independent of each client's camera.
     const center = siteCenter(site);
     if (!site.awake && contacts.some(p => p.ground && Math.hypot(p.x - center.x, p.y - center.y) < ALERT.wake)) { site.awake = true; changed = true; }
+    if(!site.awake&&site.guardRoster?.some(k=>mobileLaser({kind:k}))&&aircraft.some(p=>Math.hypot(p.x-center.x,p.y-center.y)<30))site.awake=true;
     const report = (site.sensor?.marks || []).filter(m => m.ground).sort((a, b) => b.seenAt - a.seenAt)[0];
     const alarm = site.alarmUntil > now || !!report;
     if (site.alarm !== alarm) { site.alarm = alarm; changed = true; }
     if (!site.awake) continue;
-    const capacity = () => Math.max(0, Math.min(ALERT.max - enemies.filter(e => e.hp > 0 && e.siteId === site.id).length,
+    const groupCapacity=()=>!director?ALERT.globalMax:ENCOUNTERS.compoundCap
+      - enemies.concat(director.sleeping).filter(e=>e.hp>0&&sites.some(s=>s.id===e.siteId&&groupKey(s)===groupKey(site))).length
+      - sites.filter(s=>s.id!==site.id&&groupKey(s)===groupKey(site)).reduce((n,s)=>n+(s.pending?.points.length||0),0);
+    const capacity = () => Math.max(0, Math.min(groupCapacity(), ALERT.max - enemies.filter(e => e.hp > 0 && e.siteId === site.id).length,
       ALERT.globalMax - reserved - enemies.filter(e => e.hp > 0).length - sites.filter(s => s.id !== site.id && s.state === 'hostile').reduce((n, s) => n + (s.pending?.points.length || 0), 0)));
     if (site.pending) {
       changed = true;
@@ -107,7 +122,8 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
         let spawned = 0;
         for (const point of site.pending.points) {
           if (!capacity() || !valid.some(p => p.x === point.x && p.y === point.y)) continue;
-          const role = site.pending.kind === 'guards' ? site.guardRoster?.[spawned] : 'hunter';
+          const role = site.pending.kind === 'guards' ? site.guardRoster?.[spawned] : point.kind || 'hunter';
+          if(mobileLaser({kind:role})&&enemies.filter(e=>e.hp>0&&mobileLaser(e)).length>=4)continue;
           enemies.push({ ...newGroundEnemy(role, nextId(), point),
             siteId: site.id, homeX: point.x, homeY: point.y, emergedAt: now, behavior: 'guarding' }); spawned++;
         }
@@ -115,7 +131,7 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
         site.pending = null; site.nextCall = now + (spawned ? ALERT.interval : 2000);
       }
     }
-    if (!site.pending && now >= site.nextCall && capacity() > 0 && (site.guardsRemaining > 0 || scanner && alarm)) {
+    if ((!director||contacts.some(p=>Math.hypot(p.x-center.x,p.y-center.y)<=ENCOUNTERS.activeRange)) && !site.pending && now >= site.nextCall && capacity() > 0 && (site.guardsRemaining > 0 || !director && scanner && alarm)) {
       const count = Math.min(capacity(), site.guardsRemaining || ALERT.wave);
       const origin = site.defenseReport?.until > now ? { x: site.defenseReport.x, y: site.defenseReport.y } : siteCenter(site);
       const points = arrivalPoints(site, world, buildings, occupants, enemies, blocked, origin).slice(0, count);

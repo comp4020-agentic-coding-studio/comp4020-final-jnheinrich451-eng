@@ -3,7 +3,7 @@ import { createWorld } from '../public/world.js';
 import { createCombat } from '../public/combat.js';
 import { freshLife } from '../public/survival.js';
 import { freshLogistics } from '../public/logistics.js';
-import { FRENZY, tickFrenzy } from '../public/frenzy.js';
+import { FRENZY, tickFrenzy, planFrenzy } from '../public/frenzy.js';
 
 const enemies=()=>Array.from({length:20},(_,id)=>({id:id+1,x:20.5,y:20.5,hp:60,siteId:'home',homeX:20.5,homeY:20.5}));
 const event=(units:any[])=>({id:'event',phase:'surge',until:60000,members:units.map(e=>e.id),points:[],orders:{} as Record<string,any>,nextPulse:0,outcome:null});
@@ -34,11 +34,13 @@ it('uses only a finite reserved arrival and restores the same warning and pursui
  const world:any={...createWorld(),width:80,height:60,terrain:Array(4800).fill(2),sites:[],cores:[],tanks:[],logistics:freshLogistics()};
  const combat=createCombat(world),p=player('a',40.5);p.y=30.5;
  expect(combat.startFrenzy(p,[],[p])).toBeNull();expect(combat.startFrenzy(p,[],[p])).toContain('Wait');
- const warned=combat.checkpoint();expect(warned.frenzy.points.length).toBeGreaterThan(4);expect(combat.snapshot().enemies).toHaveLength(0);
+ const warned=combat.checkpoint();expect(warned.frenzy.points.length).toBeGreaterThan(4);expect(combat.snapshot().enemies).toHaveLength(0);expect(combat.snapshot().frenzy!.roster).toEqual({hunter:6,breaker:2,bulwark:2,'twin-lens':1,'heavy-lens':1});
  const restored=createCombat(structuredClone(world),structuredClone(warned));expect(restored.checkpoint()).toEqual(warned);
  for(let i=0;i<55;i++){combat.tick(.1,[],[p]);restored.tick(.1,[],[p]);}
  expect(restored.checkpoint()).toEqual(combat.checkpoint());expect(combat.snapshot().frenzy!.phase).toBe('surge');
  const count=combat.snapshot().enemies.length;expect(count).toBeLessThanOrEqual(FRENZY.roster);expect(combat.checkpoint().frenzy.points).toHaveLength(0);
+ expect(combat.snapshot().enemies.find((e:any)=>e.kind==='breaker')).toMatchObject({hp:180,maxHp:180});
+ expect(combat.snapshot().enemies.find((e:any)=>e.kind==='bulwark')).toMatchObject({hp:450,maxHp:450});
  expect(combat.start([])).toContain('frenzy');
  const after=createCombat(structuredClone(world),structuredClone(combat.checkpoint()));after.tick(.1,[],[p]);expect(after.snapshot().enemies).toHaveLength(count);
 });
@@ -59,4 +61,17 @@ it('backs off a confirmed unreachable target and resolves once when ground recov
  tickFrenzy(f,{},units,[],[],200,()=>null,(e:any)=>logs.push(e));expect(f.phase).toBe('cooldown');expect(f.outcome).toBe('no_ground_targets');
  tickFrenzy(f,{},units,[],[],300,()=>null,(e:any)=>logs.push(e));expect(logs).toHaveLength(1);expect(units).toHaveLength(20);
  expect(units.every(e=>e.frenzyRecoveryUntil===f.until)).toBe(true);
+});
+
+it('reserves missing heavy roles before borrowing nearby hunters without transforming survivors',()=>{
+ const world:any={...createWorld(),width:80,height:60,terrain:Array(4800).fill(2)},p=player('a',40.5);p.y=30.5;
+ const units=Array.from({length:22},(_,i)=>({id:i+1,kind:'hunter',hp:17,x:40.5,y:31.5})),before=structuredClone(units);
+ const f=planFrenzy(world,[],[p],units,p,0,'mixed',2)!;
+ expect(f.points.map((p:any)=>p.kind)).toEqual(['bulwark','breaker']);expect(f.members).toHaveLength(10);
+ expect(units).toEqual(before);expect(f.members.length+f.points.length).toBe(12);
+ const full=planFrenzy(world,[],[p],units,p,0,'full',0)!;expect(full.points).toHaveLength(0);expect(full.members).toHaveLength(12);
+});
+it('keeps test arrivals on clear land and does not borrow invisible distant units',()=>{
+ const world:any={...createWorld(),width:80,height:60,terrain:Array(4800).fill(0)},p=player('a',40.5);p.y=30.5;
+ expect(planFrenzy(world,[],[p],[{id:1,hp:60,x:1,y:1}],p,0,'blocked',24)).toBeNull();
 });

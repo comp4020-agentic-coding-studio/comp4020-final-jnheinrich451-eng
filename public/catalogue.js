@@ -16,13 +16,13 @@ import { CORE } from './core.js';
 import { SENTRY_TURRET } from './turret.js';
 
 export const TABS = Object.freeze([
-  { id: 'ground', label: 'Ground' }, { id: 'rail', label: 'Rail' }, { id: 'strike', label: 'Strike' },
+  { id: 'ground', label: 'Ground' }, { id: 'rail', label: 'Rail' }, { id: 'strike', label: 'Orbital' },
   { id: 'logistics', label: 'Logistics' }, { id: 'navy', label: 'Naval' }, { id: 'air', label: 'Air' },
 ]);
 
 const degrees = radians => Math.round(radians * 180 / Math.PI);
 
-// Order inside a tab is fixed by the code number; it also gives the 1-9 hotkey.
+// Array order within each tab gives the 1-9 hotkey. Codes survive category moves.
 // Codes are never reused or renumbered. New assets take the next free number.
 export const ASSETS = Object.freeze([
   { code: 'G-01', tab: 'ground', card: 'sentry-card', kind: 'sentry', cost: 'sentry', hp: 'sentry', name: 'APCR sentry', footprint: '1 × 1 tile',
@@ -33,9 +33,9 @@ export const ASSETS = Object.freeze([
     specs: [['Cannon', `HE ${HE.range} t or magnetic ${MAGNETIC.range} t`], ['Secondary', `APCR ${APCR.range} t or fuel ${HEAVY_FLAME.range} t`]], limit: '1 per scout' },
   { code: 'R-01', tab: 'rail', card: 'rail-card', kind: 'rail', name: 'Rail track', footprint: '1 tile · corners · junctions',
     specs: [['Corridor', '3 tiles wide'], ['Lay', '1 or 5 tiles per order']] },
-  { code: 'R-02', tab: 'rail', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',
+  { code: 'R-02', tab: 'ground', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',
     specs: [['Range', `${ARTILLERY_HE.minRange}–${ARTILLERY_HE.range} t`], ['Shells', 'HE · Fire · Gas'], ['Reload', `${ARTILLERY_HE.cooldown / 1000} s`]] },
-  { code: 'S-01', tab: 'strike', card: 'missile-card', kind: 'missile', cost: 'missile', hp: 'missile', name: 'Missile battery', footprint: `${MISSILE.size} × ${MISSILE.size} fixed`,
+  { code: 'S-01', tab: 'ground', card: 'missile-card', kind: 'missile', cost: 'missile', hp: 'missile', name: 'Missile battery', footprint: `${MISSILE.size} × ${MISSILE.size} fixed`,
     specs: [['Strike', `${MISSILE.count} missiles · ${MISSILE.width} × ${MISSILE.height} area`], ['Range', `${MISSILE.minRange}–${MISSILE.range} t`], ['Reload', `${MISSILE.reload} s after last launch`]] },
   ...Object.entries(ORBITAL_PAYLOADS).map(([payload, profile], index) => ({
     code: 'S-0' + (index + 2), tab: 'strike', card: index ? 'orbital-' + payload.toLowerCase() + '-card' : 'orbital-card',
@@ -63,6 +63,8 @@ export const ASSETS = Object.freeze([
     specs: [['Autocannon', JET.ammo + ' HE rounds'], ['Delivery', 'Select a runway on the map']], placement: 'Your completed, empty airbase or carrier' },
   { code: 'A-03', tab: 'air', card: 'bomber-card', kind: 'aircraft', aircraftKind: 'bomber', cost: 'aircraft', name: 'Bomber', footprint: 'Existing free runway',
     specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Delivery', 'First bomber free per campaign']], placement: 'Your completed, empty airbase or carrier' },
+  { code: 'A-04', tab:'air',card:'helipad-card',kind:'helipad',cost:'helipad',hp:'helipad',name:'Helipad',footprint:'3 x 3',specs:[['Capacity','One helicopter / separate from runway fleet']],limit:'4 helipads per campaign' },
+  { code: 'A-05',tab:'air',card:'helicopter-card',kind:'aircraft',aircraftKind:'helicopter',cost:'helicopter',name:'Helicopter',footprint:'Existing free helipad',specs:[['Flight','Hover / 4 tiles per second'],['Weapons','LMB HE cannon / RMB rocket pods, 5s burst']],placement:'Your completed empty helipad' },
 ]);
 
 export const assetsIn = tab => ASSETS.filter(a => a.tab === tab);

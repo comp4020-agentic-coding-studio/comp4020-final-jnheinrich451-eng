@@ -2,7 +2,7 @@
 export const JET = Object.freeze({ ammo: 90, range: 10, flight: .22, cooldown: 120,
   radius: .65, lethalRadius: .15, damage: 28, edgeDamage: 6, craterSize: .8, maxRounds: 16 });
 export const isAttackJet = p => p?.kind === 'attack-jet';
-export const aircraftName = p => isAttackJet(p) ? 'Attack jet' : 'Bomber';
+export const aircraftName = p => p?.kind==='helicopter' ? 'Helicopter' : isAttackJet(p) ? 'Attack jet' : 'Bomber';
 export const strafePoint = p => ({ x: p.x + Math.sin(p.angle) * JET.range, y: p.y - Math.cos(p.angle) * JET.range });
 export function strafeError(world, p) {
   if (!isAttackJet(p)) return 'Board an attack jet to use the autocannon.';

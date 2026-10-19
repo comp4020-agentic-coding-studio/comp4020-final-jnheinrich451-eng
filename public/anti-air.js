@@ -51,8 +51,8 @@ export function tickAntiAir(world, shells, now, dt, nextId, emit = event => {}) 
     m.queue = Array.from({ length: ANTI_AIR.count }, (_, i) => {
       const launchAt = now + ANTI_AIR.warning + i * ANTI_AIR.interval, landAt = launchAt + ANTI_AIR.flight;
       const lead = (landAt - now) / 1000 * target.speed;
-      return { x: Math.max(.5, Math.min(world.width - .5, target.x + Math.sin(target.angle) * lead)),
-        y: Math.max(.5, Math.min(world.height - .5, target.y - Math.cos(target.angle) * lead)),
+      return { x: Math.max(.5, Math.min(world.width - .5, target.x + (target.kind==='helicopter'?(target.vx||0)*(landAt-now)/1000:Math.sin(target.angle)*lead))),
+        y: Math.max(.5, Math.min(world.height - .5, target.y + (target.kind==='helicopter'?(target.vy||0)*(landAt-now)/1000:-Math.cos(target.angle)*lead))),
         launchAt, landAt, targetId: target.id };
     });
     m.targetId = target.id; m.phase = 'charging'; changed = true;

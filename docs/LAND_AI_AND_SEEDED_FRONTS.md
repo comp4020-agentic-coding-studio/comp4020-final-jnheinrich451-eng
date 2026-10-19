@@ -517,3 +517,47 @@ dodgeable heavy strikes, automatic targeting, finite guard emergence and a
 complete backed-up campaign migration with restart. The rail-shell arrival test
 now uses a stationary target so its damage assertion does not depend on the old
 pursuit speed. These changes are local and have not been committed or deployed.
+
+
+## Mixed local Test frenzy roster, 19 October 2026
+
+The author could not see the newer enemies through the local test event.
+Test frenzy now requests eight Hunters, two Breakers and two Bulwarks. It
+borrows nearby living ground units within 32 tiles without changing their
+identity, health or home. Missing heavy roles get the first available arrival
+reservations before filling ordinary Hunter slots. If population capacity is
+full, nearby existing units can fill slots instead; terrain/capacity can reduce
+or change the mix. No units are killed, healed, transformed or teleported to
+force a demonstration. Aquatic enemies and the unimplemented Spitter are not
+part of this ground event.
+
+Arrival points persist their role through the warning and campaign checkpoints.
+The combat spawn path uses the shared enemy profiles, including full Breaker
+and Bulwark HP and their existing attack/immunity rules. Older saved warnings
+without a role still produce Hunters. The status shows actual role counts,
+including reserved arrivals during warning. This changes only the local test
+roster: existing warning/surge/cooldown timing, owner access, production gate,
+shared 24-enemy cap and permanent conquest remain unchanged.
+
+Validation: typecheck, focused frenzy/role/AI tests and both desktop/phone
+frenzy browser cases. Browser checks confirm all three roles arrive, warnings
+show their names and the tracking signal survives reload. Tests also cover
+warning restart, limited-capacity priority, survivor preservation and blocked
+approaches. Local implementation only; no commit, push or deployment.
+
+
+## Mobile anti-air follow-up, 19 October
+
+See [Mobile laser enemies](MOBILE_LASER_ENEMIES.md). This replaces two Hunters in
+the local mixed Test frenzy with one twin-lens and one heavy-lens creature, keeping
+twelve requested members. Aircraft specialists are excluded from ground assault
+assignments. Ordinary seeded air-defended compounds can trade one unspent guard
+through the backed-up mobile-laser-roster-v1 migration. No new global population.
+
+## Natural encounters — 19 October
+
+`NATURAL_ENCOUNTERS.md` now defines recurring pressure for named campaigns.
+Opening rosters remain intact, then living compounds replenish up to six defenders.
+One seeded, warned raid per room can reach cleared land or water. This supersedes
+the earlier test-only event/finite-only reinforcement scope; ordinary sensing,
+armor, navigation budgets and permanent conquest remain in force.

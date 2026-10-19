@@ -2,6 +2,8 @@ import { SURVIVAL } from './survival.js';
 
 // Role tuning only: no new global armor/damage formula. Legacy crawlers are hunters.
 export const ENEMY_ROLES = Object.freeze({
+  'twin-lens': Object.freeze({ name:'Twin lens', hp:140, speed:1.4, penetration:0, damage:0, reach:0, radius:0, windup:0, cooldown:0 }),
+  'heavy-lens': Object.freeze({ name:'Heavy lens', hp:320, speed:.55, penetration:0, damage:0, reach:0, radius:0, windup:0, cooldown:0 }),
   hunter: Object.freeze({ name: 'Hunter', hp: 60, speed: 2.6, penetration: 2,
     damage: SURVIVAL.damage, reach: SURVIVAL.reach, radius: SURVIVAL.strikeRadius,
     windup: SURVIVAL.windup, cooldown: SURVIVAL.cooldown }),
@@ -28,6 +30,21 @@ export function assignBulwarkGuards(sites) {
     const index = site.guardRoster.lastIndexOf('hunter');
     if (index < 0) continue;
     site.guardRoster[index] = 'bulwark'; changed++;
+  }
+  return changed;
+}
+
+// Replace finite unspent guards in at most six air-defended compounds. Existing
+// warnings, living enemies, exhausted rosters and conquered sites stay intact.
+export function assignMobileLaserGuards(sites) {
+  const groups=[...new Set(sites.filter(s=>s.kind==='anti-air'&&s.state==='hostile'&&s.encounter).map(s=>s.encounter.id))].sort().slice(0,6);
+  let changed=0;
+  for(const [i,id] of groups.entries()){
+    const members=sites.filter(s=>s.encounter?.id===id);
+    if(members.some(s=>s.guardRoster?.some(k=>['twin-lens','heavy-lens'].includes(k))))continue;
+    const site=members.find(s=>s.state==='hostile'&&!s.pending&&s.guardsRemaining>0&&s.guardRoster?.includes('hunter'));
+    if(!site)continue;
+    site.guardRoster[site.guardRoster.lastIndexOf('hunter')]=i%3===2?'heavy-lens':'twin-lens';changed++;
   }
   return changed;
 }

@@ -612,3 +612,46 @@ and phone, dismissal, map-selected empty-dock orders, and WASD for all five
 body types. Final targeted service tests (6) and typecheck also passed after
 fixing recovery for a ship destroyed during unfinished assembly: its loss
 countdown still applies, but the old assembly timer no longer blocks rebuilding.
+
+
+## Ground artillery and map-based Remote, 19 October 2026
+
+Railway cannon and missile battery now belong to Ground. Rail keeps track
+construction; Orbital contains orbital attacks. Existing asset codes R-02 and
+S-01 remain stable, while the visible category hotkeys follow card order.
+No prices, placement rules, saves or weapon mechanics change in this stage.
+
+The bottom bar has Remote (F). From an active robot or tank it opens an
+overhead view framing the friendly artillery network. Gold, screen-sized map
+buttons select a cannon or missile battery directly; wheel/zoom buttons and
+panning remain available. Unfinished or occupied facilities are muted and
+cannot be selected. The old artillery dropdown/sidebar has been removed.
+Acquiring control opens the existing bottom weapon controls. Escape cancels
+selection or releases control and returns to the unit. WASD remains available
+while selecting; the map selection click does not fire a weapon.
+
+The existing server remains authoritative for construction readiness and
+exclusive control, including a second player acquiring a facility between
+preview and click. Cancelling an outstanding request sends a release after
+the request completes. Losing focus or connectivity cancels selection.
+The mode does not expose hostile units through fog or change control leases.
+
+Validation: typecheck and 46 focused catalogue/rail/missile tests passed.
+Sixteen existing catalogue/deployment/workshop browser cases passed, and the
+four new Remote browser cases passed on their final run. These cover desktop
+and phone acquisition, shell selection, release, WASD, switching to logistics,
+cancelling a pending acquisition, occupied markers and a concurrent claim.
+The first concurrency test failed only on warning capitalization; its corrected
+assertion passed. Desktop and phone screenshots were inspected locally.
+The full browser suite and Fly deployment were not run for this stage.
+
+
+## Robot command access and remote aircraft, 19 October 2026
+
+This supersedes the preceding robot-or-tank Remote rule and earlier vehicle
+catalogue access: only the robot opens Deploy and Remote. Initial core landing
+from orbit still works. Vehicle movement/logistics controls remain independent.
+Remote includes cruising aircraft with a compact map-targeting bar, R approach
+rotation and LMB/tap commitment; WASD continues controlling the robot. Phone
+movement buttons sit above the targeting bar. See docs/AIR_TRAFFIC.md for the
+accepted anti-air avoidance, finite jet pass and post-strike cruise behavior.

@@ -746,3 +746,35 @@ immunity. Its heavy melee attack is telegraphed and dodgeable. Eligible seeded
 mortar compounds trade one finite, unspent Hunter guard for a Bulwark; no cap
 increase, conquest rollback or guard refill. Details and migration boundaries:
 `docs/LAND_AI_AND_SEEDED_FRONTS.md`.
+
+## 19 October helicopter support stage
+
+[Helicopter and helipad](docs/HELICOPTER.md) adds sustained small-HE support
+through a dedicated 3 x 3 pad and a slower hovering aircraft. LMB fires its cannon;
+RMB sweeps finite rocket pods for up to five seconds, following changing aim.
+The stage reuses the shared economy, damage, repairs, remote orders and saves;
+helicopter capacity remains separate from the runway fleet. Values need playtesting.
+
+## 19 October mobile anti-air stage
+
+[Mobile laser enemies](docs/MOBILE_LASER_ENEMIES.md) adds a twin-lens hunter and
+heavy single-lens creature. Both stop and brace before telegraphed aircraft-only
+beams; bounded angle tracking rewards lateral evasion. Ground weapons counter
+them. Finite seeded guards and local Test frenzy share the existing population
+cap, with at most four lens creatures alive. Their full combat state persists.
+
+## 19 October parked tank defence
+
+[Parked tank guard](docs/TANK_GUARD.md) gives unoccupied, operational tanks
+stationary automatic HE/magnetic main-gun defence, prioritising visible Bulwarks.
+Manual boarding cancels automatic charging; hull-owned reloads survive handoff.
+Sentries retain their lighter-target role. No new population or projectile caps.
+
+## Normal campaign combat loop — 19 October
+
+Implemented for playtesting in `docs/NATURAL_ENCOUNTERS.md`: nearby hostile
+compounds replenish defenders until all members are conquered; seeded raids also
+challenge cleared territory. Eight-second warnings, one room-wide event and
+medium-appropriate arrivals replace reliance on test spawning. Timers and dormant
+survivors persist; conquest stays permanent. Population/timing values are initial
+tuning, not a measured hosting-capacity claim.

@@ -1,3 +1,4 @@
+import { isHelipad } from './helicopter.js';
 import { airRecords } from './air-traffic.js';
 import { assemblyStage } from './construction-effects.js';
 import { LOGISTICS_SIZE, ECONOMY, facilityTargets } from './logistics.js';
@@ -64,7 +65,7 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
     }
     if(f.hp.health<f.hp.max){c.fillStyle='#301f23';c.fillRect((f.x-.5)*T,(f.y-f.h/2-.18)*T,T,4/zoom);c.fillStyle='#e0a36b';c.fillRect((f.x-.5)*T,(f.y-f.h/2-.18)*T,T*f.hp.health/f.hp.max,4/zoom);}
   }
-  for(const b of world.airbases)if(b.destroyed)label('AIRBASE LOST / REBUILD',b.x+3,b.y+5,'#f0a48d');
+  for(const b of world.airbases)if(b.destroyed)label(isHelipad(b)?'HELIPAD LOST / REBUILD':'AIRBASE LOST / REBUILD',b.x+(isHelipad(b)?1.5:3),b.y+(isHelipad(b)?3.5:5),'#f0a48d');
   for(const s of world.ships)if(s.dockDestroyed)label('DOCK LOST / REBUILD',s.dock.x,s.dock.y,'#f0a48d');
   c.restore();
 }

@@ -1,4 +1,4 @@
-﻿import {test,expect} from '@playwright/test';
+import {test,expect} from '@playwright/test';
 import {createApp} from '../../server.js';
 import {createWorld} from '../../public/world.js';
 import {freshLife} from '../../public/survival.js';
@@ -70,16 +70,21 @@ for(const mobile of [false,true])for(const type of ['air','dock'])test('automati
   await p.keyboard.press('Escape');await expect(panel).toBeHidden();await p.waitForTimeout(300);await expect(panel).toBeHidden();
  }finally{await f.close();}
 });
-for(const body of ['robot','rover','recycler','ship','aircraft'])test('WASD controls '+body+' while deployment and logistics panels are open',async({browser})=>{
+for(const body of ['robot','rover','recycler','ship','aircraft'])test('WASD controls '+body+' with robot-only deployment and movable logistics panels',async({browser})=>{
  const f=await field(browser,body),p=f.page,inputs=[];p.on('request',r=>{if(r.url().endsWith('/api/input'))inputs.push(r.postDataJSON());});try{
   await expect.poll(async()=>(await f.state()).me.body).toBe(body);
-  await p.locator('#world-canvas').focus();await p.keyboard.press('b');await expect(p.locator('#deployment-tray')).toBeVisible();
+  await p.locator('#world-canvas').focus();await p.keyboard.press('b');
+  if(body==='robot')await expect(p.locator('#deployment-tray')).toBeVisible();
+  else{
+   await expect(p.locator('#deployment-tray')).toBeHidden();await expect(p.locator('#build-mode')).toBeDisabled();await expect(p.locator('#remote-mode')).toBeDisabled();
+   for(const route of ['buildings','artillery/control','aircraft/mission']){const denied=await f.post(route,{id:'test',x:70,y:70});expect(denied.status).toBe(409);expect(denied.body.error).toContain('robot');}
+  }
   const before=(await f.state()).me,dir=body==='ship'?'w':'d';await p.keyboard.down(dir);
   await expect.poll(async()=>{const m=(await f.state()).me;return body==='aircraft'?Math.abs(m.angle-before.angle):Math.hypot(m.x-before.x,m.y-before.y);}).toBeGreaterThan(.3);await p.keyboard.up(dir);
   await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);expect(inputs.some(i=>dir==='w'?i.y===-1:i.x===1)).toBe(true);
   // A modal owns the mouse, but its close button must not consume driving keys.
   await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.press('l');await expect(p.locator('#logistics-dialog')).toBeVisible();inputs.length=0;await p.keyboard.down(dir);await expect.poll(()=>inputs.some(i=>dir==='w'?i.y===-1:i.x===1)).toBe(true);await p.keyboard.up(dir);await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);
-  if(body==='robot'){await expect(p.locator('#field-equipment')).toBeVisible();await expect(p.locator('#tank-find')).toBeVisible();await expect(p.locator('#artillery-open')).toBeVisible();}
+  if(body==='robot'){await expect(p.locator('#field-equipment')).toBeVisible();await expect(p.locator('#tank-find')).toBeVisible();await expect(p.locator('#artillery-open')).toHaveCount(0);}
   // Native select input owns keystrokes. No movement command should leak through.
   await p.locator('#recycler-select').focus();inputs.length=0;await p.keyboard.press('w');await p.waitForTimeout(350);expect(inputs.every(i=>i.x===0&&i.y===0)).toBe(true);
   expect(f.errors).toEqual([]);

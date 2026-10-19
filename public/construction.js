@@ -26,7 +26,8 @@ export function constructionError(world, kind, x, y, ship = null) {
   const cores = constructionCores(world);
   if (!cores.length) return 'Deploy a friendly core and wait for its panels to open.';
   let points;
-  if (kind === 'airbase') points = corners(x + AIR.width / 2, y + AIR.height / 2, AIR.width, AIR.height);
+  if(kind==='helipad') points=corners(x+1.5,y+1.5,3,3);
+  else if (kind === 'airbase') points = corners(x + AIR.width / 2, y + AIR.height / 2, AIR.width, AIR.height);
   else if (kind === 'missile') points = corners(x + MISSILE.size / 2, y + MISSILE.size / 2, MISSILE.size, MISSILE.size);
   else if (kind === 'artillery') points = corners(x + .5, y + .5, 3, 3);
   else if (LOGISTICS_SIZE[kind]) points = corners(x + LOGISTICS_SIZE[kind]/2, y + LOGISTICS_SIZE[kind]/2, LOGISTICS_SIZE[kind], LOGISTICS_SIZE[kind]);

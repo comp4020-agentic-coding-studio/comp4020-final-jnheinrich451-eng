@@ -305,7 +305,21 @@ it('serializes named-room construction and boarding races, with private attribut
   expect(outcomes.every((e: any) => e.campaignId === id && e.requestId && e.targetId === 'shared-tank')).toBe(true);
   expect(outcomes.map((e: any) => e.outcome).sort()).toEqual(['accepted', 'denied']);
   expect(h.logs.some((e: any) => e.action === 'auth/login' && e.reason === 'session_established' && e.actorId === a)).toBe(true);
-  const serialized = JSON.stringify(h.logs);
+  const driver=[owner,friend][boards.findIndex(r=>r.status===200)],walker=[owner,friend][boards.findIndex(r=>r.status!==200)];
+  expect(outcomes.find((e:any)=>e.outcome==='accepted')).toMatchObject({command:'board vehicle',unitType:'robot',unitAfterType:'tank',unitAfterId:'shared-tank'});
+  expect(outcomes.find((e:any)=>e.outcome==='denied').unitAfterType).toBeUndefined();
+  for(const c of [driver,walker]){
+    expect((await c.request(worldRoute(id,'input'),{x:0,y:-1,unitType:'spoofed-carrier',password:'never-log-this'})).status).toBe(200);
+    expect((await c.request(worldRoute(id,'input'),{x:0,y:1})).status).toBe(200);
+  }
+  expect((await driver.request(worldRoute(id,'fire'),{x:24.5,y:10.5,weapon:'APCR'})).status).toBe(200);
+  expect((await walker.request(worldRoute(id,'fire'),{x:24.5,y:10.5,weapon:'LASER'})).status).toBe(200);
+  await h.restart(); // Close flushes the pending bounded summaries.
+  const inputs=h.logs.filter((e:any)=>e.action==='input'&&e.outcome==='accepted');
+  expect(inputs.map((e:any)=>[e.unitType,e.command]).sort()).toEqual([['robot','move north'],['robot','move south'],['tank','move north'],['tank','move south']]);
+  expect(h.logs.some((e:any)=>e.unitType==='tank'&&e.command==='fire machine gun'&&e.outcome==='accepted')).toBe(true);
+  expect(h.logs.some((e:any)=>e.unitType==='robot'&&e.command==='fire laser rifle'&&e.outcome==='accepted')).toBe(true);
+  const serialized = JSON.stringify(h.logs);expect(serialized).not.toContain('spoofed-carrier');expect(serialized).not.toContain('never-log-this');
   for (const secret of [password, code, code.replaceAll('-', ''), 'raceowner@frontier.test', ...owner.cookies.values(), ...friend.cookies.values()]) expect(serialized).not.toContain(secret);
 }), 20000);
 async function fixture(run: (h: any) => Promise<void>) {

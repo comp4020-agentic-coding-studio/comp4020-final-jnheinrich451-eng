@@ -1,3 +1,5 @@
+import { isHelicopter, isHelipad } from './helicopter.js';
+import { drawHelipad, drawHelicopter, drawHelicopterAim } from './helicopter-effects.js';
 import { AIR_HULL, aircraftHealth, AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
 import { JET, isAttackJet, aircraftName, strafePoint, strafeError } from './attack-jet.js';
 import { ConstructionEffects } from './construction-effects.js';
@@ -6,6 +8,7 @@ import { POD } from './pod.js';
 import { bomberPayload, payloadProfile, bomberDive } from './bomber-payloads.js';
 
 export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
+ if(isHelipad(b))return drawHelipad(c,b,T,zoom,ghost,valid);
  c.save();c.translate(b.x*T,b.y*T);c.globalAlpha=ghost?.65:1;
  c.fillStyle='#506460';c.fillRect(0,0,AIR.width*T,AIR.height*T);c.strokeStyle=ghost?(valid?'#f4d18b':'#ef867d'):'#b8bfa7';c.lineWidth=2/zoom;c.strokeRect(0,0,AIR.width*T,AIR.height*T);
  c.fillStyle='#293f45';c.fillRect(.5*T,.5*T,3*T,9*T);c.strokeStyle='#dbd6b4';c.lineWidth=.06*T;c.strokeRect(.7*T,.7*T,2.6*T,8.6*T);
@@ -33,6 +36,7 @@ export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
   for(const side of [-1,1]){c.fillStyle='#53676e';c.strokeStyle='#e9c582';c.fillRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);c.strokeRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);}
   c.fillStyle='#efdbab';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText(time<POD.impact?'ORBITAL AIRCRAFT':'CAPSULE OPENING',0,2*T);c.restore();return;
  }
+ if(isHelicopter(p))return drawHelicopter(c,p,T,zoom,mine,reduced);
  const airborne=p.state!=='parked',advance=p.state==='flying'?Math.min(age,.1)*p.speed:0,x=p.x+Math.sin(p.angle)*advance,y=p.y-Math.cos(p.angle)*advance;
  const dive=isAttackJet(p)?0:bomberDive(p);
  c.save();c.translate(x*T,y*T);c.rotate(p.angle);
@@ -48,6 +52,7 @@ export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
  c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+(isAttackJet(p)?'ATTACK JET':'BOMBER')+' / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.fillStyle='#273539';c.fillRect((x-1)*T,(y+2.3)*T,2*T,3/zoom);c.fillStyle=aircraftHealth(p)<60?'#ef927e':'#b7dbb1';c.fillRect((x-1)*T,(y+2.3)*T,2*T*aircraftHealth(p)/AIR_HULL.health,3/zoom);c.restore();
 }
 export function drawBombPrediction(c,world,p,base,T,zoom,obscured=point=>false){
+ if(isHelicopter(p))return drawHelicopterAim(c,world,p,T,zoom);
  if(isAttackJet(p)){
   const target=strafePoint(p);c.save();c.strokeStyle=strafeError(world,p)?'#dc927e':'#f4cf83';c.lineWidth=1.5/zoom;c.setLineDash([6/zoom,5/zoom]);c.beginPath();c.moveTo(p.x*T,p.y*T);c.lineTo(target.x*T,target.y*T);c.stroke();c.setLineDash([]);
   c.beginPath();c.arc(target.x*T,target.y*T,JET.radius*T,0,Math.PI*2);c.moveTo((target.x-1)*T,target.y*T);c.lineTo((target.x+1)*T,target.y*T);c.moveTo(target.x*T,(target.y-1)*T);c.lineTo(target.x*T,(target.y+1)*T);c.stroke();

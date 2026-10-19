@@ -7,7 +7,7 @@ export function orbitalUI({state,api,stop,notify,overview,reveal}){
  $('deployment-tray').append(panel);panel.classList.add('orbital-inline');
  const cards=[...document.querySelectorAll('[data-orbital-payload]')];
  const active=()=>!panel.hidden;
- const allowed=()=>{const {connected,paused,me}=state();return connected&&!paused&&me?.life==='active'&&me.body!=='orbital'&&!me.deploying;};
+ const allowed=()=>{const {connected,paused,me}=state();return connected&&!paused&&me?.life==='active'&&me.body==='robot'&&!me.deploying;};
  const editable=()=>active()&&allowed()&&!busy&&!orbitalActive(orbitalState(state().world));
  const plan=()=>orbitalPlan(state().world,target,bearing,undefined,payload,end);
  function planError(p){const {world,combat}=state();return orbitalError(world,p)||(orbitalHazard(p.payload)?fieldCapacityError(combat?.fields||[],combat?.salvos||[],p.payload,p.box.width*p.box.height):null);}

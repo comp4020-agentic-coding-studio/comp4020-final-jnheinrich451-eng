@@ -1,6 +1,8 @@
-import { assignBulwarkGuards } from './public/enemy-profiles.js';
+import { controlledUnit, describeCommand } from './action-narration.js';
+import { isAttackJet } from './public/attack-jet.js';
+import { assignBulwarkGuards, assignMobileLaserGuards } from './public/enemy-profiles.js';
 import { isCarrier, CARRIER, carrierReady, prepareCarrier, deckAircraft, deckLocked, syncCarrierDeck, tickCarrierService } from './public/carrier.js';
-import { airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, newAircraftError, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
+import { requestHelicopterLanding, airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, newAircraftError, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
 import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, yardBuildError, rememberWreck, tickDockRepair } from './public/shipyard.js';
 import { newRampGun } from './public/ramp-sentry.js';
 import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint, driveOnError } from './public/transport.js';
@@ -11,8 +13,9 @@ import { seedSettlement } from './public/settlement.js';
 import { seedFronts, seedDenseFronts } from './public/seeded-fronts.js';
 import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
-import { launchCruise, recoverAircraft, unattendedAircraft, missionActive, missionError, strikePlan, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
+import { launchCruise, recoverAircraft, unattendedAircraft, isCruising, missionActive, missionError, strikePlan, prepareMission, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
 import { validPayload } from './public/bomber-payloads.js';
+import { isHelipad, isHelicopter, heliParking } from './public/helicopter.js';
 import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
 import { seedConquest } from './public/conquest.js';
 import { surfaced, resetDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
@@ -170,7 +173,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       const support=constructionError({...world,cores:workshop.kind==='core'?[workshop]:[],logistics:{facilities:workshop.kind==='core'?[]:[workshop]}},['submarine','transport','carrier'].includes(kind)?'ship':kind,siteX,siteY,object);
       if(support)return support;
     }
-    let price=quote(kind,local);const pool=poolFor(kind,local),freeBomber=kind==='aircraft'&&object.aircraft?.kind==='bomber'&&!local&&!l.freeBomberUsed;if(freeBomber)price=0;
+    let price=quote(kind==='aircraft'&&isHelicopter(object.aircraft)?'helicopter':kind,local);const pool=poolFor(kind,local),freeBomber=kind==='aircraft'&&object.aircraft?.kind==='bomber'&&!local&&!l.freeBomberUsed;if(freeBomber)price=0;
     if(kind==='core'&&(!l.deployments[object.owner]||!world.cores.length))price=0;
     const emergency=kind==='tank'&&data.emergency===true;
     if(emergency){const error=emergencyTankError(world);if(error)return error;price=0;object.emergency=true;object.weapon='HE';object.secondary='APCR';}
@@ -187,7 +190,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(kind==='core')l.deployments[object.owner]=true;
       if(factory)l.jobs[object.id]={remaining:ECONOMY.factoryTime,duration:ECONOMY.factoryTime,method:'factory',factoryId:workshop.id,kind,cost:price,pool,droneBay:{x:Math.floor(object.dock?.x??object.x),y:Math.floor(object.dock?.y??object.y)}};
       else if(yardBuild){if(kind==='aircraft')Object.assign(object.aircraft,{remaining:ECONOMY.factoryTime,assemblyDuration:ECONOMY.factoryTime,deliveryMethod:'factory'});else {object.assemblyRemaining=ECONOMY.factoryTime;object.assemblyDuration=ECONOMY.factoryTime;}}
-      else if(['airbase','artillery','missile','sentry'].includes(kind)){const duration=orbitalDuration(kind);l.jobs[object.id]={remaining:duration,duration,method:'orbital',kind,cost:price,pool};}
+      else if(['helipad','airbase','artillery','missile','sentry'].includes(kind)){const duration=orbitalDuration(kind);l.jobs[object.id]={remaining:duration,duration,method:'orbital',kind,cost:price,pool};}
       if(['factory','uplink','outpost','recycler','builder'].includes(kind)){if(factory)object.remaining=ECONOMY.factoryTime;else object.remaining=object.deliveryDuration=orbitalDuration(kind);}
       write();saveLogistics();db.exec('COMMIT');
     }catch(error){db.exec('ROLLBACK');world.logistics=previous;savedShips.clear();savedAirbases.clear();savedGuns.clear();throw error;}
@@ -205,7 +208,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     db.prepare('VACUUM INTO ?').run(path.join(directory, `before-conquest-${randomUUID()}.sqlite`));
     world.sites = seedConquest(world, buildings, [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])]);
   }
-  const combat = createCombat(world, savedCombat, () => audit.context());
+  const combat = createCombat(world, savedCombat, () => audit.context(), options.campaign ? campaignId : null);
   function flushCombatEvents() {
     for (const { event, ...details } of combat.drainEvents()) audit.emit(event, { ...details, campaignId, saved: !!options.campaign });
   }
@@ -337,6 +340,18 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'bulwark_roster_added_with_backup', count: upgraded, saved: true });
+  }
+  if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='mobile-laser-roster-v1'").get()) {
+    const directory=path.join(dataDir,'backups');mkdirSync(directory,{recursive:true});
+    db.prepare('VACUUM INTO ?').run(path.join(directory,'before-mobile-laser-roster-'+randomUUID()+'.sqlite'));
+    const upgraded=assignMobileLaserGuards(world.sites);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1',JSON.stringify(combat.checkpoint()));
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('mobile-laser-roster-v1',JSON.stringify({version:1,upgraded}));
+      db.exec('COMMIT');
+    }catch(error){db.exec('ROLLBACK');throw error;}
+    audit.emit('campaign.migrated',{campaignId,cause:'mobile_laser_roster_added_with_backup',count:upgraded,saved:true});
   }
   let revision = 0, closed = false, combatDirty = false;
   const save = db.prepare('UPDATE scouts SET x=?,y=?,angle=? WHERE id=?');
@@ -544,7 +559,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     }
     return person;
   }
-  const json = (res, status, body) => { if (options.campaign && status < 300 && res.req.method === 'POST') checkpoint(); audit.result(status, body); if (!options.campaign) flushCombatEvents(); res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
+  const json = (res, status, body) => { if (options.campaign && status < 300 && res.req.method === 'POST') checkpoint();
+    if(status<300&&res.auditPlayer){
+      const after=controlledUnit(world,res.auditPlayer,playerBody(res.auditPlayer)),before=audit.context();
+      if(after.unitId!==before.unitId||after.unitType!==before.unitType||after.unitState!==before.unitState)
+        audit.bind({unitAfterType:after.unitType,unitAfterId:after.unitId,unitAfterState:after.unitState,bodyAfter:after.bodyType});
+    }
+    audit.result(status, body); if (!options.campaign) flushCombatEvents(); res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
   async function body(req) {
     let text = '';
     for await (const chunk of req) { text += chunk; if (text.length > 4096) throw Object.assign(new Error('Request is too large.'), { status: 413 }); }
@@ -599,6 +620,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         }
         if (req.method === 'POST') {
           const data = await body(req);
+          res.auditPlayer=player;
+          audit.bind(describeCommand(audit.context().action,data,world,controlledUnit(world,player,playerBody(player)),equipped(player)));
           audit.bind({ targetId: typeof data.id === 'string' ? data.id : undefined });
           // A slow request body can finish after logout, takeover or guest
           // attachment. Recheck authority immediately before mutating the world.
@@ -623,6 +646,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(current?.id===data.vehicleId&&world.ships.some(s=>s.lastUnloaded===data.vehicleId))return json(res,200,{saved:true});
           }
           const isMissionOrder=['/api/orbital/strike','/api/aircraft/mission','/api/aircraft/recall'].includes(url.pathname);
+          const robotOrder=['/api/buildings','/api/cores','/api/tanks','/api/rails','/api/artillery','/api/missiles','/api/ships','/api/shipyards','/api/airbases','/api/logistics/deploy','/api/orbital/strike','/api/aircraft/mission'].includes(url.pathname)
+            || url.pathname==='/api/aircraft/deliver'&&data.newOnly
+            || url.pathname==='/api/artillery/control'&&!data.release;
+          const firstLanding=url.pathname==='/api/cores'&&playerBody(player)==='orbital';
+          if(robotOrder&&!firstLanding&&(playerBody(player)!=='robot'||controlledBy(player.id)&&url.pathname!=='/api/artillery/control'))return json(res,409,{error:'Return to your active robot to deploy or issue remote orders.'});
           if(boardedRecycler(player.id)&&!isMissionOrder&&!['/api/input','/api/logistics/exit','/api/logistics/bridge','/api/logistics/launch','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Exit your recycler before building or using weapons. Park to collect or unload.'});
           if (playerBody(player) === 'orbital' && url.pathname !== '/api/cores') return json(res, 409, { error: 'You are in orbit. Choose a landing site and deploy your core first.' });
           if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
@@ -634,7 +662,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if (player.life !== 'active') return json(res, 409, { error: player.life === 'arriving' ? 'Replacement pod incoming. Controls unlock on landing.' : 'Robot disabled. Choose a friendly core for recovery.' });
           const plane=boardedAircraft(player.id);
-          if(plane&&!isMissionOrder&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/strafe','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
+          if(plane&&!isMissionOrder&&!['/api/input','/api/drill','/api/aircraft/bomb','/api/aircraft/strafe','/api/aircraft/helicopter-fire','/api/aircraft/launch','/api/aircraft/exit','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Land and disembark before using ground equipment.'});
           const ship = boardedShip(player.id);
           if(ship && !isMissionOrder && !['/api/input','/api/drill','/api/ships/board','/api/ships/exit','/api/ships/fire','/api/ships/secondary','/api/ships/ammo','/api/ships/contact','/api/ships/ramp','/api/ships/depth','/api/ships/cargo','/api/aircraft/board','/api/aircraft/cruise','/api/aircraft/deliver','/api/charge/cancel'].includes(url.pathname))return json(res,409,{error:'Disembark at a dock before using ground equipment.'});
           if(url.pathname==='/api/orbital/strike'){
@@ -733,7 +761,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }else{
               const storage=record||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
               if(!storage)return json(res,409,{error:'Replacement cargo is preparing.'});
-              const next=structuredClone(storage);next.aircraft=newAirbase(facility.id,player.id,facility.x,facility.y,data.kind).aircraft;
+              const next=structuredClone(storage);next.aircraft=newAirbase(facility.id,player.id,facility.x,facility.y,data.kind,facility.kind).aircraft;
               const invalid=deliverAircraft({...facility,aircraft:next.aircraft},data.kind);if(invalid)return json(res,409,{error:invalid});
               next.aircraft.id=storage.aircraft.id;next.aircraft.angle=facility.angle||0;
               const payment=purchase('aircraft',{method:'orbital'},next,()=>saveAirbase(next),true,exchange);
@@ -926,7 +954,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             if(typeof data.orderId!=='string'||! /^[a-zA-Z0-9-]{8,64}$/.test(data.orderId))return json(res,400,{error:'A mission request identifier is required.'});
             if(base.aircraft.mission?.id===data.orderId)return json(res,200,{saved:true,mission:base.aircraft.mission});
-            const plan=strikePlan(world,data.target,data.bearing,data.payload),error=missionError(world,flightBase(world,base),data.payload)||plan.error||validateMission(world,flightBase(world,base),plan);
+            if(data.fromRemote&&!isCruising(base.aircraft))return json(res,409,{error:'Wait for this aircraft to cruise before assigning a remote strike.'});
+            const plan=prepareMission(world,flightBase(world,base),strikePlan(world,data.target,data.bearing,data.payload,base.aircraft)),error=missionError(world,flightBase(world,base),data.payload)||plan.error||validateMission(world,flightBase(world,base),plan);
             if(error)return json(res,409,{error});
             const previous=structuredClone(base.aircraft);assignMission(flightBase(world,base),plan,data.orderId,player.id);base.aircraft.mission.context=audit.context();
             try{checkpoint();}catch(e){base.aircraft=previous;throw e;}
@@ -935,20 +964,23 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if(url.pathname==='/api/airbases'){
 
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Deploy an airbase from your active robot.'});
-            if(data.kind!==undefined&&!['bomber','attack-jet'].includes(data.kind))return json(res,400,{error:'Choose a bomber or attack jet.'});
+            if(data.kind!==undefined&&!['bomber','attack-jet','helicopter'].includes(data.kind))return json(res,400,{error:'Choose a bomber or attack jet.'});
+            if(data.facilityKind!==undefined&&!['airbase','helipad'].includes(data.facilityKind))return json(res,400,{error:'Choose an airbase or helipad.'});
+            if(data.kind==='helicopter'&&data.facilityKind!=='helipad')return json(res,400,{error:'Helicopters require a helipad.'});
+            if(data.facilityKind==='helipad'&&data.empty!==true)return json(res,400,{error:'Deploy an empty helipad, then order a helicopter.'});
             const old=world.airbases.find(b=>b.owner===player.id&&b.x===data.x&&b.y===data.y);if(old)return json(res,200,{saved:true,airbase:old});
-            const error=airbaseError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id);if(error)return json(res,409,{error});
-            const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber');if(data.empty===true)Object.assign(base.aircraft,{state:'vacant',health:0});else if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');if(data.empty!==true&&fleetCount(world)>=fleetCapacity(world)+1)return json(res,409,{error:'Restore fleet capacity or deploy an empty airbase first.'});const payment=purchase('airbase',data,base,()=>saveAirbase(base));if(payment)return json(res,409,{error:payment});world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
+            const error=airbaseError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,data.facilityKind);if(error)return json(res,409,{error});
+            const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber',data.facilityKind);if(data.empty===true)Object.assign(base.aircraft,{state:'vacant',health:0});else if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');if(data.empty!==true&&fleetCount(world)>=fleetCapacity(world)+1)return json(res,409,{error:'Restore fleet capacity or deploy an empty airbase first.'});const payment=purchase(isHelipad(base)?'helipad':'airbase',data,base,()=>saveAirbase(base));if(payment)return json(res,409,{error:payment});world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
           }
           if(url.pathname==='/api/aircraft/deliver'){
             const base=airfields(world).find(b=>b.id===data.id);
             if(!streams.has(player.id)||(playerBody(player)!=='robot'&&!(base?.carrier&&ship?.id===base.id))||incomingCore(player.id)||controlledBy(player.id)||!base||base.owner!==player.id)return json(res,409,{error:'Call a replacement from your robot to your own airbase.'});
             const parked=parkedRecord(world,base);
             if(parked?.aircraft.state==='delivering'&&parked.aircraft.kind===data.kind)return json(res,200,{saved:true});
-            const error=data.newOnly===true?newAircraftError(world,base,player.id):deliveryError(world,base);if(error)return json(res,409,{error});
+            const error=data.newOnly===true?newAircraftError(world,base,player.id,data.kind):deliveryError(world,base,data.kind);if(error)return json(res,409,{error});
             const record=parked||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
             if(!record)return json(res,409,{error:'Replacement cargo is preparing.'});
-            const next=structuredClone(record),replacement=newAirbase(base.id,player.id,base.x,base.y,data.kind).aircraft;
+            const next=structuredClone(record),replacement=newAirbase(base.id,player.id,base.x,base.y,data.kind,base.kind).aircraft;
             // Retain the storage key; aircraft identity and physical destination are independent.
             next.aircraft={...replacement,id:record.aircraft.id};
             const invalid=deliverAircraft({...base,aircraft:next.aircraft},data.kind);if(invalid)return json(res,409,{error:invalid});
@@ -964,6 +996,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             else{if(base.carrier)base.carrier.occupant=null;p.occupant=player.id;Object.assign(player,{x:p.x,y:p.y,angle:0,inputUntil:0,path:[]});combat.cancelCharge(player.id);checkpoint([player]);}
             broadcast();return json(res,200,{saved:true});
           }
+          if(url.pathname==='/api/aircraft/helicopter-fire'){
+            if(!plane||!streams.has(player.id)||missionActive(plane)||!['cannon','rockets'].includes(data.weapon))return json(res,409,{error:'Pilot a helicopter to use its weapons.'});
+            const error=combat.helicopterFire(plane,data.target,data.weapon==='rockets');if(error)return json(res,409,{error});
+            checkpoint([player]);broadcast();return json(res,200,{saved:true});
+          }
           if(url.pathname==='/api/aircraft/launch'||url.pathname==='/api/aircraft/bomb'||url.pathname==='/api/aircraft/strafe'){
             if(!plane||!streams.has(player.id))return json(res,409,{error:'Board a connected aircraft first.'});
             if(missionActive(plane))return json(res,409,{error:'Aircraft is returning under automatic control.'});
@@ -975,6 +1012,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/aircraft/exit'){
             if(!plane)return json(res,200,{saved:true});
+            if(isHelicopter(plane)&&plane.state!=='parked'&&streams.has(player.id)){
+              const error=requestHelicopterLanding(world,plane);if(error)return json(res,409,{error});
+              player.inputUntil=0;player.path=[];checkpoint([player]);broadcast();return json(res,200,{saved:true,landing:true});
+            }
             if(!streams.has(player.id)||plane.state!=='parked')return json(res,409,{error:'Return slowly to your airbase and land before disembarking.'});
             const base=pilotedBase(player.id),destination=flightBase(world,base);
             if(destination.carrier&&!destination.carrier.occupant&&carrierReady(destination.carrier)){
@@ -1004,6 +1045,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (!streams.has(player.id) || vehicle || incomingCore(player.id) || controlledBy(player.id) || playerBody(player) !== 'robot') return json(res, 409, { error: 'Approach the tank with your active robot.' });
             if (!tank || constructing(tank.id) || !operational(tank) || tank.occupant) return json(res, 409, { error: 'This tank is arriving or already occupied.' });
             if (Math.hypot(player.x - tank.x, player.y - tank.y) > TANK.boardRange) return json(res, 409, { error: 'Move within 1.8 tiles of the tank to board.' });
+            combat.cancelCharge(tank.id);if(tank.guard)tank.guard.targetId=null;
             tank.occupant = player.id;
             Object.assign(player, { x: tank.x, y: tank.y, angle: tank.angle, turret: tank.turret, aim: tank.turret, inputUntil: 0, path: [] });
             combat.cancelCharge(player.id); persist(player, tank); broadcast(); return json(res, 200, { saved: true });
@@ -1169,6 +1211,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (data.aim !== undefined && data.aim !== player.aim) { player.aim = data.aim; player.aimDirty = true; }
             if(ship && data.target && [data.target.x,data.target.y].every(Number.isFinite) && data.target.x>=0 && data.target.y>=0 && data.target.x<world.width && data.target.y<world.height)ship.target={x:data.target.x,y:data.target.y};
             else if(ship && data.aim!==undefined)ship.target=null;
+            if(isHelicopter(plane)&&data.target&&[data.target.x,data.target.y].every(Number.isFinite))plane.target={x:Math.max(0,Math.min(world.width-.001,data.target.x)),y:Math.max(0,Math.min(world.height-.001,data.target.y))};
             player.input = { x: data.x, y: data.y }; player.inputUntil = Date.now() + 400; player.path = [];
             return json(res, 200, { ok: true });
           }
@@ -1300,15 +1343,15 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(plane.mission?.phase==='return'&&!runwayAvailable(world,destination,plane)){
         const alternate=freeAirbase(world,plane);if(alternate){plane.baseId=alternate.id;destination=flightBase(world,base);checkpoint();}
       }else if(!missionActive(plane)&&plane.state==='flying'&&plane.leftBase&&plane.speed<=AIR.minSpeed+1){
-        const nearby=freeAirbase(world,plane);if(nearby&&Math.hypot(plane.x-nearby.x-2,plane.y-nearby.y-7.5)<=AIR.landingRange+1){plane.baseId=nearby.id;destination=flightBase(world,base);}
+        const nearby=freeAirbase(world,plane);if(nearby&&Math.hypot(plane.x-(isHelipad(nearby)?nearby.x+1.5:nearby.x+2),plane.y-(isHelipad(nearby)?nearby.y+1.5:nearby.y+7.5))<=AIR.landingRange+1){plane.baseId=nearby.id;destination=flightBase(world,base);}
       }
       const returning=unattendedAircraft(destination,!!plane.occupant&&streams.has(plane.occupant),dt,randomUUID);
       if(returning)checkpoint();
-      const input=pilot&&streams.has(pilot.id)&&pilot.inputUntil>now?{steer:pilot.input.x,throttle:-pilot.input.y}:null;
+      const input=pilot&&streams.has(pilot.id)&&pilot.inputUntil>now?{steer:pilot.input.x,throttle:-pilot.input.y,x:pilot.input.x,y:pilot.input.y,target:plane.target}:null;
       if(missionActive(plane)){
-        const phase=plane.mission.phase,released=plane.mission.released;
-        tickMission(world,destination,dt,p=>combat.bombRun(p));changed=true;
-        if(phase!==plane.mission.phase||released!==plane.mission.released){
+        const phase=plane.mission.phase,released=plane.mission.released,rounds=plane.rounds,rockets=plane.rockets;
+        tickMission(world,destination,dt,(p,target,rocket)=>isHelicopter(p)?combat.helicopterFire(p,target,rocket):isAttackJet(p)?combat.strafe(p):combat.bombRun(p));changed=true;
+        if(phase!==plane.mission.phase||released!==plane.mission.released||rounds!==plane.rounds||rockets!==plane.rockets){
           const casualty=disableAircraftPilot(plane);checkpoint(casualty?[casualty]:[]);
         }
       }else if(tickAircraft(world,destination,input,dt)){changed=true;if(before!==plane.state)saveAirbase(base);}
@@ -1344,7 +1387,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if (p.life !== 'active' || controlledBy(p.id)) continue;
       if (p.aimDirty) { p.aimDirty = false; changed = true; }
       const plane=boardedAircraft(p.id);
-      if(plane){Object.assign(p,{x:plane.x,y:plane.y,angle:plane.angle,turret:plane.angle,vx:plane.state==='flying'?Math.sin(plane.angle)*plane.speed:0,vy:plane.state==='flying'?-Math.cos(plane.angle)*plane.speed:0,dirty:true});continue;}
+      if(plane){Object.assign(p,{x:plane.x,y:plane.y,angle:plane.angle,turret:plane.turret??plane.angle,vx:isHelicopter(plane)?plane.vx:plane.state==='flying'?Math.sin(plane.angle)*plane.speed:0,vy:isHelicopter(plane)?plane.vy:plane.state==='flying'?-Math.cos(plane.angle)*plane.speed:0,dirty:true});continue;}
       const ship=boardedShip(p.id);
       if(ship){
         const before={x:ship.x,y:ship.y,angle:ship.angle,turret:ship.turret,aftTurret:ship.aftTurret,portTurret:ship.portTurret,starboardTurret:ship.starboardTurret};

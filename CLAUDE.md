@@ -691,3 +691,86 @@ cargo, carrier aircraft, readiness and fleet/berth/runway capacity before an
 atomic debit and replacement. Persist order identifiers and vehicle revisions
 so retries/stale requests cannot double-charge or remove active vehicles.
 See docs/UI_REFINEMENT.md for the local validation and remaining test limits.
+
+
+### Ground artillery Remote checkpoint, 19 October 2026
+
+Railway cannon R-02 and missile battery S-01 are Ground cards. Keep their
+stable asset codes; numeric shortcuts use category order. Rail is track only;
+Orbital is orbital attacks. Bottom-bar Remote (F) opens a map selection mode:
+gold friendly facility markers acquire control directly, muted markers explain
+construction/occupancy. Do not restore the old artillery selector sidebar.
+Preserve server control locks and existing bottom weapon controls, Escape
+release, robot guarding, rail movement and shell behavior. See the latest
+section of docs/UI_REFINEMENT.md for this UI-only stage.
+
+
+### Mixed Test frenzy checkpoint, 19 October 2026
+
+Local Test frenzy targets 8 Hunters, 2 Breakers and 2 Bulwarks, borrowing nearby
+survivors unchanged and reserving missing heavy arrivals first. Use shared enemy
+profiles at emergence and persist arrival kinds; older untyped warnings remain
+Hunters. Respect shared live/pending caps and safe arrival geometry. Show actual
+role counts rather than promising a full mix when capacity/terrain blocks it.
+This does not enable natural events or production test access. See the latest
+section of docs/LAND_AI_AND_SEEDED_FRONTS.md.
+
+
+### Robot-only commands and remote air strikes, 19 October 2026
+
+The author's latest rule restricts Deploy and Remote to an active robot;
+initial orbital core landing is exempt. Enforce catalogue/strike/acquisition
+admission on the server too. Carrier-native service and emergency recall remain
+separate. Remote map selection and aircraft aiming keep robot WASD/touch movement;
+manual artillery takeover retains rail controls and robot guarding.
+Cruising aircraft are remote strike markers; bombers retain their payloads and
+jets make finite autocannon passes. Known living flak gets bounded detour planning
+where possible. Accepted attacks remain vulnerable; relocation chooses a new
+cruise area after the pass. Persist route/phase/burst progress and ammunition,
+never duplicate accepted shots after restart. See docs/AIR_TRAFFIC.md.
+
+## 19 October helicopter stage
+
+- The author accepted a separate small helipad, hovering helicopter, LMB small HE
+  cannon and RMB rocket pods. Holding fire permits a five-second rocket window
+  with live aim changes; accepted projectiles keep their trajectories.
+- Implemented locally in docs/HELICOPTER.md: dedicated helicopter fleet capacity,
+  orbital/local deployment, finite saved ammunition and pod recovery, manual and
+  remote support, compatible-pad recovery and existing flak vulnerability.
+- Reuse aircraft ownership and persistence, but retain the independent hover
+  controller and velocity-based flak prediction. Helicopter pads must not unlock
+  fixed-wing capacity. Carrier helicopter parking remains deferred.
+
+## 19 October mobile laser enemy agreement
+
+- The approved twin-lens and heavy-lens stage is in docs/MOBILE_LASER_ENEMIES.md.
+  Keep the stop/brace/charge/fire/cooldown sequence, stationary bodies while firing,
+  actual beam intersection, bounded angle tracking and single twin-lens damage budget.
+- These are aircraft specialists with normal ground-weapon vulnerability. Like flak,
+  elevated beams ignore ground cover and never damage parked aircraft or ground units.
+- Preserve the shared 24-enemy cap and four living mobile-lens cap. Upgrade only
+  finite unspent guards, with a backed-up, atomic campaign migration; never refill
+  conquered/cleared areas or change living enemies and accepted warnings.
+- Local Test frenzy now requests six Hunters, two Breakers, two Bulwarks and one
+  of each lens variant. Earlier eight-Hunter records describe the previous stage.
+- Fixed-site flak avoidance does not yet include moving lens enemies. Tuning and
+  Fly memory feasibility still require playtest/runtime evidence.
+
+## 19 October empty tank guard agreement
+
+- Unoccupied operational tanks automatically guard their position with their
+  selected HE or Magnetic main gun. Prefer visible Bulwarks; respect range,
+  terrain/facility occlusion, turret rotation, magnetic charge and weapon cooldowns.
+- No autonomous movement, secondary-gun fire, facility targeting or occupied/offline
+  driver takeover. Arrival, construction, transport and destruction disable guard.
+- Hull-owned cooldowns survive manual/automatic handoff; boarding cancels unfinished
+  automatic charges. Named saves retain automatic charge progress and accepted shells.
+  See docs/TANK_GUARD.md. This does not automate heavy manually controlled facilities.
+
+## 19 October: normal campaign encounter director
+
+The author approved natural hostile-compound replenishment and seeded raids.
+`docs/NATURAL_ENCOUNTERS.md` supersedes finite-opening-only and test-only event
+plans for named campaigns. Keep permanent conquest, shared active/reserved caps,
+saved active-play deadlines and damageable sleeping survivors. No offline catch-up
+or invisible deletion/healing to free enemy slots. Legacy drills remain separate.

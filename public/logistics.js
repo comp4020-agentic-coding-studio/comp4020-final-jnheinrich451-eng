@@ -7,11 +7,11 @@ export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 20
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
   rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, tank: 100, ship: 240,
-  submarine: 280, transport: 200, carrier:400, airbase: 300, artillery: 180, missile: 220, outpost: 80, factory: 150,
+  submarine: 280, transport: 200, carrier:400, airbase: 300, helipad:160, helicopter:60, artillery: 180, missile: 220, outpost: 80, factory: 150,
   uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
 export const LOGISTICS_SIZE = Object.freeze({ outpost: 2, factory: 2, uplink: 3, recycler: 1, builder: 1 });
 export const FACILITY_HP = Object.freeze({ core: 500, sentry: 140, artillery: 350,
-  missile: 320, airbase: 500, dock: 320, ramp: 140, outpost: 250, factory: 400, uplink: 300, recycler: 160 });
+  missile: 320, airbase: 500, helipad:300, dock: 320, ramp: 140, outpost: 250, factory: 400, uplink: 300, recycler: 160 });
 export const freshLogistics = () => ({ version: 2, supplies: ECONOMY.initial, groundSupplies: 0, freeBomberUsed: false, time: 0,
   emergency: 0, bridges: [], floors: [], facilities: [], recyclers: [], crates: [], salvage: {}, durability: {},
   jobs: {}, deployments: {}, shipments: 0 });
@@ -81,13 +81,14 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
   const add = (object, kind, x, y, w, h) => {
     if (object.destroyed || (kind === 'dock' && object.dockDestroyed)) return;
     const id = kind + ':' + object.id;
-    const hp = l.durability[id] ||= { health: FACILITY_HP[kind], max: FACILITY_HP[kind], armor: kind === 'recycler' ? 1 : 2 };
+    const max=object.kind==='helipad'?FACILITY_HP.helipad:FACILITY_HP[kind];
+    const hp = l.durability[id] ||= { health: max, max, armor: kind === 'recycler' ? 1 : 2 };
     targets.push({ id, object, kind, x, y, w, h, hp });
   };
   for (const c of world.cores || []) add(c,'core',c.x+1.5,c.y+1.5,3,3);
   for (const b of buildings) if (!b.coreId) add(b,'sentry',b.x+.5,b.y+.5,1,1);
   for (const g of world.artillery || []) add(g,g.kind==='missile'?'missile':'artillery',g.x+(g.kind==='missile'?2:.5),g.y+(g.kind==='missile'?2:.5),g.kind==='missile'?4:3,g.kind==='missile'?4:3);
-  for (const b of world.airbases || []) add(b,'airbase',b.x+5,b.y+2.5,2,3);
+  for (const b of world.airbases || []) add(b,'airbase',b.x+(b.kind==='helipad'?1.5:5),b.y+(b.kind==='helipad'?1.5:2.5),b.kind==='helipad'?3:2,3);
   for (const s of dockRecords(world)) {
     // A hull loss does not destroy its dock; a dock loss does not sink its ship.
     if (!s.dockDestroyed) {
@@ -116,7 +117,7 @@ export function migrateLogistics(state) {
   if(state.version===1){state.groundSupplies=0;state.freeBomberUsed=false;for(const job of Object.values(state.jobs||{}))job.pool='supplies';state.version=2;}
   return state;
 }
-export const LOCAL_KINDS = ['airbase','ship','submarine','transport','carrier','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
+export const LOCAL_KINDS = ['helipad','airbase','ship','submarine','transport','carrier','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
 export const poolFor = (kind, local=false) => local || ['dockRepair','baseRepair','rampRepair'].includes(kind) ? 'groundSupplies' : 'supplies';
 export const poolLabel = pool => pool==='groundSupplies'?'ground SUP':'orbital SUP';
 export function supportSources(world){return [

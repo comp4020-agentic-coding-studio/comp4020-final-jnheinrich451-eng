@@ -97,3 +97,12 @@ nearby scouts. Friendly weapon damage remains disabled.
 Validation adds footprint/collision and isolated HTTP lifecycle tests (including
 pause, interrupted landing, exclusive seating, restart while aboard, weapon
 persistence and obstructed exits), plus two-viewer desktop and phone flows.
+
+
+## 19 October follow-up: parked tank guard
+
+See [Tank guard](TANK_GUARD.md). Empty tanks now guard with their selected HE or
+Magnetic main gun, prioritising visible Bulwarks, while occupied tanks remain
+manual. Reload belongs to the hull across boarding/exiting. Named campaigns save
+automatic charges and accepted shells; the earlier transient-attack description
+above refers to the original tank prototype.

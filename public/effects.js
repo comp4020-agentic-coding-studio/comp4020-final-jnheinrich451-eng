@@ -1,4 +1,5 @@
-﻿// Client-only presentation: the server sends outcomes, never individual particles.
+﻿import { drawLensCrawler } from './mobile-laser-effects.js';
+// Client-only presentation: the server sends outcomes, never individual particles.
 const TAU = Math.PI * 2;
 function random(seed) { let n = seed | 0; return () => { n = Math.imul(n ^ n >>> 15, 1 | n); n ^= n + Math.imul(n ^ n >>> 7, 61 | n); return ((n ^ n >>> 14) >>> 0) / 4294967296; }; }
 function ellipse(c, x, y, rx, ry, color, angle = 0) { c.fillStyle = color; c.beginPath(); c.ellipse(x, y, rx, ry, angle, 0, TAU); c.fill(); }
@@ -8,6 +9,7 @@ function cloud(inner, outer) {
 }
 
 export function drawCrawler(c, e, time, hit = 0, dead = false) {
+  if(['twin-lens','heavy-lens'].includes(e.kind))return drawLensCrawler(c,e,time,hit,dead);
   c.save(); c.translate(e.x, e.y); c.rotate(e.angle || 0);
   const bulwark = e.kind === 'bulwark', breaker = e.kind === 'breaker' || bulwark;
   if (bulwark) c.scale(1.2, 1.15);

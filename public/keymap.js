@@ -13,15 +13,16 @@ const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, k
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
+  bind('remote-air-rotate',['r'],'R','global','Rotate remote aircraft attack approach'),
   bind('orbital-rotate', ['r'], 'R', 'global', 'Rotate orbital strike preview'),
   bind('orbital-close', ['escape'], 'Esc', 'global', 'Close orbital strike planner'),
   bind('orbital-open', ['v'], 'V', 'global', 'Orbital strike planner'),
   bind('bomber-close', ['escape'], 'Esc', 'aircraft', 'Close air support planner'),
-  bind('bomber-open', ['h'], 'H', 'global', 'Automatic bomber missions'),
+  bind('bomber-open', ['h'], 'H', 'global', 'Aircraft support and landing orders'),
   bind('bridge-cancel', ['escape'], 'Esc', 'recycler', 'Close bridge planner'),
   bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler / bridge builder'),
   bind('station-open', ['e'], 'E', 'recycler', 'Open a nearby launch station on foot'),
-  bind('aircraft-board', ['e'], 'E', 'aircraft', 'Board or leave the aircraft'),
+  bind('aircraft-board', ['e'], 'E', 'aircraft', 'Board, land helicopter, or disembark'),
   bind('aircraft-space', [' '], 'Space', 'aircraft', 'Reserved while flying (bombs use LMB)'),
   bind('sub-depth', [' ', 'controlleft'], 'Ctrl / Space', 'submarine', 'Dive / surface'),
   bind('missile-rotate', ['r'], 'R', 'gun', 'Rotate the strike area'),
@@ -39,6 +40,7 @@ export const BINDINGS = Object.freeze([
   bind('place-repeat', ['enter'], 'Shift+Enter', 'placing', 'Confirm and keep placing (sentry, rail)', { shift: true }),
   bind('rail-shape', ['r'], 'R', 'placing', 'Rail: cycle shape'),
   bind('rail-length', ['t'], 'T', 'placing', 'Rail: toggle 1 / 5 tiles'),
+  bind('remote', ['f'], 'F', 'global', 'Select a cannon or missile launcher remotely'),
   bind('deploy', ['b'], 'B', 'global', 'Deploy catalogue'),
   bind('secondary', ['j'], 'J (hold)', 'combat', 'Secondary weapon'),
   bind('primary', [' '], 'Space', 'combat', 'Primary weapon'),
