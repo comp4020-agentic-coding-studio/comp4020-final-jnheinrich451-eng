@@ -47,6 +47,13 @@ Validation on the updated working tree:
   were inspected. These are not Fly network or capacity measurements.
 - Disposable saves were used; the player's campaign was not reset.
 
+Release follow-up: the first GitHub run for `c63e134` passed 579 tests but timed
+out the single test containing all 24 dense-planet seeds at 5,038 ms. Those same
+seeds and assertions now run as 24 separately named cases, without changing
+generation rules or the global timeout. All 34 tests in that file and TypeScript
+passed locally after the correction. CI/deployment status is tracked by the
+subsequent release workflow, not inferred from this local result.
+
 Updated evidence: [timings](evidence/2026-10-22-instrumentation/latency.json),
 [lifecycle](evidence/2026-10-22-instrumentation/lifecycle.json),
 [desktop](evidence/2026-10-22-instrumentation/shared-room-desktop.png),

@@ -10,8 +10,9 @@ import { HE } from '../public/weapons.js';
 
 const planet = () => ({ ...expandPlanet(expandWorld(createWorld())), sites: [] as any[] });
 
-it('densifies whole continents deterministically without replacing old groups or central landing space', () => {
-  for (let seed = 0; seed < 24; seed++) {
+// Keep all seeds and assertions, with a separate timeout and failure label per
+// planet instead of charging 24 complete layouts to one five-second test.
+it.each(Array.from({ length: 24 }, (_, seed) => seed))('densifies continents without replacing old groups or landing space (seed %i)', seed => {
     const world = planet(); world.sites = seedFronts(world, [], [], String(seed)).sites;
     Object.assign(world.sites[0], { state: 'conquered', hp: 0 }); world.sites[1].hp = 42;
     const before = JSON.stringify(world), added = seedDenseFronts(world, [], [], String(seed));
@@ -29,7 +30,6 @@ it('densifies whole continents deterministically without replacing old groups or
       for (let y = site.y - 5; y < site.y + 8; y++) for (let x = site.x - 5; x < site.x + 8; x++) expect([1, 2]).toContain(world.terrain[y * world.width + x]);
     }
     expect(new Set(combined.map((s: any) => s.id)).size).toBe(combined.length);
-  }
 });
 
 it('keeps completed groups in the density count and skips construction safely', () => {
