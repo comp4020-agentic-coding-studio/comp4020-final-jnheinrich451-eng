@@ -45,6 +45,7 @@ export function nearbyService(world, person) {
   if (!person || person.body !== 'robot' || person.life !== 'active') return null;
   const yard=nearbyShipyard(world,person)?.yard;
   if(yard)return {type:'dock',id:yard.id};
-  const base=(world.airbases||[]).find(b=>b.owner===person.id&&!b.destroyed&&!world.logistics.jobs[b.id]&&person.x>=b.x&&person.x<b.x+airSize(b).width&&person.y>=b.y&&person.y<b.y+airSize(b).height);
+  // Ruins and repairs must retain their local interaction panel.
+  const base=(world.airbases||[]).find(b=>b.owner===person.id&&(!world.logistics.jobs[b.id]||world.logistics.jobs[b.id].kind==='repair')&&person.x>=b.x&&person.x<b.x+airSize(b).width&&person.y>=b.y&&person.y<b.y+airSize(b).height);
   return base ? {type:'airbase',id:base.id} : null;
 }

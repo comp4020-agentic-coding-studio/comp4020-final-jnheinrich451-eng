@@ -15,7 +15,7 @@ it('translates world movement and aiming without treating keyboard input as comp
 it('distinguishes naval steering, fixed-wing throttle and helicopter movement',()=>{
  const ship:any={id:'ship',occupant:'pilot',angle:Math.PI/2};
  const w:any={ships:[ship]},u=controlledUnit(w,player,'ship');
- expect(describeCommand('input',{x:-1,y:-1},w,u)).toMatchObject({unitType:'gunship',rotation:'left',throttle:'forward',command:'forward; turn left'});
+ expect(describeCommand('input',{x:-1,y:0,throttle:4},w,u)).toMatchObject({unitType:'gunship',rotation:'left',throttle:'Full',command:'Full; turn left'});
  const p:any={id:'plane',kind:'bomber',occupant:'pilot',state:'flying'};w.airbases=[{id:'base',aircraft:p}];w.ships=[];
  expect(describeCommand('input',{x:1,y:1},w,controlledUnit(w,player,'aircraft')).command).toBe('decelerate; turn right');
  p.kind='helicopter';expect(describeCommand('input',{x:1,y:1},w,controlledUnit(w,player,'aircraft')).command).toBe('move south-east');
@@ -35,14 +35,20 @@ it('groups repeated commands but keeps north, south, weapons and units separate 
  try{
   for(let i=0;i<20;i++)send({unitType:'robot',unitId:'a',command:'move north'});
   send({unitType:'robot',unitId:'a',command:'move south'});send({unitType:'tank',unitId:'t',command:'move north'});
-  audit.close();expect(lines).toHaveLength(3);expect(lines[0]).toMatchObject({count:20,command:'move north'});
-  expect(lines[0].firstAt).toBeTruthy();expect(lines[0].lastAt).toBeTruthy();expect(lines[0].message).toContain('Alex | robot | move north | accepted');
+  audit.close();const results=lines.filter(e=>e.event==='activity.summary');expect(results).toHaveLength(3);expect(results[0]).toMatchObject({count:20,command:'move north'});
+  expect(results[0].firstAt).toBeTruthy();expect(results[0].lastAt).toBeTruthy();expect(results[0].message).toContain('Alex | robot | move north | accepted');
  }finally{audit.close();}
 });
 it('renders raw, Fly-prefixed and wrapped log records, ignoring non-audit text and preserving player distinction',()=>{
  const event={at:'2026-10-19T04:00:00Z',event:'activity.summary',name:'Alex',actorId:'actor-one',unitType:'tank',command:'fire HE cannon',outcome:'denied',reason:'Weapon reloading.',count:3};
  for(const line of [JSON.stringify(event),'2026-10-19 app[abc] [info] '+JSON.stringify(event),JSON.stringify({message:JSON.stringify(event)})])expect(parseAuditLine(line)).toEqual(event);
  expect(parseAuditLine('password=secret accidental debug')).toBeNull();expect(parseAuditLine('{malformed')).toBeNull();
- expect(presentAudit(event)).toContain('Alex (actor-one) | tank | fire HE cannon | denied | 3 requests');
+ expect(presentAudit(event)).toContain('Alex (actor-one) | tank | activity.summary | fire HE cannon | denied | 3 requests');
  expect(presentAudit({...event,actorId:'actor-two'})).toContain('actor-two');
+});
+
+it('keeps transport evidence and instance identities visible in the readable log view',()=>{
+ const text=presentAudit({at:'2026-10-22T05:00:00Z',event:'state.broadcast.summary',campaignId:'room',kind:'system',count:10,firstRevision:2,revision:11,connections:3,connectedPlayers:2,queuedWrites:29,droppedStreams:1,transport:'sse',machineId:'fly-machine',instanceId:'boot-id',runtimeId:'room-run',buildId:'build-id'});
+ for(const part of ['state.broadcast.summary','revision 2..11','2 connected players','3 streams','29 queued writes','1 skipped streams','machine fly-machine','instance boot-id','runtime room-run','build build-id'])expect(text).toContain(part);
+ expect(text).not.toContain('delivered');
 });

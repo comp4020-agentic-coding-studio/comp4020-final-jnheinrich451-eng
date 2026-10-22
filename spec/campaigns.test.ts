@@ -306,8 +306,8 @@ it('serializes named-room construction and boarding races, with private attribut
   expect(states[0].data.tanks).toEqual(states[1].data.tanks);
   expect(states[0].data.buildings).toEqual(states[1].data.buildings);
   expect(states[0].data.tanks[0].occupant).toBe([a, b][boards.findIndex(r => r.status === 200)]);
-  await expect.poll(() => h.logs.filter((e: any) => e.action === 'tanks/board').length).toBe(2);
-  const outcomes = h.logs.filter((e: any) => e.action === 'tanks/board');
+  await expect.poll(() => h.logs.filter((e: any) => e.action === 'tanks/board' && e.event === 'action.result').length).toBe(2);
+  const outcomes = h.logs.filter((e: any) => e.action === 'tanks/board' && e.event === 'action.result');
   expect(new Set(outcomes.map((e: any) => e.actorId))).toEqual(new Set([a, b]));
   expect(outcomes.every((e: any) => e.campaignId === id && e.requestId && e.targetId === 'shared-tank')).toBe(true);
   expect(outcomes.map((e: any) => e.outcome).sort()).toEqual(['accepted', 'denied']);
@@ -329,6 +329,63 @@ it('serializes named-room construction and boarding races, with private attribut
   const serialized = JSON.stringify(h.logs);expect(serialized).not.toContain('spoofed-carrier');expect(serialized).not.toContain('never-log-this');
   for (const secret of [password, code, code.replaceAll('-', ''), 'raceowner@frontier.test', ...owner.cookies.values(), ...friend.cookies.values()]) expect(serialized).not.toContain(secret);
 }), 20000);
+it('logs initial snapshots, bounded room broadcasts, stream counts and restart identities without private state', async () => fixture(async h => {
+  const boot = h.logs.find((e: any) => e.event === 'server.started');
+  expect(boot).toMatchObject({ kind: 'system', cause: 'listening' });
+  expect(boot.instanceId).toBeTruthy(); expect(boot.buildId).toBeTruthy();
+  const owner = await h.account('logowner'), friend = await h.account('logfriend'), id = await h.open(owner);
+  const code = (await owner.request('/api/campaigns/invite', { id })).data.code;
+  await friend.request('/api/campaigns/join', { code });
+  const stream = await h.connect(friend, id);
+  const state = (await friend.request(worldRoute(id))).data, pilot = state.me.id;
+  expect(h.logs.some((e: any) => e.event === 'participant.joined' && e.campaignId === id && e.pilotId === pilot && e.participants === 2)).toBe(true);
+  expect(h.logs.some((e: any) => e.event === 'participant.connected' && e.pilotId === pilot && e.connectedPlayers === 2 && e.connections === 2)).toBe(true);
+  const httpSnapshot = h.logs.findLast((e: any) => e.event === 'state.snapshot' && e.pilotId === pilot && e.transport === 'http');
+  expect(httpSnapshot).toMatchObject({ campaignId: id, revision: state.revision, outcome: 'written' });
+  const sseSnapshot = h.logs.find((e: any) => e.event === 'state.snapshot' && e.pilotId === pilot && e.transport === 'sse');
+  expect(sseSnapshot).toMatchObject({ campaignId: id, connections: 2, connectedPlayers: 2, outcome: 'queued' });
+  await expect.poll(stream.output).toContain('"revision":' + sseSnapshot.revision);
+  const extra = await h.connect(friend, id);
+  expect(h.logs.findLast((e: any) => e.event === 'state.snapshot' && e.transport === 'sse')).toMatchObject({ connections: 3, connectedPlayers: 2 });
+  extra.abort();
+  expect((await friend.request('/api/campaigns/invite', { id })).status).toBe(403);
+  const denied = h.logs.findLast((e: any) => e.event === 'action.result' && e.action === 'campaigns/invite' && e.outcome === 'denied');
+  expect(h.logs.some((e: any) => e.event === 'request.received' && e.requestId === denied.requestId)).toBe(true);
+  expect(h.logs.some((e: any) => e.event === 'action.received' && e.requestId === denied.requestId && e.pilotId === pilot)).toBe(true);
+  stream.abort();
+  await expect.poll(() => h.logs.some((e: any) => e.event === 'participant.disconnected' && e.pilotId === pilot && e.connectedPlayers === 1 && e.connections === 1)).toBe(true);
+  const other = await h.account('logoutsider'), otherId = await h.open(other);
+  expect(h.logs.filter((e: any) => e.event === 'state.broadcast').map((e: any) => e.campaignId)).toEqual([id, otherId]);
+  await h.restart();
+  expect(h.logs.some((e: any) => e.event === 'state.broadcast.summary' && e.campaignId === id && e.queuedWrites > 0 && e.revision >= e.firstRevision)).toBe(true);
+  expect(h.logs.filter((e: any) => e.event === 'server.started')).toHaveLength(2);
+  const next = h.logs.findLast((e: any) => e.event === 'server.started');
+  expect(next.instanceId).not.toBe(boot.instanceId); expect(next.buildId).toBe(boot.buildId);
+  expect(h.logs.some((e: any) => e.event === 'server.stopped' && e.instanceId === boot.instanceId && e.saved)).toBe(true);
+  const serialized = JSON.stringify(h.logs);
+  for (const secret of [password, code, 'logowner@frontier.test', ...owner.cookies.values(), ...friend.cookies.values()]) expect(serialized).not.toContain(secret);
+  expect(h.logs.some((e: any) => 'world' in e || 'terrain' in e || 'cookies' in e)).toBe(false);
+}), 15000);
+
+it('counts buffered writes as queued and reports a slow stream skipped by the real broadcaster', async () => fixture(async h => {
+  const responses: any[] = [];
+  h.server().prependListener('request', (req: any, res: any) => {
+    if (!req.url.endsWith('/events')) return;
+    responses.push(res);
+    const write = res.write;
+    res.write = function (...args: any[]) { write.apply(this, args); return false; };
+  });
+  const owner = await h.account('bufferowner'), id = await h.open(owner);
+  const first = h.logs.find((e: any) => e.event === 'state.broadcast');
+  expect(first).toMatchObject({ campaignId: id, queuedWrites: 1, droppedStreams: 0 });
+  // Model a browser that stopped draining, without filling a real socket with MBs.
+  Object.defineProperty(responses[0], 'writableLength', { configurable: true, value: 65537 });
+  const second = await h.connect(owner, id);
+  await expect.poll(second.output).toContain('"revision":');
+  await h.restart(); // Flush the summary after the old stream was removed.
+  expect(h.logs.some((e: any) => e.event === 'state.broadcast.summary' && e.campaignId === id && e.droppedStreams === 1 && e.queuedWrites >= 1)).toBe(true);
+}), 15000);
+
 async function fixture(run: (h: any) => Promise<void>) {
   const dir = await mkdtemp(path.join(tmpdir(), 'frontier-campaigns-'));
   const logs: any[] = [];

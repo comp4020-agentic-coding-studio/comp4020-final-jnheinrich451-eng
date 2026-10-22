@@ -12,7 +12,7 @@ export const ROOM_LIMIT = 4, ACTIVE_LIMIT = 2, RECONNECT_MS = 30000;
 // has an independent world database and bounded, lazily loaded simulation.
 export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
   const json = (res, status, data) => { audit.result(status, data); res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
-  const lifecycle = (event, room, cause) => audit.emit(event, { campaignId: room.record.id, sourceId: room.ownerPilot, kind: 'system', cause });
+  const lifecycle = (event, room, cause) => audit.emit(event, { campaignId: room.record.id, sourceId: room.ownerPilot, kind: 'system', cause, ...roomCounts(room.record.id) });
   const db = legacy.db;
   if (!db.prepare("SELECT name FROM sqlite_master WHERE name='campaigns'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
@@ -46,6 +46,10 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       .run(actor.id, previous?.expires_at > now ? previous.count + 1 : 1, previous?.expires_at > now ? previous.expires_at : now + 60000);
   }
   const occupants = id => [...visits.values()].filter(v => v.campaignId === id);
+  const roomCounts = id => {
+    const members = occupants(id);
+    return { participants: members.length, connectedPlayers: members.filter(v => v.connections.size > 0).length, connections: members.reduce((n, v) => n + v.connections.size, 0) };
+  };
   function frozen(room) { return room.state !== 'open' || !room.ownerConnected || room.paused; }
   function view(room) {
     return { id: room.record.id, name: room.record.name, state: room.ownerConnected ? 'open' : 'reconnecting',
@@ -106,7 +110,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     if (!visit.actor.accountId) expireGuest(visit, room);
     else room.runtime.endPlayerAccess(visit.pilotId, message || 'You left the room. Progress is saved.');
     room.runtime.checkpoint(); room.runtime.broadcast();
-    audit.emit('participant.left', { campaignId: visit.campaignId, actorId: visit.actor.id, pilotId: visit.pilotId, name: visit.actor.name, kind: visit.actor.kind, cause: message || 'visit_ended', saved: true });
+    audit.emit('participant.left', { campaignId: visit.campaignId, actorId: visit.actor.id, pilotId: visit.pilotId, name: visit.actor.name, kind: visit.actor.kind, cause: message || 'visit_ended', saved: true, ...roomCounts(visit.campaignId) });
     return Promise.resolve();
   }
   // Called synchronously before account credentials rotate. Promotion keeps the
@@ -132,12 +136,14 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       room.runtime.stopInputs(); room.runtime.broadcast(); lifecycle('campaign.resumed', room, 'teammate_joined');
     }
     audit.bind({ campaignId: room.record.id }); audit.actor(actor, membership.pilot_id);
+    if (!existing) audit.emit('participant.joined', { ...audit.context(), ...roomCounts(room.record.id), cause: 'visit_admitted' });
     return { next: `/?campaign=${room.record.id}`, room: view(room) };
   }
   async function handle(action, req, res) {
     const actor = legacy.identity(req, res);
     const startingVisit = visits.get(actor.id);
     if (startingVisit) { audit.bind({ campaignId: startingVisit.campaignId }); audit.actor(actor, startingVisit.pilotId); }
+    if (req.method !== 'GET') audit.received();
     if (req.method === 'GET' && action === 'list') {
       const rows = actor.accountId ? db.prepare('SELECT c.* FROM campaigns c JOIN campaign_members m ON c.id=m.campaign_id WHERE m.identity_id=? AND m.account_id=? ORDER BY c.created_at DESC').all(actor.id, actor.accountId) : [];
       const visit = visits.get(actor.id);
@@ -252,7 +258,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
             room.ownerConnected = false; room.deadline = visit.deadline; room.notice = 'Owner reconnecting. Battle frozen for up to 30 seconds.';
             room.runtime.stopInputs(); room.runtime.checkpoint(); room.runtime.broadcast(); lifecycle('campaign.frozen', room, 'owner_disconnected');
           }
-          audit.emit('participant.disconnected', { campaignId: room.record.id, actorId: actor.id, pilotId: visit.pilotId, name: actor.name, kind: actor.kind, cause: 'event_stream_closed' });
+          audit.emit('participant.disconnected', { campaignId: room.record.id, actorId: actor.id, pilotId: visit.pilotId, name: actor.name, kind: actor.kind, cause: 'event_stream_closed', ...roomCounts(room.record.id) });
         });
       }
       req.url = '/api/' + match[2] + url.search;

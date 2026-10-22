@@ -1,0 +1,333 @@
+{
+  "environment": "local loopback, headless Chrome, ready fixture; excludes cold startup; not Fly capacity evidence",
+  "summaries": [
+    {
+      "players": 2,
+      "samples": 13,
+      "medianMs": 60,
+      "p95Ms": 441,
+      "maxMs": 441
+    },
+    {
+      "players": 4,
+      "samples": 39,
+      "medianMs": 81,
+      "p95Ms": 417,
+      "maxMs": 421
+    }
+  ],
+  "samples": [
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 71
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 60
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 64
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 56
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 61
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 55
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 60
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 53
+    },
+    {
+      "players": 2,
+      "action": "place",
+      "peer": 1,
+      "ms": 51
+    },
+    {
+      "players": 2,
+      "action": "remove",
+      "peer": 1,
+      "ms": 60
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 385
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 411
+    },
+    {
+      "players": 2,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 441
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 71
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 80
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 96
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 62
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 65
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 84
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 64
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 76
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 81
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 75
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 76
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 91
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 54
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 71
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 81
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 76
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 82
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 94
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 76
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 86
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 93
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 62
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 70
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 96
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 1,
+      "ms": 60
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 3,
+      "ms": 68
+    },
+    {
+      "players": 4,
+      "action": "place",
+      "peer": 2,
+      "ms": 73
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 1,
+      "ms": 66
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 3,
+      "ms": 79
+    },
+    {
+      "players": 4,
+      "action": "remove",
+      "peer": 2,
+      "ms": 86
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 407
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 409
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 417
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 378
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 393
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 396
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 3,
+      "ms": 411
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 2,
+      "ms": 416
+    },
+    {
+      "players": 4,
+      "action": "HE objective hit (includes flight)",
+      "peer": 1,
+      "ms": 421
+    }
+  ]
+}

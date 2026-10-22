@@ -16,7 +16,7 @@ export function bridgeError(world, buildings, people, builder, from, to){
   const bridge={from,to},length=bridgeLength(bridge);
   if(length<1||length>BRIDGE.maxSpan)return `Keep between 1 and ${BRIDGE.maxSpan} deck rows between the anchors.`;
   if((world.logistics?.bridges?.length||0)>=BRIDGE.maxCount)return 'Eight field bridges per campaign.';
-  if(!builder||Math.hypot(builder.x-from.x-.5,builder.y-from.y-.5)>BRIDGE.reach)return 'Drive the builder within four tiles of the first bank.';
+  if(!builder||Math.min(...[from,to].map(p=>Math.hypot(builder.x-p.x-.5,builder.y-p.y-.5)))>BRIDGE.reach)return 'Drive the builder within four tiles of either bank.';
   let crossesWater=false;
   for(const cell of bridgeCells(bridge)){
     const {x,y}=cell;

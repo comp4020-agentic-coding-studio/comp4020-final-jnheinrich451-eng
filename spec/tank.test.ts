@@ -96,19 +96,27 @@ it('keeps the robot aboard when every adjacent exit is obstructed',async()=>{
 });
 it('shares tank motion with a peer and clears momentum on expired input, disconnect and restart',async()=>{
   const f=await fixture(true);let held:ReturnType<typeof setInterval>|undefined;
+  const inFlight=new Set<Promise<void>>(),inputErrors:unknown[]=[];
   try{
     const driver=await f.connect();await f.connect(1);
     const initial=(await f.state()).me;
     const forward=()=>f.post('input',{x:1,y:0,aim:0});
-    await forward();held=setInterval(()=>{void forward();},100);
-    await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBeGreaterThan(2.5);
+    await forward();held=setInterval(()=>{
+      const request=forward().then(r=>{expect(r.status).toBe(200);}).catch(error=>{inputErrors.push(error);}).finally(()=>inFlight.delete(request));
+      inFlight.add(request);
+    },100);
+    // The tuned acceleration needs about a second of simulation, which can
+    // take longer on a busy runner. Retain the speed threshold and bound the wait.
+    await expect.poll(async()=>(await f.state()).me.vx,{interval:50,timeout:3000}).toBeGreaterThan(2.5);
     await expect.poll(()=>f.frames.get(1)?.players.find((p:any)=>p.id==='a')?.x).toBeGreaterThan(initial.x+.4);
     clearInterval(held);held=undefined;
+    await Promise.all(inFlight);expect(inputErrors).toEqual([]);
     await f.post('input',{x:0,y:0,aim:0});
     const braking=(await f.state()).me.x;
     await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBe(0);
     const stopped=await f.state();
-    expect(stopped.me.x).toBeGreaterThan(braking);expect(stopped.me.x-braking).toBeLessThan(.7);
+    // Full-speed braking is about 0.71 tiles with the current tuning.
+    expect(stopped.me.x).toBeGreaterThan(braking);expect(stopped.me.x-braking).toBeLessThan(.8);
     await expect.poll(()=>f.frames.get(1)?.tanks[0].x).toBe(stopped.me.x);
     await forward();await expect.poll(async()=>(await f.state()).me.vx,{interval:40}).toBeGreaterThan(0);
     await expect.poll(async()=>(await f.state()).me.vx,{interval:50}).toBe(0);
@@ -123,5 +131,5 @@ it('shares tank motion with a peer and clears momentum on expired input, disconn
     expect(resumed.me.x).toBe(parked);expect(resumed.me.vx).toBe(0);
     expect(resumed.tanks[0].x).toBe(parked);
     await new Promise(r=>setTimeout(r,250));expect((await f.state()).me.x).toBe(parked);
-  }finally{if(held)clearInterval(held);await f.close();}
+  }finally{if(held)clearInterval(held);await Promise.all(inFlight);await f.close();}
 },15000);

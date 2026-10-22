@@ -7,17 +7,19 @@ const frequent = new Set(['input', 'navigate', 'fire', 'charge/cancel', 'ships/s
 frequent.add('aircraft/helicopter-fire');frequent.add('aircraft/strafe');
 const fields = new Set(['requestId', 'campaignId', 'actorId', 'pilotId', 'kind', 'name', 'action', 'outcome', 'reason', 'status', 'targetId', 'projectileId', 'sourceId', 'weapon', 'x', 'y', 'hp', 'count', 'durationMs', 'cause', 'saved', 'bodyType', 'unitType', 'unitId', 'unitState', 'controlMode', 'unitAfterType', 'unitAfterId', 'unitAfterState', 'bodyAfter', 'command', 'direction', 'rotation', 'throttle', 'aimDirection', 'targetType', 'targetX', 'targetY', 'shotsFired', 'firstAt', 'lastAt']);
 const safe = details => Object.fromEntries(Object.entries(details).filter(([key, value]) => fields.has(key) && (typeof value === 'string' || typeof value === 'boolean' || Number.isFinite(value))).map(([key, value]) => [key, typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 160) : value]));
+for (const field of ['instanceId', 'machineId', 'buildId', 'runtimeId', 'revision', 'firstRevision', 'connections', 'connectedPlayers', 'participants', 'queuedWrites', 'droppedStreams', 'transport']) fields.add(field);
 
 // One JSON line per meaningful outcome. Never serialize requests, account rows,
 // response bodies, headers, URLs or Error objects. The sink is injectable in tests.
-export function createAudit(write = line => console.log(line)) {
+export function createAudit(write = line => console.log(line), metadata = {}) {
   const storage = new AsyncLocalStorage(), summaries = new Map();
+  const instance = safe({ ...metadata, instanceId: randomUUID(), machineId: process.env.FLY_MACHINE_ID || 'local' });
   const emit = (event, details = {}) => {
     try {
       const detail=safe(details),who=detail.name||detail.actorId||(detail.kind==='system'?'system':'anonymous');
       const message=[who,detail.unitType,detail.command||detail.action||event,detail.outcome,
         detail.unitAfterType?'now using '+detail.unitAfterType:null,detail.count!=null?detail.count+' requests/events':null,detail.reason].filter(Boolean).join(' | ').slice(0,600);
-      write(JSON.stringify({ at: new Date().toISOString(), event, ...detail, message }));
+      write(JSON.stringify({ at: new Date().toISOString(), event, ...detail, ...instance, message }));
     }
     catch { /* Logging failure must not change a committed game outcome. */ }
   };
@@ -26,8 +28,39 @@ export function createAudit(write = line => console.log(line)) {
     if (identity) bind({ actorId: identity.id, pilotId, name: identity.name, kind: identity.kind || 'guest' });
   };
   function flush() {
-    for (const summary of summaries.values()) emit('activity.summary', summary);
+    for (const { event, detail } of summaries.values()) emit(event, detail);
     summaries.clear();
+  }
+  function group(event, key, detail, totals = []) {
+    key = event + ':' + key;
+    if (!summaries.has(key) && summaries.size >= 512) flush();
+    const prior = summaries.get(key)?.detail, at = new Date().toISOString();
+    const next = { ...safe(detail), firstAt: prior?.firstAt || at, lastAt: at, count: (prior?.count || 0) + 1 };
+    for (const field of totals) next[field] = (prior?.[field] || 0) + (detail[field] || 0);
+    if (detail.revision != null) next.firstRevision = prior?.firstRevision ?? detail.revision;
+    summaries.set(key, { event, detail: next });
+  }
+  // HTTP arrival and authenticated dispatch are distinct. Frequent controls are
+  // bounded summaries; neither record implies the action was accepted.
+  function receipt(event, context) {
+    if (frequent.has(context.action)) group(event + '.summary', JSON.stringify([context.campaignId, context.runtimeId, context.actorId, context.pilotId, context.action]), context);
+    else emit(event, context);
+  }
+  function received() {
+    const context = storage.getStore();
+    if (!context || context.dispatched) return;
+    context.dispatched = true;
+    receipt('action.received', safe(context));
+  }
+  const broadcastRooms = new Set();
+  function broadcast(detail) {
+    // Show the first active broadcast immediately, then aggregate by room.
+    if (!detail.connections && !detail.droppedStreams) return;
+    const key = JSON.stringify([detail.campaignId, detail.runtimeId]);
+    if (!broadcastRooms.has(key)) {
+      if (broadcastRooms.size >= 512) broadcastRooms.clear();
+      broadcastRooms.add(key); emit('state.broadcast', { ...detail, count: 1, firstRevision: detail.revision });
+    } else group('state.broadcast.summary', key, detail, ['queuedWrites', 'droppedStreams']);
   }
   const timer = setInterval(flush, 5000); timer.unref();
   function run(req, res, handler) {
@@ -40,15 +73,13 @@ export function createAudit(write = line => console.log(line)) {
     const action = actions.has(raw) ? raw : 'unknown';
     const context = { requestId: randomUUID(), action, campaignId: match?.[1] || 'legacy', kind: 'anonymous' };
     const started = performance.now();
+    if (req.method !== 'GET') receipt('request.received', context);
     res.once('finish', () => {
       if (req.method === 'GET' && res.statusCode < 400) return;
       const detail = { ...context, status: res.statusCode, outcome: res.statusCode < 400 ? 'accepted' : 'denied', durationMs: Math.round(performance.now() - started) };
       if (frequent.has(action)) {
-        const key = JSON.stringify([context.campaignId, context.actorId, context.pilotId, action, res.statusCode, context.reason, context.unitType, context.unitId, context.unitState, context.command]);
-        if (!summaries.has(key) && summaries.size >= 512) flush();
-        const prior = summaries.get(key);
-        const at=new Date().toISOString();
-        summaries.set(key, { ...detail, firstAt:prior?.firstAt||at,lastAt:at,count: (prior?.count || 0) + 1 });
+        const key = JSON.stringify([context.campaignId, context.runtimeId, context.actorId, context.pilotId, action, res.statusCode, context.reason, context.unitType, context.unitId, context.unitState, context.command]);
+        group('activity.summary', key, detail);
       } else emit('action.result', detail);
     });
     return storage.run(context, handler);
@@ -63,6 +94,6 @@ export function createAudit(write = line => console.log(line)) {
       else if (body?.next === '/demo-inbox/') bind({ reason: 'activation_required' });
     }
   }
-  return { run, bind, actor, result, emit, context: () => ({ ...storage.getStore() }),
+  return { run, bind, actor, result, emit, received, broadcast, context: () => safe({ ...storage.getStore() }),
     close() { clearInterval(timer); flush(); } };
 }

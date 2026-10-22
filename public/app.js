@@ -1,3 +1,4 @@
+import { throttleLabel, shipStopped } from './ship-motion.js';
 import { HELI, HELI_CANNON, HELI_ROCKET, isHelicopter, isHelipad, airSize, helicopterFireError } from './helicopter.js';
 import { remoteAirUI } from './remote-air-ui.js';
 import { remoteControlUI, remotePoint, remoteReason, remoteTargets } from './remote-control-ui.js';
@@ -353,9 +354,15 @@ function requestAircraft(kind) {
 }
 const services=facilityServiceUI({state:()=>({world,me,connected,players:[...groundPlayers(),...combat.enemies],blocked:remoteSelecting||mode==='build'||orbital.active()||bombers.active()||bridges.active()||!$('site-panel').hidden||!$('deployment-tray').hidden||['shipyard-dialog','logistics-dialog','planet-dialog','room-dialog','help-dialog','keys-dialog'].some(id=>$(id).open)||!$('bomber-panel').hidden||!!controlledGun()}),api,notify,manage:id=>shipyards.open(null,id),airSupport:id=>bombers.open(id),stop:()=>stopFiring()});
 function nearbyAirbase(){return world?.airbases?.find(b=>Math.hypot(me.x-airbaseGate(b).x,me.y-airbaseGate(b).y)<=1.8);}
+let flightSystemsOpen=false;
+function toggleFlightSystems(open=!flightSystemsOpen){flightSystemsOpen=!!currentAircraft()&&open;stopFiring();updateAircraft();if(!flightSystemsOpen)canvas.focus({preventScroll:true});}
 function updateAircraft(){
  const base=currentAirbase(),p=base?.aircraft,near=nearbyAirbase();
- document.querySelector('.battlefield').classList.toggle('aircraft-control',!!p);$('aircraft-controls').hidden=!p;
+ if(!p)flightSystemsOpen=false;
+ const fixed=!!p&&!isHelicopter(p),systems=!!p&&(!fixed||p.state==='parked'||flightSystemsOpen),field=document.querySelector('.battlefield');
+ field.classList.toggle('aircraft-control',!!p);field.classList.toggle('fixed-wing-control',fixed);field.classList.toggle('flight-systems-open',systems);
+ $('aircraft-controls').hidden=!systems;$('flight-meter').hidden=!fixed;$('flight-systems-close').hidden=!fixed||p.state==='parked';
+ $('flight-systems-toggle').setAttribute('aria-expanded',String(systems));
  const owned=airfields(world).filter(b=>b.owner===me.id),select=$('airbase-delivery-select');
  const ids=owned.map(b=>b.id).join(',');if(select.dataset.ids!==ids){const chosen=select.value;select.replaceChildren(...owned.map((b,i)=>new Option((b.carrier?'Carrier ':'Airbase ')+(i+1)+' / '+Math.round(b.x)+':'+Math.round(b.y),b.id)));if(owned.some(b=>b.id===chosen))select.value=chosen;select.dataset.ids=ids;}
  const own=owned.find(b=>b.id===select.value),nearPlane=parkedRecord(world,near)?.aircraft;
@@ -367,6 +374,13 @@ function updateAircraft(){
  button.disabled=!connected||airBusy||(p?!(p.state==='parked'||isHelicopter(p)&&p.state==='flying'):!!(near&&(near.destroyed||world.logistics?.jobs[near.id]))||!nearPlane||!!nearPlane.occupant||nearPlane.state!=='parked'||nearPlane.rearm>0);
  $('aircraft-cruise').hidden=button.hidden||!!p||!nearPlane;
  $('aircraft-cruise').disabled=button.disabled;
+ if(!p&&near?.destroyed&&canManageOwner(near.owner)){
+   const job=world.logistics.jobs[near.id],funds=world.logistics.groundSupplies||0;
+   button.textContent=job?`Rebuilding / ${Math.ceil(job.remaining)}s`:`Rebuild ${isHelipad(near)?'helipad':'airbase'} / ${COSTS.baseRepair} GND / T`;
+   button.disabled=!connected||airBusy||!!job||funds+1e-8<COSTS.baseRepair;
+   button.title=funds<COSTS.baseRepair?`Need ${COSTS.baseRepair} GND; ${Math.floor(funds)} available.`:`Rebuild ${near.x}:${near.y} / 8s`;
+   $('aircraft-cruise').hidden=true;
+ }else button.title='';
  for(const button of document.querySelectorAll('[data-direction]')){const key=button.dataset.direction;button.setAttribute('aria-label',(p&&!isHelicopter(p)?{up:'Increase airspeed',down:'Reduce airspeed',left:'Turn left',right:'Turn right'}:{up:'Move north',down:'Move south',left:'Move west',right:'Move east'})[key]);button.textContent=(p&&!isHelicopter(p)?{up:'W +',down:'S -',left:'A <',right:'D >'}:{up:'↑',down:'↓',left:'←',right:'→'})[key];}
  if(!p){$('helicopter-rockets').hidden=true;payloadAircraftId=null;return;}
  const heli=isHelicopter(p),jet=isAttackJet(p);$('helicopter-rockets').hidden=!heli;$('helicopter-rockets').disabled=!connected||p.state!=='flying'||p.rockets<=0||p.rocketRecovery>0;$('helicopter-rockets').textContent=p.rocketRecovery>0?'Pods cooling / '+Math.ceil(p.rocketRecovery)+'s':'Hold RMB / Rockets '+p.rockets;$('aircraft-name').textContent=aircraftName(p).toUpperCase();$('aircraft-controls').setAttribute('aria-label',heli?'Helicopter controls':jet?'Attack jet controls':'Bomber controls');
@@ -377,6 +391,12 @@ function updateAircraft(){
  document.querySelector('.mode-dock').hidden=true;
  const threatened=world.sites.some(s=>s.state==='hostile'&&s.aa?.targetId===p.id)||(combat.flakShells||[]).some(s=>!s.impacted&&s.targetId===p.id);
  $('aircraft-status').textContent=threatened?'INCOMING FLAK / TURN':p.releaseRemaining>0?'RELEASING / HOLDING COURSE':p.edgeTurn?'BOUNDARY TURN':p.state.toUpperCase();
+ if(!heli){
+  $('flight-meter-name').textContent=aircraftName(p).toUpperCase();$('flight-speed').textContent=p.speed.toFixed(1)+' tiles/s';$('flight-speed-gauge').value=p.speed;
+  const bank=Math.max(-1,Math.min(1,p.bank||0));$('flight-bank-needle').style.transform='rotate('+bank*30+'deg)';$('flight-bank-label').textContent=Math.abs(bank)<.02?'WINGS LEVEL':(bank<0?'LEFT':'RIGHT')+' BANK';
+  $('flight-meter-status').textContent=$('aircraft-status').textContent;$('flight-meter-status').classList.toggle('threatened',threatened);
+  $('flight-meter-load').textContent='HP '+Math.ceil(aircraftHealth(p))+' / '+(jet?p.rounds+' ROUNDS':p.runs+' BAY CHARGES');
+ }
  $('aircraft-readout').textContent='HULL '+Math.ceil(aircraftHealth(p))+'/'+AIR_HULL.health+' / SPEED '+p.speed.toFixed(1)+' / '+(heli?p.rounds+' CANNON / '+p.rockets+' ROCKETS':jet?p.rounds+' ROUNDS':p.runs+' / 2 BAY CHARGES')+' / BASE '+Math.round(Math.hypot(p.x-parkingPoint(base).x,p.y-parkingPoint(base).y))+' TILES';
  const error=heli?(p.state!=='flying'?'Take off before firing.':p.rounds<=0?'Cannon empty.':null):jet?strafeError(world,p):bombError(world,previewAircraft());$('aircraft-bomb').disabled=!connected||(!jet&&airBusy)||!!error;
  $('aircraft-launch').hidden=p.state!=='parked';$('aircraft-launch').disabled=!connected||airBusy||p.rearm>0;
@@ -387,7 +407,7 @@ function updateAircraft(){
    if(!threatened&&p.state==='flying'&&landing.base?.destroyed&&Math.hypot(p.x-landing.base.x-1.5,p.y-landing.base.y-1.5)<1.2)$('aircraft-status').textContent='HELIPAD DESTROYED';
    $('aircraft-home').textContent='Locate free helipad';
  }else $('aircraft-home').textContent='Locate airbase';
- $('map-hint').textContent=heli?'WASD move / LMB cannon / RMB rockets / C follow':'W faster / S slower / A D turn / '+(jet?'Hold LMB strafe':'LMB bomb')+' / C follow';
+ $('map-hint').textContent=heli?'WASD move / LMB cannon / RMB rockets / C follow':'W faster / S slower / A D bank / '+(jet?'Hold LMB strafe':'LMB bomb')+' / C follow';
 }
 const heliNext={cannon:0,rockets:0},heliBusy=new Set();
 async function helicopterFire(rocket=false){
@@ -399,6 +419,7 @@ async function helicopterFire(rocket=false){
 async function aircraftAction(action){
  if(action==='bomb'&&isHelicopter(currentAircraft()))return helicopterFire();
  if(airBusy||!connected||!alive()||(!['board','exit'].includes(action)&&!combatInputAllowed()))return;
+ if(action==='board'&&nearbyAirbase()?.destroyed)return;
  if(action==='bomb'&&isAttackJet(currentAircraft())){action='strafe';if(performance.now()<nextStrafe||strafeError(world,currentAircraft()))return;nextStrafe=performance.now()+JET.cooldown+20;}
  airBusy=true;if(action!=='strafe')stopFiring();
  try{await api('aircraft/'+action,{id:nearbyAirbase()?.id,...(action==='bomb'?{payload:$('aircraft-payload').value}:{})});if(!['bomb','strafe'].includes(action)){keys.clear();setMode('explore');recenter();camera.zoom=width<760?.25:.5;following=true;}canvas.focus({preventScroll:true});}
@@ -416,7 +437,11 @@ function nearbyShip() {
 function updateShips() {
   const ship = currentShip(), near = nearbyShip(), button = $('ship-interact');
   document.querySelector('.battlefield').classList.toggle('ship-control', !!ship);
-  $('ship-controls').hidden = !ship;
+  if(!ship)shipSystemsOpen=false;
+  $('ship-controls').hidden = !ship||!shipSystemsOpen;
+  $('ship-helm').hidden = !ship;
+  document.querySelector('.battlefield').classList.toggle('ship-systems-open',!!ship&&shipSystemsOpen);
+  $('ship-systems-toggle').setAttribute('aria-expanded',String(shipSystemsOpen));
   if (ship) document.querySelector('.mode-dock').hidden = true;
   button.hidden = !alive() || mode === 'build' || !!controlledGun() || (!ship && (me.body !== 'robot' || !near || !!shipyards.near()));
   button.textContent = ship ? 'Disembark / E' : near?.occupant ? 'Ship occupied' : 'Board '+shipName(near)+' / E';
@@ -427,6 +452,13 @@ function updateShips() {
   $('transport-controls').hidden=!isTransport(ship);
   $('carrier-controls').hidden=!isCarrier(ship);
   if (!ship) { rampPreview=null; return; }
+  const throttle=shipThrottlePending?.id===ship.id?shipThrottlePending.value:ship.throttle||0;
+  $('ship-speed').textContent=`${ship.driveSpeed<-.01?'ASTERN / ':''}${(ship.speed||0).toFixed(2)} tiles/s / ${shipStopped(ship)?'STOPPED':throttle===0?'SLOWING':'UNDER WAY'}`;
+  for(const b of document.querySelectorAll('[data-ship-throttle]')){b.setAttribute('aria-pressed',String(Number(b.dataset.shipThrottle)===throttle));b.disabled=!connected||!!(ship.ramp||ship.launchRemaining>0||deckLocked(world,ship));}
+  $('ship-throttle-order').textContent='ENGINE / '+throttleLabel(throttle);
+  const signedSpeed=ship.driveSpeed||0,profile=isCarrier(ship)?CARRIER:SHIP;
+  const speedPosition=signedSpeed<0?80+20*Math.min(1,-signedSpeed/profile.reverse):80-80*Math.min(1,signedSpeed/profile.speed);
+  $('ship-speed-needle').style.top=speedPosition+'%';
   rampPreview=ship.ramp?null:shoreRampSite(world,buildings,[...groundPlayers(),...combat.enemies],ship);
   $('ship-ramp').disabled=!connected||shipBusy;
   $('ship-ramp').textContent=ship.ramp?'G / Retract ramp':'G / Shore ramp';
@@ -435,8 +467,8 @@ function updateShips() {
   $('ship-contact').disabled = !connected || (combat.naval?.cooldown||0)>0 || (combat.naval?.count||0)>=6;
   $('ship-contact').textContent = combat.naval?.count ? `${combat.naval.count} swimmers / ${Math.ceil(combat.naval.cooldown)}s` : combat.naval?.cooldown>0 ? `Sonar ${Math.ceil(combat.naval.cooldown)}s` : 'Naval contact';
   $('ship-status').textContent = mainMounts(ship).map(m=>`${m.id==='fore'?'FORE':'AFT'} ${mainReload(ship,m.id)>.001?mainReload(ship,m.id).toFixed(1)+'s':'READY'}`).join(' / ');
-  $('ship-manual').textContent = `W/S forward/reverse / A/D steer / Mouse aim / ${ship.ramp ? 'ANCHORED / E ashore / G retract ramp' : dock ? 'Docked: E ashore / G shore ramp' : rampPreview ? 'SHORE IN REACH / G anchor + ramp' : 'G shore ramp / Approach clear land within 2 tiles'}`;
-  $('map-hint').textContent = 'LMB volley / Double-click salvo / Hold RMB side guns / WASD sail / 1 2 3 shells';
+  $('ship-manual').textContent = `W/S throttle steps / A/D rudder / Mouse aim / ${ship.ramp ? 'ANCHORED / E ashore / G retract ramp' : dock ? 'Docked: E ashore / G shore ramp' : rampPreview ? 'SHORE IN REACH / G anchor + ramp' : 'G shore ramp / Approach clear land within 2 tiles'}`;
+  $('map-hint').textContent = 'LMB volley / Double-click salvo / Hold RMB side guns / W/S throttle; A/D rudder / 1 2 3 shells';
   for (const b of document.querySelectorAll('[data-ship-shell]')) { b.disabled = !connected || shipBusy; b.setAttribute('aria-pressed', String(b.dataset.shipShell === ship.ammo)); }
   for(const m of SIDE_MOUNTS){const a=sideSolution(ship,aim,m),b=$('ship-'+m.id+'-status'),ready=a.inArc&&a.inRange&&a.aligned;
     b.textContent=(m.id==='port'?'Port':'Starboard')+' / '+(!a.inRange?'8 tiles':!a.inArc?'Outside arc':!a.aligned?'Tracking':'Ready');b.dataset.ready=String(ready);b.classList.toggle('firing',combat.shots.some(s=>s.owner===ship.id+':'+m.id&&combat.time-s.at<180));}
@@ -457,7 +489,7 @@ function updateShips() {
     $('carrier-board').disabled=blocked;$('carrier-cruise').disabled=blocked;
     const reason=deliveryError(world,field);$('carrier-deliver').disabled=!connected||airBusy||!!reason||ship.owner!==me.id;
     $('carrier-deliver').title=reason||'Orbital delivery to this stopped carrier';$('carrier-deliver').textContent=$('carrier-kind').value==='bomber'&&!world.logistics.freeBomberUsed?'Deliver first bomber / FREE':'Deliver / 100 ORB';
-    $('map-hint').textContent='WASD sail / RMB side guns / H air support';$('ship-manual').textContent='Stop for flight operations. Deck reservations hold position. Dock to refill onboard GND; stop to repair.';
+    $('map-hint').textContent='W/S throttle; A/D rudder / RMB side guns / H air support';$('ship-manual').textContent='Stop for flight operations. Deck reservations hold position. Dock to refill onboard GND; stop to repair.';
   }
   if(sub){
     const error=!surfaced(ship)?'Surface fully to launch':submarineTargetError(ship,world,aim,subRotated);
@@ -471,9 +503,20 @@ function updateShips() {
     $('ship-status').textContent=ship.launchRemaining>0?'LAUNCHING / BRACED':ship.reload>0?'TUBES '+ship.reload.toFixed(1)+'s':surfaced(ship)?'TUBES READY':'TUBES SEALED';
     $('ship-fire').disabled=!connected||shipBusy||ship.reload>.001||!!error;
     $('submarine-rotate').textContent='R / '+(subRotated?'8 x 6':'6 x 8');
-    $('map-hint').textContent='LMB launch / Ctrl dive / Space surface / WASD sail / 1 2 3 warheads';
+    $('map-hint').textContent='LMB launch / Ctrl dive / Space surface / W/S throttle; A/D rudder / 1 2 3 warheads';
     $('ship-manual').textContent=(error||'6 missiles / 18s reload after last launch')+' / '+(ship.ramp?'ANCHORED / G retract ramp':ship.launchRemaining>0?'LAUNCHING / Hold position':surfaced(ship)?'G ramp / Surface recharges battery':state==='submerged'?'HIDDEN FROM SWIMMERS / Auto-surface at zero':'TRANSITION / Still vulnerable');
   }
+}
+let shipThrottlePending=null,drivingFocused=true,shipSystemsOpen=false;
+function toggleShipSystems(open=!shipSystemsOpen){
+  shipSystemsOpen=!!currentShip()&&open;stopFiring();updateShips();
+  if(!shipSystemsOpen)canvas.focus({preventScroll:true});
+}
+function changeShipThrottle(value,absolute=false){
+  const ship=currentShip();if(!ship||!movementAllowed())return;
+  const previous=shipThrottlePending?.id===ship.id?shipThrottlePending.value:ship.throttle||0;
+  shipThrottlePending={id:ship.id,value:Math.max(-1,Math.min(4,absolute?value:previous+value))};
+  updateShips();
 }
 function updateTransport(ship){
   $('transport-controls').hidden=!isTransport(ship);if(!isTransport(ship))return;
@@ -874,8 +917,10 @@ function updateState(state) {
     ? 'DETECTED · Break the tracking beam with cover'
     : `CONTACT LOST · Detected ${Math.ceil((detected.until - combat.time) / 1000)}s`;
   if (mine) {
+    if(mine.shipId!==me.shipId){shipThrottlePending=null;shipSystemsOpen=false;}
+    if(mine.aircraftId!==me.aircraftId)flightSystemsOpen=false;
     if (mine.recyclerId !== me.recyclerId || mine.aircraftId !== me.aircraftId || mine.vehicleId !== me.vehicleId || mine.shipId !== me.shipId) { keys.clear(); stopFiring(); positions.delete(me.id); lastInput = '0,0'; lastAim = null; }
-    if(mine.shipId&&!me.shipId&&(me.vehicleId||me.recyclerId))notify('Vehicle secured. You have the helm. WASD sail; K drive off at a dock or shore ramp.');
+    if(mine.shipId&&!me.shipId&&(me.vehicleId||me.recyclerId))notify('Vehicle secured. You have the helm. W/S throttle; A/D rudder; K drive off at a dock or shore ramp.');
     const startedLanding = mine.deploying && !me.deploying;
     const previousLife = me.life;
     me = { ...me, ...mine };
@@ -1624,7 +1669,14 @@ for(const name of ['pointerup','pointercancel','lostpointercapture'])$('helicopt
 $('aircraft-bomb').onclick=event=>{if(!(isAttackJet(currentAircraft())||isHelicopter(currentAircraft()))||event.detail===0)void aircraftAction('bomb');};
 $('aircraft-bomb').addEventListener('pointerdown',event=>{if(!(isAttackJet(currentAircraft())||isHelicopter(currentAircraft()))||!combatInputAllowed())return;event.preventDefault();$('aircraft-bomb').setPointerCapture(event.pointerId);heldPrimary.add('air:'+event.pointerId);void aircraftAction('bomb');});
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('aircraft-bomb').addEventListener(name,event=>heldPrimary.delete('air:'+event.pointerId));$('aircraft-launch').onclick=()=>aircraftAction('launch');
-$('aircraft-interact').onclick=()=>aircraftAction(currentAircraft()?'exit':'board');
+async function rebuildNearbyAirbase(){
+ const base=nearbyAirbase();
+ if(!base?.destroyed||!canManageOwner(base.owner)||me.body!=='robot'||$('aircraft-interact').hidden||$('aircraft-interact').disabled)return;
+ airBusy=true;stopFiring();updateAircraft();
+ try{await api('logistics/repair',{kind:'airbase',id:base.id});notify(`Rebuilding ${isHelipad(base)?'helipad':'airbase'} ${base.x}:${base.y} / 8s.`);}
+ catch(e){notify(e.message);}finally{airBusy=false;updateAircraft();}
+}
+$('aircraft-interact').onclick=()=>!currentAircraft()&&nearbyAirbase()?.destroyed?rebuildNearbyAirbase():aircraftAction(currentAircraft()?'exit':'board');
 $('ship-card').onclick = () => chooseNaval('gunship');
 $('transport-card').onclick=()=>chooseNaval('transport');
 $('submarine-card').onclick=()=>chooseNaval('submarine');
@@ -1633,6 +1685,11 @@ $('submarine-dive').onclick=()=>shipDepth('dive');
 $('submarine-surface').onclick=()=>shipDepth('surface');
 $('submarine-rotate').onclick=()=>{subRotated=!subRotated;updateShips();};
 $('ship-interact').onclick = shipInteract;
+$('flight-systems-toggle').onclick=()=>toggleFlightSystems();
+$('flight-systems-close').onclick=()=>toggleFlightSystems(false);
+$('ship-systems-toggle').onclick=()=>toggleShipSystems();
+$('ship-systems-close').onclick=()=>toggleShipSystems(false);
+for(const button of document.querySelectorAll('[data-ship-throttle]'))button.onclick=()=>changeShipThrottle(Number(button.dataset.shipThrottle),true);
 $('ship-contact').onclick = async()=>{try{await api('ships/contact',{});}catch(e){notify(e.message);}};
 $('ship-fire').onclick = shipFire;
 const sideButton=$('ship-secondary');
@@ -1816,7 +1873,7 @@ function preferredInteraction(){
   if(me?.body!=='robot')return me?.recyclerId?'recycler-board':me?.shipId?'ship-board':me?.vehicleId?'tank-board':me?.aircraftId?'aircraft-board':null;
   const ship=nearbyShip(),base=nearbyAirbase();
   const options=[['shipyard-open','shipyard-interact',shipyards.near()],
-    ['ship-board','ship-interact',ship&&boardingPoint(world,ship,buildings,me)],['recycler-board','recycler-interact',nearbyRecycler()],['tank-board','tank-interact',nearbyTank()],['aircraft-board','aircraft-interact',base&&airbaseGate(base)],['station-open','station-interact',nearbyStation()?.center]];
+    ['ship-board','ship-interact',ship&&boardingPoint(world,ship,buildings,me)],['recycler-board','recycler-interact',nearbyRecycler()],['tank-board','tank-interact',nearbyTank()],['aircraft-board','aircraft-interact',base&&!base.destroyed&&airbaseGate(base)],['station-open','station-interact',nearbyStation()?.center]];
   return options.filter(([,id,p])=>p&&!$(id).hidden&&!$(id).disabled).sort((a,b)=>Math.hypot(me.x-a[2].x,me.y-a[2].y)-Math.hypot(me.x-b[2].x,me.y-b[2].y))[0]?.[0];
 }
 const KEY_ACTIONS = {
@@ -1828,6 +1885,7 @@ const KEY_ACTIONS = {
   'recycler-board': { when: event => !event.repeat && !$('recycler-interact').hidden && preferredInteraction()==='recycler-board', run: () => { if(!$('recycler-interact').disabled)void recyclerInteract(); } },
   'station-open': { when: event => !event.repeat && !$('station-interact').hidden && preferredInteraction()==='station-open', run: () => $('station-interact').click() },
   'aircraft-board': { when: event => !event.repeat && !$('aircraft-interact').hidden && preferredInteraction()==='aircraft-board', run: () => { if (!$('aircraft-interact').disabled) void aircraftAction(currentAircraft() ? 'exit' : 'board'); } },
+  'airbase-rebuild': { when: event => !event.repeat && !$('aircraft-interact').hidden && !!nearbyAirbase()?.destroyed && me.body==='robot', run: () => void rebuildNearbyAirbase() },
   'aircraft-space': { when: event => !!currentAircraft() && onCanvas(event), run: () => {} },
   'sub-depth': { when: event => isSubmarine(currentShip()) && onCanvas(event), run: once(event => { if (combatInputAllowed()) void shipDepth(keyOf(event) === ' ' ? 'surface' : 'dive'); }) },
   'missile-rotate': { when: () => isMissile(controlledGun()), run: once(() => $('missile-rotate').click()) },
@@ -1835,6 +1893,9 @@ const KEY_ACTIONS = {
   'catalogue-next': { when: trayOpen, run: once(() => cycleTab(1)) },
   'catalogue-pick': { when: trayOpen, run: once(event => { const card = assetsIn(forceTab).map(a => $(a.card))[Number(keyOf(event)) - 1]; if (card && !card.disabled) { card.click(); if (mode === 'build' && $('site-panel').hidden) toggleSite(true); } }) },
   'gun-ammo': { when: () => !!controlledGun(), run: once(event => void gunAction('ammo', { ammo: shellFor(event) })) },
+  'flight-systems': {when:()=>!!currentAircraft()&&!isHelicopter(currentAircraft()),run:once(()=>toggleFlightSystems())},
+  'ship-systems': {when:()=>!!currentShip(),run:once(()=>toggleShipSystems())},
+  'ship-throttle': { when: () => !!currentShip(), run: once(event => changeShipThrottle(['w','arrowup'].includes(keyOf(event))?1:-1)) },
   'ship-ammo': { when: () => !!me.shipId, run: once(event => void shipAmmo(shellFor(event))) },
   'tank-primary': { when: inTank, run: once(() => setTankWeapon('tank-primary', $('tank-primary').value === 'HE' ? 'MAGNETIC' : 'HE')) },
   'tank-secondary': { when: inTank, run: once(() => setTankWeapon('tank-secondary', $('tank-secondary').value === 'APCR' ? 'HEAVY_FLAME' : 'APCR')) },
@@ -1922,6 +1983,8 @@ function goBack() {
   else if (bridges.active()) bridges.close();
   else if (!$('switch-panel').hidden) $('switch-panel').hidden = true;
   else if (services.active()) services.close();
+  else if (flightSystemsOpen) toggleFlightSystems(false);
+  else if (shipSystemsOpen) toggleShipSystems(false);
   else if (!$('deployment-tray').hidden) toggleTray(false);
   else if (inOrbit() && !$('site-panel').hidden) {
     $('site-panel').hidden = true;
@@ -1935,7 +1998,7 @@ function goBack() {
 const editingField = target => !!target && (/INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable);
 const pausedMenu = () => ['room-dialog','help-dialog','keys-dialog'].some(id=>$(id).open);
 const panelOwnsPointer = () => remoteSelecting || services.active() || mode==='build' || !$('deployment-tray').hidden || !$('site-panel').hidden || !$('switch-panel').hidden || orbital.active() || bombers.active() || bridges.active() || ['planet-dialog','shipyard-dialog','logistics-dialog','room-dialog','help-dialog','keys-dialog'].some(id=>$(id).open);
-const movementAllowed = () => connected && world && !roomState?.paused && !pausedMenu() && !inOrbit() && alive() && !me.deploying && !document.hidden;
+const movementAllowed = () => connected && world && !roomState?.paused && !pausedMenu() && !inOrbit() && alive() && !me.deploying && !document.hidden && (!(me?.shipId||me?.aircraftId||me?.vehicleId)||drivingFocused);
 window.addEventListener('keydown', event => {
   const key = keyOf(event);
   // Back remains available when typing or paused; other game keys keep their guards.
@@ -1945,6 +2008,8 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (!world || editingField(event.target)) return;
+  const helmBinding=BINDINGS.find(b=>b.id==='ship-throttle');
+  if(currentShip()&&helmBinding.keys.includes(key)){if(movementAllowed()){event.preventDefault();KEY_ACTIONS['ship-throttle'].run(event);}return;}
   if (movementKeys.has(key)) {
     if (movementAllowed()) {
       event.preventDefault(); keys.add(key);
@@ -1963,17 +2028,19 @@ window.addEventListener('keydown', event => {
 });
 document.addEventListener('focusin',event=>{if(editingField(event.target)){keys.clear();stopFiring();}});
 window.addEventListener('keyup', event => { const key = keyOf(event); keys.delete(key); if (key === 'j') heldGun.delete('keyboard'); if (key === ' ') heldPrimary.delete('keyboard'); });
-window.addEventListener('blur', () => { keys.clear(); stopFiring(); cancelPointer(); });
+window.addEventListener('focus',()=>{drivingFocused=true;});
+window.addEventListener('blur', () => { drivingFocused=false;shipThrottlePending=null;keys.clear(); stopFiring(); cancelPointer(); });
 window.addEventListener('blur', () => {if(remoteSelecting)closeRemote(true);releaseArtillery();});
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if(remoteSelecting)closeRemote(true);keys.clear(); stopFiring(); cancelPointer(); releaseArtillery(); } });
 const directionKey = { up: 'w', left: 'a', down: 's', right: 'd' };
 for (const button of document.querySelectorAll('[data-direction]')) {
-  button.addEventListener('pointerdown', event => { event.preventDefault(); if(!movementAllowed())return; button.setPointerCapture(event.pointerId); keys.add(directionKey[button.dataset.direction]); if(!panelOwnsPointer())following = !controlledGun(); path = []; });
+  button.addEventListener('pointerdown', event => { event.preventDefault(); if(!movementAllowed())return; button.setPointerCapture(event.pointerId); if(currentShip()&&['up','down'].includes(button.dataset.direction)){changeShipThrottle(button.dataset.direction==='up'?1:-1);return;} keys.add(directionKey[button.dataset.direction]); if(!panelOwnsPointer())following = !controlledGun(); path = []; });
   const release = () => keys.delete(directionKey[button.dataset.direction]);
   button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release); button.addEventListener('lostpointercapture', release);
 }
 setInterval(async () => {
-  if (inputBusy || !movementAllowed()) return;
+  if (!movementAllowed()) {shipThrottlePending=null;return;}
+  if (inputBusy) return;
   if(editingField(document.activeElement))keys.clear();
   if (controlledGun()) {
     if (document.hidden || gunBusy) return;
@@ -1994,10 +2061,12 @@ setInterval(async () => {
   const angle = aim ? Math.atan2(aim.y - me.y, aim.x - me.x) + Math.PI / 2 : me.angle;
   const pointChanged = (me.shipId||isHelicopter(currentAircraft())) && aim && (!lastShipTarget || Math.hypot(aim.x-lastShipTarget.x,aim.y-lastShipTarget.y)>.1);
   const aimChanged = aiming && (!!pointChanged || lastAim === null || Math.abs(angleDelta(lastAim, angle)) > .025);
-  if (!x && !y && lastInput === current && !aimChanged) return;
+  const tankCoasting=me.vehicleId&&Math.hypot(me.vx||0,me.vy||0)>.01;
+  if (!me.shipId && !me.aircraftId && !tankCoasting && !x && !y && lastInput === current && !aimChanged) return;
+  const helm=shipThrottlePending?.id===me.shipId?shipThrottlePending:null;
   inputBusy = true;
-  try { await api('input', { x, y, ...(aiming?{aim:angle,...((me.shipId||isHelicopter(currentAircraft()))&&aim?{target:aim}:{})}:{}) }); if(aiming){lastShipTarget=aim?{...aim}:null;lastAim=angle;}lastInput = current; failedInputs = 0; }
-  catch { if (++failedInputs === 1) notify('Movement paused. Waiting for the connection.'); }
+  try { const result=await api('input', { x, y, ...(helm?{shipId:helm.id,throttle:helm.value}:{}), ...(aiming?{aim:angle,...((me.shipId||isHelicopter(currentAircraft()))&&aim?{target:aim}:{})}:{}) }); if(helm){if(currentShip()?.id===helm.id)currentShip().throttle=result.throttle;if(shipThrottlePending===helm)shipThrottlePending=null;} if(aiming){lastShipTarget=aim?{...aim}:null;lastAim=angle;}lastInput = current; failedInputs = 0; }
+  catch(error) { shipThrottlePending=null;if (++failedInputs === 1) notify(error.message||'Movement paused. Waiting for the connection.'); }
   finally { inputBusy = false; }
 }, 140);
 

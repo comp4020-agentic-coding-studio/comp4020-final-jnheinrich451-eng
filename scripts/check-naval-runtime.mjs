@@ -29,7 +29,7 @@ try{
  await post(0,'ships/contact',{});
  // Turn continuously and send short drive packets; one ship is allowed to be destroyed.
  for(let n=0;n<160;n++){
-  await Promise.all(tokens.map((_,i)=>post(i,'input',{x:i===0?0:(n%40<20?1:-1),y:i===0?0:-1,aim:n*.04})));
+  await Promise.all(tokens.map((_,i)=>post(i,'input',{x:i===0?0:(n%40<20?1:-1),y:0,shipId:'pilot-'+i,throttle:i===0?0:4,aim:(n*.04)%(Math.PI*2)})));
   if(n%40===0)for(let i=1;i<4;i++)await post(i,'ships/fire',{x:47,y:20+i*16});
   const state=await(await fetch(base+'/api/world',{headers:{Cookie:'frontier='+tokens[0]}})).json();
   peakEnemies=Math.max(peakEnemies,state.combat.naval.count);peakRss=Math.max(peakRss,process.memoryUsage().rss);

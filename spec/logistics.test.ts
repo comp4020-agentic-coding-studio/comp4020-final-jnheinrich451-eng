@@ -171,6 +171,31 @@ it('repairs a saved airbase without replacing its airborne aircraft or taking a 
     expect((await f.state()).airbases[0].aircraft.id).toBe('lostbase:bomber');expect((await f.state()).logistics.groundSupplies).toBe(1050);
   }finally{await f.close();}
 },16000);
+it('restores the selected runway live after its destruction, keeps other ruins and persists full health',async()=>{
+  const f=await fixture((db,_w,l)=>{
+    for(const [id,x] of [['other',70],['repair-here',48]] as const){
+      const base:any=newAirbase(id,'a',x,48);
+      db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));
+      l.durability['airbase:'+id]={health:0,max:500,armor:2};
+    }
+  });try{
+    await f.connect();
+    await expect.poll(async()=>(await f.state()).airbases.every((b:any)=>b.destroyed)).toBe(true);
+    expect((await f.post('logistics/repair',{kind:'airbase',id:'repair-here'})).status).toBe(200);
+    expect((await f.post('logistics/repair',{kind:'airbase',id:'repair-here'})).status).toBe(409);
+    await expect.poll(async()=>(await f.state()).airbases.find((b:any)=>b.id==='repair-here').destroyed,{timeout:11000}).toBe(false);
+    const s=await f.state();
+    expect(s.logistics.groundSupplies).toBe(1050);
+    expect(s.logistics.durability['airbase:repair-here'].health).toBe(500);
+    expect(s.airbases.find((b:any)=>b.id==='other').destroyed).toBe(true);
+    expect(s.airbases.find((b:any)=>b.id==='repair-here').aircraft.state).toBe('destroyed');
+    expect((await f.post('logistics/repair',{kind:'airbase',id:'repair-here'})).status).toBe(409);
+    await f.restart();
+    const restored=await f.state();
+    expect(restored.airbases.find((b:any)=>b.id==='repair-here').destroyed).toBe(false);
+    expect(restored.logistics.groundSupplies).toBe(1050);
+  }finally{await f.close();}
+},16000);
 it('rejects unknown prototype properties as deployment kinds without corrupting supplies',async()=>{
   const f=await fixture();try{await f.connect();expect((await f.post('logistics/deploy',{kind:'__proto__',x:50,y:50})).status).toBe(400);expect((await f.state()).logistics.supplies).toBe(1200);}finally{await f.close();}
 });
@@ -232,7 +257,11 @@ it('admits one paid bridge across uneven shores, locks construction, and resumes
     await f.connect();const data={from:{x:34,y:42},to:{x:41,y:42}};
     expect((await f.post('logistics/bridge',data)).status).toBe(409);await f.post('logistics/board',{id:'builder'});
     const bad=await f.post('logistics/bridge',{...data,to:{x:41,y:43}});expect(bad.status).toBe(409);expect((await f.state()).logistics.supplies).toBe(1200);
-    expect((await f.post('logistics/bridge',data)).status).toBe(201);expect((await f.post('logistics/bridge',data)).status).toBe(200);
+    const reversed={from:data.to,to:data.from};
+    const built=await f.post('logistics/bridge',reversed);
+    expect(built.status).toBe(201);expect(built.data.bridge).toMatchObject(data);
+    expect((await f.post('logistics/bridge',data)).status).toBe(200);
+    expect((await f.post('logistics/bridge',reversed)).status).toBe(200);
     expect((await f.state()).logistics.groundSupplies).toBe(1134);await f.post('input',{x:1,y:0});
     await expect.poll(async()=>(await f.state()).logistics.bridges[0].elapsed).toBeGreaterThan(.3);expect((await f.state()).logistics.recyclers[0].x).toBe(33.5);
     await f.restart();const saved=(await f.state()).logistics.bridges[0].elapsed;expect(saved).toBeGreaterThan(0);await f.connect();

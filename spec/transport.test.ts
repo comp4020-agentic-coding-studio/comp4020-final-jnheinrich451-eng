@@ -60,8 +60,8 @@ for(const kind of ['tank','recycler','builder'])it('carries '+kind+' across wate
     }else expect((await f.post('logistics/deploy',{kind,x:5,y:5})).status).toBe(409);
     expect((await f.post('ships/board',{id:'transport'})).status).toBe(200);
     await f.restart();await f.connect();s=await f.state();expect(s.ships[0].cargo.vehicle.id).toBe('cargo');expect(kind==='tank'?s.tanks:s.logistics.recyclers).toHaveLength(kind==='tank'?1:0);
-    await expect.poll(async()=>{await f.post('input',{x:0,y:-1});return (await f.state()).ships[0].x;},{timeout:12000,interval:200}).toBeGreaterThan(37.5);
-    await f.post('input',{x:0,y:0});await new Promise(r=>setTimeout(r,150));expect((await f.post('ships/ramp',{deployed:true})).status).toBe(200);
+    await expect.poll(async()=>{await f.post('input',{x:0,y:0,shipId:'transport',throttle:4});return (await f.state()).ships[0].x;},{timeout:12000,interval:200}).toBeGreaterThan(37.5);
+    await expect.poll(async()=>{await f.post('input',{x:0,y:0,shipId:'transport',throttle:0});return (await f.state()).ships[0].speed;},{timeout:4000,interval:100}).toBe(0);expect((await f.post('ships/ramp',{deployed:true})).status).toBe(200);
     expect((await f.post('ships/cargo',{action:'unload',vehicleId:'cargo'})).status).toBe(200);expect((await f.post('ships/cargo',{action:'unload',vehicleId:'cargo'})).status).toBe(200);
     await f.restart();s=await f.state();const list=kind==='tank'?s.tanks:s.logistics.recyclers;expect(list).toHaveLength(kind==='tank'?2:1);const recovered=list.find((v:any)=>v.id==='cargo');expect(recovered.x).toBeGreaterThan(40);expect(s.ships[0].cargo).toBeNull();expect(recovered.weapon).toBe('MAGNETIC');
     if(kind!=='tank'){expect(recovered.cargo).toBe(37);expect(s.logistics.durability['recycler:cargo'].health).toBe(123);}else expect(recovered.health).toBe(147);

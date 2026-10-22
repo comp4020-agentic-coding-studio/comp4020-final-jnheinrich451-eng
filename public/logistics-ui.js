@@ -1,8 +1,17 @@
 import { dockRecords } from './shipyard.js';
 import { ECONOMY, COSTS, emergencyTankError, supportSources, salvageReceivers, readyFactory } from './logistics.js';
+import { airSize } from './helicopter.js';
 
 export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   const $=id=>document.getElementById(id), dialog=$('logistics-dialog');
+  const repairSites=()=>{
+    const {world,canManage}=state();
+    return [
+      ...dockRecords(world).filter(s=>s.dockDestroyed&&canManage(s.owner)).map(s=>({value:'dock:'+s.id,name:'Dock',x:s.dock.x,y:s.dock.y,cx:s.dock.x,cy:s.dock.y})),
+      ...world.airbases.filter(b=>b.destroyed&&canManage(b.owner)).map(b=>({value:'airbase:'+b.id,name:b.kind==='helipad'?'Helipad':'Airbase',x:b.x,y:b.y,cx:b.x+airSize(b).width/2,cy:b.y+airSize(b).height/2}))
+    ];
+  };
+  let repairing=null;
   function options(id,entries){
     const select=$(id),old=select.value,signature=JSON.stringify(entries);
     if(select.dataset.signature===signature)return;
@@ -10,7 +19,12 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     select.dataset.signature=signature;if(entries.some(e=>e[0]===old))select.value=old;
   }
   async function action(route,data){try{await api('logistics/'+route,data);}catch(error){$('logistics-message').textContent=error.message;}}
-  function open(stationId){stop();update();if(stationId)$('uplink-select').value=stationId;update();dialog.showModal();dialog.querySelector('button').focus();}
+  function open(stationId,repairId){
+    stop();update();if(stationId)$('uplink-select').value=stationId;
+    const {me}=state(),sites=repairSites(),nearest=sites.find(s=>s.value==='airbase:'+repairId)||sites.sort((a,b)=>Math.hypot(a.cx-me.x,a.cy-me.y)-Math.hypot(b.cx-me.x,b.cy-me.y))[0];
+    if(nearest)$('logistics-repair').value=nearest.value;
+    update();dialog.showModal();dialog.querySelector('button').focus();
+  }
   $('supplies-button').onclick=()=>open();
   for(const button of document.querySelectorAll('[data-logistics-deploy]'))button.onclick=()=>{dialog.close();deploy(button.dataset.logisticsDeploy);};
   $('emergency-tank').onclick=()=>{dialog.close();deploy('tank',true);};
@@ -20,11 +34,19 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   $('recycler-deliver').onclick=()=>action('command',{id:$('recycler-select').value,action:'deliver',targetId:$('uplink-select').value});
   $('cargo-launch').onclick=async()=>{const station=state().world.logistics.facilities.find(f=>f.id===$('uplink-select').value);try{await api('logistics/launch',{id:station?.id});dialog.close();locate({x:station.x+1.5,y:station.y+1.5});notify('Cargo rocket launching. Supplies arrive when it clears the atmosphere.');}catch(e){$('logistics-message').textContent=e.message;}};
   const repairSelection=()=>{const value=$('logistics-repair').value,split=value.indexOf(':');return {kind:value.slice(0,split),id:value.slice(split+1)};};
-  $('logistics-rebuild').onclick=()=>action('repair',repairSelection());
+  $('logistics-rebuild').onclick=async()=>{
+    const selection=repairSelection(),site=repairSites().find(s=>s.value===selection.kind+':'+selection.id);
+    if(!site)return;
+    try{await api('logistics/repair',selection);repairing={...selection,...site};notify(`${site.name} ${Math.floor(site.x)}:${Math.floor(site.y)} repair started / 8s.`);}
+    catch(error){$('logistics-message').textContent=error.message;}
+  };
   $('logistics-cancel').onclick=()=>action('cancel',{id:$('logistics-order').value});
   $('recycler-locate').onclick=()=>{const r=state().world.logistics.recyclers.find(r=>r.id===$('recycler-select').value);if(r){dialog.close();locate(r);}};
   function update(){
     const {world,me,connected,buildings=[],canManage}=state(),l=world?.logistics;if(!l)return;
+    if(repairing&&!l.jobs[repairing.id]&&!repairSites().some(s=>s.value===repairing.value)){
+      notify(`${repairing.name} ${Math.floor(repairing.x)}:${Math.floor(repairing.y)} repaired. Destroyed vehicles need a separate replacement.`);repairing=null;
+    }
     const rising=l.supplies<ECONOMY.reserve;$('supplies-button').textContent='GND '+Math.floor(l.groundSupplies||0)+' /\nORB '+Math.floor(l.supplies);
     $('supplies-button').setAttribute('aria-label',`Ground supplies ${Math.floor(l.groundSupplies||0)}, orbital supplies ${Math.floor(l.supplies)}${rising?', refilling':''}. Open logistics`);
     $('logistics-balance').textContent=`Ground ${Math.floor(l.groundSupplies||0)} / ${ECONOMY.capacity}: local building and repairs. Orbital ${Math.floor(l.supplies)} / ${ECONOMY.capacity}: orbital delivery. Both pools shared by all teammates and cores. Orbital reserve +${ECONOMY.income}/s while running, up to ${ECONOMY.reserve}.`;
@@ -47,8 +69,9 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     const repair=repairSelection(),job=l.jobs[repair.id],cost=repair.kind==='dock'?COSTS.dockRepair:COSTS.baseRepair;
     const repairReason=!repairs.length?'No destroyed docks or airbases you can manage.':!connected?'Reconnect first.':!allowed?'Use an active robot to rebuild infrastructure.':job?`Rebuilding / ${Math.ceil(job.remaining)}s remaining.`:l.groundSupplies+1e-8<cost?`Need ${cost} GND; ${Math.floor(l.groundSupplies||0)} available.`:null;
     $('logistics-rebuild').disabled=!!repairReason;
-    $('logistics-rebuild').textContent=job?`Rebuilding / ${Math.ceil(job.remaining)}s`:`Rebuild original facility${repairs.length?' / '+cost+' GND':''} / 8s`;
-    $('logistics-repair-help').textContent=repairReason||'Rebuild in the original position; the assigned vehicle is kept.';
+    const selected=repairSites().find(s=>s.value===repair.kind+':'+repair.id),label=selected?`${selected.name} ${Math.floor(selected.x)}:${Math.floor(selected.y)}`:'original facility';
+    $('logistics-rebuild').textContent=job?`Rebuilding ${label} / ${Math.ceil(job.remaining)}s`:`Rebuild ${label}${repairs.length?' / '+cost+' GND':''} / 8s`;
+    $('logistics-repair-help').textContent=repairReason||'Restores the selected facility in its original position. Destroyed vehicles need a separate replacement.';
     $('logistics-cancel').disabled=!allowed||!$('logistics-order').value;
   }
   $('uplink-select').onchange=()=>update();

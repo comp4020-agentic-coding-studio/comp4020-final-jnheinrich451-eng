@@ -1,3 +1,4 @@
+import { shipStopped } from './ship-motion.js';
 import { HELI, isHelipad, isHelicopter, airSize, compatibleAirfield, heliParking } from './helicopter.js';
 import { carrierField, carrierReady, isCarrier } from './carrier.js';
 export const airRecords=world=>[...(world.airbases||[]),...(world.ships||[]).filter(s=>s.aircraft)];
@@ -9,7 +10,7 @@ export const fleetCount = (world,kind='bomber') => airRecords(world).filter(b=>l
 export const fleetCapacity = (world,kind='bomber') => airfields(world).filter(b=>operationalAirbase(world,b)&&compatibleAirfield(b,{kind})).length;
 export const reservesRunway = p => liveAircraft(p) && (['parked','delivering','takeoff','landing'].includes(p.state) || p.mission?.phase==='return');
 export function runwayAvailable(world,base,plane){
- return operationalAirbase(world,base) && (!plane||compatibleAirfield(base,plane)) && (!base.carrier||Math.abs(base.carrier.speed||0)<=.05) && !airRecords(world).some(b=>b.aircraft.id!==plane?.id && b.aircraft.baseId===base.id && reservesRunway(b.aircraft));
+ return operationalAirbase(world,base) && (!plane||compatibleAirfield(base,plane)) && (!base.carrier||shipStopped(base.carrier)) && !airRecords(world).some(b=>b.aircraft.id!==plane?.id && b.aircraft.baseId===base.id && reservesRunway(b.aircraft));
 }
 export const parkedRecord = (world,base) => base && airRecords(world).find(b=>b.aircraft.baseId===base.id && ['parked','delivering'].includes(b.aircraft.state));
 export function flightBase(world,record){
@@ -31,7 +32,7 @@ export function reserveLanding(world,p,id){
 export function deliveryError(world,base,kind=isHelipad(base)?'helicopter':'bomber'){
  if(!compatibleAirfield(base,{kind}))return 'Helicopters need a helipad; fixed-wing aircraft need a runway.';
  if(!operationalAirbase(world,base))return 'Rebuild or finish the airbase before requesting aircraft.';
- if(base.carrier&&Math.abs(base.carrier.speed||0)>.05)return 'Stop the carrier before requesting aircraft.';
+ if(base.carrier&&!shipStopped(base.carrier))return 'Stop the carrier before requesting aircraft.';
  const parked=parkedRecord(world,base)?.aircraft;
  if(parked){
   if(parked.owner!==base.owner)return 'A visiting aircraft occupies this runway.';

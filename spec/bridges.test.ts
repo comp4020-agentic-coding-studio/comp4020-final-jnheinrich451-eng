@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { bridgeError, bridgeSupplyError } from '../public/bridge.js';
-import { BRIDGE, bridgeCells, bridgeCost, bridgeDuration, bridgeReady } from '../public/bridge-geometry.js';
+import { BRIDGE, bridgeCells, bridgeCost, bridgeDuration, bridgeReady, bridgeFromBuilder } from '../public/bridge-geometry.js';
 import { createWorld, tileAt, canStand, findPath, placementError } from '../public/world.js';
 import { freshLogistics } from '../public/logistics.js';
 import { canSail } from '../public/ship.js';
@@ -37,6 +37,20 @@ it('rejects diagonal, overlong, narrow-bank, rocky and occupied spans',()=>{
   w.terrain[20*64+24]=3;expect(bridgeError(w,[],[],truck,b.from,b.to)).toContain('rocks');w.terrain[20*64+24]=0;
   expect(bridgeError(w,[],[{id:'enemy',x:24.5,y:20.5,hp:10}],truck,b.from,b.to)).toContain('unit');
   expect(bridgeError(w,[],[],{...truck,x:2},b.from,b.to)).toContain('Drive');
+});
+it.each([false,true])('accepts either endpoint order and unrolls from the builder bank (vertical=%s)',vertical=>{
+  const {w,b,truck}=setup(vertical);
+  expect(bridgeError(w,[],[],truck,b.to,b.from)).toBeNull();
+  expect(bridgeFromBuilder(truck,b.to,b.from)).toEqual({from:b.from,to:b.to});
+  Object.assign(truck,vertical?{x:18.5,y:29.5}:{x:29.5,y:18.5});
+  expect(bridgeError(w,[],[],truck,b.from,b.to)).toBeNull();
+  const oriented=bridgeFromBuilder(truck,b.from,b.to);
+  expect(oriented).toEqual({from:b.to,to:b.from});
+  expect(bridgeCost(oriented)).toBe(bridgeCost(b));
+  expect(bridgeDuration(oriented)).toBe(bridgeDuration(b));
+  expect(bridgeCells(oriented).filter(c=>c.row===0)).toContainEqual(expect.objectContaining(b.to));
+  expect(bridgeError(w,[],[{x:vertical?20.5:23.5,y:vertical?23.5:20.5,hp:10}],truck,b.from,b.to)).toContain('unit');
+  expect(bridgeError(w,[],[],{...truck,x:0,y:0},b.from,b.to)).toContain('either bank');
 });
 it.each([false,true])('crosses staggered shores from inland anchors without changing terrain (vertical=%s)',vertical=>{
   const {w,b,truck}=setup(vertical),point=(forward:number,side:number)=>vertical?{x:side,y:forward}:{x:forward,y:side};

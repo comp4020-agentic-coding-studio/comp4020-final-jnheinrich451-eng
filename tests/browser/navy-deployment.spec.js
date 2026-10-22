@@ -28,7 +28,7 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   await page.screenshot({path:`.local/navy-arrival-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await state(page)).ships[0]?.elapsed,{timeout:15000}).toBe(4.5);
   await expect(page.locator('#yard-board')).toBeEnabled();await page.locator('#yard-board').click();
-  await expect(page.locator('#ship-controls')).toBeVisible();expect((await state(page)).me.body).toBe('ship');
+  await page.locator('#ship-systems-toggle').click();await expect(page.locator('#ship-controls')).toBeVisible();expect((await state(page)).me.body).toBe('ship');
   await page.locator('#world-canvas').focus();await page.keyboard.down('w');await expect.poll(async()=>(await state(page)).ships[0].x,{intervals:[50]}).toBeLessThan(16);await page.keyboard.up('w');
   const before=await state(peer);expect(before.ships[0].occupant).toBe('navy-player');
   await page.locator('#ship-interact').click();await expect(page.locator('#toast')).toContainText('Return to a dock');expect((await state(page)).me.body).toBe('ship');

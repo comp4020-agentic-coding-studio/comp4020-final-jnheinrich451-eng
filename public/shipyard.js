@@ -1,3 +1,4 @@
+import { shipStopped } from './ship-motion.js';
 import { isCarrier } from './carrier.js';
 import { operational, hullHealth, VEHICLE, SHIP_REPAIR_DELAY } from './vehicle.js';
 import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock } from './ship.js';
@@ -57,7 +58,7 @@ export const DOCK_REPAIR = Object.freeze({ rate: 10, perHp: .2, delay: SHIP_REPA
 export function tickDockRepair(world, ship, dt) {
   const oldDelay=ship.repairDelay||0,wasRepairing=!!ship.repairing;
   ship.repairDelay=Math.max(0,oldDelay-dt);ship.repairing=false;
-  if(isCarrier(ship)||!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||Math.abs(ship.speed||0)>.05||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
+  if(isCarrier(ship)||!operational(ship)||ship.assemblyRemaining>0||ship.repairDelay>0||!shipStopped(ship)||hullHealth(ship)>=VEHICLE.ship)return wasRepairing||oldDelay>0;
   const dock=mooredDock(world,ship),yard=dockRecords(world).find(y=>y.dock===dock);
   if(!yard||world.logistics?.jobs?.[yard.id])return wasRepairing||oldDelay>0;
   const restored=Math.min(VEHICLE.ship-hullHealth(ship),DOCK_REPAIR.rate*dt,world.logistics.groundSupplies/DOCK_REPAIR.perHp);

@@ -55,7 +55,7 @@ it.each([0,1,2,3])('reserves a three-tile shore and 3x5 water dock, leaving the 
  const before=[...w.terrain];w.ships=[s];expect(canSail(w,s)).toBe(true);
  for(const cell of rects.flatMap(hullCells))expect(dockAt(w,cell.x,cell.y)).toBe(true);
  expect(canSail(w,s,rects[1].x,rects[1].y,s.angle)).toBe(false);
- const start={x:s.x,y:s.y};expect(sailStep(w,s,0,1,1)).toBe(true);expect(Math.hypot(s.x-start.x,s.y-start.y)).toBeGreaterThan(2);expect(w.terrain).toEqual(before);
+ const start={x:s.x,y:s.y};for(let i=0;i<60;i++)expect(sailStep(w,s,0,1,.05)).toBe(true);expect(Math.hypot(s.x-start.x,s.y-start.y)).toBeGreaterThan(2);expect(w.terrain).toEqual(before);
  expect(shipSite(w,[],[],point.x,point.y,'b','submarine','unfolding').error).toBeTruthy();
  w.ships=[];const shore=hullCells(rects[0])[0];expect(shipSite(w,[shore],[],point.x,point.y,'a','gunship','unfolding').error).toBeTruthy();
 });

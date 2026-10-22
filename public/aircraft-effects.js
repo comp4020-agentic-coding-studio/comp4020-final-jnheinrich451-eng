@@ -20,7 +20,7 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.fillStyle='#233b40';c.fillRect(4*T,T,2*T,3*T);c.fillStyle='#758b8b';c.fillRect(4.1*T,1.1*T,1.8*T,2.8*T);
  c.strokeStyle='#b8c6bb';for(let y=1.3;y<3.8;y+=.35){c.beginPath();c.moveTo(4.1*T,y*T);c.lineTo(5.9*T,y*T);c.stroke();}
  c.fillStyle='#96aa98';c.fillRect(4*T,6*T,2*T,3.5*T);c.fillStyle='#f2d693';c.beginPath();c.arc(5.5*T,8.5*T,.27*T,0,Math.PI*2);c.fill();
- c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText(b.aircraft?.state==='destroyed'?'REPLACEMENT / '+Math.ceil(b.aircraft.remaining)+'s':'AIRBASE / '+(b.aircraft?aircraftName(b.aircraft).toUpperCase():'FREE RUNWAY'),0,-7/zoom);c.restore();
+ c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText('AIRBASE / '+(!b.aircraft||['destroyed','vacant'].includes(b.aircraft.state)?'FREE RUNWAY':aircraftName(b.aircraft).toUpperCase()),0,-7/zoom);c.restore();
 }
 export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
  if(!p||['destroyed','vacant'].includes(p.state))return;
@@ -47,6 +47,7 @@ export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
  // Foreshortened nose and a tightening shadow convey pitch in overhead 2D.
  // No collision altitude, extra server entities or anti-air immunity.
  if(!reduced&&dive>0){c.scale(1-.08*dive,1-.3*dive);c.strokeStyle='#dce9dc66';c.lineWidth=1/zoom;for(const side of [-1,1]){c.beginPath();c.moveTo(side*1.7*T,.7*T);c.quadraticCurveTo(side*1.9*T,1.7*T,side*2*T,(2.3+dive)*T);c.stroke();}}
+ if(airborne&&!reduced){const bank=Math.max(-1,Math.min(1,p.bank||0));c.transform(1-.22*Math.abs(bank),.08*bank,0,1,0,0);}
  c.fillStyle=isAttackJet(p)?'#798d80':mine?'#afbdc3':'#7897a0';c.strokeStyle=mine?'#f4d18b':'#cbe0df';c.lineWidth=1.3/zoom;shape();c.fill();c.stroke();
  if(isAttackJet(p)){c.fillStyle='#243b3d';c.fillRect(-.07*T,-2.05*T,.14*T,.55*T);for(const x of [-.5,.5]){c.fillRect((x-.18)*T,.15*T,.36*T,.9*T);c.fillStyle='#c2ccaf';c.fillRect((x-.12)*T,.2*T,.24*T,.6*T);c.fillStyle='#243b3d';}}
  c.fillStyle='#294a5a';c.beginPath();c.ellipse(0,-.8*T,.13*T,.32*T,0,0,Math.PI*2);c.fill();

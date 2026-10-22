@@ -1,3 +1,4 @@
+import { shipStopped } from './ship-motion.js';
 import { POD } from './pod.js';
 import { AIR_HULL } from './aircraft.js';
 
@@ -26,7 +27,7 @@ export function tickCarrierService(world,s,planes,dt,atDock){
  const before=JSON.stringify([s.deckSupplies,s.health,s.repairDelay,s.repairing,planes.map(p=>[p.health,p.repairing])]);
  s.repairDelay=Math.max(0,(s.repairDelay||0)-dt);s.repairing=false;
  for(const p of planes)p.repairing=false;
- if(carrierReady(s)&&Math.abs(s.speed||0)<=.05){
+ if(carrierReady(s)&&shipStopped(s)){
   s.deckSupplies=Math.max(0,s.deckSupplies||0);
   if(atDock){const amount=Math.min(CARRIER.supplies-s.deckSupplies,CARRIER.refill*dt,world.logistics.groundSupplies||0);s.deckSupplies+=amount;world.logistics.groundSupplies-=amount;}
   const repair=(v,max)=>{const amount=Math.min(Math.max(0,max-v.health),CARRIER.repair*dt,s.deckSupplies/CARRIER.perHp);if(amount>0){v.health+=amount;s.deckSupplies=Math.max(0,s.deckSupplies-amount*CARRIER.perHp);v.repairing=true;}};

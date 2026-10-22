@@ -10,12 +10,12 @@ const clear = () => true;
 it('accelerates, brakes within a tank length, and reverses more slowly without turning the turret', () => {
   const p = body();
   driveTank(p, { x: 0, y: -1 }, .1, clear);
-  expect(p.driveSpeed).toBeCloseTo(.4); expect(p.y).toBeGreaterThan(10.2);
+  expect(p.driveSpeed).toBeCloseTo(.3); expect(p.y).toBeGreaterThan(10.2);
   for (let i = 0; i < 10; i++) driveTank(p, { x: 0, y: -1 }, .1, clear);
   expect(p.driveSpeed).toBe(TANK_DRIVE.speed);
   const y = p.y;
-  for (let i = 0; i < 4; i++) driveTank(p, { x: 0, y: 0 }, .1, clear);
-  expect(p.driveSpeed).toBe(0); expect(y - p.y).toBeGreaterThan(.4); expect(y - p.y).toBeLessThan(.6);
+  for (let i = 0; i < 6; i++) driveTank(p, { x: 0, y: 0 }, .1, clear);
+  expect(p.driveSpeed).toBe(0); expect(y - p.y).toBeGreaterThan(.65); expect(y - p.y).toBeLessThan(.8);
   for (let i = 0; i < 10; i++) driveTank(p, { x: 0, y: 1 }, .1, clear);
   expect(p.driveSpeed).toBe(-TANK_DRIVE.reverse); expect(p.angle).toBeCloseTo(0); expect(p.turret).toBe(1);
 });
@@ -35,6 +35,16 @@ it('uses bounded swept movement and stops against obstacles without sliding thro
   driveTank(p, { x: 0, y: -1 }, 10, (_x: number, y: number) => { checks++; return y >= 10.3; });
   expect(p.y).toBeGreaterThanOrEqual(10.3); expect(p.driveSpeed).toBe(0); expect(checks).toBeLessThanOrEqual(6);
   expect(driveTank(p, { x: 0, y: -1 }, NaN, clear)).toBe(false);
+});
+it('turns more tightly from rest and brakes through a fast corner without sideways sliding',()=>{
+  const slow=body(),fast={...body(),driveSpeed:TANK_DRIVE.speed};
+  driveTank(slow,{x:1,y:0},.1,clear);driveTank(fast,{x:1,y:0},.1,clear);
+  expect(slow.angle).toBeGreaterThan(fast.angle*1.7);
+  expect(fast.driveSpeed).toBeLessThan(TANK_DRIVE.speed);
+  expect(fast.y).toBeLessThan(10.3);expect(fast.x).toBeLessThan(10.55);
+  expect(fast.turret).toBe(1);
+  for(let i=0;i<30;i++)driveTank(fast,{x:1,y:0},.1,clear);
+  expect(fast.angle).toBeCloseTo(Math.PI/2);expect(fast.driveSpeed).toBeCloseTo(TANK_DRIVE.speed);
 });
 it('gives the same trajectory at 10 Hz and 40 Hz', () => {
   const a = body(), b = body();

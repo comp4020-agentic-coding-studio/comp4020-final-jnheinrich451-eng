@@ -24,7 +24,7 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
   await page.waitForTimeout(1600);await page.screenshot({path:`.local/jet-delivery-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await plane()).state,{timeout:20000}).toBe('parked');await page.locator('#aircraft-interact').click();
   await expect(page.locator('#aircraft-controls')).toHaveAttribute('aria-label','Attack jet controls');await expect.poll(async()=>(await plane()).state,{timeout:4000}).toBe('flying');
-  if(mobile){const b=await page.locator('#aircraft-bomb').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);
+  if(mobile){await page.locator('#flight-systems-toggle').click();const b=await page.locator('#aircraft-bomb').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);
   await page.mouse.down();await expect.poll(async()=>(await plane()).rounds,{timeout:3000,intervals:[80]}).toBeLessThan(87);await page.mouse.up();
   await page.waitForTimeout(300);const released=(await plane()).rounds;await page.waitForTimeout(450);expect((await plane()).rounds).toBe(released);
   expect((await state(peer)).combat.marks.some(m=>m.kind==='crater')).toBe(true);

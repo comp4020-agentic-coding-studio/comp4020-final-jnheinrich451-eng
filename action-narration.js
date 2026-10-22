@@ -1,3 +1,4 @@
+import { throttleLabel } from './public/ship-motion.js';
 // Server-side interpretation of game commands, not a client keystroke recorder.
 import { airRecords } from './public/air-traffic.js';
 import { shipKind } from './public/ship.js';
@@ -24,7 +25,7 @@ export function describeCommand(action,data,world,unit,equipment={}){
  if(action==='input'||action==='artillery/command'){
   if(![data.x,data.y].every(Number.isFinite))return {...result,direction:'invalid',command:'invalid movement input'};
   if(isShip||fixedWing){
-   result.throttle=data.y<0?(fixedWing?'accelerate':'forward'):data.y>0?(fixedWing?'decelerate':'reverse'):'neutral';
+   result.throttle=isShip?throttleLabel(data.throttle??obj.throttle??0):data.y<0?(fixedWing?'accelerate':'forward'):data.y>0?(fixedWing?'decelerate':'reverse'):'neutral';
    result.rotation=data.x<0?'left':data.x>0?'right':'none';
    parts.push(result.throttle==='neutral'?'throttle neutral':result.throttle, result.rotation==='none'?'hold heading':'turn '+result.rotation);
   }else{result.direction=direction(data.x,data.y);parts.push(result.direction==='stop'?'stop movement':'move '+result.direction);}

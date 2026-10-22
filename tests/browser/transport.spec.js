@@ -53,7 +53,7 @@ for(const mobile of [false,true])test(`walk offshore dock, drive recycler onto t
     else await page.keyboard.down('w');
     await expect.poll(async()=>(await state()).ships[0].x,{timeout:12000,intervals:[100]}).toBeGreaterThan(37.5);
     if(mobile)await page.mouse.up();else await page.keyboard.up('w');
-    await page.locator('#ship-ramp').click();await expect(page.locator('#transport-action')).toBeEnabled();await page.locator('#transport-action').click();
+    await page.locator('#ship-systems-toggle').click();await page.locator('#ship-ramp').click();await expect(page.locator('#transport-action')).toBeEnabled();await page.locator('#transport-action').click();
     await expect.poll(async()=>(await state()).logistics.recyclers.length).toBe(1);expect((await state()).logistics.recyclers[0].x).toBeGreaterThan(40);
     await expect(page.locator('#recycler-cargo')).toContainText('37 / 180');expect((await state()).me.recyclerId).toBe('cargo');
     await drive('d','right',s=>s.me.x>42);

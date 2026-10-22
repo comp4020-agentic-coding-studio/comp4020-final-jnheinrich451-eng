@@ -1,8 +1,8 @@
 import { angleDelta, turnTurret } from './turret.js';
 
 // Tiles and seconds. World-direction controls, with slower automatic reversing.
-export const TANK_DRIVE = Object.freeze({ speed: 3, reverse: 1.6, acceleration: 4,
-  braking: 8, turnSpeed: Math.PI * .85, step: .025, maxDt: .15 });
+export const TANK_DRIVE = Object.freeze({ speed: 3, reverse: 1.6, acceleration: 3,
+  braking: 6, turnSpeed: Math.PI * .8, turnSlowdown: 1.15, step: .025, maxDt: .15 });
 
 export function driveTank(body, input, seconds, clear) {
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
@@ -17,7 +17,7 @@ export function driveTank(body, input, seconds, clear) {
   let speed = before.speed;
   for (let i = 0; i < steps; i++) {
     if (length) body.angle = turnTurret(body.angle, heading, step,
-      TANK_DRIVE.turnSpeed / (1 + Math.abs(speed) / TANK_DRIVE.speed * .5));
+      TANK_DRIVE.turnSpeed / (1 + Math.abs(speed) / TANK_DRIVE.speed * TANK_DRIVE.turnSlowdown));
     const alignment = Math.max(0, Math.cos(angleDelta(body.angle, heading)));
     let target = demand * alignment * (reverse ? -TANK_DRIVE.reverse : TANK_DRIVE.speed);
     // Brake through zero before changing travel direction.

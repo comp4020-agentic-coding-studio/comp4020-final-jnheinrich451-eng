@@ -1,4 +1,5 @@
 import { isHelipad } from './helicopter.js';
+import { COSTS } from './logistics.js';
 import { SERVICE_KINDS, serviceName, serviceState, serviceQuote, serviceVersion, serviceError, nearbyService } from './facility-service.js';
 
 export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
@@ -6,12 +7,19 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
   panel.setAttribute('aria-label','Dock and airbase workshop');
   panel.innerHTML='<button class="service-close" aria-label="Close workshop">×</button><h2></h2><p class="service-status"></p><div class="service-choices"></div><p class="service-help"></p><button class="service-manage">Dock controls</button>';
   document.querySelector('.battlefield').append(panel);
+  const rebuild=document.createElement('button');rebuild.className='service-rebuild';rebuild.hidden=true;panel.append(rebuild);
   let current=null,entered=null,dismissed=null,busy=false,signature='';
   const key=s=>s?`${s.type}:${s.id}`:null;
   const close=()=>{dismissed=key(current);current=null;panel.hidden=true;};
   panel.querySelector('.service-close').onclick=close;
   panel.querySelector('.service-manage').onclick=()=>{const id=current?.id,air=current?.type==='airbase';close();if(air)airSupport(id);else manage(id);};
   function open(value){current=value;dismissed=null;stop();update();}
+  rebuild.onclick=async()=>{
+    if(busy||!current)return;
+    const selection={...current};busy=true;update();
+    try{await api('logistics/repair',{kind:selection.type,id:selection.id});notify('Airbase repair started / 8s.');}
+    catch(e){notify(e.message);}finally{busy=false;update();}
+  };
   function update(){
     const {world,me,connected,blocked,players=[]}=state();if(!world||!me)return;
     const near=nearbyService(world,me),nearKey=key(near);
@@ -24,6 +32,18 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
     if(!facility){close();return;}
     const air=current.type==='airbase', assembling=air?vehicle?.state==='delivering':vehicle?.assemblyRemaining>0;
     panel.querySelector('h2').textContent=air?(isHelipad(facility)?'Helipad workshop':'Airbase workshop'):'Dock workshop';
+    const repair=world.logistics.jobs[facility.id],ruined=air&&facility.destroyed;
+    rebuild.hidden=!ruined;
+    panel.querySelector('.service-choices').hidden=ruined;
+    panel.querySelector('.service-manage').hidden=ruined;
+    if(ruined){
+      const location=`${Math.floor(facility.x)}:${Math.floor(facility.y)}`,funds=Math.floor(world.logistics.groundSupplies||0);
+      panel.querySelector('.service-status').textContent=`Airbase ${location} / destroyed`;
+      rebuild.textContent=repair?`Rebuilding ${location} / ${Math.ceil(repair.remaining)}s`:`Rebuild ${location} / ${COSTS.baseRepair} GND / 8s`;
+      rebuild.disabled=busy||!!repair||world.logistics.groundSupplies+1e-8<COSTS.baseRepair;
+      panel.querySelector('.service-help').textContent=repair?'Drones are restoring this runway.':funds<COSTS.baseRepair?`Need ${COSTS.baseRepair} GND; ${funds} available.`:'Restores this runway. Destroyed aircraft need a separate replacement after repair.';
+      return;
+    }
     panel.querySelector('.service-status').textContent=(vehicle?serviceName(vehicle.kind)+(assembling?' / assembling '+Math.ceil(air?vehicle.remaining:vehicle.assemblyRemaining)+'s':vehicle.destroyed?' / lost':' / assigned'):'Empty slot')+' · '+Math.floor(world.logistics.groundSupplies)+' GND available';
     panel.querySelector('.service-help').textContent='60s drone assembly. Exchange: 80% of recorded GND payment; no cash refund. '+(vehicle&&!vehicle.purchase?'This older vehicle has no purchase receipt, so no trade-in credit.':'ORB purchases and free vehicles give no GND credit.');
     panel.querySelector('.service-manage').textContent=air?'Aircraft / recall (H)':'Dock controls';

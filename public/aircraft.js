@@ -7,6 +7,9 @@ import { POD } from './pod.js';
 import { bomberPayload, payloadProfile, validPayload } from './bomber-payloads.js';
 
 export const AIR = Object.freeze({width:6,height:10,max:4,minSpeed:6,maxSpeed:12,acceleration:3,turnSpeed:1.8,count:6,interval:.25,fall:1.8,runs:2,rearm:8,transition:2,landingRange:5});
+// Manual handling only; mission and boundary controllers retain AIR authority.
+export const FLIGHT = Object.freeze({bomber:Object.freeze({acceleration:2,braking:2.5,turnSpeed:1.5,rollRate:1.5}),jet:Object.freeze({acceleration:3.6,braking:4,turnSpeed:1.9,rollRate:3.5})});
+export const flightProfile = p => isAttackJet(p)?FLIGHT.jet:FLIGHT.bomber;
 export const airbaseGate = base => isHelipad(base) ? {x:base.x+2.5,y:base.y+2.5} : base.carrier ? {x:base.carrier.x,y:base.carrier.y} : ({x:base.x+5.5,y:base.y+8.5});
 export const parkingPoint = base => isHelipad(base) ? heliParking(base) : base.parking || ({x:base.x+2,y:base.y+7.5});
 export const AIR_HULL = Object.freeze({ health: 180, replacement: 20 });
@@ -15,7 +18,7 @@ export const airborne = p => !!p && ['takeoff', 'flying', 'landing'].includes(p.
 export function hurtAircraft(p, amount) {
  if (!airborne(p) || !(amount > 0)) return false;
  p.health = Math.max(0, aircraftHealth(p) - amount); p.damageDirty = true;
- if (!p.health) Object.assign(p, { state:'destroyed', remaining:AIR_HULL.replacement, speed:0, releaseRemaining:0, edgeTurn:false });
+ if (!p.health) Object.assign(p, { state:'destroyed', remaining:AIR_HULL.replacement, speed:0, bank:0, releaseRemaining:0, edgeTurn:false });
  return true;
 }
 export function airbaseError(world,buildings,occupants,x,y,owner,kind='airbase'){
@@ -29,7 +32,7 @@ export function airbaseError(world,buildings,occupants,x,y,owner,kind='airbase')
  return null;
 }
 export function newAirbase(id,owner,x,y,kind='bomber',facilityKind='airbase'){
- const base={id,owner,x,y,kind:facilityKind};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,kind,rounds:JET.ammo,health:AIR_HULL.health,...parkingPoint(base),angle:base.angle||0,speed:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false,...(isHelicopter({kind})?helicopterLoad():{})}};
+ const base={id,owner,x,y,kind:facilityKind};return{...base,aircraft:{id:id+':bomber',baseId:id,owner,kind,rounds:JET.ammo,health:AIR_HULL.health,...parkingPoint(base),angle:base.angle||0,speed:0,bank:0,state:'parked',remaining:0,rearm:0,runs:AIR.runs,occupant:null,releaseRemaining:0,leftBase:false,...(isHelicopter({kind})?helicopterLoad():{})}};
 }
 export function deliverAircraft(base, kind) {
  if (!['bomber','attack-jet','helicopter'].includes(kind)) return 'Choose a bomber or attack jet.';
@@ -39,7 +42,7 @@ export function deliverAircraft(base, kind) {
  delete base.aircraft.mission;Object.assign(base.aircraft,next,{state:'delivering',remaining:POD.duration});return null;
 }
 export function launchError(plane){if(plane.mission&&!['complete','lost'].includes(plane.mission.phase))return 'Bomber reserved for an automatic mission.';return plane.state==='delivering'?'Orbital delivery in progress.':plane.state==='destroyed'?'Replacement aircraft preparing at the airbase.':plane.state!=='parked'?'The aircraft is already airborne.':plane.rearm>0?'Wait for the ground crew to finish rearming.':null;}
-export function launchAircraft(plane,angle=0){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:isHelicopter(plane)?0:AIR.minSpeed,angle,leftBase:false});return null;}
+export function launchAircraft(plane,angle=0){const error=launchError(plane);if(error)return error;Object.assign(plane,{state:'takeoff',remaining:AIR.transition,speed:isHelicopter(plane)?0:AIR.minSpeed,angle,bank:0,leftBase:false});return null;}
 export function bombPattern(plane){
  const profile=payloadProfile(bomberPayload(plane));
  const dx=Math.sin(plane.angle),dy=-Math.cos(plane.angle);
@@ -77,9 +80,10 @@ export function tickAircraft(world,base,input,dt){
  }
  if(isHelicopter(p))return tickHelicopter(world,base,input,dt,runwayAvailable(world,base,p));
  if(p.state==='parked'){if(p.rearm<=0)return false;p.rearm=Math.max(0,p.rearm-dt);if(!p.rearm){p.runs=AIR.runs;p.rounds=JET.ammo;if(!world.logistics)p.health=AIR_HULL.health;}return true;}
- const steps=Math.ceil(dt/.025),step=dt/steps;
+ const steps=Math.ceil(dt/.025),step=dt/steps,profile=input?.automatic?AIR:flightProfile(p);
  for(let i=0;i<steps;i++){
   if(p.state==='landing'){
+   p.bank=0;
    p.remaining=Math.max(0,p.remaining-step);const t=1-p.remaining/AIR.transition,park=parkingPoint(base);
    p.x=p.landingX+(park.x-p.landingX)*t;p.y=p.landingY+(park.y-p.landingY)*t;p.angle+=angleDelta(p.angle,base.angle||0)*Math.min(1,step*4);
    if(p.remaining<.000001)Object.assign(p,{...park,angle:base.angle||0,speed:0,state:'parked',remaining:0,rearm:AIR.rearm,releaseRemaining:0});
@@ -89,13 +93,15 @@ export function tickAircraft(world,base,input,dt){
   const releasing=p.releaseRemaining>0;
   p.releaseRemaining=Math.max(0,p.releaseRemaining-step);
   if(p.state==='takeoff'){p.remaining=Math.max(0,p.remaining-step);if(p.remaining<.000001){p.remaining=0;p.state='flying';}}
-  else if(!releasing)p.speed=Math.max(AIR.minSpeed,Math.min(AIR.maxSpeed,p.speed+(input?.throttle||0)*AIR.acceleration*step));
-  const turn=AIR.turnSpeed*AIR.minSpeed/p.speed,radius=p.speed/turn+4;
+  else if(!releasing)p.speed=Math.max(AIR.minSpeed,Math.min(AIR.maxSpeed,p.speed+(input?.throttle||0)*((input?.throttle||0)<0?(profile.braking||profile.acceleration):profile.acceleration)*step));
+  const boundaryTurn=AIR.turnSpeed*AIR.minSpeed/p.speed,radius=p.speed/boundaryTurn+4;
   const dx=Math.sin(p.angle),dy=-Math.cos(p.angle);
   p.edgeTurn=(p.x<radius&&dx<0)||(p.x>world.width-radius&&dx>0)||(p.y<radius&&dy<0)||(p.y>world.height-radius&&dy>0);
   let steer=input?.steer||0;
   if(p.edgeTurn){const target=Math.atan2(world.width/2-p.x,-(world.height/2-p.y));steer=Math.sign(angleDelta(p.angle,target));}
-  if(!releasing&&p.state==='flying')p.angle+=steer*turn*step;
+  if(releasing||p.state!=='flying'||p.edgeTurn||input?.automatic||!input)p.bank=0;
+  else {const wanted=Math.max(-1,Math.min(1,steer)),bank=Number.isFinite(p.bank)?p.bank:0;p.bank=bank+Math.max(-profile.rollRate*step,Math.min(profile.rollRate*step,wanted-bank));}
+  if(!releasing&&p.state==='flying')p.angle+=(p.edgeTurn||input?.automatic?steer*boundaryTurn:p.bank*profile.turnSpeed*AIR.minSpeed/p.speed)*step;
   p.x+=Math.sin(p.angle)*p.speed*step;p.y-=Math.cos(p.angle)*p.speed*step;
   const park=parkingPoint(base),distance=Math.hypot(p.x-park.x,p.y-park.y);
   if(distance>12)p.leftBase=true;

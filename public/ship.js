@@ -1,3 +1,4 @@
+import { driveShip, stopShip, shipStopped } from './ship-motion.js';
 import { isCarrier, CARRIER, deckLocked } from './carrier.js';
 import { dockRecords, SHIPYARD } from './shipyard.js';
 import { bridgeAt } from './bridge-geometry.js';
@@ -106,7 +107,7 @@ export function recallShipError(world,ship,people=[],keepYard=false) {
   return null;
 }
 export function mooredDock(world,ship) {
-  if(!surfaced(ship))return null;
+  if(!surfaced(ship)||!shipStopped(ship))return null;
   return dockRecords(world).find(s=>!s.dockDestroyed&&dockComplete(s)&&Math.hypot(ship.x-s.berthX,ship.y-s.berthY)<=SHIP.dockRange&&Math.abs(Math.sin(angleDelta(ship.angle,s.dock.angle)))<Math.sin(Math.PI/8))?.dock||null;
 }
 // Replacement uses an existing dock. People on its shore platform do not block
@@ -138,7 +139,7 @@ export function rampClear(world,buildings,ship,point) {
   return true;
 }
 export function shoreRampSite(world,buildings,occupants,ship) {
-  if(!surfaced(ship)||!operational(ship)||!canSail(world,ship))return null;
+  if(!surfaced(ship)||!operational(ship)||!shipStopped(ship)||!canSail(world,ship))return null;
   const candidates=[],r=SHIP.length/2+SHORE_RAMP.reach+1;
   for(let y=Math.max(0,Math.floor(ship.y-r));y<Math.min(world.height,ship.y+r);y++)for(let x=Math.max(0,Math.floor(ship.x-r));x<Math.min(world.width,ship.x+r);x++){
     if(bridgeAt(world,x,y)||airbaseAt(world,x,y)||tileAt(world,x,y)===0||dockAt(world,x,y)||railCorridor(world,x,y))continue;
@@ -151,6 +152,7 @@ export function shoreRampSite(world,buildings,occupants,ship) {
 }
 /** @param {{x:number,y:number}|null} [near] */
 export function boardingPoint(world,ship,buildings=[],near=null) {
+  if(!shipStopped(ship))return null;
   const p=ship.ramp;
   if(p&&Math.hypot(ship.x-p.shipX,ship.y-p.shipY)<.001&&Math.abs(angleDelta(ship.angle,p.shipAngle))<.001&&rampClear(world,buildings,ship,p))return p;
   const dock=mooredDock(world,ship);
@@ -160,16 +162,8 @@ export function boardingPoint(world,ship,buildings=[],near=null) {
   return points.filter(p=>canStand(world,buildings,p.x,p.y)).sort((a,b)=>Math.hypot(a.x-near.x,a.y-near.y)-Math.hypot(b.x-near.x,b.y-near.y))[0]||dock;
 }
 export function sailStep(world,ship,steer,throttle,dt) {
-  if(deckLocked(world,ship)||ship.ramp||ship.launchRemaining>0)return false;
-  const steps=Math.max(1,Math.ceil(dt/.025));let changed=false;
-  for(let i=0;i<steps;i++) {
-    const step=dt/steps,angle=ship.angle+steer*(isCarrier(ship)?CARRIER.turnSpeed:SHIP.turnSpeed)*step;
-    if(steer&&canSail(world,ship,ship.x,ship.y,angle)){ship.angle=Math.atan2(Math.sin(angle),Math.cos(angle));changed=true;}
-    const speed=throttle>0?(isCarrier(ship)?CARRIER.speed:SHIP.speed):(isCarrier(ship)?CARRIER.reverse:SHIP.reverse);
-    const x=ship.x+Math.sin(ship.angle)*throttle*speed*step,y=ship.y-Math.cos(ship.angle)*throttle*speed*step;
-    if(throttle&&canSail(world,ship,x,y,ship.angle)){ship.x=x;ship.y=y;changed=true;}
-  }
-  return changed;
+  if(deckLocked(world,ship)||ship.ramp||ship.launchRemaining>0)return stopShip(ship);
+  return driveShip(ship,steer,throttle,dt,isCarrier(ship)?CARRIER:SHIP,(x,y,angle)=>canSail(world,ship,x,y,angle));
 }
 export function shipSolution(ship,target) {
   const distance=target?Math.hypot(target.x-ship.x,target.y-ship.y):SHIP.minRange;

@@ -32,12 +32,12 @@ it('delivers once onto a carrier, launches cruise from the helm, reserves recove
  const f=await fixture();try{
   await f.connect();await f.connect('b');expect((await f.state()).me.body).toBe('ship');
   expect((await f.post('aircraft/deliver',{id:'carrier',kind:'bomber'})).status).toBe(200);expect((await f.post('aircraft/deliver',{id:'carrier',kind:'bomber'})).status).toBe(200);
-  expect((await f.state()).logistics.supplies).toBe(1200);const position=(await f.state()).ships[0];await f.post('input',{x:1,y:-1});await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
+  expect((await f.state()).logistics.supplies).toBe(1200);const position=(await f.state()).ships[0];expect((await f.post('input',{x:1,y:0,shipId:'carrier',throttle:4})).status).toBe(409);await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.state,{timeout:6000}).toBe('parked');
   expect((await f.post('aircraft/cruise',{id:'carrier'})).status).toBe(200);await expect.poll(async()=>(await f.state()).ships[0].aircraft.mission.phase,{timeout:4000}).toBe('cruise');
   expect((await f.state()).me.body).toBe('ship');expect((await f.post('aircraft/deliver',{id:'carrier',kind:'attack-jet'})).status).toBe(409);
   await f.restart();expect((await f.state()).ships[0].aircraft.mission.phase).toBe('cruise');await f.connect();await f.connect('b');
-  expect((await f.post('aircraft/recall',{id:'carrier',landingBaseId:'carrier'})).status).toBe(200);await f.post('input',{x:1,y:-1});await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
+  expect((await f.post('aircraft/recall',{id:'carrier',landingBaseId:'carrier'})).status).toBe(200);expect((await f.post('input',{x:1,y:0,shipId:'carrier',throttle:4})).status).toBe(409);await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.mission.phase,{timeout:25000}).toBe('complete');
   expect((await f.post('aircraft/board',{id:'carrier'})).status).toBe(200);let state=await f.state();expect(state.me.body).toBe('aircraft');expect(state.ships[0].occupant).toBeNull();expect(state.ships[0].aircraft.occupant).toBe('a');
   await f.restart(db=>{const s:any=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get('carrier') as any).value);Object.assign(s.aircraft,{state:'parked',x:s.x,y:s.y,angle:s.angle,speed:0,mission:{phase:'complete'}});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(s),s.id);});

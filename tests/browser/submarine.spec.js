@@ -28,7 +28,7 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   await expect.poll(async()=>(await sub())?.elapsed,{timeout:15000}).toBe(4.5);
   await expect(page.locator('#yard-board')).toBeEnabled();await page.locator('#yard-board').click();await expect(page.locator('#ship-title')).toHaveText('MISSILE SUBMARINE');await expect(page.locator('#ship-secondary')).toBeHidden();
   await page.locator('#world-canvas').focus();for(let i=0;i<12;i++)await page.keyboard.press('+');await page.screenshot({path:`docs/previews/submarine-hull-${mobile?'mobile':'desktop'}.png`});for(let i=0;i<12;i++)await page.keyboard.press('-');
-  await page.locator('#ship-contact').click();await page.locator('#world-canvas').focus();
+  await page.locator('#ship-systems-toggle').click();await page.locator('#ship-contact').click();await page.locator('#world-canvas').focus();
   if(mobile)await page.locator('#submarine-dive').click();else await page.keyboard.press('ControlLeft');
   await expect.poll(async()=>(await sub()).depth,{timeout:4500}).toBe('submerged');
   await expect(page.locator('#submarine-battery')).toContainText('SUBMERGED');await expect(page.locator('#ship-fire')).toBeDisabled();await expect(page.locator('#ship-ramp')).toBeDisabled();
@@ -36,7 +36,7 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   await page.locator('#world-canvas').focus();for(let i=0;i<10;i++)await page.keyboard.press('+');
   await page.screenshot({path:`docs/previews/submarine-submerged-${mobile?'mobile':'desktop'}.png`});
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
-  expect((await sub()).depth).toBe('submerged');expect((await sub()).diveBattery).toBeLessThan(30);
+  await page.locator('#ship-systems-toggle').click();expect((await sub()).depth).toBe('submerged');expect((await sub()).diveBattery).toBeLessThan(30);
   await page.locator('#world-canvas').focus();if(mobile)await page.locator('#submarine-surface').click();else await page.keyboard.press('Space');
   await expect.poll(async()=>(await sub()).depth,{timeout:4500}).toBe('surfaced');expect((await state(peer)).combat.barrages).toHaveLength(0);
   // Restore the same orbital aiming scale after page reload.

@@ -1,4 +1,4 @@
-import { BRIDGE, isBuilder, bridgeCost, bridgeReady } from './bridge-geometry.js';
+import { BRIDGE, isBuilder, bridgeCost, bridgeReady, bridgeFromBuilder } from './bridge-geometry.js';
 import { bridgeError, bridgeSupplyError } from './bridge.js';
 import { bridgeFacing, planBridgeAhead } from './bridge-plan.js';
 
@@ -13,7 +13,7 @@ export function bridgeUI({state,api,stop,notify,frame}){
       const bearing=Number($('bridge-direction').value),signature=[world,buildings,revision,truck?.x,truck?.y,bearing];
       if(!cache||signature.some((v,i)=>v!==cache.signature[i]))cache={signature,plan:planBridgeAhead(world,buildings,players,truck,bearing)};
       plan=cache.plan;
-    }else{const from=point('from'),to=point('to');plan={from,to,error:bridgeError(world,buildings,players,truck,from,to)};}
+    }else{const {from,to}=bridgeFromBuilder(truck,point('from'),point('to'));plan={from,to,error:bridgeError(world,buildings,players,truck,from,to)};}
     const {from,to}=plan;let error=plan.error;
     const price=from&&to?bridgeCost({from,to}):0;if(!error)error=bridgeSupplyError(world,price);
     if(!error&&world.logistics.bridges?.some(b=>b.builderId===truck?.id&&!bridgeReady(b)))error='Finish the current bridge first.';
@@ -27,8 +27,8 @@ export function bridgeUI({state,api,stop,notify,frame}){
     $('bridge-confirm').disabled=busy||!!p.error;
     for(const bank of ['from','to'])$('bridge-pick-'+bank).setAttribute('aria-pressed',String(choosing===bank));
     $('bridge-coordinates').hidden=automatic();$('bridge-direction-label').hidden=!automatic();
-    $('bridge-route').textContent=p.from&&p.to?`Route: (${p.from.x}, ${p.from.y}) to (${p.to.x}, ${p.to.y})`:'';
-    $('bridge-pick-hint').textContent=automatic()?'Face the water, then choose a direction or tap that way on the map. We find nearby banks and preview the whole crossing. Maximum '+BRIDGE.maxSpan+' deck rows; ships cannot pass underneath.':'Click or tap the '+(choosing==='from'?'near':'far')+' anchor on clear land, farther inland if needed. Align both anchors; up to '+BRIDGE.maxSpan+' deck rows can span clear land and water. Ships cannot pass underneath.';
+    $('bridge-route').textContent=p.from&&p.to?`Build from (${p.from.x}, ${p.from.y}) to (${p.to.x}, ${p.to.y})`:'';
+    $('bridge-pick-hint').textContent=automatic()?'Face the water, then choose a direction or tap that way on the map. We find nearby banks and preview the whole crossing. Maximum '+BRIDGE.maxSpan+' deck rows; ships cannot pass underneath.':'Pick bank '+(choosing==='from'?'A':'B')+' on clear land. Either bank can be selected first; construction starts at the end nearest your builder. Align both anchors; up to '+BRIDGE.maxSpan+' deck rows. Ships cannot pass underneath.';
   }
   function open(){
     const {truck}=state();if(!isBuilder(truck))return;stop();

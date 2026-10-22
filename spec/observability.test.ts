@@ -19,12 +19,12 @@ it('allowlists metadata, separates async actors and bounds high-rate summaries',
         res.emit('finish');
       });
     }));
-    expect(lines.map(e => [e.actorId, e.targetId])).toEqual([['bravo', 'bravo-building'], ['alpha', 'alpha-building']]);
+    expect(lines.filter(e => e.event === 'action.result').map(e => [e.actorId, e.targetId])).toEqual([['bravo', 'bravo-building'], ['alpha', 'alpha-building']]);
     for (let i = 0; i < 100; i++) {
       const res: any = new EventEmitter(); res.statusCode = 409;
       audit.run({ url: '/api/fire', method: 'POST' }, res, () => { audit.result(409, { error: 'Weapon reloading.' }); res.emit('finish'); });
     }
-    expect(lines).toHaveLength(2); audit.close();
+    expect(lines).toHaveLength(4); audit.close();
     expect(lines.at(-1)).toMatchObject({ event: 'activity.summary', count: 100, outcome: 'denied', reason: 'Weapon reloading.' });
     expect(JSON.stringify(lines)).not.toContain('secret-');
   } finally { audit.close(); }
@@ -45,4 +45,54 @@ it('correlates delayed conquest after checkpoint restore without exposing audit 
   expect(outcomes.some(e => e.event === 'sector.alerted')).toBe(true);
   expect(restored.checkpoint().causes).toEqual([]);
   expect(restored.drainEvents()).toEqual([]);
+});
+
+it('records arrival before dispatch, correlates the authenticated actor and logs unfinished requests', () => {
+  const lines: any[] = [], audit = createAudit(line => lines.push(JSON.parse(line)), { buildId: 'test-build', password: 'secret-metadata' });
+  try {
+    const res: any = new EventEmitter(); res.statusCode = 403;
+    audit.run({ url: '/api/buildings?token=secret-query', method: 'POST' }, res, () => {
+      expect(lines[0]).toMatchObject({ event: 'request.received', kind: 'anonymous', action: 'buildings' });
+      audit.actor({ id: 'pilot', name: 'Pilot', kind: 'demo' }); audit.received(); audit.received();
+      audit.result(403, { error: 'Not your facility.' }); res.emit('finish');
+    });
+    expect(lines.map(e => e.event)).toEqual(['request.received', 'action.received', 'action.result']);
+    expect(new Set(lines.map(e => e.requestId)).size).toBe(1);
+    expect(lines[1]).toMatchObject({ actorId: 'pilot', pilotId: 'pilot' });
+    expect(lines[2]).toMatchObject({ outcome: 'denied', reason: 'Not your facility.' });
+    const pending: any = new EventEmitter();
+    audit.run({ url: '/api/cores', method: 'POST' }, pending, () => {});
+    expect(lines.at(-1)).toMatchObject({ event: 'request.received', action: 'cores' });
+    expect(lines.every(e => e.instanceId === lines[0].instanceId && e.buildId === 'test-build')).toBe(true);
+    expect(JSON.stringify(lines)).not.toContain('secret-');
+  } finally { audit.close(); }
+});
+
+it('bounds broadcast and receipt volume, preserves room counts and never logs full state', () => {
+  const lines: any[] = [], audit = createAudit(line => lines.push(JSON.parse(line)));
+  try {
+    for (let revision = 1; revision <= 100; revision++) {
+      audit.broadcast({ campaignId: 'room-a', revision, connections: 2, connectedPlayers: 2, queuedWrites: 2, droppedStreams: 0, world: { password: 'secret-state' } });
+      const res: any = new EventEmitter(); res.statusCode = 200;
+      audit.run({ url: '/api/input', method: 'POST' }, res, () => { audit.actor({ id: 'a', name: 'A' }); audit.received(); res.emit('finish'); });
+    }
+    audit.broadcast({ campaignId: 'room-b', revision: 1, connections: 1, connectedPlayers: 1, queuedWrites: 0, droppedStreams: 1 });
+    expect(lines).toHaveLength(2); audit.close();
+    const summary = lines.find(e => e.event === 'state.broadcast.summary');
+    expect(summary).toMatchObject({ campaignId: 'room-a', count: 99, firstRevision: 2, revision: 100, queuedWrites: 198, droppedStreams: 0, connections: 2 });
+    for (const event of ['request.received.summary', 'action.received.summary', 'activity.summary']) expect(lines.find(e => e.event === event).count).toBe(100);
+    expect(lines).toHaveLength(6);
+    expect(JSON.stringify(lines)).not.toContain('secret-state');
+  } finally { audit.close(); }
+});
+
+it('does not merge revision ranges when the same campaign is reopened', () => {
+  const lines: any[] = [], audit = createAudit(line => lines.push(JSON.parse(line)));
+  try {
+    for (const [runtimeId, revisions] of [['old-run', [90, 91]], ['new-run', [1, 2]]] as const)
+      for (const revision of revisions) audit.broadcast({ campaignId: 'same-room', runtimeId, revision, connections: 1, queuedWrites: 1, droppedStreams: 0 });
+    audit.close();
+    expect(lines.filter(e => e.event === 'state.broadcast').map(e => [e.runtimeId, e.revision])).toEqual([['old-run', 90], ['new-run', 1]]);
+    expect(lines.filter(e => e.event === 'state.broadcast.summary').map(e => [e.runtimeId, e.firstRevision, e.revision])).toEqual([['old-run', 91, 91], ['new-run', 2, 2]]);
+  } finally { audit.close(); }
 });

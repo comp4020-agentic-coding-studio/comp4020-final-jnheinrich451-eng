@@ -29,10 +29,18 @@ for(const [mobile,ground] of [[false,1200],[true,1200],[false,19.53]])test(`brid
     await page.locator('#builder-plan').click();await expect(page.locator('#bridge-method')).toHaveValue('ahead');await expect(page.locator('#bridge-coordinates')).toBeHidden();await page.locator('#bridge-method').selectOption('manual');await page.locator('#bridge-from-x').fill('34');await page.locator('#bridge-from-y').fill('42');await page.locator('#bridge-to-x').fill('42');await page.locator('#bridge-to-y').fill('43');
     await expect(page.locator('#bridge-confirm')).toBeDisabled();await expect(page.locator('#bridge-message')).toContainText('Align');
     await page.locator('#bridge-to-y').fill('42');if(ground>=72)await expect(page.locator('#bridge-message')).toContainText('72 ground SUP');
+    await page.locator('#bridge-from-x').fill('42');await page.locator('#bridge-to-x').fill('34');
+    await expect(page.locator('#bridge-route')).toContainText('Build from (34, 42) to (42, 42)');
+    if(ground>=72)await expect(page.locator('#bridge-confirm')).toBeEnabled();
     await page.locator('#bridge-method').selectOption('ahead');await page.locator('#bridge-direction').selectOption('3');await expect(page.locator('#bridge-confirm')).toBeDisabled();
     await page.locator('#bridge-direction').selectOption('1');
     if(ground<66){await expect(page.locator('#bridge-confirm')).toBeDisabled();await expect(page.locator('#bridge-budget')).toContainText('Shared GND: 19 / ORB: 1120');await expect(page.locator('#bridge-message')).toContainText('short 47');await expect(page.locator('#bridge-message')).toContainText('core or outpost');await page.screenshot({path:'.local/bridge-budget-shortfall.png'});expect((await state()).logistics.bridges).toHaveLength(0);return;}
     await expect(page.locator('#bridge-message')).toContainText('66 ground SUP');await expect(page.locator('#bridge-route')).toContainText('(34, 42) to (41, 42)');
+    if(!mobile){
+      await page.locator('#bridge-method').selectOption('manual');
+      await page.locator('#bridge-from-x').fill('41');await page.locator('#bridge-to-x').fill('34');
+      await expect(page.locator('#bridge-route')).toContainText('Build from (34, 42) to (41, 42)');
+    }
     await page.screenshot({path:`.local/bridge-ahead-plan-${mobile?'mobile':'desktop'}.png`});await page.locator('#bridge-confirm').click();
     await expect.poll(async()=>(await state()).logistics.bridges.length).toBe(1);await page.screenshot({path:`.local/bridge-ahead-cables-${mobile?'mobile':'desktop'}.png`});
     await expect.poll(async()=>(await state()).logistics.bridges[0].elapsed,{timeout:4000}).toBeGreaterThan(3);

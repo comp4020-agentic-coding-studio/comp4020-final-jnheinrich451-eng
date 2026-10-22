@@ -14,7 +14,12 @@ pretending that a player initiated an automatic action.
 
 | Event | How to interpret it |
 | --- | --- |
+| `request.received`, `request.received.summary` | Mutating HTTP request arrived, before authentication. Identity is intentionally anonymous at this stage; correlate its request ID with dispatch/result. Frequent controls summarize every five seconds. |
+| `action.received`, `action.received.summary` | Authenticated game/campaign dispatch, before rule acceptance. Includes the server-derived actor; game commands also include controlled unit and command. Early authentication/body/origin failures may have only arrival plus a denied result. |
 | `action.result` | Action path, actor, status, accepted/denied outcome, duration and relevant object ID. Deployment includes coordinates. Rejections include the server's reason. |
+| `state.snapshot` | A per-user initial HTTP world response finished writing, or the initial SSE snapshot was queued. Includes actor/pilot, room, transport and revision. This is not a browser receipt/display acknowledgement. |
+| `state.broadcast`, `state.broadcast.summary` | First active broadcast immediately, then five-second room summaries: revision range, broadcast count, queued writes, skipped slow/closed streams and latest connected-player/stream counts. Empty broadcasts are omitted. |
+| `server.started`, `server.stopped` | Listening and successful graceful shutdown. Every record includes build, machine and process-instance identity. A crash need not emit a stopped event. |
 | `campaign.*`, `participant.*` | Open/close, owner connection, reconnect freeze, teammate admission resume, individual connection/leave and migration. Closure success follows saving. |
 | `weapon.launched` | Accepted HE cannon shot, artillery/naval shell or missile/bomber barrage, with originating request, actor and source mount or firing pilot. |
 | `objective.damaged`, `objective.conquered` | Projectile and request that caused the changed site HP. Named-world events emit after the checkpoint commits. |
@@ -139,3 +144,39 @@ lines are ignored, so use the unfiltered stream for startup/runtime diagnostics.
 
 These changes need deployment before they appear in Fly logs. The real two-person
 classroom rehearsal and its findings remain pending; local tests do not replace it.
+
+## Whiteboard instrumentation - 22 October
+
+The arrival, dispatch, snapshot, broadcast and startup records above are now
+implemented locally. `participant.joined` identifies room admission; lifecycle
+events distinguish admitted participants from connected players and open streams.
+Two tabs can mean one player and two streams. Named-room and legacy disconnects
+are logged; closing one of several streams does not falsely report a departure.
+
+`machineId` comes from Fly's server environment (`local` outside Fly), `instanceId`
+is newly generated for each application instance, and `buildId` is the current
+server/client fingerprint. Together they distinguish a restart from a reconnect.
+`runtimeId` changes each time a world runtime opens. Interpret revisions within
+that runtime: reopening the same campaign can restart its revision counter even
+without restarting the process. Broadcast summaries never merge those runtimes.
+Snapshots contain only metadata in the logs, not world data, credentials or
+private account state. Successful ordinary GETs remain quiet except `/world`.
+
+For a broadcast summary, `count` counts broadcasts and `queuedWrites` counts
+stream writes across the window. `connections` and `connectedPlayers` describe
+the last broadcast, not totals across the window. `droppedStreams` counts skipped
+write attempts to closed or excessively buffered streams. A `write()` returning
+false still accepted the data into Node's buffer: it is counted as queued, not
+delivered to the browser. The existing buffer cutoff disconnects slow consumers.
+
+Frequent receipts, dispatches and results are separate bounded summaries. Their
+last request IDs identify the last request in each group; `firstAt` and `lastAt`
+are time bounds. They do not form a complete keystroke replay, and a crash can
+lose an unflushed five-second summary. Receipt does not mean permission or
+success. Account endpoint arrivals are recorded before authentication; their
+existing result records establish identity only where authentication succeeds.
+
+Use the existing raw Fly log command for evidence; the optional readable formatter
+now preserves event names, revisions, counts and machine/instance/build IDs.
+The implementation still has one authoritative process. These logs help expose
+separate-machine failures; they do not provide replication or room routing.

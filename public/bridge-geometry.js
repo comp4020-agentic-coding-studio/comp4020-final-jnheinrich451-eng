@@ -1,5 +1,10 @@
 export const BRIDGE = Object.freeze({ maxSpan:24, maxCount:8, cableTime:2, rowTime:.65, baseCost:30, rowCost:6, reach:4 });
 export const isBuilder = unit => unit?.kind === 'builder';
+// Endpoint selection order does not choose the construction bank.
+export function bridgeFromBuilder(builder,from,to){
+  const distance=p=>Math.hypot(builder.x-p.x-.5,builder.y-p.y-.5);
+  return builder&&from&&to&&distance(to)<distance(from)?{from:to,to:from}:{from,to};
+}
 export const bridgeLength = b => Math.abs(b.to.x-b.from.x)+Math.abs(b.to.y-b.from.y)-1;
 export const bridgeDuration = b => BRIDGE.cableTime + bridgeLength(b)*BRIDGE.rowTime;
 export const bridgeCost = b => BRIDGE.baseCost+bridgeLength(b)*BRIDGE.rowCost;

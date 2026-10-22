@@ -121,3 +121,10 @@ in the planner. Bridge admission uses only campaign ground supplies, never ORB
 or a carrier's onboard store. Insufficient-funds messages include the available
 GND, rounded-up shortfall and the core/outpost salvage-unloading route. The same
 message is used by client and server. This changes no balances or currency rules.
+
+Manual endpoints can now be picked in either order. Bank A/B are selection
+labels; the preview and server orient new construction from the endpoint nearest
+the builder, and either anchor satisfies the four-tile reach rule. Existing
+bridges retain their saved direction. Reversing an already accepted order returns
+the same bridge without charging again. Clear anchors, approaches, occupancy,
+length and shared GND checks still apply.

@@ -1,3 +1,4 @@
+import { isCarrier } from './carrier.js';
 import { aircraftOption, aircraftStatus, airfieldLabel, airfieldAtRobot } from './air-support-status.js';
 import { parkingPoint } from './aircraft.js';
 import { isHelicopter, HELI_ROCKET } from './helicopter.js';
@@ -9,12 +10,13 @@ import {BOMBER_PAYLOADS,payloadProfile} from './bomber-payloads.js';
 export function bomberUI({state,api,stop,notify,overview}){
  const $=id=>document.getElementById(id),panel=$('bomber-panel');let busy=false,orderId=null,preferLanding=false,requestedBase=null;
  $('bomber-payload').replaceChildren(...Object.entries(BOMBER_PAYLOADS).map(([key,p])=>new Option(p.label,key)));
+ const canOpen=()=>{const {world,me}=state();return me?.body==='robot'||world?.ships?.some(s=>s.id===me?.shipId&&isCarrier(s));};
  const active=()=>!panel.hidden,base=()=>airRecords(state().world||{}).find(b=>b.id===$('bomber-select').value);
  const preview=()=>missionActive(base()?.aircraft)&&!isCruising(base()?.aircraft)?base().aircraft.mission:strikePlan(state().world,{x:Number($('bomber-x').value),y:Number($('bomber-y').value)},Number($('bomber-bearing').value),gunAircraft(base()?.aircraft)?'HE':$('bomber-payload').value,base()?.aircraft);
  function update(){
   const {world,me,connected}=state();if(!world)return;
   const bases=airRecords(world).filter(b=>liveAircraft(b.aircraft)),ids=bases.map(b=>b.id+':'+b.aircraft.kind+':'+b.aircraft.baseId).join(',');
-  $('bomber-open').disabled=!connected||me.life!=='active'||me.body!=='robot';
+  $('bomber-open').disabled=!connected||me.life!=='active'||!canOpen();
   if(!active())return;
   const aircraftSelect=$('bomber-select');
   if(aircraftSelect.dataset.ids!==ids){const chosen=aircraftSelect.value;aircraftSelect.replaceChildren(...bases.map(b=>new Option('',b.id)));if(bases.some(b=>b.id===chosen))aircraftSelect.value=chosen;aircraftSelect.dataset.ids=ids;}
@@ -33,7 +35,8 @@ export function bomberUI({state,api,stop,notify,overview}){
   const detail=isHelicopter(p)?'Ten-second cannon support / five-second rocket sweep.':gunAircraft(p)?'Finite autocannon pass / recall to refill rounds.':profile.count===1?'One heavy HE bomb / 5-tile damage radius / full load.':profile.weapon==='INCENDIARY'?'Six fire bombs / 18-second burning patches.':profile.weapon==='GAS'?'Six gas bombs / 9 shared kills until exhausted.':'Six HE bombs / 2-tile damage radius each.';
   $('bomber-message').textContent=plan.error||detail+' Rings predict damage areas. Flak can intercept the dive.';
   $('bomber-dispatch').textContent=(isCruising(p)?'Strike, then cruise / ':'Dispatch / ')+(isHelicopter(p)?'Fire support':gunAircraft(p)?'Strafe':profile.short);
-  $('bomber-dispatch').disabled=busy||!connected||me.life!=='active'||!!error||!!plan.error;
+  $('bomber-dispatch').disabled=busy||!connected||me.life!=='active'||me.body!=='robot'||!!error||!!plan.error;
+  $('bomber-dispatch').title=me.body!=='robot'?'Return to your robot to issue strike orders.':'';
   const otherPilot=p?.occupant&&p.occupant!==me.id&&state().players?.some(v=>v.id===p.occupant);
   const destination=destinations.find(d=>d.id===select.value);
   $('bomber-recall').textContent=(missionActive(p)&&!isCruising(p)?'Abort / return to ':'Recall to ')+(destination?airfieldLabel(destination):'base');
@@ -42,7 +45,7 @@ export function bomberUI({state,api,stop,notify,overview}){
   $('bomber-recall').title=recallReason||'Return this aircraft to the selected landing destination.';
   $('bomber-recall-help').textContent=recallReason||(nearby&&destination?.id!==nearby.id?'Your current airbase is unavailable or another destination is selected. ':'')+'Recall reserves the selected landing space; aircraft fly back and rearm.';
  }
- function open(destinationId=null){if(state().me?.body!=='robot'){notify('Return to your robot to issue remote orders.');return;}stop();document.querySelector('.battlefield').classList.add('bomber-planning');panel.hidden=false;preferLanding=true;requestedBase=destinationId;update();const cruising=airRecords(state().world).find(b=>isCruising(b.aircraft));if(!isCruising(base()?.aircraft)&&cruising){$('bomber-select').value=cruising.id;preferLanding=true;requestedBase=destinationId;}overview();if(!$('bomber-x').value){$('bomber-x').value=String(Math.floor(state().world.width*.7));$('bomber-y').value=String(Math.floor(state().world.height*.45));}$('bomber-select').focus();update();}
+ function open(destinationId=null){if(!canOpen()){notify('Return to your robot to issue remote orders.');return;}stop();document.querySelector('.battlefield').classList.add('bomber-planning');panel.hidden=false;preferLanding=true;requestedBase=destinationId;update();const cruising=airRecords(state().world).find(b=>isCruising(b.aircraft));if(!isCruising(base()?.aircraft)&&cruising){$('bomber-select').value=cruising.id;preferLanding=true;requestedBase=destinationId;}overview();if(!$('bomber-x').value){$('bomber-x').value=String(Math.floor(state().world.width*.7));$('bomber-y').value=String(Math.floor(state().world.height*.45));}$('bomber-select').focus();update();}
  function close(){panel.hidden=true;document.querySelector('.battlefield').classList.remove('bomber-planning');}
  function pick(x,y){if(!active())return false;if(missionActive(base()?.aircraft)&&!isCruising(base()?.aircraft))return true;$('bomber-x').value=String(Math.floor(x)+.5);$('bomber-y').value=String(Math.floor(y)+.5);orderId=null;update();return true;}
  $('bomber-open').onclick=()=>active()?close():open();$('bomber-close').onclick=close;

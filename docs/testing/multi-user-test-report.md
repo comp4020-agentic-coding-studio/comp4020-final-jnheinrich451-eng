@@ -5,6 +5,144 @@ log excerpt, not a recording of either browser. Original records are preserved
 below. **Server acceptance, stream delivery and visible browser updates are
 separate observations.** A passing local test does not establish a passing Fly test.
 
+## Functional logging update - 22 October 2026
+
+The logging gaps identified in the audit below are now implemented locally:
+
+- Request arrival and authenticated game/campaign dispatch are separate from
+  accepted/denied outcomes and share a server-generated request ID.
+- Initial HTTP and SSE snapshots identify the recipient, room runtime, revision
+  and transport. Broadcast records count queued writes and skipped slow streams;
+  periodic broadcasts and frequent controls are grouped over five seconds.
+- Admission, connection and departure records distinguish admitted participants,
+  connected players and streams. Legacy disconnects are now recorded too.
+- Startup/graceful shutdown and machine, process-instance, build and room-runtime
+  IDs support restart diagnosis. A reopened campaign's reset revision counter
+  cannot be merged with its previous runtime's broadcast summary.
+- The readable terminal formatter preserves these event types and counts.
+
+No log claims browser delivery from a successful server write. Browser tests
+independently check receipt and visible state. Sensitive fields and world bodies
+remain excluded. See [the log guide](../OBSERVABILITY.md) for exact semantics.
+
+Validation on the updated working tree:
+
+- TypeScript and syntax checks passed.
+- Pre-release full-suite run: **580 tests passed across 86 files**. The first run
+  exposed an old one-second acceleration wait in the tank lifecycle test. The
+  test now allows up to three seconds to reach the unchanged speed threshold,
+  uses the tuned 0.71-tile braking distance, and drains outstanding input requests
+  before teardown. The complete rerun passed without unhandled errors; gameplay
+  physics were not changed to satisfy the test.
+- **49 distinct targeted tests passed:** 46 across observability, action narration,
+  campaigns and abrupt crash recovery, followed by three additional focused
+  checks for room revision resets, readable transport fields and actual server
+  write/backpressure accounting. The slow-consumer test overrides the response's
+  buffer length; it is not a sustained network saturation benchmark.
+- All three multiplayer browser scenarios passed: independent identities,
+  two/four-user propagation, and late join/tab closure/room isolation.
+- Quiet local display timings: two players / 13 samples / median 69 ms / p95 and
+  maximum 433 ms; four players / 39 samples / median 91 ms / p95 470 ms / maximum
+  477 ms. Separate lifecycle sample: 202 ms. Desktop and resized phone screenshots
+  were inspected. These are not Fly network or capacity measurements.
+- Disposable saves were used; the player's campaign was not reset.
+
+Updated evidence: [timings](evidence/2026-10-22-instrumentation/latency.json),
+[lifecycle](evidence/2026-10-22-instrumentation/lifecycle.json),
+[desktop](evidence/2026-10-22-instrumentation/shared-room-desktop.png),
+[phone-sized view](evidence/2026-10-22-instrumentation/late-join-return-phone.png).
+
+**Still outstanding:** deployment and real Fly rehearsal, including a mid-session
+Machine restart; and architecture work for scenario G (two different Machines
+serving the same shared room). Added identifiers expose that distinction but do
+not synchronize SQLite, room membership or simulations. No live scaling,
+restart, commit or deployment was performed in this stage.
+
+## Initial whiteboard readiness audit - 22 October 2026
+
+This section records the inspection before the functional update above; its
+logging gaps are now resolved to the extent described in that update.
+
+This is a source inspection and local verification, not a fresh Fly run. The
+original 19 October evidence and its limitations remain below. No production
+restart, scaling, deployment or campaign reset was performed for this audit.
+
+The [published Crit 10 spec](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/crits/10-fly-by-instruments/)
+requires distinct simultaneous users, shared state, documented server-side
+permissions and narration from persistent server-side instrumentation. It does
+not explicitly list a two-machine requirement; the supplied classroom whiteboard
+adds that scenario. Treat it as an outstanding test, not an exemption or a pass.
+
+### Required log signals
+
+| Whiteboard signal | Current implementation | Remaining gap |
+| --- | --- | --- |
+| User connects / joins room | `participant.connected`, campaign lifecycle and accepted `campaigns/enter` / `campaigns/join` results identify actor, pilot and campaign. | Connected-user/stream counts are not included in these log records. |
+| User disconnects / leaves room | Named campaigns emit `participant.disconnected` on final stream closure and `participant.left` on departure/expiry; owner loss also freezes the room. | The legacy field does not emit an equivalent disconnect record. Use named campaigns for this rehearsal. |
+| Server receives an action | `action.result` records completed commands; `activity.summary` groups frequent commands over five seconds with identity, command, status and time bounds. | There is no separate receipt/start event. A request that crashes before completion can be absent. Summaries are not a chronological per-request replay. |
+| Server broadcasts an update | `server.js` increments a revision and writes snapshots to room SSE streams. Browser tests verify actual receipt and display. | **No explicit broadcast log** records revision, recipients, successful enqueue count or skipped slow streams. |
+| Server rejects an action | Denied `action.result` / `activity.summary` include status, actor where authenticated, room and reason. | Disabled UI buttons send no request, so they cannot generate a server rejection. |
+| Server sends a state snapshot to one user | `/world` returns initial state; `/events` receives a current snapshot through broadcast. | **No explicit snapshot log.** Successful GETs are intentionally omitted by `createAudit.run`. |
+
+Inspection points: `observability.js` (`run`, `emit`, `result`), `server.js`
+(`snapshot`, `broadcast`, `/api/world`, `/api/events`) and
+`campaigns/service.js` (admission and stream lifecycle). Structured logs omit
+credentials and request bodies. The existing readable formatter is optional;
+retain the raw JSON stream when collecting evidence.
+
+### Fresh local results
+
+- `pnpm.cmd exec vitest run spec/observability.test.ts spec/action-narration.test.ts spec/campaigns.test.ts spec/multiplayer-crash.test.ts`:
+  **43 tests passed across four files**. This covers attribution/privacy,
+  same-second contested construction/boarding, permissions, lifecycle, and
+  two-account recovery from abrupt child-process death.
+- `pnpm.cmd exec playwright test tests/browser/multiplayer-lifecycle.spec.js tests/browser/multiplayer-identity.spec.js tests/browser/multiplayer-latency.spec.js --config .local/playwright-deploy.config.mjs`:
+  **all three browser scenarios passed**, using isolated temporary saves.
+- Quiet local peer display: two players, 13 samples, median 60 ms, p95/max 441 ms;
+  four players, 39 samples, median 81 ms, p95 417 ms, max 421 ms. These timings
+  include browser HUD/paint observation, not merely HTTP response duration.
+- Separate lifecycle sample: 251 ms. Tests verified late state, actual tab
+  closure and return, host freeze/resume, and a second room receiving no foreign
+  object. Desktop and resized phone screenshots were inspected. The phone
+  screenshot is a resized context, not a fresh touch-emulation test.
+- `pnpm.cmd check:evidence --crit=10` passed the file/commit-reference checks.
+  It does not certify the reflection's classroom exercise as completed.
+
+Fresh artifacts: [timing samples](evidence/2026-10-22/latency.json),
+[lifecycle timing](evidence/2026-10-22/lifecycle.json),
+[desktop](evidence/2026-10-22/shared-room-desktop.png) and
+[phone-sized view](evidence/2026-10-22/late-join-return-phone.png).
+These are current working-tree results, not evidence that those changes are
+deployed. No new full-suite, sustained-load or Fly capacity claim is made.
+
+### Remaining work, in order
+
+1. Add bounded broadcast and per-user initial-snapshot instrumentation. Include
+   campaign, revision, recipient/count, transport and server instance/build.
+   Log counts/IDs only, never complete snapshots. Count queued writes honestly:
+   a successful `response.write` is not proof of browser receipt or rendering.
+   Summarize periodic broadcasts to avoid a log line per player per tick.
+2. Add a correlated action receipt signal if the whiteboard requires receipt
+   separately from completion. Bound movement/held-fire volume and preserve
+   existing result/refusal records. Include room counts on lifecycle events and
+   structured startup information for restart evidence.
+3. Deploy the reviewed logging version, then run A-F and H with real separate
+   browser profiles and Fly logs. In H, registered members retain identities
+   and construction after the owner reopens the room; anonymous guest visits
+   expire on process restart and require a new invitation. Do not promise
+   uninterrupted control or automatic room reopening.
+4. Resolve G before claiming full whiteboard coverage. Rooms, visits, simulation
+   and live streams are process-local, and SQLite is on a machine-local volume.
+   Two independent copies will not share a live campaign. A design needs an
+   authoritative simulation plus routing/communication, or a broader shared-state
+   architecture; copying SQLite alone is insufficient. Room affinity alone also
+   does not demonstrate two clients served on different machines in one room.
+   See the existing separate-machine procedure below. This audit does not
+   implement that architecture or change the course deployment configuration.
+
+The next smallest stage is instrumentation completion, followed by the real Fly
+rehearsal. Sound integration is separate from this assessment-readiness work.
+
 ## Evidence inventory
 
 - 120 JSON log records, emitted 04:55:24.143–04:58:31.638 UTC on 19 October
