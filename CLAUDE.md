@@ -1,802 +1,451 @@
 # Frontier working agreement
 
-## Agreed direction
+This file holds the rules in force now, grouped by topic. It is not a history:
+dated decisions, evidence and stage narratives live in `PROCESS.md`, `docs/` and
+git. When a rule here and an older stage doc disagree, this file and the newest
+stage doc win; see "Superseded behaviour" at the end.
 
-- Follow the final-project contract and keep the two supplied spec invariants.
-  The current Fly baseline is one shared CPU, 256 MB RAM and the existing volume.
-  On 9 October the user reported that a justified RAM increase can be discussed
-  with the teaching team. Treat 256 MB as the current configuration, not an
-  absolute ceiling; document evidence and the agreed size before changing it.
-- Pure overhead 2D projection with square tiles; no isometric battlefield assets.
-- Use GAME_DESIGN.md as the central game-design guide before proposing a stage.
-  Preserve its agreed boundaries; distinguish current behavior, proposals and
-  open questions. It does not authorize the whole roadmap. Start stage briefs
+## 1. Sources of truth and precedence
+
+- Follow the final-project contract and keep the two supplied spec invariants
+  (`spec/invariants.test.ts`).
+- `GAME_DESIGN.md` is the central design guide. Read it before proposing a stage;
+  keep its agreed boundaries and separate current behaviour, proposals and open
+  questions. It does not authorize the whole roadmap.
+- `GAME_DESIGN_WORKSHEET.md` is the author's fill-in companion. Accept informal
+  answers and unknown numbers; its examples are proposals. Turn answers into a
+  bounded stage brief, not an instruction to build every card.
+- `GAME_IDEAS.md` is the larger vision; brainstormed features are not required.
+- `README.md` argues for a solo-playable cooperative campaign (defend, build,
+  expand, operate facilities and vehicles, secure the planet). Keep current
+  behaviour separate from that roadmap; update it only at agreed checkpoints.
+- Each mechanic's detailed numbers and edge cases live in its `docs/` stage
+  record. A later stage record supersedes an earlier one; always check for one.
+  Keep incremental implementation detail in those docs and their tests, and
+  summarise only lasting rules here.
+- A design record (for example `docs/BOMBER_AND_SUPPORT_NETWORK.md`) is not
+  authorization to implement everything it describes.
+
+## 2. How we work
+
+- Build and review playable stages: bounded brief → author approval →
+  implementation → checks → author playtest → recorded correction. Start briefs
   from the player combat loop, success/failure, affected states and saved results.
-  Check later stage records when an older document describes superseded behavior.
-- GAME_DESIGN_WORKSHEET.md is the author's fill-in companion. Accept informal
-  answers and unknown numbers; examples are proposals. Turn the answers into a
-  bounded stage brief rather than treating every filled card as an instruction
-  to build it immediately.
-- The agreed campaign is planetary conquest: a large explorable map, visible
-  hostile sites and permanent objective completion. No site-regeneration timers
-  or enemy recapture. The 12 October construction stage below refines large-infrastructure placement; conquest does not unlock build permission. Facility
-  loss never reverses conquered sites. Exact map scale and objective rules remain open.
-- Planned facility durability uses HP and numeric armor: enemy penetration below
-  armor deals no damage; equality or greater permits attack damage. Values are
-  untuned, and friendly immunity remains. Do not silently apply this new threshold
-  to existing robot/vehicle damage or change lethal alien hazard behavior. Define
-  occupied-facility and all-core-loss recovery before enabling their destruction.
+- When the author corrects behaviour, record the lasting rule here (by topic) and
+  the detail in the stage doc, not only in conversation.
+- Record evidence honestly. Never invent the author's reflections, playtest
+  conclusions, commit history or deployment success. Write reflections from real
+  author/classroom findings. Use `pnpm check:evidence --crit=N` for a cutoff.
+- Local checks never establish deployed behaviour or Fly capacity; say which
+  evidence a claim rests on.
+
+## 3. Invariants that apply everywhere
+
+**Saves and migrations**
+- Save accepted construction before reporting success; checkpoint movement and
+  explain its durability window. Existing worlds never regenerate on reload.
+- Never remap, move or regenerate existing records or player construction.
+  Migrations back up populated saves first, then apply additive changes
+  atomically. Never reset a campaign or the user's world for testing.
+- Never retroactively charge for owned equipment or silently erase legacy guests.
+
+**Server authority**
+- The server enforces placement, ownership, costs and outcomes; browser drawings
+  never decide shared results. Previews and server admission must agree.
+- Keep terrain, territory, objects and rendering separate. Collision comes from
+  world data, not sprite size or what is on camera.
+- Particles, drones, wrecks' animation and cosmetic craters are browser-only.
+  Never infer readiness from animation time; use saved countdowns.
+- HTML and snapshots share a build fingerprint computed at server start. Reload
+  an outdated client before it consumes a new state format.
+
+**Combat safety**
+- Friendly entities never receive weapon damage.
+- Conquest is permanent: no site-regeneration timers, recapture or refill of
+  conquered sites. Facility loss never reverses conquest. Completion requires all
+  saved member IDs; missing records never count as wins.
+- Accepted attacks (shells, strikes, warnings) are never dropped, duplicated or
+  rolled back across restart, pause or closure.
+
+**Runtime budget and capacity**
 - New enemies and facilities need a tactical role and bounded runtime cost.
-  Keep spawn cadence separate from living-population caps; evaluate simultaneous
-  fronts before claiming the large planet fits the configured Fly resource budget.
-- Enemies should give up distant pursuit. Exact ranges and subsequent behavior
-  remain open. Disengagement, sleeping simulation and despawning are separate;
-  do not silently heal enemies, reset sites or drop accepted off-screen attacks.
-- The 10 October scanner/noise proposal is in docs/DETECTION_AND_ALARMS.md.
-  Confirmed: focused tracking stops circular search, marks fade after lost lock,
-  and solid obstacles block the tracking beam. The first scanner/mark/defender
-  stage is implemented locally; noise and neighbor sharing remain future work.
-  Preserve submerged escape, bounded pursuit and permanent
-  conquest. Detection is separate from a unit's ability to reach/attack a contact.
-  Noise/neighbor reports convey last-known positions, not unlimited live tracking;
-  propagation limits, sensor tuning and other medium rules remain proposals.
-- The 12 October UI refinement is agreed in docs/UI_REFINEMENT.md (all five
-  stages implemented locally): survey-instrument HUD/menus over the unchanged natural terrain,
-  one deploy catalogue including logistics buildings, a single keymap table and
-  client-only asset codes shown beside names. Presentation/input only; never
-  alter server rules, prices or save formats. Add keys to keymap.js BINDINGS
-  (precedence, labels, F1) and catalogue entries to catalogue.js; never reuse codes.
-- Build and review playable stages. Preserve GAME_IDEAS.md as the larger vision;
-  do not treat every brainstormed feature as required for the current stage.
-- The author approved the sequence modifier → settlement → anti-air → attack jet
-  on 11 October, with playable review between stages. docs/ENVIRONMENT_MODIFIER.md
-  records the first implementation: bounded cosmetic ground conversion, initial
-  guards only, HE conquest and saved permanent recovery. Never classify new
-  non-alert site kinds as scanners/reinforcement callers by default. Preserve
-  collision terrain and safe backed-up additions to existing campaigns.
-- The small settlement is implemented in docs/ALIEN_SETTLEMENT.md: three required
-  structures reuse crown/mortar/root behaviour and existing global enemy caps.
-  Saved membership defines the checklist; missing members never imply completion.
-  All three must be permanently destroyed; survivors remain. Add compounds
-  atomically with a backup, preserving terrain and prior progress. The subsequent
-  anti-air stage below adds aircraft damage; the attack jet remains future work.
-- The author subsequently chose the air contaminator as the next separate stage.
-  docs/AIR_CONTAMINATOR.md records fixed opaque fog, surveyed coordinates, HE
-  destruction and saved eight-second clearance. Reduced effects must not bypass
-  concealment. Ground units/aim and attack warnings stay below the fog; only
-  approved artillery/naval/air aiming stays above it. Preserve physics, sensing,
-  previous conquests and backed-up migration. Blight hatching remains a proposal.
-- The separately authorized lance tower is in docs/LASER_TOWER.md: close acquisition,
-  slow ground tracking, cover, charge, two-second beam and five-second cooldown.
-  Preserve actual-ray damage, crew immunity, bounded logs and saved phase timers.
-  The author's latest refinement restores a full 40-tile beam, clipped by hits
-  and cover. Charge holds its bearing; firing pursues at four degrees/second.
-  Only the angle tracks; discard obsolete variable-radius endpoint state while
-  preserving phase timers. Sideways escape works; radial retreat can be hit.
-  Three/nine-second lethality means cumulative robot/tank beam exposure. Keep the
-  first encounter outside contaminator fog; facility armor remains later work.
-  Distant battery/submarine aim clamps the whole rectangle along its bearing;
-  preview and server must agree, retaining minimum range and other fire gates.
-- The 11 October mortar stage is in docs/MORTAR_OUTPOST.md: one additive saved
-  corrosive outpost, rotating launcher, fixed-point warnings and accepted airborne
-  attacks. Two initial guards only; no reinforcement waves or scanner marks.
-  Acid currently damages robots/tanks once per blast, with existing protection and
-  recovery rules. Ships, aircraft, facility HP and armor changes remain deferred.
-  Preserve completed sites and equipment during migration; back up before placement.
-- docs/ORBITAL_CLEANUP.md records the author's orbitally delivered reclamation
-  unit as future work only. Cleaning visual ruins must retain permanent conquest;
-  costs, radius, salvage and converted-terrain restoration are unresolved.
-- Update README.md at agreed stage checkpoints, not after each gameplay change.
-  The 11 October defensive-sector stage is in docs/DEFENSIVE_SECTORS.md: red
-  shading is overview territory, not detection or weapon range. Attack reports
-  carry impact positions with one-hop/cadence/memory limits; only intact alert
-  stations call warned, capped reinforcements. This implements bounded attack
-  sharing, not the proposed general movement-noise network. Tank distant aim
-  clamps travel to weapon range while retaining actual turret bearing.
-  Keep incremental implementation details in the relevant design docs and checks.
-- Crit 9/10 preparation is implemented locally in docs/OBSERVABILITY.md and
-  docs/CRIT_9_10_EVIDENCE.md. Keep structured operational logs, sensitive-field
-  allowlisting and original actor/projectile attribution through combat saves.
-  Log committed named-world outcomes after checkpoint success; never serialize
-  account rows, request bodies, invitation codes or cookies. Retain server-side
-  permission checks and the exceptions in ADR-002. Local peer-display timing is
-  not Fly capacity evidence. Use check:evidence --crit=9/10 for the specific cutoff;
-  write reflections from real author/classroom findings, not anticipated success.
-- Economy design was reopened on 10 October; see `docs/ECONOMY_DESIGN.md` for
-  its combat purpose and pending ownership/source/spending choices. Keep current
-  free deployment until a concrete economy stage is agreed; do not invent prices,
-  balances, income or ownership. Height/physical-behavior proposals are recorded
-  in `docs/ELEVATION_DESIGN.md`: overhead 2D and movement stay, while terrain height
-  may affect trajectories and obstruction. No elevation mechanics are implemented.
-- The first conquest stage is implemented locally in `docs/CONQUEST_STAGE.md`:
-  named campaigns gain one safely placed alert station, with backup and additive
-  checkpoint migration. All HE platforms damage it; destruction permanently
-  removes its hostile overlay/calls while defenders survive. Calls require local
-  presence/recent hits and are capped. Keep drills independent, preserve partial
-  progress and bounded pursuit, and do not add currency rewards. Biological art
-  should be mildly unpleasant, overhead and readable; final textures remain open.
-- README.md is the argument for a solo-playable cooperative campaign: defend,
-  build and expand territory, operate facilities and vehicles, and eventually
-  secure the planet. Keep current implementation separate from this roadmap.
-- One to four players is the intended range and named rooms enforce four distinct
-  participants; this is not validated sustained-combat capacity on Fly.
-  Measure representative sustained battles on the course machine before claiming
-  capacity. If the maximum must shrink, retain at least two simultaneous players.
-- Current stage: shared saved construction, robot combat and recovery, ground
-  weapons and tanks, rail artillery and missiles, gunships and submarines, and
-  the first airbase/HE bomber loop, and isolated host-owned campaigns locally.
-  Named campaigns checkpoint combat; legacy combat and cosmetic traces stay transient.
-  Alert, mortar, root, settlement, contaminator and lance objectives are deployed;
-  anti-air is local. Economy and final balance remain future work. Stage
-  limitations are recorded below and in docs/.
-- The player operates robots and multiple forces. Guests without a core or an
-  occupied vehicle begin in orbital core selection, with no ground body. Preserve
-  existing identities and owned objects; returning deployments resume saved state.
+  Keep spawn cadence separate from living-population caps (shared 24 living
+  enemies; at most four living mobile lenses). Evaluate simultaneous fronts
+  before claiming the planet fits the budget.
+- Fly baseline: one shared CPU, 256 MB RAM, the existing volume. A justified RAM
+  increase may be discussed with the teaching team; document evidence and the
+  agreed size before changing it.
+- One to four players; named rooms admit four distinct participants. This is not
+  validated sustained-combat capacity. Measure representative battles on the
+  course machine before claiming capacity; if the cap must shrink, keep at least
+  two simultaneous players. Unlimited gameplay counts never claim unbounded Fly
+  performance.
 
-## Implementation standards derived from this stage
+**Input and layout**
+- Stop held fire on release, focus loss, menus and disconnection; reconnection
+  never restarts it. Keep explicit phone and keyboard alternatives.
+- Keep the battlefield visible on phones; page scrolling must never be required.
+- Middle-drag pans. Weapon readouts are passive and only highlight accepted shots.
+- Typing fields and real pause/lifecycle gates own input; otherwise WASD keeps
+  working through ordinary (non-modal) panels.
 
-- Save accepted building changes before reporting success. Checkpoint movement
-  and explain its durability window. Existing worlds must not regenerate on reload.
-- Keep terrain, territory, objects, and rendering separate. Collision comes from
-  world data, not sprite dimensions or what happens to be inside the camera view.
-- Enforce placement and ownership rules on the server. Browser drawings do not
-  determine shared outcomes.
-- Unlinked guest identity remains browser-bound. Optional accounts now link the
-  same stable player ID after activation, preserving ownership and saved state.
-  Campaign isolation and host ownership are now implemented locally. Friendly entities
-  never receive weapon damage.
-- The 9 October account implementation is in `docs/ACCOUNT_DESIGN.md`: real-email
-  and Demo registration/login, private simulated inbox, verification/resend,
-  recovery and logout. Preserve guest entry by invitation and visible Demo labels;
-  Demo activation never establishes email ownership. SMTP is configured on Fly;
-  connection, TLS and Brevo authentication passed on 11 October without sending
-  mail. On 12 October the author reported receipt in ANU Junk and a Brevo account
-  suspension; its cause is unconfirmed. Do not treat SMTP configuration as proof
-  of current delivery availability or revised wording as a suspension fix.
-- Current account defaults preserve guest progress and require explicit takeover
-  before replacing another account session. Do not silently merge another guest
-  during login. Rotate old guest credentials when attaching an account; expire
-  sessions, stop held inputs and revoke live streams on logout/reset/takeover.
-  Keep private account data out of game snapshots. Authentication changes need
-  save-retention, token-replay, inbox-isolation and live-control checks.
+**Presentation and assets**
+- Pure overhead 2D with square tiles; no isometric battlefield assets. Biological
+  art is mildly unpleasant, overhead and readable; final textures remain open.
+- Source `assets/` stays local and ignored. Track selected runtime assets with
+  licences and provenance so Docker builds need none of the source library.
+- The Dockerfile copies root-level server modules by name: add every new
+  root `.js` imported by `server.js` to its `COPY` line, or the deployed
+  container fails to start.
+
+## 4. Identity, accounts and campaigns
+
+Details: `docs/ACCOUNT_DESIGN.md`, `docs/ENTRY_AND_CAMPAIGNS.md`,
+`docs/CAMPAIGN_STAGE.md`, ADR-001/002 in `docs/decisions/`.
+
+- Unlinked guest identity is browser-bound; an activated account links the same
+  stable player ID, preserving ownership and saves. Never silently merge another
+  guest at login; require explicit takeover before replacing another session.
+- Rotate old guest credentials when attaching an account; on logout, reset or
+  takeover expire sessions, stop held inputs and revoke live streams.
+- Keep private account data out of game snapshots and logs. Never serialize
+  account rows, request bodies, invitation codes or cookies. Keep SMTP secrets
+  server-only (local `.env` is ignored); never copy credentials between repos.
+- Real-email and Demo accounts: Demo activation never establishes email
+  ownership; keep visible Demo labels and guest entry by invitation. SMTP
+  configuration (and passing TLS/auth checks) is not proof of inbox delivery.
+- Authentication changes need save-retention, token-replay, inbox-isolation and
+  live-control checks.
+- Email/Demo accounts may host; unregistered guests may only join. Owner exit
+  saves, closes the room and returns members to the lobby; invited accounts keep
+  membership. Departing guests' construction persists and the host may manage it.
+  Guest visits survive refresh/disconnect for 30 s; owner loss freezes the room
+  for 30 s. Solo pause resumes, with a warning, when a teammate joins.
+- Preserve per-runtime authorization and recheck delayed commands against their
+  original visit/runtime. Keep root and per-campaign maintenance locks and the
+  shared account store. Retain server-side permission checks and the ADR-002
+  exceptions.
+- Entry: `/` and `/campaigns/` offer the Caldera selector and explicit
+  create/join/resume; the labelled legacy shared world stays at `/?legacy=1`.
+  Accounts alone never create a campaign. A new planet needs a server generator
+  and migration, not just catalogue metadata.
 - Accounts adapt Crit 7's real/Demo separation, not its ANU-only addresses or
-  academic schema. Keep SMTP secrets server-only; local .env is ignored and loaded
-  by pnpm dev/start. Never copy credentials from another repo automatically.
-- `docs/ENEMY_DESIGN_DISCUSSION.md` records the filled worksheet's new site,
-  behavior and art requests. Do not silently resolve the armor-model conflict
-  or remove existing fire avoidance/burning panic. Only alert stations are
-  requested to call reinforcements; guards and patrols are separate concepts.
-- The agreed entry/campaign plan is in `docs/ENTRY_AND_CAMPAIGNS.md`: one planet
-  template first, owned campaigns or join a friend, and no ground operator until
-  initial core deployment. Returning players resume saved state. Accounts alone
-  do not themselves create a campaign. `/` and `/campaigns/` provide the Caldera
-  selector and explicit create/join/resume flow; retain the labelled legacy shared
-  world at `/?legacy=1`. Optional video is deferred. A new planet needs a server
-  generator/migration as well as catalogue metadata; never remap an existing save.
-- `docs/CAMPAIGN_STAGE.md` records the implemented local campaign foundation:
-  Email/Demo accounts may host, unregistered guests may only join, and
-  owner exit saves/closes the room and returns members to the lobby. Invited
-  accounts retain membership for future owner-opened sessions. Departing guests'
-  contributions persist and the host can manage their buildings. Guest-session
-  visits survive refresh/disconnection for 30 seconds, then expire; owner loss
-  freezes the room for the agreed 30-second grace. Solo pause resumes with a warning
-  on admission of a teammate. Preserve per-runtime authorization and recheck delayed
-  commands against their original visit/runtime. Campaign combat checkpoints retain
-  accepted attacks across closure/restart; legacy combat remains transient. Keep
-  root and per-campaign maintenance locks, additive migration backups and the
-  shared account store. Never silently erase legacy guests.
-- Temporary reset tooling is local/operator-only in this stage, with a SQLite
-  backup before clearing and the server stopped. It clears the entire current
-  legacy test world, retaining named campaigns and their membership. Do not expose a public reset endpoint or
-  apply it to Fly without an explicit request. Retain the maintenance lock when
-  opening a world. Reset preserves accounts and linked/pending player IDs, clears
-  their world progress, deletes unlinked guests and signs out account sessions.
-  Unknown future schemas require a deliberate reset-retention update.
-- Keep the battlefield visible on phones. Deployment uses a card tray and site
-  confirmation overlay; page scrolling must not be required to play.
-- Desktop: WASD/arrows move, mouse aims, LMB fires HE, held RMB fires the machine
-  gun. Middle-drag pans. Weapon readouts are passive and highlight accepted shots.
-  The player turret traverses at 180 degrees/second in world space, independent
-  of hull rotation. The server owns the actual firing bearing for both weapons.
-  Gold crosshair = desired target; pale-blue diamond = current HE aim point.
-  Reuse the shared configurable turn function for rotating mounts. APCR sentries
-  turn at 270 degrees/second, retain valid targets and fire within 2 degrees of aim.
-  Keep explicit phone and keyboard firing alternatives. Stop held fire on release,
-  focus loss, menus and disconnection; reconnection must not restart it.
-- Source assets/ stays local and ignored. Track selected runtime assets, licenses,
-  and provenance so Docker builds need none of the local source library.
+  academic schema.
+- Guests without a core or occupied vehicle start in orbital core selection with
+  no ground body; the server enforces that they cannot act or block placement.
+  Returning players resume saved state.
+- Deploy and Remote require an active robot (initial orbital landing excepted);
+  enforce catalogue, strike and acquisition admission on the server.
+- Reset tooling is local/operator-only: server stopped, SQLite backup first, the
+  maintenance lock held. It clears the legacy test world only (keeping named
+  campaigns, membership, accounts and linked IDs). Never expose a public reset
+  endpoint or run it on Fly without an explicit request. Unknown future schemas
+  need a deliberate reset-retention update.
+- Observability (`docs/OBSERVABILITY.md`): structured logs with allowlisted
+  fields and original actor/projectile attribution through combat saves; log
+  committed named-world outcomes after checkpoint success.
 
-The first core deployment is implemented in docs/CORE_DEPLOYMENT.md, with the
-9 October automatic orbital entry update in docs/ENTRY_AND_CAMPAIGNS.md. Guests
-without a deployment automatically survey a core site. They cannot act as ground
-units or block placement before landing; the server enforces this. The old helipad
-artwork and placement reservation are removed. Keep the saved 57-tile cross
-footprint, staggered unfolding and robot exit.
-Keep occupied footprints reserved until completion; flooring must affect server
-collision as well as appearance. Preserve existing saves. The temporary limit
-is one core per scout and eight per world, not an implemented resource economy.
-The remaining robot/base proposals in docs/ROBOT_DEPLOYMENT_DESIGN.md are design
-work. Implemented health/death and shared recovery are tracked in docs/SURVIVAL.md;
-sound and resource costs remain later stages.
+## 5. Economy, construction and facilities
 
-Robot combat is implemented in docs/ROBOT_COMBAT_DESIGN.md. A deployed robot
-uses held LMB/Space fuel and held RMB/J laser, with labelled touch buttons.
-Its aim-facing body turns at 540 degrees/s; world-direction movement animates
-relative forward/backward/strafe steps. Shared weapon profiles drive HE preview
-radius and server damage. Fuel packets travel on their original bearings;
-laser pulses resolve the nearest hit immediately. Surviving laser targets burn
-and flee, then reacquire the pad. These robot weapons stop at solid structures
-as well as rocks; friendly entities take no damage. Robot-deposited ground fire
-and repairs are subsequent stages. Personal health is persistent in the additive
-robot_states table. Crawlers telegraph strikes against active robots; disabled
-bodies cannot move/fire/build. Replacement uses a selected friendly core's clear
-recovery area, with idempotent requests and landing revalidation. Preserve life
-state on reload/restart and never grant a new core on death.
+Details: `docs/CONSTRUCTION_LOGISTICS.md`, `docs/SUPPORT_NETWORK_STAGE.md`,
+`docs/ECONOMY_DESIGN.md`, `docs/FACILITY_LIFECYCLE.md`,
+`docs/STARTING_CORE_RECOVERY.md`, `docs/BRIDGE_BUILDER.md`,
+`docs/ORBITAL_CARGO_PRESENTATION.md`, `docs/ORBITAL_PANEL_FOOTPRINTS.md`.
 
-Railway artillery is implemented in docs/RAIL_ARTILLERY_DESIGN.md.
-Preserve the additive rails/artillery tables, three-wide track corridor, complete
-3×3/swept carriage collision, shared single-operator control and release on
-death/disconnect. Artillery is manual only: slow independent 360-degree traverse,
-stop/brace, one selected shell per accepted command. Its three-tile damage radius is
-independent of the eight-tile cosmetic crater. Do not expose heavy HE through
-personal weapon selection. Durable field saving remains a later stage. Tests must use isolated saves; runtime checks are small workloads,
-not evidence for the full combined-forces game.
+- Two campaign-wide budgets shared by every core and teammate: ORB (rocket
+  delivery; orbital deployment) and GND (local processing; local construction and
+  repair). The old supplies field is ORB; never duplicate money in migration.
+- Provisional prices and timers live in `public/logistics.js`; document balance
+  changes. Cost and object insertion are atomic; retries never double-charge.
+  No per-shot charge, offline income, duplicate join credit or ORB→GND conversion.
+  Salvage and launch credit are once-only; ground corpses have bounded saved salvage.
+- ORB (orbital) delivery needs no construction support: clear terrain, full
+  unfolding-wall clearance, supplies and facility limits still apply. GND local
+  construction alone needs a completed friendly core, factory or outpost's
+  full-footprint support; it takes 60 s at 25% cost. Existing unsupported
+  equipment keeps working.
+- Trade-ins credit 80% of the actual recorded payment in the same pool, rounded
+  down and capped at the new price; record only the new net payment. Free, lost
+  or receipt-less vehicles get no credit. Validate ownership, occupancy, cargo,
+  readiness and capacity before an atomic debit and replacement; persist order
+  IDs and vehicle revisions so stale or repeated requests cannot double-charge.
+- Destruction is permanent: ruins remain, replacements are new builds, and ruins
+  do not count toward facility caps. Surviving damaged vehicles can be repaired.
+  A same-site dock may cover its owner's ruined deck and inherit the surviving
+  assigned ship without moving, healing or charging for it.
+- One core per campaign is the protected starting core: immune to damage and
+  hostile targeting (`logistics.startingCoreId`). Other cores and outposts are
+  vulnerable. If none survives, the emergency orbital core flow designates the
+  next one. Preserve emergency core/HE-tank recovery and identities after core loss.
+- Dock or base destruction never silently deletes ships at sea or freezes
+  airborne aircraft.
+- Factory orders reserve space, cost less, take time and cannot be operated until
+  ready; destroying a workshop cancels pending orders with a half refund.
+- Robots entering their own completed docks or airbases get a non-modal GND
+  workshop (60 s drone assembly). Paid automatic dock hull repairs checkpoint with
+  their supply charge; pause or offline time never advances them.
+- Facility durability uses HP and numeric armor: penetration below armor deals no
+  damage, equal or greater permits damage. Do not silently apply this threshold
+  to existing robot/vehicle damage or change lethal alien hazards. Rails and
+  terrain have no HP.
+- Ground claws and acid damage facilities through armor; do not claim every enemy
+  weapon was extended.
+- Orbital cargo arrives in a metal crate, unfolds and deploys; new crates reserve
+  their payload-sized four-wall cross, then leave saved walkable flooring. Never
+  draw construction drones for orbital cargo; local builds keep drone workers.
+  No individual worker or electricity simulation.
+- Keep the original core layout, runway dimensions, air delivery aprons and the
+  3×5 dock navigation footprint; tank pods are five tiles and roll out one east.
+  Existing facilities are not retrofitted.
+- Recyclers: one saved seat (E boards/exits, WASD drives, parking collects or
+  unloads, L opens shipments). Remote commands need an empty seat. Loss disables
+  the driver and drops only unshipped cargo.
+- Bridges: three-wide straight crossings with mixed land/water spans and clear
+  full-width anchors (≤24 interior rows, counted in price and timer). Default
+  planner is Find shore ahead with full preview and explicit confirmation; never
+  silently replace an invalidated route or spend before confirmation. Admit and
+  charge atomically; lock the builder and reserve the span until complete.
+  Completed decks carry ground traffic while vessels and swimmers pass beneath;
+  unfinished spans reserve both layers. Bridges are GND-funded only; show both
+  balances, the shortfall and unloading advice. No terrain rewrite or diagonals.
 
-Manual artillery uses mouse/touch desired target, LMB/Space single fire and
-WASD world-direction rail travel. Two markers separate requested aim from the
-actual ballistic landing point. Slow bearing/elevation converge server-side using
-the higher arc; never snap to the cursor on firing. 1/2/3 selects HE/Fire/Gas.
-The orbital overview opens by default, with ordinary pan/zoom. The bottom
-facility manual replaces body controls until exit. See docs/CANNON_CONTROLS.md.
-Server commands expire after 350 ms; a started reserved rail segment completes,
-but no new segment begins without fresh input. Reject off-map actual impacts.
-The approved guarding, curve and map-expansion stage is implemented in
-docs/GUARD_CURVES_EXPANSION.md. Robots hold position and use existing fuel/laser
-weapons while their player operates a gun. Stop automatic fire on handoff, death,
-recovery, disconnection or lease loss; no autonomous rover/vehicle/jet combat.
-NE/SE/SW/NW curves use radius-three arcs with a reserved eight-tile-square apron,
-straight endpoint supports, saved movement and independent turret bearing.
-The versioned world is now 128 by 96 tiles. Preserve every original terrain
-cell at its coordinate and the saved pre-expansion JSON; the old-region causeway
-is an overlay. Never regenerate player construction or move existing records.
-Keep terrain rendering cached and overview rendering cheap. The expanded map
-and short resource checks do not establish large-army capacity.
+## 6. Ground forces
 
-Artillery incendiary/gas fields are implemented in docs/ARTILLERY_FIELDS.md.
-Keep lethal contact, exact gas capacity, fire-first hazard priority, friendly
-immunity and simulation-time expiry authoritative. Gas has no timer. Cap active
-and incoming fields together; shell selection shares reload and cannot alter
-in-flight ammunition. Retain fields across drills, reset them on server restart.
-Robot/sentry weapon loadouts remain unchanged. Test all accounting and route
-interactions before changing field size, caps or monster numbers.
+Details: `docs/CORE_DEPLOYMENT.md`, `docs/ROBOT_COMBAT_DESIGN.md`,
+`docs/SURVIVAL.md`, `docs/GROUND_WEAPONS.md`, `docs/TANK_GUARD.md`,
+`docs/VEHICLE_COMBAT.md`, `docs/VEHICLE_HANDLING.md`.
 
-Junction switches are implemented in docs/RAIL_SWITCHES.md. Only a curve owner
-installs one, after both routes have support tracks and the full apron is clear.
-Connected active teammates may set its explicit saved route. Any cannon body or
-movement reservation in the apron locks route changes and track removal there.
-Preserve additive rail_switches records; remove a curve and its switch atomically.
-Ordinary curves keep their original routing until explicitly upgraded.
+- Cores keep the saved 57-cell cross, staggered unfolding and robot exit. Keep
+  occupied footprints reserved until complete; flooring affects server collision.
+  Limit: one core per scout and eight per world.
+- Robot: held LMB/Space fuel jet, held RMB/J laser, labelled touch buttons;
+  aim-facing body turning at 540°/s with world-direction movement. Weapons stop
+  at rocks and solid structures. Health persists; disabled bodies cannot move,
+  fire or build. Recovery uses a selected friendly core's clear area with
+  idempotent requests and landing revalidation; death never grants a new core.
+- While its player operates a facility the robot holds position and guards with
+  its own weapons; stop automatic fire on handoff, death, recovery, disconnection
+  or lease loss.
+- Turrets: shared configurable turn function. Player turret 180°/s in world space;
+  APCR sentries 270°/s, keep valid targets, fire within 2° of aim. The server owns
+  actual firing bearings. Gold crosshair = desired target; pale-blue diamond =
+  actual aim point.
+- Tanks: unlimited count (supply-funded; no per-player or world cap). Primary
+  HE/Magnetic and secondary APCR/Heavy fuel are separate saved selections.
+  Saved seat transitions before acknowledgement; movement checkpoints with the
+  driver. Offline drivers keep their seat; empty tanks can be boarded by a
+  teammate. Exit checks all adjacent cells without teleporting.
+- Empty operational tanks guard in place with the selected main gun (prefer
+  visible Bulwarks; respect range, occlusion, turret speed, charge and cooldown).
+  No autonomous movement, secondary fire, facility targeting or takeover.
+- Tank physics: gradual acceleration/braking and bounded turning within the
+  server tick; momentum is transient. Keep world-direction WASD, slower automatic
+  reverse and the existing footprint. Recoil is browser-only; reduced motion
+  disables the hull kick.
+- Magnetic charges reserve projectile capacity and cancel on focus loss,
+  disconnect or control change; no blast or crater. Heavy fuel shares the lethal
+  liquid packet logic (8 tiles) and packet caps. Robot loadouts are unchanged.
 
-## Review
+## 7. Rails, artillery, missiles and Remote
 
-The first anti-air stage is in docs/ANTI_AIR.md: airborne-only predicted flak,
-three fixed warned points, six-second reload and a global 12-round reservation
-cap. Preserve permanent HE conquest and already launched attacks after tower
-destruction. Aircraft damage, consumed impacts and pilot loss must checkpoint
-atomically, including disconnected pilots. Bomber replacement takes 20 simulation
-seconds at its original airbase; pilots use existing friendly-core recovery.
-Keep free replacement until economy is agreed. Add encounters with backups and
-safe placement; never reset a campaign for testing. Attack jets remain later work.
+Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
+`docs/COMPACT_RAILS.md`, `docs/RAIL_SWITCHES.md`, `docs/ARTILLERY_FIELDS.md`,
+`docs/MISSILE_LAUNCHER_DESIGN.md`, `docs/GUARD_CURVES_EXPANSION.md`.
 
-The user's compact-rail correction supersedes broad curves for new construction:
-see docs/COMPACT_RAILS.md. Corners and junctions occupy one tile, EW/NS overlays
-merge into J on owned clear track, and WASD chooses connected exits. No separate
-route menu for compact rails. Preserve legacy broad curves and switches in saves.
-Keep cannon footprint and temporary swept-turn collision separate from the
-one-tile permanent rail reservation. Save merged rails before acknowledgement.
-Never teleport through a missing or nonreciprocal connection.
+- Rails: compact one-tile corners and junctions for new construction; EW/NS
+  overlays merge into J on owned clear track; WASD chooses connected exits. Never
+  teleport through missing or nonreciprocal connections. Legacy broad curves and
+  owner-installed switches remain valid in saves.
+- Ground checks use `coreBlocks`: flooring and the pad are traversable; machinery,
+  active reservations, uncovered rocks, water and sentries block. Turning cannons
+  use the swept 3×3 body for unit collision (also in `canStand`), separate from
+  the one-tile permanent rail reservation.
+- Rail cannon: single shared operator, released on death/disconnect; manual only.
+  Bearing and elevation converge server-side on the higher arc and never snap to
+  the cursor. Commands expire after 350 ms; a started segment completes but no new
+  one begins without fresh input. Reject off-map impacts. Damage radius (3 t) is
+  independent of the cosmetic 8 t crater; heavy HE is never a personal weapon.
+- Missile battery: fixed 4×4, 12×18 area, 12 staggered missiles, 15–100 t range,
+  15 s reload after the last launch, two committed volleys max, immutable impacts.
+- Fields: lethal contact, exact gas capacity, fire-first priority, friendly
+  immunity, simulation-time expiry; gas has no timer. Active plus incoming fields
+  share count caps and the area budget (216 tiles per barrage; 512 total / 256 per
+  type). Selection shares reload and cannot alter in-flight ammunition. Test field
+  accounting and routing before changing sizes, caps or monster numbers.
+- Distant battery/submarine aim clamps the whole rectangle along its bearing, and
+  tank distant aim clamps travel to weapon range while keeping the actual turret
+  bearing; preview and server agree and keep minimum-range and other fire gates.
+- Facility control opens the orbital overview by default; the bottom facility
+  manual replaces body controls until exit.
+- R-02 cannon and S-01 battery are Ground catalogue cards. Remote (F) opens map
+  selection of friendly facilities; keep server control locks, Escape release,
+  robot guarding, rail movement and shell behaviour.
 
-Rail ground checks use coreBlocks rather than rejecting every coreCell. Completed
-flooring and the H pad are traversable; machinery, active deployment reservations,
-uncovered rocks, water and sentries remain blocked. Guest arrival/fallback must
-find clear ground if a cannon occupies the original spawn.
+## 8. Navy
 
-For compact turns, unit collision follows the swept rotating 3-by-3 body rather
-than the coarse static-obstacle reservation. Use the same sweep in canStand so
-nearby scouts are not falsely displaced by session validation during a turn.
-Preserve actual swept-corner collisions and identify the blocking unit.
+Details: `docs/NAVY.md`, `docs/SHIP_ARMAMENT.md`, `docs/SHORE_RAMP.md`,
+`docs/SUBMARINE.md`, `docs/ARMORED_TRANSPORT.md`,
+`docs/CONSTRUCTION_AND_SHIPYARDS.md`, `docs/AIRCRAFT_CARRIER.md`,
+`docs/REMOTE_NAVAL_ORDERS.md`, `docs/HELICOPTER_AND_SUBMARINE_REFINEMENT.md`.
 
-The three-warhead missile battery is implemented in docs/MISSILE_LAUNCHER_DESIGN.md:
-fixed 4-by-4 footprint, 12-by-18 target area, 12 staggered missiles, 15-second
-reload after last launch, full-area 15-to-100-tile range. The artillery collection
-includes kind=missile records; preserve old cannons, shared control and guarding.
-Keep two committed volleys maximum, immutable impact assignments, independent
-cannon limits and durable reload. Fire/gas use scattered round impact patches
-with matching server contact/pathfinding, clipped to the target rectangle. Minor
-landing blasts and craters are cosmetic. Fire patches last 18s each; gas shares 18 kills
-with no timer. Reserve 216 square tiles per incoming/active barrage against a
-512-total/256-per-type hazard area budget, alongside the existing count limits.
-Exhausted gas retains its reservation until the last missile lands; late arrivals
-cannot refill it. Apply simultaneous fire before gas and preserve friendly immunity. Friendly
-damage and terrain modification are forbidden; particles remain browser-only.
+- Docks first: N-05 places an empty dock; ship cards choose an existing empty
+  dock. One assigned vessel per dock, four active ships per campaign; same-type
+  ships may use different docks. New docks reserve the 3×1 shore, 3×5 water deck
+  and adjacent berth; completed decks are walkable. Never relocate old docks.
+- Exclusive saved seats; restart at sea restores the robot inside. Board and exit
+  through an aligned berth or a validated shore ramp (G; two-tile reach, full
+  clearance, server-chosen endpoints, movement lock). Ramps never floor water.
+- Gunship: two twin main turrets (world-stabilised), one-click turret volleys,
+  double-click full salvos, independent 6 s reloads, hull-relative side arcs.
+  Cursor input never overrides actual mount angles. Main-gun range for gunships
+  and transports follows `docs/REMOTE_NAVAL_ORDERS.md`.
+- Submarine: shares hull/seat/ramp/damage rules; six-missile 6×8 strikes, full-
+  area range checks, server-owned vulnerable dive transitions, limited battery and
+  forced surfacing. Only fully submerged hulls lose swimmer targeting; missiles,
+  ramps and boarding need the surface.
+- E on an owned dock opens the unified shipyard panel. Retiring with keepYard
+  keeps occupied deck flooring; deleting a yard needs clear deck and berth access.
+  Keep completed deck flooring through hull replacement and dock damage, and
+  require a clear offshore deck before recall. The ramp sentry cannot regain HP or
+  reload by folding; repairs are a paid dock service.
+- Transport: one unoccupied ground vehicle in a saved cargo slot, moved atomically,
+  keeping ownership, health, loadout and salvage. Loading needs management
+  permission; cargo sinks with its ship. K drives cargo off. One bow turret;
+  never change gunship mount counts.
+- Carrier: one fleet slot and one runway; stationary operations, parked aircraft
+  move with it, recovery locks the helm, side guns only. Its onboard GND store
+  pays stationary repairs; rebuilding never restores free supplies.
+- Enemy-only hull damage; vehicle and pilot loss are atomic. Naval contacts share
+  a 30 s timer and six-swimmer cap and pause with no viewers.
 
-HTML and snapshots share a build fingerprint computed at server startup from
-the server and runtime JS/CSS/HTML. Reload an outdated client before consuming
-new state formats; do not silently pair an old field renderer with new geometry.
-Hazard visual checks must include aged fields, not only impact flashes or labels.
+## 9. Air
 
-- Run relevant HTTP/domain tests and inspect the browser at 1920x1080 and 390x844,
-  including keyboard use and resize. Inspect screenshots as well as test results.
-- Keep test saves separate from user saves. Do not reset the user's world for tests.
-- In live-tick HTTP tests, wait for observable simulation state before asserting
-  arrival or docking. Fixed-duration movement sleeps depend on runner scheduling;
-  preserve explicit time bounds and assertions on the resulting action.
+Details: `docs/AIR_FORCE.md`, `docs/AIR_TRAFFIC.md`, `docs/AUTOMATIC_BOMBER.md`,
+`docs/ANTI_AIR.md`, `docs/ORBITAL_FORCE_DEPLOYMENT.md`, `docs/HELICOPTER.md`,
+`docs/AIR_POWER_REFINEMENT.md`, `docs/AC130_GUNSHIP.md`.
+
+- Fixed-wing weapons, HUD and silhouettes follow `docs/AIR_POWER_REFINEMENT.md`
+  (it replaces finite fixed-wing ammunition, refill waits and the old bomb
+  pattern; helicopter ammunition is unchanged).
+- Aircraft keep stable saved identities across bases and carriers. Cruise is an
+  explicit persisted unmanned order; aircraft may land at any free friendly base
+  with exclusive runway reservations. Fleet counts include aircraft in flight and
+  delivery; empty airbases are allowed within the four-base campaign cap. A free
+  runway is not permission to manufacture another aircraft.
+- Airbase placement is empty; separate jet and bomber cards choose an existing
+  empty owned runway with server new-only admission. Keep the first free orbital
+  bomber distinct from local production.
+- Airborne pilots have no ground body or ground weapons. Viewer-based pause,
+  offline cruise and saved flight state apply; departed pilots release their seat
+  and unattended aircraft are recovered.
+- Automatic bomber missions: one shared mission per aircraft, fixed accepted target
+  and payload, no duplicate release across restart, abort and return on home-base
+  loss. Cruising aircraft are Remote strike markers with bounded flak detours.
+- Anti-air: airborne-only predicted flak with fixed warned points; aircraft damage,
+  consumed impacts and pilot loss checkpoint atomically.
+- Helicopters: separate helipads (max eight active or incoming) and fleet
+  capacity; hover controller, LMB cannon, RMB rocket window; pads never unlock
+  fixed-wing capacity.
+- Aerial gunship (A-06): manual stage only; automatic orbit awaits author review.
+
+## 10. Enemies, encounters and detection
+
+Details: `docs/CONQUEST_STAGE.md`, `docs/MORTAR_OUTPOST.md`,
+`docs/ENVIRONMENT_MODIFIER.md`, `docs/ALIEN_SETTLEMENT.md`,
+`docs/AIR_CONTAMINATOR.md`, `docs/LASER_TOWER.md`, `docs/DEFENSIVE_SECTORS.md`,
+`docs/DETECTION_AND_ALARMS.md`, `docs/LAND_AI_AND_SEEDED_FRONTS.md`,
+`docs/MOBILE_LASER_ENEMIES.md`, `docs/NATURAL_ENCOUNTERS.md`,
+`docs/ENEMY_DESIGN_DISCUSSION.md`.
+
+- Named campaigns use the natural encounter director: compound replenishment and
+  seeded raids with saved active-play deadlines. No offline catch-up and no
+  invisible deletion or healing to free slots. Legacy drills stay separate.
+- Sleeping survivors stay damageable. An event with no eligible ground combatants
+  or recovery structures resolves with a recovery grace; never declare permanent
+  campaign loss.
+- Pursuit: ordinary acquisition/retention ranges, remembered positions and bounded
+  enemy-only routing budgets. Enemies give up distant pursuit; disengagement,
+  sleeping and despawning are separate. Never silently heal enemies or reset sites.
+- Seeded compounds: generated once per save from a versioned manifest; unsafe
+  slots are skipped permanently; never reroll or refill. Finite initial guards with
+  saved roles under the shared 24 cap; only crowns call Hunter reinforcements.
+- Roles: Hunters and Breakers are vulnerable to fire and gas. Bulwarks are
+  damaged only by HE/explosives and Magnetic, ignore heat and gas lures, and obey
+  terrain and windups. Mobile lenses are aircraft specialists with normal ground
+  vulnerability; their elevated beams never hit parked aircraft or ground units.
+- Automatic bullet/fuel guards prefer damageable targets; keep truthful
+  blocked-hit feedback.
+- Only intact alert stations call warned, capped reinforcements. Never classify
+  new non-alert site kinds as scanners or callers by default. Red shading is
+  overview territory, not detection or weapon range.
+- Detection is separate from reaching or attacking a contact. Focused tracking
+  stops circular search, marks fade after lost lock, solid obstacles block beams;
+  submerged escape is preserved. Noise/neighbour reports carry last-known
+  positions only.
+- Contaminator fog is fixed and opaque: reduced effects never bypass concealment;
+  ground aim and attack warnings stay below it.
+- Lance tower: full 40-tile beam clipped by hits and cover; charge holds bearing,
+  firing tracks the angle at 4°/s; lethality is cumulative exposure.
+- Do not silently resolve the armor-model conflict or remove fire avoidance and
+  burning panic.
+- Local Test frenzy is owner-triggered and disabled on Fly/production.
+
+## 11. World, map and interface
+
+Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
+`docs/UI_REFINEMENT.md`, `docs/ORBITAL_STRIKES.md`.
+
+- The planet is 512×384 saved terrain, preserving every older coordinate and the
+  pre-expansion JSON. The globe (N) moves only the camera; M is the flat tactical
+  overview. No spherical travel or extra caps from the larger map.
+- Orbital strikes (V): one shared order slot and single payment; fixed previewed
+  points, monotonic request sequences and saved landed flags. Orbital hazard
+  fields have one canonical copy in logistics.
+- Fire and gas footprints are land-only; the cutting beam damages along its
+  moving ground contact and can conquer facilities, while its sky ray is cosmetic.
+  The first strike's reference stays stable; planning uses a regional camera.
+- Keep terrain rendering cached and overview rendering cheap.
+- UI is presentation and input only: never alter server rules, prices or save
+  formats from the UI. Add keys to `public/keymap.js` BINDINGS (precedence,
+  labels, F1) and assets to `public/catalogue.js`; never reuse asset codes;
+  numeric shortcuts follow category order.
+- Inside supported footprints show ORB/GND as blue/gold halves; outside, ORB only.
+  Do not reintroduce hidden Deploy restrictions or implicit aircraft exchange.
+- E selects the nearest enabled interaction.
+
+## 12. Verification
+
+- Tests use isolated saves (`tests/browser/rover-helper.js`, temporary
+  `DATA_DIR`s); never touch the author's saved worlds.
+- Run relevant domain/HTTP tests, then browser checks at 1920×1080 and 390×844,
+  including keyboard use and resize. Inspect screenshots, not only results.
+- In live-tick tests, wait for observable simulation state, not fixed sleeps,
+  while keeping explicit time bounds.
+- Hazard visual checks include aged fields, not only impacts or labels.
 - Treat memory/CPU feasibility as unproven until measured under representative
-  sustained load. A world preview is not a validated combat-server benchmark.
-- Record implementation evidence without inventing the author's reflection,
-  commit history, playtesting conclusions, or deployment success.
+  sustained load; a preview or idle probe is not a combat benchmark.
+- Before pushing a new root server module, check the Dockerfile `COPY` line
+  (CI starts the production image).
 
-Ground weapon choices are implemented in docs/GROUND_WEAPONS.md. Preserve the
-additive equipment table and owner-only sentry choices. Default HE/APCR remains;
-tank primary HE/Magnetic and secondary APCR/Heavy fuel are separate selections.
-These weapons now also apply to deployable, boardable tanks; see the orbital
-tank section of docs/GROUND_WEAPONS.md. Shared pod geometry/timing/rendering must
-preserve the original 57-cell core and the new 17-cell tank cross. Keep tanks
-and seat ownership in the additive tanks table, save seat transitions before
-acknowledgement, and checkpoint movement atomically with the driver. An embarked
-robot has no separate outside body or autonomous guarding. Offline drivers retain
-their seat and resume in place; an empty tank can be boarded by a teammate. Check
-all adjacent exit candidates without teleporting through blocked cells. Vehicle
-damage and destruction now follow docs/VEHICLE_COMBAT.md; resource costs remain
-a future stage.
-Robot loadouts remain unchanged. Magnetic charges reserve projectile capacity,
-follow the current turret and cancel on focus loss, disconnect or body/control
-changes. No magnetic blast/crater. Heavy fuel shares lethal liquid packet logic
-with an eight-tile range and the existing packet caps.
+## 13. Superseded behaviour (older docs may still describe these)
 
-The coastal gunship stage is implemented in docs/NAVY.md. Orbital water delivery
-reserves a clear shore boarding point without flooring the ocean. Preserve the
-additive ships table, exclusive saved seat, independent turrets and six-second
-per-turret reloads shared across HE/Fire/Gas. W/S drives forward/reverse; A/D steers with full hull
-clearance. Restart at sea must restore the seated robot inside its ship. Board
-and exit through an aligned completed berth or a validated deployed shore ramp.
-Vehicle damage/destruction and surface swimmers are implemented in
-docs/VEHICLE_COMBAT.md. Keep shipyards as a subsequent stage. Preserve enemy-only
-hull damage, atomic vehicle/pilot loss, offline seat handling, and owner-only
-idempotent redelivery at a revalidated original site. Naval contacts share a
-30-second timer and six-swimmer cap, coexist with ground drills, and pause with
-no viewers. Keep water routing bounded and collision authoritative. Enemy waves
-remain transient on restart; hull damage and loss never reset with them.
+- Free deployment and free aircraft or vehicle replacement (replaced by the
+  12 October economy and permanent loss).
+- One tank per player or eight per world (tanks are now unlimited).
+- Repairing destroyed docks or runways in place (destruction is now permanent).
+- Per-type naval caps and combined ship-plus-dock placement (now dock first).
+- Fixed home-airbase parking and combined airbase+aircraft cards.
+- Ships blocked by bridges (completed decks now have underpasses).
+- Broad radius-three rail curves for new construction (now compact rails).
+- Finite fixed-wing ammunition, refill waits and the old bomb pattern.
+- The rover starting body (guests now start in orbit).
+- `1` returning to Combat mode (now Esc).
 
-Gunship main salvos and side guns are implemented in docs/SHIP_ARMAMENT.md.
-Preserve two twin main turrets, one-click turret volleys and double-click
-salvos of all ready mounts. Admission is atomic for the selected two/four
-rounds. Preserve independent six-second main reloads, saved next-turret order,
-legacy cooldown migration, independent port/starboard secondary cooldowns and
-hull-relative outward arcs. Main turrets remain world stabilized. Cursor input
-cannot override actual mount angles. Keep shot requests individual and clear
-held inputs on release, blur, menus and disconnection. Preserve additive mount
-poses in old ship saves, existing projectile/field budgets and friendly immunity.
+## 14. Not authorized yet
 
-Remote shore landings are implemented in docs/SHORE_RAMP.md. G deploys/retracts
-the built-in ramp; E boards/exits. Preserve bounded two-tile hull-edge reach,
-complete crossing clearance, server-selected endpoints, saved anchor pose,
-movement lock, temporary construction reservation and revalidation on handoff.
-The ramp never floors water or creates a general walking bridge. Keep the
-original berth and the current single-seat model; passengers/cargo remain later.
-
-The missile submarine is implemented in docs/SUBMARINE.md. Preserve
-legacy gunships with missing kind fields, one vessel of each type per owner and
-four vessels total. Submarines share hull/seat/ramp/damage rules but launch six
-missiles at a 6-by-8 area, with 1.25s bracing and 18s reload after last launch.
-Keep full-area range checks, atomic admission and existing shared barrage/hazard
-budgets. No gunship cannon/secondary access. Diving now follows the depth section
-of docs/SUBMARINE.md: Left Ctrl dives, Space surfaces, LMB launches. Preserve
-server-owned two-second vulnerable transitions, limited battery and forced
-surfacing, saved depth and viewer-based pause. Only fully submerged hulls lose
-swimmer targeting. Surface access is required for missiles, ramps and boarding.
-Docks remain vulnerable; existing shore sentries provide optional defense.
-Fleet finding/replacement must act on the selected owned vessel and retain type.
-Restart preserves reload and clears transient launch brace and combat.
-
-The first airbase/HE bomber loop is implemented in docs/AIR_FORCE.md. Preserve
-the separate saved aircraft seat and additive airbases table. W/S adjusts only
-positive forward speed; A/D turns with a speed-dependent radius. LMB releases
-six HE bombs along server-owned predicted impacts, holding course for the short
-release sequence. Two runs per load, automatic slow-approach landing and timed
-base rearming form the first loop. Preserve friendly immunity, shared barrage
-caps, existing world geometry, full airbase construction reservation and separate
-walkable-runway/solid-hangar collision. Airborne pilots have no ground body or
-ground weapons. Viewer-based pause, offline cruise and saved flight state apply.
-Anti-air and bomber damage/recovery now extend this loop in docs/ANTI_AIR.md.
-Fuel, base damage, other warheads and carriers remain future stages.
-
-The attack jet and unfolding naval dock stage is recorded in
-`docs/ORBITAL_FORCE_DEPLOYMENT.md` (12 October). Preserve legacy bomber/dock
-saves, one aircraft slot per base, ready/unoccupied exchange gates, saved arrival
-timers and heading-owned HE strafing. New docks reserve the 3-by-1 shore, 3-by-5
-water structure and adjacent berth before arrival. Do not relocate old docks.
-
-The author approved completing the construction/economy pipeline on 12 October.
-See docs/CONSTRUCTION_LOGISTICS.md and docs/ECONOMY_DESIGN.md. This supersedes older
-free-deployment, global large-infrastructure and deferred-facility-HP statements.
-Shared supplies start once per world, refill only during running simulation up to
-a reserve threshold, and can exceed it through finite salvaged cargo shipments.
-Keep cost/object insertion atomic; retain conquered IDs and depletion through
-restart. No per-shot charge, offline income, duplicate join credit or friendly fire.
-Large infrastructure needs one completed friendly core/factory's full-footprint
-support. Existing unsupported equipment continues working. Independent entity caps
-remain. Factory orders reserve space, cost less, take time and cannot be operated
-until ready. Destroying a workshop cancels pending orders with a half refund.
-Preserve emergency core/HE-tank recovery, living/offline identities after core loss,
-completed flooring, cargo crates and once-only launch credit. Dock/base destruction
-must not silently delete ships at sea or freeze airborne planes, including during
-repair. Ground claws and acid can damage facilities through numeric armor; do not
-claim every enemy weapon was extended. Rails and terrain have no HP in this stage.
-Provisional prices/timers live in public/logistics.js; document balance changes.
-Migration backs up populated saves and never retroactively charges owned equipment.
-Local checks do not establish deployed behavior or four-player Fly capacity.
-
-The 12 October recycler-driving refinement is in docs/CONSTRUCTION_LOGISTICS.md.
-Preserve the refined UI/keymap/catalogue. E boards/exits one saved recycler seat;
-WASD drives, parking collects/unloads, L opens shipment controls. Remote commands
-require an empty seat. Never render or damage a second robot inside the recycler.
-Loss disables its driver and drops only unshipped cargo. New ground corpses have
-bounded saved salvage; depletion and enemy death share campaign checkpoints.
-
-The subsequent 12 October bridge-builder stage is in docs/BRIDGE_BUILDER.md.
-Preserve three-wide straight crossings: two cables between 3-by-1 bank anchors,
-then saved 1-by-3 deck steps. Admit and charge atomically; retry without double
-spending. Lock the builder and reserve the entire span until completion. New decks
-are traffic-only and block ships; old causeways/rails remain unchanged. Derive
-walkable floor from completed bridge records without rewriting terrain. Builder
-loss cancels unfinished spans without refund, retaining completed bridges. Bridge
-HP, dismantling and armored vehicle transport remain separate future stages.
-
-The author then approved completing the transport stage and pushing the pipeline.
-See docs/ARMORED_TRANSPORT.md, which supersedes the transport deferral above.
-Keep one unoccupied ground vehicle in a saved ship cargo slot, removed from the
-active world atomically. Retain ownership/caps, health, loadout and salvage. Check
-nearby ground routes at both transfers, reject remote loading of occupied vehicles and lock working
-builders. Loading requires management permission; unloading retains ownership.
-Sink cargo with its ship, preserve normal tank replacement, and reject loaded
-recall. The transport has one bow turret; never change gunship mount counts.
-
-13 October local correction: ship replacement reuses its existing dock and checks
-only the water berth, rather than revalidating initial dock placement against
-people on the shore. Preserve repair/cooldown/cost gates and saved berth identity.
-E selects the nearest enabled interaction. The author clarified that completed
-3 x 5 offshore docks must be walkable and vehicles can drive aboard directly.
-Driving toward the marked ramp transfers the driver to the helm atomically;
-K drives cargo off directly into vehicle controls. Preserve a single seat and
-vehicle record across restart, ownership, blocked exits and builder locks.
-Retain completed deck flooring during hull replacement and dock damage; require
-a clear offshore deck before recall. See docs/ARMORED_TRANSPORT.md.
-
-The next 13 October stage is in docs/CONSTRUCTION_AND_SHIPYARDS.md. The author
-confirmed cosmetic construction drones and reusable permanent shipyards separate
-from retractable shore ramps. Stage 1 adds client-only capsule/assembly feedback
-for logistics buildings and utility vehicles using existing saved countdowns.
-Naval cards expose manage/rebuild actions instead of disabling owned vessels.
-Preserve server admission, prices, caps and atomic replacement; never infer
-readiness from animation time. The author then approved implementing and deploying the remaining batch. Independent
-shipyards, bounded cosmetic wrecks and the ramp sentry are implemented in that
-brief. Preserve legacy dock geometry and backups, one assigned hull per yard,
-existing fleet caps, paid idempotent admission and interruption during dock loss.
-Folding cannot restore sentry HP or reload; repair requires a paid dock service.
-All pricing remains provisional. No individual worker simulation is authorized.
-
-The subsequent 13 October dock-first refinement supersedes the per-type naval cap
-and menu above: one assigned vessel per dock, four active ships per campaign, with
-same-type ships allowed at different docks. E on an owned dock opens the unified
-shipyard panel. Retiring with keepYard preserves occupied deck flooring; deleting
-the yard still requires clear deck/berth access. Paid automatic dock hull repairs
-and their supply charge checkpoint together; pause/offline cannot advance them.
-See docs/CONSTRUCTION_AND_SHIPYARDS.md for provisional rates and admission gates.
-The 14 October design record is docs/BOMBER_AND_SUPPORT_NETWORK.md. The requested
-direction adds automatic bomber sorties, HP-based paid aircraft repair, global
-orbital delivery, cheaper/slower local construction and core salvage receivers.
-This is a design record, not authorization for the whole network implementation.
-Confirmed: one free bomber to an existing airbase per campaign, and a 2-by-2
-support outpost with receiver and robot respawn. The author requests cheaper local
-recycling and reusable cargo rockets with a provisional two-minute cooldown and
-return animation. The author confirmed separate campaign-shared ground supplies
-(local processing; local construction/repair) and orbital supplies (rocket delivery;
-orbital deployment). Current runtime still uses one SUP pool. Define initial balances,
-passive income and migration without duplicating old supplies; preserve refund currency.
-Define shipment credit, cooldown persistence and station
-loss before implementation. Preserve actual flight/anti-air, shared spending,
-emergency recovery and once-only salvage. Current runtime prices/gates still apply.
-
-The author reported Brevo reactivation on 13 October; deployed SMTP/TLS/authentication
-verification succeeded without sending mail. This does not establish inbox delivery.
-
-The author subsequently authorized the economy/support implementation before bomber
-automation. docs/SUPPORT_NETWORK_STAGE.md supersedes the design-only status above.
-Both budgets are campaign-wide, shared by every core and teammate. Preserve the
-old supplies field as orbital SUP; v1 migration backs up and adds groundSupplies=0
-without duplicating money. Local processing earns ground SUP; rocket delivery earns
-orbital SUP once, with a saved 120-second return cycle. Local construction takes
-60 seconds at 25% cost in ground SUP; global orbital site rules still enforce
-terrain, footprint and capacity. Completed 2-by-2 outposts add shared respawn and
-construction support. Cosmetic drone stores stay inside reserved footprints.
-Preserve existing native pod geometry, emergency recovery, refund currency and
-shipment cargo conservation; no worker agents or electricity simulation.
-
-Automatic HE bomber missions are implemented locally in docs/AUTOMATIC_BOMBER.md.
-The author confirmed abort/return on home-base loss, then emergency landing and a
-replacement wreck if the base is unavailable. Preserve the real flight/flak rules,
-one shared mission per aircraft, fixed accepted target, caller body, no duplicate
-release across named-campaign restart, and bounded failure recovery.
-The 16 October payload stage in docs/AUTOMATIC_BOMBER.md adds heavy HE,
-incendiary and gas carpets, plus an automatic pre-release dive. Preserve distinct
-damage/crater sizes, a full-load cost for heavy HE, shared hazard reservations,
-fixed accepted payloads and departed-pilot recovery. Bomber strafing is excluded;
-the existing attack jet is unchanged. Aircraft/base separation remains future work.
-
-The 16 October shared-airfield stage is in docs/AIR_TRAFFIC.md. Cruise is an
-explicit persisted unmanned order; E boards parked aircraft. A bomber dispatched
-from cruise resumes holding even with empty bays, until recalled. Aircraft may
-land at any free friendly airbase. Preserve stable saved aircraft identities,
-movable destination tags, exclusive runway reservations and shared fleet counts
-including aircraft in flight/delivery. Empty airbases are permitted; one owner may
-place multiple bases within the existing four-base campaign cap. Production stays
-locked when base loss leaves surviving aircraft above operational capacity. This
-supersedes fixed home-airbase parking; carriers remain a subsequent stage.
-
-The 17 October carrier stage is implemented locally in docs/AIRCRAFT_CARRIER.md.
-A carrier is one fleet slot and one physical runway with stationary operations;
-parked aircraft move with it, and incoming recovery locks helm movement. Preserve
-stable aircraft identities across land/carrier transfers and carrier rebuilds.
-Sinking destroys deck aircraft but diverts airborne aircraft where possible.
-The carrier has side guns only, including unmanned swimmer defence. Its bounded
-onboard GND store transfers supplies from the shared pool at docks and pays for
-stationary hull/deck-aircraft repairs. Rebuilding never restores free supplies.
-Local checks do not establish deployed performance or large-fleet capacity.
-
-The 17 October orbital roster and staged implementation are recorded in
-docs/ORBITAL_STRIKES.md. Walking HE is the first local stage: V opens targeting,
-120 ORB commits five rows of three impacts to one shared orbital weapon.
-Preserve fixed previewed points, monotonic request sequences, single payment,
-saved landed flags and pause/offline semantics. Target damage and strike progress
-checkpoint together in named campaigns; friendly immunity stays intact. Fire
-curtain, gas seeding and an optional cutting beam remain future stages. Orbital
-ship delivery/resupply is separately recorded, not implemented by this stage.
-
-The subsequent orbital payload stage completes the same planner with an
-incendiary curtain, gas seeding and a cutting beam. docs/ORBITAL_STRIKES.md records
-their provisional values and supersedes the payload deferral above. Preserve
-land-only fire/gas footprints, shared hazard reservations, finite gas capacity,
-saved payload profiles and remaining fire lifetimes. Orbital hazard fields have
-one canonical copy in logistics, excluded from the combat checkpoint to prevent
-duplicates. Beam damage follows its moving ground contact and can conquer hostile
-facilities; the sky ray and bounded scars are cosmetic. All payloads share ORB,
-the one-order slot, recovery and friendly immunity. Local tests do not establish
-Fly performance; orbital ship delivery/resupply remains separate future work.
-
-The 17 October bridge correction in docs/BRIDGE_BUILDER.md permits mixed clear
-land/water deck spans so anchors can sit inland of uneven shores. Require some
-water, clear full-width land anchors and approaches, and retain obstacle/unit
-checks. The 24-row limit, GND price and construction timer count every interior
-deck row, including land. Preserve existing bridge saves, traffic reservations
-and cable/roller animation; no terrain rewrite or diagonal bridges.
-
-The next bridge refinement defaults to Find shore ahead: cardinal facing/menu
-direction, bounded nearby corridor search, full preview and explicit confirmation.
-Manual endpoints remain optional. Survey at most three tiles laterally, keep the
-near anchor within four tiles, and stop at the first suitable opposite shore.
-Send exact preview endpoints through existing server admission; do not silently
-replace an invalidated route or spend before confirmation. See docs/BRIDGE_BUILDER.md.
-
-The author clarified orbital cargo in docs/ORBITAL_CARGO_PRESENTATION.md: finished
-equipment arrives in a metal crate, unfolds, then deploys in one second. New
-compact cargo timers are 3.6 seconds; preserve saved countdowns and native pod
-geometry/timing. Never draw construction drones for orbital cargo. Local builds
-and repairs retain workers and their existing timers. Bridge funding remains
-shared GND only; show both balances, shortfall and core/outpost unloading advice
-instead of implying ORB or onboard carrier stores can pay for a crossing.
-
-### Planet terrain and overview, 18 October 2026
-
-The approved first stage is implemented locally in docs/PLANET_EXPANSION.md:
-512 by 384 saved terrain with a camera-only campaign globe (N), plus the existing
-flat tactical overview (M). Preserve all old coordinates and back up the complete
-DB before atomically remapping terrain and flattened logistics floor indices.
-No spherical travel or extra enemy/facility caps. New regions are expansion space,
-not a claim of a populated planet or validated Fly capacity. First orbital strike
-reference remains stable; strike planning uses a readable regional camera.
-
-### Land pursuit and local frenzy checkpoint, 18 October 2026
-
-The accepted pipeline in docs/LAND_AI_AND_SEEDED_FRONTS.md now implements ordinary
-ten/fourteen-tile acquisition/retention, four-second remembered positions and
-1.6-tile/s pursuit. Keep home limits, hazards, armor, windups and recovery.
-Enemy-only sparse routing has shared work and memory limits; player navigation
-is unchanged. Limited searches are not proof of unreachable terrain.
-The local owner-triggered frenzy has five-second warning, finite up-to-twelve
-roster, sixty-second signal, stable 75/25 hunter/raider assignment and thirty-
-second cooldown. It shares global spawn reservations, saves orders and timers,
-freezes with campaign lifecycle and never rolls back conquest. No eligible
-ground combatants/recovery structures resolves the event and gives its survivors
-a recovery grace; it does not declare permanent campaign loss. Disable manual
-test admission on Fly/production. Natural event triggers and coarse connectivity
-remain subsequent playtested stages.
-
-### Seeded compounds and Breaker checkpoint, 19 October 2026
-
-The author accepted the prior checkpoint. The next local stage in
-docs/LAND_AI_AND_SEEDED_FRONTS.md adds up to seven seeded compounds on the three
-large new continents, preserving original terrain and existing objects/progress.
-Back up the full DB, then atomically save actual site records and the versioned
-seed/membership/skip manifest. Never reroll existing saves or refill conquered
-sites. Unsafe placement is skipped permanently; preserve central staging space.
-Compound completion requires all saved member IDs; missing records are not wins.
-Finite initial guards are two Hunters and one Breaker per compound, with saved
-remaining roles and shared pending/live admission under the existing 24 cap.
-Only crowns call subsequent Hunter reinforcements. Breakers are slower, higher-HP
-melee with locked dodgeable windups, penetration 3 for existing facility armor,
-and a distinct plated silhouette. No new global enemy armor formula or hazard
-immunity. Keep fire/gas lethality, friendly immunity, loss/recovery and per-site
-salvage accounting. Spitters and natural event triggers remain later work.
-
-The author's density refinement targets 6 Aurora, 6 Haven and 12 Meridian
-compounds, distributed over broader continental areas. The v2 migration adds
-only the shortfall, counting conquered groups too; it preserves every existing
-site and backs up before atomically saving additions and the v2 manifest.
-Keep the v1 generator stable. Retain central staging/terrain/player-object
-exclusions and permanently skip unsafe slots. The living cap remains 24, not
-24 per compound. Local four-player/30-second server probes are evidence for this
-increment, not proof of the 256 MB Fly limit under multiple active rooms.
-
-### Bulwark and pursuit checkpoint, 19 October 2026
-
-The author explicitly approved a Bulwark damaged only by HE/explosives and
-MAGNETIC. This supersedes the earlier no-hazard-immunity rule for this role only.
-Keep Hunters/Breakers vulnerable to fire and gas. Bulwarks ignore heat and gas
-lures without consuming cloud charges; they still obey terrain, home limits,
-shared navigation budgets and locked melee windups. Hunter speed is now 2.6,
-robot 3.0; Breaker 0.95/180 HP; Bulwark 0.65/450 HP. Automatic bullet/fuel guards
-prefer damageable targets. Preserve truthful blocked-hit feedback.
-The separate backed-up bulwark-roster-v1 migration replaces one unspent Hunter
-in eligible mortar-bearing seeded compounds; do not reroll generation, transform
-living units, refill guards, change pending warnings or revive conquered sites.
-No live-cap, deployment, economy or Fly capacity change is implied.
-
-### Deployment catalogue checkpoint, 19 October 2026
-
-The latest section of docs/UI_REFINEMENT.md supersedes the older combined
-Airbase + bomber/jet catalogue and naval-management entry flow. Navy cards place
-ship plus dock directly. Airbase placement is empty; separate A-02 jet/A-03
-bomber cards choose an existing empty owned runway on the map and use server
-newOnly admission. Preserve shared fleet capacity, first free bomber and base
-service controls. Inside supported footprints, ORB/GND are separate blue/gold
-halves; outside, only ORB. WASD continues through ordinary panels; typing and
-actual pause/lifecycle gates still own input. Do not reintroduce hidden vehicle
-Deploy restrictions or implicit aircraft exchange when selecting a card.
-
-### Dock and airbase workshop checkpoint, 19 October 2026
-
-The author's latest accepted answers supersede combined naval placement:
-N-05 places an empty dock; ship cards choose existing empty docks. Robots
-entering their own completed docks/airbases see a nonmodal GND workshop.
-Keep WASD available and preserve E boarding/management and apron controls.
-Both workshops use 60-second drone assembly. Air catalogue ORB delivery and
-the first free orbital bomber remain distinct from local production.
-
-Trade-ins credit 80% of actual recorded payment in the same pool, rounded
-down and capped at the new price. Record only the new net payment for the
-next trade; no cash refund or ORB-to-GND conversion. Free/lost vehicles and
-legacy records without receipts get no credit. Validate ownership, occupancy,
-cargo, carrier aircraft, readiness and fleet/berth/runway capacity before an
-atomic debit and replacement. Persist order identifiers and vehicle revisions
-so retries/stale requests cannot double-charge or remove active vehicles.
-See docs/UI_REFINEMENT.md for the local validation and remaining test limits.
-
-
-### Ground artillery Remote checkpoint, 19 October 2026
-
-Railway cannon R-02 and missile battery S-01 are Ground cards. Keep their
-stable asset codes; numeric shortcuts use category order. Rail is track only;
-Orbital is orbital attacks. Bottom-bar Remote (F) opens a map selection mode:
-gold friendly facility markers acquire control directly, muted markers explain
-construction/occupancy. Do not restore the old artillery selector sidebar.
-Preserve server control locks and existing bottom weapon controls, Escape
-release, robot guarding, rail movement and shell behavior. See the latest
-section of docs/UI_REFINEMENT.md for this UI-only stage.
-
-
-### Mixed Test frenzy checkpoint, 19 October 2026
-
-Local Test frenzy targets 8 Hunters, 2 Breakers and 2 Bulwarks, borrowing nearby
-survivors unchanged and reserving missing heavy arrivals first. Use shared enemy
-profiles at emergence and persist arrival kinds; older untyped warnings remain
-Hunters. Respect shared live/pending caps and safe arrival geometry. Show actual
-role counts rather than promising a full mix when capacity/terrain blocks it.
-This does not enable natural events or production test access. See the latest
-section of docs/LAND_AI_AND_SEEDED_FRONTS.md.
-
-
-### Robot-only commands and remote air strikes, 19 October 2026
-
-The author's latest rule restricts Deploy and Remote to an active robot;
-initial orbital core landing is exempt. Enforce catalogue/strike/acquisition
-admission on the server too. Carrier-native service and emergency recall remain
-separate. Remote map selection and aircraft aiming keep robot WASD/touch movement;
-manual artillery takeover retains rail controls and robot guarding.
-Cruising aircraft are remote strike markers; bombers retain their payloads and
-jets make finite autocannon passes. Known living flak gets bounded detour planning
-where possible. Accepted attacks remain vulnerable; relocation chooses a new
-cruise area after the pass. Persist route/phase/burst progress and ammunition,
-never duplicate accepted shots after restart. See docs/AIR_TRAFFIC.md.
-
-## 19 October helicopter stage
-
-- The author accepted a separate small helipad, hovering helicopter, LMB small HE
-  cannon and RMB rocket pods. Holding fire permits a five-second rocket window
-  with live aim changes; accepted projectiles keep their trajectories.
-- Implemented locally in docs/HELICOPTER.md: dedicated helicopter fleet capacity,
-  orbital/local deployment, finite saved ammunition and pod recovery, manual and
-  remote support, compatible-pad recovery and existing flak vulnerability.
-- Reuse aircraft ownership and persistence, but retain the independent hover
-  controller and velocity-based flak prediction. Helicopter pads must not unlock
-  fixed-wing capacity. Carrier helicopter parking remains deferred.
-
-## 19 October mobile laser enemy agreement
-
-- The approved twin-lens and heavy-lens stage is in docs/MOBILE_LASER_ENEMIES.md.
-  Keep the stop/brace/charge/fire/cooldown sequence, stationary bodies while firing,
-  actual beam intersection, bounded angle tracking and single twin-lens damage budget.
-- These are aircraft specialists with normal ground-weapon vulnerability. Like flak,
-  elevated beams ignore ground cover and never damage parked aircraft or ground units.
-- Preserve the shared 24-enemy cap and four living mobile-lens cap. Upgrade only
-  finite unspent guards, with a backed-up, atomic campaign migration; never refill
-  conquered/cleared areas or change living enemies and accepted warnings.
-- Local Test frenzy now requests six Hunters, two Breakers, two Bulwarks and one
-  of each lens variant. Earlier eight-Hunter records describe the previous stage.
-- Fixed-site flak avoidance does not yet include moving lens enemies. Tuning and
-  Fly memory feasibility still require playtest/runtime evidence.
-
-## 19 October empty tank guard agreement
-
-- Unoccupied operational tanks automatically guard their position with their
-  selected HE or Magnetic main gun. Prefer visible Bulwarks; respect range,
-  terrain/facility occlusion, turret rotation, magnetic charge and weapon cooldowns.
-- No autonomous movement, secondary-gun fire, facility targeting or occupied/offline
-  driver takeover. Arrival, construction, transport and destruction disable guard.
-- Hull-owned cooldowns survive manual/automatic handoff; boarding cancels unfinished
-  automatic charges. Named saves retain automatic charge progress and accepted shells.
-  See docs/TANK_GUARD.md. This does not automate heavy manually controlled facilities.
-
-## 19 October: normal campaign encounter director
-
-The author approved natural hostile-compound replenishment and seeded raids.
-`docs/NATURAL_ENCOUNTERS.md` supersedes finite-opening-only and test-only event
-plans for named campaigns. Keep permanent conquest, shared active/reserved caps,
-saved active-play deadlines and damageable sleeping survivors. No offline catch-up
-or invisible deletion/healing to free enemy slots. Legacy drills remain separate.
-
-## 19 October: supply-funded tank fleets
-
-The author explicitly requested unlimited tank counts for parked cannon defence.
-Remove the old one-per-player and eight-per-world tank caps; do not silently
-replace them with another fixed cap. Keep supply costs, deployment geometry,
-construction timers, ownership and emergency-recovery admission. L → Field
-equipment selects a specific tank for Find/Replace, including carried tanks.
-Deployment retries must match the exact owned pod site, not the first tank of
-that owner. Preserve independent guard/cooldown state and all saved hulls.
-See docs/TANK_GUARD.md; unlimited gameplay count is not a claim of unbounded
-Fly performance.
-
-## 19 October: first tank physics slice
-
-The author approved gradual tank acceleration/braking, bounded hull turning and
-stronger firing feedback. Preserve world-direction WASD, slower automatic reverse,
-independent turret aim, existing collision footprint and friendly immunity.
-`public/tank-motion.js` uses bounded substeps within the existing server tick.
-Momentum is transient and clears on control loss/restart; position and heading
-keep existing persistence. Recoil remains browser-only and reduced motion disables
-the added hull kick. See docs/GROUND_WEAPONS.md for provisional tuning and offline
-checks. A later multiplayer review resolved the dependency blocker: TypeScript
-and the targeted tank motion/lifecycle tests pass. Tank-specific browser driving,
-transport regression and Fly validation remain pending; see docs/testing/multi-user-test-report.md.
-Ship/jet handling, terrain height and armor are not part of this first slice.
+Proposals only until the author approves a stage: orbital cleanup
+(`docs/ORBITAL_CLEANUP.md`), elevation mechanics (`docs/ELEVATION_DESIGN.md`),
+the general movement-noise network, Spitters, carrier helicopter parking, ship
+visual enlargement (`docs/SHIP_VISUAL_SCALE.md`), audio (`docs/AUDIO_PLAN.md`),
+later vehicle polish stages (`docs/VEHICLE_POLISH_ROADMAP.md`), aerial gunship
+automatic orbit, and bridge HP/dismantling.
