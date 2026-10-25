@@ -27,18 +27,18 @@ it('keeps unattended flight inside the map through smooth boundary turns',()=>{
  const {w,b,p}=fixture();launchAircraft(p);tickAircraft(w,b,null,2);p.speed=AIR.maxSpeed;
  for(let i=0;i<4000;i++){tickAircraft(w,b,null,.1);expect(p.x).toBeGreaterThan(0);expect(p.x).toBeLessThan(w.width);expect(p.y).toBeGreaterThan(0);expect(p.y).toBeLessThan(w.height);}
 });
-it('commits the preview, holds course through release and shares barrage limits without spending rejected ammunition',()=>{
+it('commits the preview, holds course through release and shares barrage limits without spending rejected cooldown',()=>{
  const {w,b,p}=fixture(),c=createCombat(w);launchAircraft(p);tickAircraft(w,b,null,2);const preview=bombPattern(p),angle=p.angle,speed=p.speed;
- expect(c.bombRun(p)).toBeNull();expect(p.runs).toBe(1);expect(c.snapshot().barrages[0].missiles).toEqual(preview);
- tickAircraft(w,b,{throttle:1,steer:1},1);expect(p.angle).toBe(angle);expect(p.speed).toBe(speed);expect(c.bombRun(p)).toContain('progress');expect(p.runs).toBe(1);
- tickAircraft(w,b,null,.3);expect(c.bombRun(p)).toBeNull();expect(p.runs).toBe(0);const other={...p,id:'other',runs:2,releaseRemaining:0};expect(c.bombRun(other)).toContain('Two');expect(other.runs).toBe(2);
- c.tick(5,[]);expect(c.snapshot().impacts).toHaveLength(12);expect(c.snapshot().barrages).toHaveLength(0);expect(c.snapshot().marks.filter(m=>m.kind==='crater').length).toBeGreaterThan(0);
- p.releaseRemaining=0;expect(bombError(w,p)).toContain('empty');
+ expect(c.bombRun(p)).toBeNull();expect(p.bombCooldown).toBeGreaterThan(0);expect(c.snapshot().barrages[0].missiles).toEqual(preview);
+ tickAircraft(w,b,{throttle:1,steer:1},1);expect(p.angle).toBe(angle);expect(p.speed).toBe(speed);expect(c.bombRun(p)).toContain('progress');expect(p.bombCooldown).toBeGreaterThan(0);
+ tickAircraft(w,b,null,2);expect(c.bombRun(p)).toContain('cooling');const other={...p,y:60,id:'other',bombCooldown:0,releaseRemaining:0};expect(c.bombRun(other)).toBeNull();const third={...other,id:'third',bombCooldown:0,releaseRemaining:0};expect(c.bombRun(third)).toContain('Two');expect(third.bombCooldown).toBe(0);
+ c.tick(5,[]);expect(c.snapshot().impacts).toHaveLength(24);expect(c.snapshot().barrages).toHaveLength(0);expect(c.snapshot().marks.filter(m=>m.kind==='crater').length).toBeGreaterThan(0);
+ p.releaseRemaining=0;expect(bombError(w,p)).toContain('cooling');tickAircraft(w,b,null,6);Object.assign(p,{x:64,y:60,angle:0,edgeTurn:false});expect(bombError(w,p)).toBeNull();
 });
-it('automatically lands only after departure on a slow approach, then rearms at the base',()=>{
+it('automatically lands only after departure on a slow approach, can relaunch without rearming',()=>{
  const {w,b,p}=fixture();expect(bombError(w,p)).toContain('Take off');launchAircraft(p);tickAircraft(w,b,null,1);expect(p.state).toBe('takeoff');
  Object.assign(p,{state:'flying',...parkingPoint(b),y:parkingPoint(b).y+6,leftBase:true,angle:0,speed:12,runs:0});tickAircraft(w,b,null,.2);expect(p.state).toBe('flying');
  p.speed=6;tickAircraft(w,b,null,.1);expect(p.state).toBe('landing');expect(bombError(w,p)).toContain('Take off');
- tickAircraft(w,b,null,2);expect(p).toMatchObject({...parkingPoint(b),state:'parked',speed:0,runs:0});expect(launchAircraft(p)).toContain('rearming');
- tickAircraft(w,b,null,8);expect(p.runs).toBe(2);expect(launchAircraft(p)).toBeNull();
+ tickAircraft(w,b,null,2);expect(p).toMatchObject({...parkingPoint(b),state:'parked',speed:0,runs:0});expect(p.rearm).toBe(0);
+ tickAircraft(w,b,null,8);expect(p.runs).toBe(0);expect(launchAircraft(p)).toBeNull();
 });

@@ -1,6 +1,6 @@
-import { createWorld } from './world.js';
-import { expandWorld } from './expansion.js';
-import { expandPlanet } from './planet-world.js';
+import { createPlanet } from './planet-templates.js';
+import { terrainColor } from './terrain-rules.js';
+
 
 const $ = id => document.getElementById(id);
 let state, selectedPlanet = null;
@@ -18,13 +18,10 @@ updateMotion();
 
 // A one-time painting of the existing terrain, animated only by the browser.
 // This globe previews a template, never another player's saved world/progress.
-const terrain = expandPlanet(expandWorld(createWorld()));
-const preview = document.createElement('canvas'); preview.width = terrain.width; preview.height = terrain.height;
-const context = preview.getContext('2d'), palette = ['#254c55', '#b7ad7c', '#769365', '#606e61', '#8c9987'];
-for (let y = 0; y < terrain.height; y++) for (let x = 0; x < terrain.width; x++) {
-  context.fillStyle = palette[terrain.terrain[y * terrain.width + x]]; context.fillRect(x, y, 1, 1);
+function planetImage(id){
+ const terrain=createPlanet(id),preview=document.createElement('canvas');preview.width=terrain.width;preview.height=terrain.height;
+ const context=preview.getContext('2d');for(let y=0;y<terrain.height;y++)for(let x=0;x<terrain.width;x++){context.fillStyle=terrainColor(terrain,x,y);context.fillRect(x,y,1,1);}return preview.toDataURL();
 }
-const terrainImage = preview.toDataURL();
 function renderSelection() {
   for (const card of $('planet-list').children) {
     const selected = card.dataset.planet === selectedPlanet;
@@ -48,7 +45,7 @@ function renderPlanets() {
     const visual = document.createElement('div'); visual.className = 'planet-visual'; visual.setAttribute('aria-hidden', 'true');
     const designation = document.createElement('span'); designation.className = 'planet-designation'; designation.textContent = `${planet.name.toUpperCase()} / ${planet.designation}`;
     const globe = document.createElement('div'); globe.className = 'globe';
-    const surface = document.createElement('div'); surface.className = 'planet-surface'; surface.style.backgroundImage = `url(${terrainImage})`;
+    const surface = document.createElement('div'); surface.className = 'planet-surface'; surface.style.backgroundImage = `url(${planetImage(planet.id)})`;
     globe.append(surface); visual.append(designation, globe);
     const details = document.createElement('div'); details.className = 'planet-details';
     const label = document.createElement('p'); label.className = 'eyebrow'; label.textContent = 'GROUND / NAVAL / AIR';

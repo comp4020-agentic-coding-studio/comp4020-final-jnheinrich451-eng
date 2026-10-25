@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { createWorld } from '../public/world.js';
 import { shipSite, boardingPoint, shoreRampSite, sailStep } from '../public/ship.js';
-import { requestDepth, tickDepth, depthState, diveBattery, resetDepth } from '../public/submarine-depth.js';
+import { requestDepth, tickDepth, depthState, diveBattery, resetDepth, restoreDepth } from '../public/submarine-depth.js';
 import { submarineFireError } from '../public/submarine.js';
 import { swimStep } from '../public/naval.js';
 import { createCombat } from '../public/combat.js';
@@ -10,25 +10,25 @@ function fixture(){
  const s:any={...shipSite(w,[],[],60,20,'a','submarine').ship!,id:'sub',elapsed:4.5,health:300};w.ships.push(s);return{w,s};
 }
 it('migrates legacy surface defaults; times transitions, exhaustion and recharge without a permanent escape',()=>{
- const {s}=fixture();expect(depthState(s)).toBe('surfaced');expect(diveBattery(s)).toBe(30);
+ const {s}=fixture();expect(depthState(s)).toBe('surfaced');expect(diveBattery(s)).toBe(300);
  expect(requestDepth(s,'dive')).toBeNull();tickDepth(s,1);expect(s.depth).toBe('diving');
  requestDepth(s,'dive');expect(s.depthRemaining).toBe(1);tickDepth(s,1);expect(s.depth).toBe('submerged');
- tickDepth(s,29);expect(s.diveBattery).toBe(1);tickDepth(s,1);expect(s.depth).toBe('surfacing');
+ tickDepth(s,299);expect(s.diveBattery).toBe(1);tickDepth(s,1);expect(s.depth).toBe('surfacing');
  expect(requestDepth(s,'dive')).toContain('Finish');tickDepth(s,2);expect(s.depth).toBe('surfaced');
  expect(requestDepth(s,'dive')).toContain('Recharge');tickDepth(s,5);expect(s.diveBattery).toBe(10);
  expect(requestDepth(s,'dive')).toBeNull();tickDepth(s,2);expect(s.depth).toBe('submerged');
- tickDepth(s,100);expect(s.depth).toBe('surfaced');expect(s.diveBattery).toBe(30);
+ tickDepth(s,200);expect(s.depth).toBe('surfaced');expect(s.diveBattery).toBe(300);
  requestDepth(s,'dive');tickDepth(s,.5);requestDepth(s,'surface');expect(s.depth).toBe('surfacing');
- resetDepth(s);expect(s).toMatchObject({depth:'surfaced',depthRemaining:0,diveBattery:30});
+ resetDepth(s);expect(s).toMatchObject({depth:'surfaced',depthRemaining:0,diveBattery:300});
 });
-it('requires surface access for missiles and boarding, rejects diving while anchored or launching, and still sails underwater',()=>{
+it('permits missiles at every depth, keeps boarding and ramps surface-only, and sails during launch',()=>{
  const {w,s}=fixture();expect(boardingPoint(w,s)).toBeTruthy();s.ramp={};expect(requestDepth(s,'dive')).toContain('ramp');delete s.ramp;
- s.launchRemaining=.1;expect(requestDepth(s,'dive')).toContain('launching');s.launchRemaining=0;
+ s.launchRemaining=.1;
  expect(requestDepth(s,'bogus')).toContain('Choose');expect(requestDepth({...s,kind:'gunship'},'dive')).toContain('submarine');
  requestDepth(s,'dive');
- for(const dt of [1,1,1]){tickDepth(s,dt);expect(boardingPoint(w,s)).toBeNull();expect(shoreRampSite(w,[],[],s)).toBeNull();expect(submarineFireError(s,w,{x:90,y:20})).toContain('Surface');}
+ for(const dt of [1,1,1]){tickDepth(s,dt);expect(boardingPoint(w,s)).toBeNull();expect(shoreRampSite(w,[],[],s)).toBeNull();expect(submarineFireError(s,w,{x:90,y:20})).toBeNull();}
  expect(sailStep(w,s,0,1,.5)).toBe(true);expect(createCombat(w).contact(s)).toContain('Surface');
- requestDepth(s,'surface');expect(submarineFireError(s,w,{x:90,y:20})).toContain('Surface');tickDepth(s,2);expect(submarineFireError(s,w,{x:90,y:20})).toBeNull();
+ requestDepth(s,'surface');expect(submarineFireError(s,w,{x:90,y:20})).toBeNull();tickDepth(s,2);expect(submarineFireError(s,w,{x:90,y:20})).toBeNull();
 });
 it('cancels a swimmer windup and path on lost detection, retargets a visible ally and reacquires on surfacing',()=>{
  const {w,s}=fixture(),e:any={x:s.x-3,y:s.y,hp:60,targetId:s.id,path:[],reroute:0};
@@ -46,4 +46,9 @@ it('existing shore sentries engage swimmers and defend a surfaced berth without 
   return{health:s.health,kills:c.snapshot().kills};
  }
  const exposed=run(false),protectedBerth=run(true);expect(exposed.health).toBe(0);expect(protectedBerth.kills).toBe(3);expect(protectedBerth.health).toBeGreaterThan(exposed.health);
+});
+
+it('upgrades saved endurance once without refilling partial or exhausted boats',()=>{
+ for(const [old,expected] of [[30,300],[10,100],[0,0]]){const s:any={kind:'submarine',depth:'submerged',diveBattery:old};restoreDepth(s);expect(s.diveBattery).toBe(expected);restoreDepth(s);expect(s.diveBattery).toBe(expected);}
+ const s:any={kind:'submarine',depth:'diving',depthRemaining:1,diveBattery:72,diveCapacity:300};restoreDepth(s);expect(s).toMatchObject({depth:'diving',depthRemaining:1,diveBattery:72});
 });

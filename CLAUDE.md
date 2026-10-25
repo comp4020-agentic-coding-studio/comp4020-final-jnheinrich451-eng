@@ -88,8 +88,20 @@ stage doc win; see "Superseded behaviour" at the end.
 - Middle-drag pans. Weapon readouts are passive and only highlight accepted shots.
 - Typing fields and real pause/lifecycle gates own input; otherwise WASD keeps
   working through ordinary (non-modal) panels.
+- Dock/airbase workshops and the deployment catalogue capture the mouse only
+  within their panels. Exposed battlefield space still permits aiming and fire;
+  entering a panel cancels held fire. Active placement retains map-click priority.
+- Chat: Enter opens, then submits and closes even when empty (no blank broadcast).
+  Escape preserves the unsent draft. IME composition must not send. Enter keeps
+  placement-confirm precedence; Q holds the emote wheel and B remains Deploy.
+  Chat/emote delivery is room-local and ephemeral; never replay old bubbles or
+  log chat contents. See `docs/CHAT_EMOTES_AND_SOUND_PLAN.md`.
 
 **Presentation and assets**
+- Weapon audio follows confirmed combat events, never input attempts. Baseline
+  joins/reconnects silently, discard stale/muted history, and bound simultaneous
+  browser voices. Music/effects have independent saved controls; hidden tabs stop
+  effects. See `docs/SOUND_EFFECTS.md`.
 - Pure overhead 2D with square tiles; no isometric battlefield assets. Biological
   art is mildly unpleasant, overhead and readable; final textures remain open.
 - Source `assets/` stays local and ignored. Track selected runtime assets with
@@ -125,10 +137,19 @@ Details: `docs/ACCOUNT_DESIGN.md`, `docs/ENTRY_AND_CAMPAIGNS.md`,
   original visit/runtime. Keep root and per-campaign maintenance locks and the
   shared account store. Retain server-side permission checks and the ADR-002
   exceptions.
-- Entry: `/` and `/campaigns/` offer the Caldera selector and explicit
+- Entry: `/` and `/campaigns/` offer Caldera and Vesper selectors and explicit
   create/join/resume; the labelled legacy shared world stays at `/?legacy=1`.
   Accounts alone never create a campaign. A new planet needs a server generator
-  and migration, not just catalogue metadata.
+  and save compatibility, not just catalogue metadata. Vesper (`vesper-v1`) is
+  generated only for a new campaign; never regenerate existing world rows.
+  Its immutable mountain/water masks block ground and aircraft at high ridges and
+  exclude player ships from rivers/lakes. Caldera keeps its existing rules.
+- Vesper has one aquatic hive: HE damages it, hits interrupt healing, and
+  destruction permanently stops healing/spawns. Bile spitters share swimmer and
+  global enemy caps; poison warnings and puddles share field admission. Exclude
+  airborne bodies, fully submerged boats and protected starting cores from poison;
+  damage occupied hulls without also damaging their crew. Save accepted bile and
+  warning timers in simulation time. See `docs/VEHICLE_POLISH_ROADMAP.md`.
 - Accounts adapt Crit 7's real/Demo separation, not its ANU-only addresses or
   academic schema.
 - Guests without a core or occupied vehicle start in orbital core selection with
@@ -177,6 +198,10 @@ Details: `docs/CONSTRUCTION_LOGISTICS.md`, `docs/SUPPORT_NETWORK_STAGE.md`,
   hostile targeting (`logistics.startingCoreId`). Other cores and outposts are
   vulnerable. If none survives, the emergency orbital core flow designates the
   next one. Preserve emergency core/HE-tank recovery and identities after core loss.
+- Large-dock manual mooring accepts a 1.5-tile berth-centre offset; legacy docks
+  keep 0.8. Require stopped, aligned, surfaced ships. Disembarkation chooses a
+  clear dock tile when the usual exit is occupied; never remove wreck salvage
+  or move the saved hull to make docking succeed.
 - Dock or base destruction never silently deletes ships at sea or freezes
   airborne aircraft.
 - Factory orders reserve space, cost less, take time and cannot be operated until
@@ -200,8 +225,10 @@ Details: `docs/CONSTRUCTION_LOGISTICS.md`, `docs/SUPPORT_NETWORK_STAGE.md`,
 - Recyclers: one saved seat (E boards/exits, WASD drives, parking collects or
   unloads, L opens shipments). Remote commands need an empty seat. Loss disables
   the driver and drops only unshipped cargo.
-- Bridges: three-wide straight crossings with mixed land/water spans and clear
-  full-width anchors (≤24 interior rows, counted in price and timer). Default
+- Bridges: the existing builder offers Standard (3 wide, up to 24 interior rows)
+  and Heavy (5 wide, up to 48). Both allow mixed land/water spans and require clear
+  full-width anchors and approaches. Save profile, width, timing and paid cost;
+  legacy bridges retain their original geometry and timing. The default
   planner is Find shore ahead with full preview and explicit confirmation; never
   silently replace an invalidated route or spend before confirmation. Admit and
   charge atomically; lock the builder and reserve the span until complete.
@@ -223,6 +250,10 @@ Details: `docs/CORE_DEPLOYMENT.md`, `docs/ROBOT_COMBAT_DESIGN.md`,
   at rocks and solid structures. Health persists; disabled bodies cannot move,
   fire or build. Recovery uses a selected friendly core's clear area with
   idempotent requests and landing revalidation; death never grants a new core.
+  Robot art (`public/robot.js`) is an overhead humanoid. The right arm is the
+  weapon, with no hand: a flamethrower over the laser emitter. The left hand grips
+  the gun. Yellow armour (teammates keep their colour) and a red optic. The gun
+  sits just right of centre so existing flame and laser effects leave its muzzle.
 - While its player operates a facility the robot holds position and guards with
   its own weapons; stop automatic fire on handoff, death, recovery, disconnection
   or lease loss.
@@ -239,8 +270,10 @@ Details: `docs/CORE_DEPLOYMENT.md`, `docs/ROBOT_COMBAT_DESIGN.md`,
   visible Bulwarks; respect range, occlusion, turret speed, charge and cooldown).
   No autonomous movement, secondary fire, facility targeting or takeover.
 - Tank physics: gradual acceleration/braking and bounded turning within the
-  server tick; momentum is transient. Keep world-direction WASD, slower automatic
-  reverse and the existing footprint. Recoil is browser-only; reduced motion
+  server tick; momentum is transient. W/S drives along the saved hull heading
+  (forward/reverse), A/D steers and can pivot at rest; release brakes. Recyclers
+  and builders use the same controls. Remote paths retain world-direction routing.
+  Keep slower reverse, independent tank aim and the existing footprint. Recoil is browser-only; reduced motion
   disables the hull kick.
 - Magnetic charges reserve projectile capacity and cancel on focus loss,
   disconnect or control change; no blast or crater. Heavy fuel shares the lethal
@@ -260,10 +293,25 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   active reservations, uncovered rocks, water and sentries block. Turning cannons
   use the swept 3×3 body for unit collision (also in `canStand`), separate from
   the one-tile permanent rail reservation.
+- Rail presentation/range: see `docs/RAIL_WEAPONS_POLISH.md`. New five-tile
+  straight tracks unfold 1 -> 3 -> 5 over saved metal flooring; their animation
+  does not delay rail usability. Tracks draw below remains and world objects.
+  New rail corners and single straight tiles share one compact crate animation,
+  leaving one permanent metal base tile without unfolding surrounding panels.
+  Cannon shells reach 180 tiles, retaining the six-tile minimum.
+- Rail MAC: separate R-03 weapon, one kinetic type, 2.5 s committed charge then
+  10 s cooldown, 180-tile range, 900 damage and at most three distinct enemies.
+  Charge locks carriage and direction; cover stops the shot, friendlies stay
+  immune, and kills retain salvage. Persist accepted charge/trajectory/hit IDs
+  in named campaigns; releasing control must not cancel or duplicate discharge.
+  See `docs/RAIL_WEAPONS_POLISH.md` for provisional balance and controls.
 - Rail cannon: single shared operator, released on death/disconnect; manual only.
   Bearing and elevation converge server-side on the higher arc and never snap to
-  the cursor. Commands expire after 350 ms; a started segment completes but no new
-  one begins without fresh input. Reject off-map impacts. Damage radius (3 t) is
+  the cursor. Robot and vehicle wheel zoom share the full survey-scale range.
+  Commands expire after 350 ms; a started segment completes but no new
+  one begins without fresh input. Reject off-map impacts. Rail HE has a 6 t
+  damage radius, 2.2 t full-damage core, 420 centre / 60 edge damage; its profile is
+  separate from naval HE. Accepted shells retain their launch profile. Blast size is
   independent of the cosmetic 8 t crater; heavy HE is never a personal weapon.
 - Missile battery: fixed 4×4, 12×18 area, 12 staggered missiles, 15–100 t range,
   15 s reload after the last launch, two committed volleys max, immutable impacts.
@@ -277,7 +325,7 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   bearing; preview and server agree and keep minimum-range and other fire gates.
 - Facility control opens the orbital overview by default; the bottom facility
   manual replaces body controls until exit.
-- R-02 cannon and S-01 battery are Ground catalogue cards. Remote (F) opens map
+- R-02 cannon belongs in Rail; S-01 battery stays in Ground. Remote (F) opens map
   selection of friendly facilities; keep server control locks, Escape release,
   robot guarding, rail movement and shell behaviour.
 
@@ -299,10 +347,21 @@ Details: `docs/NAVY.md`, `docs/SHIP_ARMAMENT.md`, `docs/SHORE_RAMP.md`,
   double-click full salvos, independent 6 s reloads, hull-relative side arcs.
   Cursor input never overrides actual mount angles. Main-gun range for gunships
   and transports follows `docs/REMOTE_NAVAL_ORDERS.md`.
-- Submarine: shares hull/seat/ramp/damage rules; six-missile 6×8 strikes, full-
-  area range checks, server-owned vulnerable dive transitions, limited battery and
-  forced surfacing. Only fully submerged hulls lose swimmer targeting; missiles,
-  ramps and boarding need the surface.
+- Gunship art is an Iowa silhouette drawn at 80% of the saved beam, with Iowa
+  main turrets and 5"/38-style twin secondaries whose muzzles stay on the shared
+  firing geometry; collision, docks and berths keep the saved rectangle. The six
+  secondaries sit inboard on the superstructure via shared `BATTERY_MOUNTS`
+  (`docs/SHIP_VISUAL_SCALE.md`).
+- Submarine: four independent six-silo groups (24 tubes), each launching a 6 x 8
+  strike and reloading for 18 seconds after its last missile. Groups cycle through
+  ready banks; ammo changes never reset timers. Matching lids and launch origins
+  use the saved group/tube index. Save group timers, next group and accepted volleys
+  atomically; old single-reload saves keep that cooldown on group one. The helm
+  shows ready groups; aiming stays yellow until all groups reload, then red.
+  Maximum 16 submarine volleys in flight; batteries/bombers keep their shared two.
+  Moving and submerged launches are supported. Depth transitions remain vulnerable;
+  only fully submerged hulls evade swimmers. Ramps and boarding require surfacing.
+  Both large and compact hulls show 24 lids; art is separate from collision geometry.
 - E on an owned dock opens the unified shipyard panel. Retiring with keepYard
   keeps occupied deck flooring; deleting a yard needs clear deck and berth access.
   Keep completed deck flooring through hull replacement and dock damage, and
@@ -310,11 +369,21 @@ Details: `docs/NAVY.md`, `docs/SHIP_ARMAMENT.md`, `docs/SHORE_RAMP.md`,
   reload by folding; repairs are a paid dock service.
 - Transport: one unoccupied ground vehicle in a saved cargo slot, moved atomically,
   keeping ownership, health, loadout and salvage. Loading needs management
-  permission; cargo sinks with its ship. K drives cargo off. One bow turret;
-  never change gunship mount counts.
-- Carrier: one fleet slot and one runway; stationary operations, parked aircraft
-  move with it, recovery locks the helm, side guns only. Its onboard GND store
-  pays stationary repairs; rebuilding never restores free supplies.
+  permission; cargo sinks with its ship. K drives cargo off. LCU layout: large
+  transports load over a bow ramp on beaches and through a pier side gate at docks;
+  one stern triple turret (three shells, saved id `fore`) and two open side guns
+  aft. Never change gunship mount counts. See `docs/ARMORED_TRANSPORT.md`.
+- Carrier: two deck spots (one heavy: bomber or aerial gunship; one attack jet)
+  and two fleet slots. Deck A uses the axial runway over the bow and deck B the
+  angled runway (heading turned to port); each launches and recovers independently.
+  Spot A keeps the carrier id, spot B's holder is `ship.wing`. Stationary
+  operations, parked aircraft move with it, recovery locks the helm, side guns
+  only. Its onboard GND store pays stationary repairs; rebuilding never restores
+  free supplies. Carrier-to-carrier workshop exchange preserves both parked,
+  unoccupied aircraft and their save identities; active flights block exchange.
+  Exchanging to another ship type automatically recycles the owner's assigned
+  parked aircraft, without confirmation, for 50% of actual payment in the original
+  GND/ORB pool. Aircraft removal, refund and ship purchase are one transaction.
 - Enemy-only hull damage; vehicle and pilot loss are atomic. Naval contacts share
   a 30 s timer and six-swimmer cap and pause with no viewers.
 
@@ -401,6 +470,13 @@ Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
 - Orbital strikes (V): one shared order slot and single payment; fixed previewed
   points, monotonic request sequences and saved landed flags. Orbital hazard
   fields have one canonical copy in logistics.
+- Choosing an orbital strike closes Deploy for direct map targeting. B reopens
+  the catalogue for reselection without spending; R rotates directional strikes
+  and Esc exits targeting. Keep touch alternatives compact and the map visible.
+- Orbital expansion: heavy bomb, seeded 15-second barrage and three spaced
+  cluster shells with saved smaller impacts. New cutting beams allow 72 tiles
+  over 18 seconds; accepted orders retain their saved profiles and timing.
+  See `docs/ORBITAL_EXPANSION_AND_POLISH.md` for provisional values.
 - Fire and gas footprints are land-only; the cutting beam damages along its
   moving ground contact and can conquer facilities, while its sky ray is cosmetic.
   The first strike's reference stays stable; planning uses a regional camera.
@@ -441,11 +517,18 @@ Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
 - The rover starting body (guests now start in orbit).
 - `1` returning to Combat mode (now Esc).
 
+Large naval scale is authorized and implemented locally: new docks save
+`dockScale:2` (7 shore tiles, 7 x 12 pier); new hulls there save `navalScale:2`.
+Use `naval-scale.js` for hull, berth and mount dimensions. Preserve legacy sizes
+and saved coordinates; do not enlarge old berths in place. See
+`docs/SHIP_VISUAL_SCALE.md` for artwork, stern loading and ocean validation.
+
 ## 14. Not authorized yet
 
 Proposals only until the author approves a stage: orbital cleanup
 (`docs/ORBITAL_CLEANUP.md`), elevation mechanics (`docs/ELEVATION_DESIGN.md`),
-the general movement-noise network, Spitters, carrier helicopter parking, ship
-visual enlargement (`docs/SHIP_VISUAL_SCALE.md`), audio (`docs/AUDIO_PLAN.md`),
+the general movement-noise network, Spitters, carrier helicopter parking,
+a longer/slimmer saved transport hull (`docs/ARMORED_TRANSPORT.md`),
+audio (`docs/AUDIO_PLAN.md`),
 later vehicle polish stages (`docs/VEHICLE_POLISH_ROADMAP.md`), aerial gunship
 automatic orbit, and bridge HP/dismantling.

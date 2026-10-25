@@ -35,8 +35,9 @@ it('delivers once onto a carrier, launches cruise from the helm, reserves recove
   expect((await f.state()).logistics.supplies).toBe(1200);const position=(await f.state()).ships[0];expect((await f.post('input',{x:1,y:0,shipId:'carrier',throttle:4})).status).toBe(409);await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.state,{timeout:6000}).toBe('parked');
   expect((await f.post('aircraft/cruise',{id:'carrier'})).status).toBe(200);await expect.poll(async()=>(await f.state()).ships[0].aircraft.mission.phase,{timeout:4000}).toBe('cruise');
-  expect((await f.state()).me.body).toBe('ship');expect((await f.post('aircraft/deliver',{id:'carrier',kind:'attack-jet'})).status).toBe(409);
-  await f.restart();expect((await f.state()).ships[0].aircraft.mission.phase).toBe('cruise');await f.connect();await f.connect('b');
+  expect((await f.state()).me.body).toBe('ship');expect((await f.post('aircraft/deliver',{id:'carrier:wing',kind:'bomber'})).status).toBe(409);
+  expect((await f.post('aircraft/deliver',{id:'carrier:wing',kind:'attack-jet'})).status).toBe(200);
+  await f.restart();expect((await f.state()).ships[0].aircraft.mission.phase).toBe('cruise');expect((await f.state()).ships[0].wing.aircraft).toMatchObject({kind:'attack-jet',baseId:'carrier:wing'});await f.connect();await f.connect('b');
   expect((await f.post('aircraft/recall',{id:'carrier',landingBaseId:'carrier'})).status).toBe(200);expect((await f.post('input',{x:1,y:0,shipId:'carrier',throttle:4})).status).toBe(409);await new Promise(r=>setTimeout(r,150));expect((await f.state()).ships[0]).toMatchObject({x:position.x,y:position.y,angle:position.angle});await f.post('input',{x:0,y:0});
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.mission.phase,{timeout:25000}).toBe('complete');
   expect((await f.post('aircraft/board',{id:'carrier'})).status).toBe(200);let state=await f.state();expect(state.me.body).toBe('aircraft');expect(state.ships[0].occupant).toBeNull();expect(state.ships[0].aircraft.occupant).toBe('a');
@@ -52,8 +53,9 @@ it('keeps airborne aircraft after sinking and diverts saved cruise to a free lan
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.baseId,{timeout:3000}).toBe('land');
   expect((await f.state()).ships[0].aircraft.state).toBe('flying');expect((await f.post('ships/recall',{id:'carrier',keepYard:true})).status).toBe(409);
   expect((await f.post('vehicles/replace',{kind:'ship',id:'carrier',vesselKind:'gunship'})).status).toBe(409);
-  expect((await f.post('vehicles/replace',{kind:'ship',id:'carrier',vesselKind:'carrier'})).status).toBe(200);
-  await f.restart();let state=await f.state();expect(state.ships[0].deckSupplies).toBe(0);expect(airRecords(state).filter(b=>!['destroyed','vacant'].includes(b.aircraft.state))).toHaveLength(1);await f.connect();
+  expect((await f.post('vehicles/replace',{kind:'ship',id:'carrier',vesselKind:'carrier'})).status).toBe(409);
+  const fresh=await f.post('ships',{yardId:'carrier',kind:'carrier'});expect(fresh.status).toBe(201);expect(fresh.body.ship.id).not.toBe('carrier');expect(fresh.body.ship.aircraft.state).toBe('vacant');
+  await f.restart();let state=await f.state();expect(state.ships.find((s:any)=>s.id===fresh.body.ship.id).deckSupplies).toBe(0);expect(airRecords(state).filter(b=>!['destroyed','vacant'].includes(b.aircraft.state))).toHaveLength(1);await f.connect();
   await expect.poll(async()=>(await f.state()).ships[0].aircraft.state,{timeout:23000}).toBe('parked');state=await f.state();expect(state.ships[0].aircraft).toMatchObject({baseId:'land',x:87,y:47.5});
  }finally{await f.close();}
 },35000);

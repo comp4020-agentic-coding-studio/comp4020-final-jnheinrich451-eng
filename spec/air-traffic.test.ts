@@ -17,7 +17,7 @@ it('flies a strike from cruise, resumes holding with empty bays, then recalls to
  advance(w,a,70,q=>{releases++;q.runs--;q.releaseRemaining=1.25;return null;});
  expect(releases).toBe(1);expect(p).toMatchObject({state:'flying',runs:0,mission:{phase:'cruise',released:true}});
  expect(reserveLanding(w,p,b.id)).toBeNull();recoverAircraft(flightBase(w,a),'recall');advance(w,a,70);
- expect(p).toMatchObject({...parkingPoint(b),baseId:'b',state:'parked',runs:2,occupant:null});
+ expect(p).toMatchObject({...parkingPoint(b),baseId:'b',state:'parked',runs:0,occupant:null});
  expect(parkedRecord(w,b)).toBe(a);expect(parkedRecord(w,a)).toBeUndefined();expect(a.id).toBe('a');
 });
 it('counts flight and delivery against capacity and reserves a runway exclusively',()=>{

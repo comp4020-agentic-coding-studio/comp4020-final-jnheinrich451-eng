@@ -1,5 +1,125 @@
 # Ship visual scale plan
 
+## Iowa silhouette, 24 October 2026
+
+Following the author's hull sketch and an overhead USS Iowa reference photo, the
+gunship body was redrawn in `public/battleship-art.js` for both legacy 2 x 4 and
+large 4 x 12 hulls. After reviewing the first pass, the author asked for a slimmer
+hull and a longer bow, and chose to move the secondaries inboard.
+
+- Drawn beam is 80% of the saved width (3.2 tiles on large hulls, about 3.75:1).
+  Collision, docks, berths, damage and navigation keep the saved 4 x 12 / 2 x 4
+  rectangles. The art is therefore slightly narrower than what physically blocks.
+- Large hulls have a long, fine bow with a concave entry that reaches full beam
+  near turret two, with a faint knuckle line. Legacy hulls keep a fuller bow so
+  their larger turrets stay on deck. Both close with a rounded cruiser stern.
+- Teak deck with fore-and-aft planking; anchor chains and wildcats; a V
+  breakwater ahead of turret one (large); fantail crane and bitts.
+- U-shaped 01-level deckhouse carrying the six inboard twin secondaries (see
+  [Ship armament](SHIP_ARMAMENT.md)). Armored conning tower, fire-control tower
+  with rangefinder director, masts, aft director (large), two oval funnels with
+  black caps and paired pipes, and boats (large).
+- Main turrets: three triple mounts at their saved positions, redrawn from the
+  author's Iowa turret sketch (see the follow-up below). Transport, carrier and
+  submarine art (including the transport's twin turret) is unchanged.
+
+Local validation: art study (`.local/check-battleship-art.mjs`) at three zooms
+beside the fleet; TypeScript; 348 of 351 naval-related domain tests pass. The three
+failures are a Bulwark rail-HE damage expectation and two campaign sentry-receipt
+and stream tests that do not involve ships. Ship armament, handling, naval scale
+and dock replacement browser specs pass at desktop and phone sizes (8 runs). Live
+1920x1080 and 390x844 screenshots inspected under `.local/battleship-live/`. Not
+committed, deployed or playtested by the author yet.
+
+Turret follow-up (same day): the author supplied an Iowa main-turret sketch.
+`drawIowaTurret` draws a wide face with chamfered corners and sides that taper
+aft, with rangefinder ears near the rear, a haze-grey roof plate and sighting
+hoods. Three tapered barrels emerge from canvas blast bags, and the barbette
+shows as a dark ring in front of the face. Muzzle tips stay at the shared salvo
+geometry (0.13 lateral spacing, 0.8 forward in turret units), and recoil slides
+the barrels into the bags. Legacy hulls keep ammunition-coloured muzzle bands.
+Checks: TypeScript; art study close-up; dock replacement, naval scale and ship
+handling pass at both sizes. Ship armament passed on desktop and phone in
+separate runs, but several other runs ended in the native test-worker crash
+(`0xC0000005`) already seen in 22 October logs. Live screenshots are under
+`.local/battleship-live-turret/`.
+
+Secondary follow-up (same day): from the author's 5"/38 sketch, `drawTwinMount`
+draws each of the six twin secondaries with a squared front, a light sloped face
+plate and straight sides closing in a rounded rear with an access door. Two
+barrels pass through hatched gun-port shields. Muzzles stay on the shared battery
+geometry (0.055 lateral, tips 0.43 forward in mount units), and recoil slides
+each barrel under its shield. Carrier and transport single side guns are unchanged.
+Checks: TypeScript; art study close-up; ship armament, naval scale, dock
+replacement and ship handling all pass at desktop and phone sizes in one run
+(8/8, no worker crash). Live screenshots are under `.local/battleship-live-secondary/`.
+
+Transport (same day): redrawn as an LCU-style landing ship with a bow ramp, which
+supersedes the stern loading described above. See
+[Armored transport](ARMORED_TRANSPORT.md).
+
+Carrier (same day): redrawn after the Ford class, and its deck now operates a
+bomber and an attack jet. See [Aircraft carrier](AIRCRAFT_CARRIER.md).
+
+Submarine (same day): redrawn after the Ohio class, with 24 animated silo lids on
+large hulls. See [Submarine](SUBMARINE.md).
+
+## Large fleet and docks, 24 October 2026
+
+Implemented locally following the author's four sketches and confirmed dock
+dimensions. This stage supersedes the earlier art-only proposal below.
+
+- New docks have seven shore tiles and a 7 x 12 offshore pier. Select water eight
+  tiles from a straight, clear shore. Placement reserves an 8 x 14 berth alongside
+  the pier and checks departure water and a turning area for the carrier.
+- Manual docking uses a 1.5-tile centre tolerance at the large docks; legacy docks
+  retain 0.8 tiles. All still require stopped engines, settled rotation, a surfaced
+  hull and alignment within 22.5 degrees (either facing). Remote return retains
+  its precise approach path. No hull or saved position is moved by this change.
+- Disembarking tries clear dock tiles if the usual shore exit is occupied; a fully
+  blocked dock still rejects exit. Carrier systems explicitly display DOCKED and
+  E ashore. Sunken wrecks remain nonblocking and keep their salvage balance.
+- Regression evidence: reproduced the saved carrier's 0.874-tile offset, checked
+  legacy tolerance, moving/angled/distant rejection, wreck overlap and alternate
+  exits. Desktop/phone browser checks use a second player blocking the normal
+  exit and verify successful disembarkation and reload.
+- New hulls at these docks: gunship 4 x 12, transport 4.5 x 10, carrier 6 x 12,
+  submarine 2.5 x 12 tiles. Collision, weapon origins, wakes, construction, damage
+  indicators, wrecks and remote docking use the same saved dimensions.
+- Gunship: two forward triple turrets and one aft, six secondary mounts, central
+  superstructure and funnels. Transport: forward bridge and open stern vehicle
+  deck; large transports load through a stern ramp, including remote shore orders.
+- Carrier: angled flight deck, starboard island, catapult lanes and elevators.
+  Submarine: long narrow capsule, forward sail and 24 visible silo lids. Its current
+  six-missile salvo remains unchanged; additional lids are visual reserve capacity.
+- Existing docks and vessels keep their original dimensions. New ships at older
+  docks remain smaller. Replacing a ruined dock retains that site's geometry;
+  choose a fresh coastal site to build the large version. No save reset or terrain
+  regeneration is required. Costs, fleet caps, weapon damage and speeds are unchanged.
+
+The map stays 512 x 384 for this pass. A generated-terrain flood-fill audit found
+80,596 of 80,607 water centers with conservative 15 x 15 clearance in one connected
+region. This supports keeping the current ocean; it is not a guarantee that every
+authored inlet or obstructed route admits every hull. Narrow coves can exclude
+large ships. Any future map expansion should widen useful passages as well as
+adding area, without moving existing saved coordinates.
+
+Validation covers all four hulls sailing and remotely returning, stern loading,
+actual weapon/hull coordinates, legacy saves, real generated shores and HTTP
+ordering. Desktop and phone browser checks place a large dock, order a carrier,
+inspect its assembly and restore it from a disposable save. The fleet artwork was
+inspected together at the same tile scale as a railway cannon. Evidence is under
+`.local/naval-scale-*` and `.local/naval-large-*`; no deployment is included.
+Final validation: 126 tests across 13 domain/HTTP files, both browser sizes,
+TypeScript and coursework evidence checks pass locally.
+
+Empty-dock retirement follow-up: retiring the vessel does not remove robots or
+vehicles standing on the pier. The shipyard now shows the blocking unit and tile
+coordinates inline, and disables dismantling until the offshore flooring is clear.
+Walk onto land, reopen the shipyard and dismantle. UI and server share the same
+validation. The follow-up passes 36 domain/HTTP checks, TypeScript and desktop/
+phone browser checks that walk ashore and successfully remove the empty dock.
+
 The author asked to review ship size relative to aircraft, while retaining the
 current runway footprint. First complete bridge underpasses, then review scale
 in playable stages.
@@ -88,3 +208,38 @@ resize and replacement-dock boarding (four final cases). Bridge-underpass checks
 also passed at both sizes. Inspected the four-vessel art study and live gunship
 screenshots at 1920x1080 and 390x844. This establishes local presentation and
 interaction checks, not a Fly performance measurement. Not committed or deployed.
+
+## Wakes and dive water, 24 October 2026
+
+The author asked for more realistic ship wakes, with modest cost, and bubbles when
+submarines dive and surface. `public/ship-water-effects.js` keeps a short
+browser-only trail per ship: at most 24 poses, one every 0.3 tiles, dropped after
+7 s. Trails are reset after a jump of more than 3 tiles, and entries unseen for
+20 s are pruned. Nothing is saved, sent or simulated.
+
+- **Foam path:** a translucent strip behind the stern, about the beam wide,
+  widens and fades with age. It follows the real course through turns and lingers
+  briefly after the ship stops. It is filled in four-point chunks, with thin
+  streaks along its edges.
+- **Kelvin arms:** from the last 14 bow positions, spreading at the 19.47 degree
+  Kelvin angle (capped at 1.6 beams) with short feathered crests. They are faint.
+- **Kept:** the bow wave and the propeller churn.
+- **Reduced effects:** larger foam chunks, no edge streaks and no feathers.
+- **Cost:** a few dozen canvas calls per moving ship.
+
+Submarine dive water is driven by the saved depth countdown, plus a browser-side
+note of the last depth change:
+- **Dive:** deck vent spray in the first 40% of the dive, then rising bubbles
+  that pop into rings. A fading boil persists for 3 s after submerging.
+- **Surface:** building froth, then a foam ring around the hull, then water
+  shedding off it for 1.8 s.
+- **Reduced effects:** six static bubbles and no streaks.
+
+Local validation:
+- Wake study (`.local/check-wake-art.mjs`): about 9 s of frames for a turning
+  gunship, a straight carrier and a turning transport, plus five dive/surface
+  stages.
+- Browser specs pass at desktop and phone sizes: ship handling, carrier (zero page
+  errors) and submarine operations.
+- The live surfacing frame shows the foam path, arms and shedding ring.
+- Not measured on Fly or under sustained combat.

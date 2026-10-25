@@ -5,26 +5,29 @@ import { shipKind } from './public/ship.js';
 const compass=['north','north-east','east','south-east','south','south-west','west','north-west'];
 const direction=(x,y)=>!Number.isFinite(x)||!Number.isFinite(y)?'invalid':Math.hypot(x,y)<.001?'stop':compass[(Math.round(Math.atan2(x,-y)/(Math.PI/4))+8)%8];
 const bearing=a=>Number.isFinite(a)?compass[(Math.round(a/(Math.PI/4))%8+8)%8]:null;
-const names={HE:'HE cannon',MAGNETIC:'magnetic cannon',APCR:'machine gun',NAVAL_APCR:'side guns',FLAME:'flamethrower',HEAVY_FLAME:'heavy flamethrower',LASER:'laser rifle',INCENDIARY:'incendiary',GAS:'gas',HEAVY:'heavy HE',BEAM:'beam',cannon:'autocannon',rockets:'rocket pods'};
+const names={MAC:'rail MAC',HE:'HE cannon',MAGNETIC:'magnetic cannon',APCR:'machine gun',NAVAL_APCR:'side guns',FLAME:'flamethrower',HEAVY_FLAME:'heavy flamethrower',LASER:'laser rifle',INCENDIARY:'incendiary',GAS:'gas',HEAVY:'heavy HE',BEAM:'beam',cannon:'autocannon',rockets:'rocket pods'};
 const knownWeapon=w=>typeof w==='string'&&Object.hasOwn(names,w);
 const weaponName=w=>knownWeapon(w)?names[w]:'unknown weapon';
-const airType=p=>['bomber','attack-jet','helicopter'].includes(p?.kind)?p.kind:'bomber';
+const airType=p=>['bomber','attack-jet','helicopter','air-gunship'].includes(p?.kind)?p.kind:'bomber';
 export function controlledUnit(world,player,bodyType){
  const p=airRecords(world).map(b=>b.aircraft).find(p=>p?.occupant===player.id);
  const ship=(world.ships||[]).find(s=>s.occupant===player.id),tank=(world.tanks||[]).find(t=>t.occupant===player.id);
  const truck=world.logistics?.recyclers?.find(r=>r.occupant===player.id),gun=(world.artillery||[]).find(g=>g.operator===player.id);
  const object=p||ship||tank||truck||gun||player;
- const unitType=p?airType(p):ship?shipKind(ship):tank?'tank':truck?truck.kind==='builder'?'bridge-builder':'recycler':gun?gun.kind==='missile'?'missile-launcher':'rail-cannon':bodyType==='rover'?'tank':bodyType;
+ const unitType=p?airType(p):ship?shipKind(ship):tank?'tank':truck?truck.kind==='builder'?'bridge-builder':'recycler':gun?gun.kind==='missile'?'missile-launcher':gun.kind==='mac'?'rail-mac':'rail-cannon':bodyType==='rover'?'tank':bodyType;
  return {object,unitType,unitId:object.id,bodyType,unitState:p?(p.mission&&!['complete','lost'].includes(p.mission.phase)?p.mission.phase:p.state):ship?.depth||player.life||'active',controlMode:gun?'remote':'direct'};
 }
 export const unitMetadata=({object,...metadata})=>metadata;
 export function describeCommand(action,data,world,unit,equipment={}){
  const result={...unitMetadata(unit)},parts=[],obj=unit.object;
- const isShip=['gunship','submarine','carrier','transport'].includes(unit.unitType),fixedWing=['bomber','attack-jet'].includes(unit.unitType);
+ const isShip=['gunship','submarine','carrier','transport'].includes(unit.unitType),fixedWing=['bomber','attack-jet','air-gunship'].includes(unit.unitType);
  const shot=(w,payload=false)=>{result.weapon=knownWeapon(w)?w:'unknown';return payload&&w==='HE'?'HE':weaponName(w);};
  if(action==='input'||action==='artillery/command'){
   if(![data.x,data.y].every(Number.isFinite))return {...result,direction:'invalid',command:'invalid movement input'};
-  if(isShip||fixedWing){
+  if(['tank','recycler','bridge-builder'].includes(unit.unitType)){
+   result.throttle=data.y<0?'forward':data.y>0?'reverse':'brake';result.rotation=data.x<0?'left':data.x>0?'right':'none';
+   parts.push(result.throttle,result.rotation==='none'?'hold heading':'turn '+result.rotation);
+  }else if(isShip||fixedWing){
    result.throttle=isShip?throttleLabel(data.throttle??obj.throttle??0):data.y<0?(fixedWing?'accelerate':'forward'):data.y>0?(fixedWing?'decelerate':'reverse'):'neutral';
    result.rotation=data.x<0?'left':data.x>0?'right':'none';
    parts.push(result.throttle==='neutral'?'throttle neutral':result.throttle, result.rotation==='none'?'hold heading':'turn '+result.rotation);
@@ -37,12 +40,17 @@ export function describeCommand(action,data,world,unit,equipment={}){
  }else if(action==='artillery/rotate'){result.rotation=data.rotated===true?'across':'along';parts.push('rotate strike area '+result.rotation);}
  else if(action==='navigate'){result.direction=direction(data.x-obj.x,data.y-obj.y);parts.push('navigate '+result.direction);}
  else if(action==='fire'){const w=data.weapon??(unit.bodyType==='robot'?'FLAME':equipment.weapon||obj.weapon||'HE');parts.push((w==='MAGNETIC'?'charge ':'fire ')+shot(w));}
- else if(action==='artillery/fire'){const w=obj.ammo||'HE';parts.push(unit.unitType==='missile-launcher'?'launch missiles / '+shot(w,true):'fire rail cannon / '+shot(w,true));}
+ else if(action==='artillery/fire'){const w=obj.ammo||'HE';parts.push(unit.unitType==='missile-launcher'?'launch missiles / '+shot(w,true):unit.unitType==='rail-mac'?'charge rail MAC / '+shot('MAC',true):'fire rail cannon / '+shot(w,true));}
  else if(action==='ships/fire'){parts.push(unit.unitType==='submarine'?'launch missiles / '+shot(obj.ammo||'HE',true):'fire naval '+(data.mode==='salvo'?'salvo':'volley')+' / '+shot(obj.ammo||'HE',true));}
+ else if(action==='ships/order'){const vessel=world.ships?.find(s=>s.id===data.id);if(vessel){result.targetId=vessel.id;result.targetType=vessel.kind||'gunship';}parts.push('remote ship '+(['move','shore','bombard','stop','ramp','dock'].includes(data.action)?data.action:'invalid order'));}
  else if(action==='ships/secondary')parts.push('fire '+shot('NAVAL_APCR'));
+ else if(action==='aircraft/order')parts.push('remote helicopter '+(['move','land','pickup','drop','return','stop'].includes(data.action)?data.action:'invalid order'));
+ else if(action==='ships/remote-action')parts.push('remote submarine '+(['dive','surface','strike'].includes(data.action)?data.action:'invalid order'));
+ else if(action==='aircraft/sling')parts.push(data.action==='lift'?'lift vehicle by helicopter sling':data.action==='lower'?'set down sling vehicle':'invalid sling order');
  else if(action==='aircraft/helicopter-fire')parts.push('fire '+shot(data.weapon));
  else if(action==='aircraft/bomb')parts.push('drop '+shot(data.payload||obj.payload||'HE',true)+' bombs');
- else if(action==='aircraft/strafe')parts.push('fire '+shot('cannon'));
+ else if(action==='aircraft/gunship-fire'){const gun=['25','40','105'].includes(data.weapon)?data.weapon:null;result.weapon=gun?gun+'mm':'unknown';parts.push(gun?'fire '+gun+' mm side gun':'invalid side gun');}
+ else if(action==='aircraft/strafe'){if(data.weapon==='30mm'){result.weapon='30mm';parts.push('fire 30 mm burst');}else parts.push('fire '+shot('cannon'));}
  else if(['aircraft/mission','aircraft/recall','aircraft/cruise','aircraft/board'].includes(action)){
   const record=airRecords(world).find(b=>b.id===data.id||b.aircraft?.id===data.id);
   if(record){result.targetId=record.aircraft.id;result.targetType=airType(record.aircraft);}

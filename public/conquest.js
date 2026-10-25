@@ -96,6 +96,7 @@ export function tickSites(sites, world, buildings, people, enemies, now, nextId,
   const contacts = sensorContacts(world, people);
   const aircraft=airRecords(world).map(b=>b.aircraft).filter(airborne);
   for (const site of sites) {
+    if(site.kind==='aquatic-hive')continue; // Water population is owned by tickAquatic.
     const previousMarks = site.sensor?.marks.length || 0;
     const scanner = isAlertSite(site);
     if (scanner) tickSensor(site, world, buildings, contacts, now);

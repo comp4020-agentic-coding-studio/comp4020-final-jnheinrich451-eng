@@ -24,9 +24,9 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
   await page.waitForTimeout(1600);await page.screenshot({path:`.local/jet-delivery-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await plane()).state,{timeout:20000}).toBe('parked');await page.locator('#aircraft-interact').click();
   await expect(page.locator('#aircraft-controls')).toHaveAttribute('aria-label','Attack jet controls');await expect.poll(async()=>(await plane()).state,{timeout:4000}).toBe('flying');
-  if(mobile){await page.locator('#flight-systems-toggle').click();const b=await page.locator('#aircraft-bomb').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);
-  await page.mouse.down();await expect.poll(async()=>(await plane()).rounds,{timeout:3000,intervals:[80]}).toBeLessThan(87);await page.mouse.up();
-  await page.waitForTimeout(300);const released=(await plane()).rounds;await page.waitForTimeout(450);expect((await plane()).rounds).toBe(released);
+  if(mobile){const b=await page.locator('#flight-fire').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);
+  await page.mouse.down();await expect.poll(async()=>(await state(peer)).combat.shots.filter(s=>s.mount==='jet-cannon').length,{timeout:3000,intervals:[80]}).toBeGreaterThan(2);await page.mouse.up();
+  await page.waitForTimeout(300);const lastShot=(await state(peer)).combat.shots.at(-1)?.id,released=(await plane()).rounds;await page.waitForTimeout(450);expect((await state(peer)).combat.shots.at(-1)?.id).toBe(lastShot);
   expect((await state(peer)).combat.marks.some(m=>m.kind==='crater')).toBe(true);
   await page.screenshot({path:`.local/jet-strafe-${mobile?'mobile':'desktop'}.png`});
   await app.close();app=createApp({dataDir,logSink:()=>{}});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');

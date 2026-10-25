@@ -33,6 +33,15 @@ the damaged dock's services require repair. Recall requires a clear offshore dec
 
 ## Boundaries and balance
 
+- Press **K** at the helm or on foot within four tiles of an unoccupied
+  transport's loading gate to drive its carried vehicle onto the dock or shore.
+  On foot, the **Drive vehicle off / K** button provides the same action.
+  A blocked exit rejects the transfer and leaves the vehicle aboard.
+- Manual drive-on follows the vehicle's heading: W drives forward, S reverses,
+  and A/D steer. Turning alone does not board the transport.
+- Sunken hulls and sea salvage markers render below live vessels; their salvage
+  remains available even when a replacement ship occupies the same berth.
+
 - One vehicle slot; tanks and the two utility rovers only. Rail cannons and
   buildings cannot be loaded.
 - A player may load their own vehicles or abandoned guest equipment the host
@@ -101,3 +110,69 @@ once-only payment, persistence and boarding the replacement. The desktop and pho
 drive a recycler onto the ramp, sail across the channel and drive off. Additional
 HTTP checks retain one driver and one vehicle record through restart for tanks,
 recyclers and builders. No new building or resource cost is introduced.
+
+## LCU redesign, 24 October 2026
+
+The author asked for the transport to follow the USAV Coamo / LCU-2000 class,
+with the vehicle entrance at the bow (not the stern), and supplied a plan sketch
+and turret sketches. The approved decisions were:
+
+- **Bow ramp.** Large transports now land vehicles over a ramp straight ahead of
+  the stem (the same 3.5-tile reach and width checks as the old stern ramp).
+  Remote **Shore** orders also try bow-facing headings, so they beach bow-first.
+  G deploys the ramp at the bow. Legacy 2 x 4 transports keep their side shore ramp.
+- **Docked loading: pier side gate.** At a dock the bow faces the sea, so
+  vehicles cross a side gate from the pier into the forward well, 0.2 x hull
+  length ahead of midships (`TRANSPORT_WELL`). Docking orientation is unchanged.
+- **Stern triple turret.** The single main turret moved from the bow to the stern
+  (y 1.35 in mount units) and fires three shells per volley, up from two, at the same
+  per-shell damage (+50% per volley). Ammunition, reload and range are unchanged.
+  It keeps the saved id `fore` and key `turret`, so reloads, in-flight salvos,
+  recoil and bearings survive the move; only the HUD label reads STERN.
+- **Open side guns.** The two single side guns moved aft beside the turret
+  (x ±0.58, y 1.2). Arcs, damage and cadence are unchanged. Carrier side guns keep
+  their old positions.
+
+Art (`public/transport-art.js`): a slim hull drawn at 70% of the saved width
+(about 3.2:1) inside the saved 4.5 x 10 rectangle (78% for legacy hulls). It has
+a blunt bow ramp, anchors, an open vehicle well narrowing with the bow, dashed pier
+gate marks, and cargo shown in the well. Behind it are a bridge deckhouse with
+wheelhouse, wings, mast and twin exhausts, then the Des Moines style triple turret
+and open shielded side guns. Drawn ramps start at the painted hull side.
+
+Save notes: a stern ramp already deployed in a save is no longer a valid loading
+point. Retract it (G, or any Move/Shore order) and redeploy at the bow; retraction
+is unconditional on the server. No records are migrated or removed.
+
+Local validation:
+- TypeScript passes.
+- Domain tests: 363 of 366 naval/transport tests pass. The three failures are the
+  existing Bulwark rail-HE expectation and two campaign sentry-receipt/stream tests,
+  which do not involve ships.
+- Updated stern expectations now cover bow landing, side and stern rejection, the
+  pier gate and three-shell salvos.
+- A new domain test loads and unloads at the pier gate; a new HTTP test boards,
+  loads, restarts and unloads a large transport across that gate.
+- Browser: naval scale and remote branches pass at desktop and phone sizes.
+- The older transport and shore-ramp browser specs fail on stale expectations from
+  before this stage: the dock-first transport card, and a "Board ship / E" label
+  that now names the vessel. Both need test maintenance (logged in
+  `.local/transport-stage-browser.log`).
+- Live 1920x1080 and 390x844 screenshots of a moored large transport with the pier
+  gate are in `.local/transport-live-*.png`.
+- Not committed, deployed or playtested by the author.
+
+### Proposal: longer, slimmer saved transport hull (not authorized)
+
+The author wants the transport physically slimmer and longer than the sketch.
+This pass is art-only. A later stage could save a new hull size for new large
+transports only (for example 3.6 x 12, inside the 8 x 14 berth), keeping existing
+transports at 4.5 x 10. It would need:
+- dock/berth clearance and departure-water checks;
+- bridge underpass and narrow-inlet routing;
+- bow-ramp and pier-gate reach;
+- remote shore planning distances;
+- wreck, recovery and replacement footprints;
+- legacy-save tests.
+
+Costs and capacity are unchanged unless the author decides otherwise.

@@ -150,6 +150,14 @@ origin for real-mail testing. On Fly, use runtime secrets. No credentials are
 embedded in the client or image. `pnpm dev` and `pnpm start` load `.env` when it
 exists; credentials are not required for Demo testing.
 
+For localhost play while keeping production mail settings in .env, put
+APP_ORIGIN=http://localhost:8080 in the ignored .env.local file. The dev command
+loads that optional override after .env; production start does not load it.
+Use the matching browser URL (including port), and restart dev after changing
+these files. Demo login works without real mail delivery. For an HTTPS tunnel
+mail test, change or remove the local override to match that tunnel's origin.
+Never fix an origin mismatch by removing the account/campaign origin checks.
+
 Deployment update, 11 October: the six variables above were configured as Fly
 runtime secrets using the author's supplied local configuration. The existing
 production image was restarted; the live account status reports SMTP configured.

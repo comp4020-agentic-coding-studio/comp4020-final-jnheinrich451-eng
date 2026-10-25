@@ -6,6 +6,16 @@ and pursue convincing physical behavior within the game's scope and budget.
 The author identifies combat, access to powerful equipment, and consequences for
 poor operation as central; visual detail should support that experience.
 
+## Vesper ridge stage, 24 October 2026
+
+The separate Vesper template now implements impassable high-ridge masks, ground
+collision, aircraft avoidance and ocean/river/lake classification. Caldera keeps
+its saved terrain and movement rules. This supersedes the unchanged-navigation
+proposal below only for Vesper; it does not implement interpolated heights or
+height-aware ballistics. Mountains use existing rock-cover behavior and artillery
+retains its current arcs. See [world variety](VEHICLE_POLISH_ROADMAP.md) for the
+implemented foundation and the subsequent bridge/aquatic-hive plan.
+
 ## A bounded first height model
 
 Propose one saved ground-height value per terrain tile, interpolated over broad

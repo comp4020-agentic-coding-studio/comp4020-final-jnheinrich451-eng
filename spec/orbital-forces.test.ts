@@ -15,7 +15,7 @@ it('resumes orbital aircraft delivery and preserves the requested model through 
  saved.aircraft.occupant='pilot';expect(deliverAircraft(saved,'bomber')).toContain('disembark');saved.aircraft.occupant=null;
  Object.assign(saved.aircraft,{state:'destroyed',remaining:.2,health:0});tickAircraft(w,saved,null,.2);
  expect(saved.aircraft).toMatchObject({kind:'attack-jet',rounds:90,health:180,state:'parked'});
- Object.assign(saved.aircraft,{rounds:0,rearm:.1});tickAircraft(w,saved,null,.1);expect(saved.aircraft.rounds).toBe(90);
+ Object.assign(saved.aircraft,{rounds:0,rearm:.1});tickAircraft(w,saved,null,.1);expect(saved.aircraft.rounds).toBe(0);
  expect(deliverAircraft(saved,'bomber')).toBeNull();expect(saved.aircraft.kind).toBe('bomber');
 });
 
@@ -23,12 +23,12 @@ it('commits forward HE impacts and ammunition, respects cooldown/caps, and canno
  const w=world(),base=newAirbase('base','a',40,50,'attack-jet'),p:any=base.aircraft;
  Object.assign(p,{state:'flying',...parkingPoint(base),angle:0,speed:6});w.airbases=[base];
  const point=strafePoint(p),site=makeSite('anti-air','site',Math.floor(point.x)-1,Math.floor(point.y)-1);w.sites=[site];
- const c=createCombat(w);expect(c.bombRun(p)).toContain('autocannon');expect(c.strafe(p)).toBeNull();expect(p.rounds).toBe(89);
- expect(c.strafe(p)).toContain('reloading');expect(p.rounds).toBe(89);
+ const c=createCombat(w);expect(c.bombRun(p)).toContain('autocannon');expect(c.strafe(p)).toBeNull();expect(p.rounds).toBe(90);
+ expect(c.strafe(p)).toContain('reloading');expect(p.rounds).toBe(90);
  const saved=c.checkpoint();expect(saved.salvos[0]).toMatchObject({targetX:point.x,targetY:point.y,kind:'strafe'});
  p.angle=Math.PI/2;const resumed=createCombat(w,saved);resumed.tick(.3,[]);expect(w.sites[0].hp).toBeLessThan(site.maxHp);expect(p.health).toBe(180);
  expect(resumed.snapshot().impacts[0].radius).toBe(JET.radius);
- p.rounds=0;expect(resumed.strafe(p)).toContain('empty');p.rounds=90;
+ p.rounds=0;expect(resumed.strafe(p)).toBeNull();p.rounds=90;
  const full=c.checkpoint();full.salvos=Array.from({length:JET.maxRounds},()=>({...saved.salvos[0]}));full.cooldowns=[];
  expect(createCombat(w,full).strafe(p)).toContain('capacity');expect(p.rounds).toBe(90);
  expect(bombError(w,p)).toContain('autocannon');

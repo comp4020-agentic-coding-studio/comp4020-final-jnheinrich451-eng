@@ -23,15 +23,19 @@ Ground obstacles do not block flight. Aircraft can be damaged by existing flak.
   Distant aim clamps to range. Rocket trails and cannon tracers are distinct.
 - Touch players tap an aim point, then hold the weapon button. While firing, a
   second finger can move the aim on the battlefield without cancelling the burst.
-- Hover slowly over an intact, compatible, unoccupied helipad to land automatically
-  after leaving the pad. Alternatively press **E / Land** once hovering over its
-  centre, including immediately after takeoff without flying away. Landing takes
-  two seconds; then press **E / Disembark**. Rearming takes eight seconds and does
-  not prevent disembarking. Hull repair consumes shared GND supplies.
-- Destroyed pads cannot accept landings or service aircraft. They show crossed-out
-  wreckage and an explicit warning. **Locate free helipad** finds another usable
-  pad; otherwise a teammate must rebuild/deploy one. Emergency ground landing
-  remains unimplemented. E never ejects the pilot from a flying helicopter.
+- Release WASD to hover, press **E / Land** on clear ground or a free intact helipad. Manual hover never
+  lands by itself. A blocked attempt briefly flashes the nine-tile area red; successful landing
+  shows no grid. Descent takes two seconds and rechecks all nine tiles.
+- Press **E / Disembark** after touchdown. On open ground the robot exits beside
+  the helicopter, and **E / Board helicopter** returns to its parked seat.
+  **Take off** lifts from that same position. Field parking reserves its footprint
+  and survives reconnect/restart without refilling health or ammunition.
+- Helipads remain construction, repair and rearming centres. Pad landing rearms
+  for eight seconds; hull repairs consume GND. Field landing provides no service.
+  **Locate free helipad** finds a usable pad. E never ejects an airborne pilot.
+- Destroyed pads do not destroy surviving helicopters. A parked craft stays at
+  the ruined pad as a field-parked aircraft; an aircraft already away stays there.
+  A delivery crate still depends on its pad until construction completes.
 
 
 The small explosive rounds can hurt armored enemies and hostile facilities,
@@ -51,12 +55,27 @@ walkable surface. Orbital construction uses the shared crate descent and wall
 unfolding; local work uses construction drones. Pads must remain two tiles inside
 the world boundary. Ocean and occupied footprints are rejected.
 
-At most four operational helicopter slots are supplied by four helipads. Aircraft
-in flight still count. Helipads add no bomber/jet capacity; runways and carrier
+At most eight active helipads supply helicopter fleet capacity. Aircraft
+in flight or field parked still count. Destroyed pads supply no capacity, but
+surviving aircraft are not deleted when capacity falls. Helipads add no bomber/jet capacity; runways and carrier
 decks do not accept helicopters in this stage. An existing helicopter may land at
 another compatible free pad. Workshop exchanges retain the existing 80% credit
 of actual GND payment, capped at the replacement price. Orbital purchases earn no
 GND exchange credit. The campaign's free first bomber is unchanged.
+
+## Manual sling transport
+
+Hover above an unoccupied tank, recycler or bridge builder and press **V / Lift**.
+Hold still for the two-second transfer, then fly at up to 2.5 tiles/s with the
+vehicle suspended below. Hover over clear land and press **V / Set down**. The
+vehicle retains its identity, health, selected weapons and stored salvage.
+Blocked set-downs retain the load. Land only after setting it down.
+
+Ground guarding, collection and driving stop while carried. Simultaneous pickup,
+saved transfer timers and duplicate commands are handled by the server. Crash
+loss destroys the carried vehicle; recycler contents become salvage on land but
+are lost in water. See [the staged plan](HELICOPTER_AND_SUBMARINE_REFINEMENT.md)
+for recovery and capacity details. Remote transport commands remain planned.
 
 ## Remote support and loss
 
@@ -71,7 +90,8 @@ to defended targets still expose the helicopter. The support sweep uses fixed
 timers and deterministic offsets, without per-frame enemy searches. Empty craft
 remain in cruise until recalled through **H**. Existing seat ownership, recall,
 disconnection recovery, runway reservations and shot-down recovery apply. If no
-usable pad is available when returning, emergency landing leaves a wreck.
+usable pad is available when returning, a bounded search finds nearby clear
+ground for a field landing. If none is available, the helicopter holds and retries.
 
 Aircraft identity, destination, pose, velocity, target, hull, ammunition, pod
 window/recovery and mission progress are saved in the existing aircraft records.

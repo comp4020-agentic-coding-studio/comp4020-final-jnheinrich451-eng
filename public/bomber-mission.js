@@ -1,3 +1,7 @@
+import {isAirGunship} from './air-gunship.js';
+import {flightLineClear,mountainClear} from './terrain-rules.js';
+import {mountainWaypoint} from './mountain-flight.js';
+import {shipStopped} from './ship-motion.js';
 import { isHelicopter, helicopterFireError, spendHelicopterShot } from './helicopter.js';
 import { helicopterPlan, tickHelicopterMission } from './helicopter-mission.js';
 import { AIR, AIR_HULL, launchError, launchAircraft, tickAircraft, parkingPoint, bombPattern, bombError } from './aircraft.js';
@@ -5,14 +9,14 @@ import { angleDelta } from './turret.js';
 import { isAttackJet, JET, strafeError } from './attack-jet.js';
 import { flightRoute, cruiseSite } from './air-routing.js';
 export const AUTO_STRAFE=Object.freeze({rounds:12,interval:.2});
-import { payloadProfile, validPayload } from './bomber-payloads.js';
+import { payloadProfile, validPayload, bombReleaseDuration } from './bomber-payloads.js';
 
 export const MISSION = Object.freeze({ approach: 18, margin: 9, timeout: 120 });
 export const missionActive = p => !!p?.mission && !['complete','lost'].includes(p.mission.phase);
 export const RECOVERY_GRACE=30;
-export const isCruising=p=>missionActive(p)&&p.mission.phase==='cruise';
+export const isCruising=p=>missionActive(p)&&(p.mission.phase==='cruise'||p.mission.kind==='transport'&&p.mission.phase==='holding'&&!p.sling);
 export function launchCruise(world,base,id,actorId){
- const p=base.aircraft;if(p.occupant)return 'Disembark before launching cruise.';
+ const p=base.aircraft;if(isAirGunship(p))return 'Aerial gunship manual flight first / orbit orders coming later.';if(p.occupant)return 'Disembark before launching cruise.';
  const error=launchAircraft(p,base.angle||0);if(error)return error;
  const center=cruiseSite(world,p).center;
  p.mission={id,actorId,kind:'cruise',phase:'takeoff',elapsed:0,returnTime:0,released:false,reason:null,target:center,entry:center,release:center,points:[],bearing:0,angle:0,cruiseCenter:center,cruiseIndex:0};
@@ -26,10 +30,11 @@ function hold(world,p,reason=null){
 function failedApproach(world,p,reason){if(p.mission.resumeCruise)hold(world,p,reason);else abortMission(p,reason);}
 export function prepareMission(world,base,plan){
  if(plan.error)return plan;
- if(isHelicopter(base.aircraft)){const route=flightRoute(world,base.aircraft,plan.entry);return {...plan,outbound:route.points,routeIndex:0,routeLimited:route.limited};}
+ if(isHelicopter(base.aircraft)){const route=flightRoute(world,base.aircraft,plan.entry);return {...plan,...(route.blocked?{error:'No flight route around the high mountains. Choose another target.'}:{}),outbound:route.points,routeIndex:0,routeLimited:route.limited};}
  const dx=Math.sin(plan.angle),dy=-Math.cos(plan.angle),stage={x:plan.entry.x-dx*12,y:plan.entry.y-dy*12};
- const fits=stage.x>=MISSION.margin&&stage.y>=MISSION.margin&&stage.x<=world.width-MISSION.margin&&stage.y<=world.height-MISSION.margin;
+ const fits=stage.x>=MISSION.margin&&stage.y>=MISSION.margin&&stage.x<=world.width-MISSION.margin&&stage.y<=world.height-MISSION.margin&&flightLineClear(world,stage,plan.entry,5);
  const route=flightRoute(world,base.aircraft,fits?stage:plan.entry);
+ if(route.blocked)return {...plan,error:'No flight route around the high mountains. Choose another target or base.'};
  return {...plan,outbound:fits?[...route.points,plan.entry]:route.points,routeIndex:0,routeLimited:route.limited};
 }
 
@@ -53,22 +58,27 @@ export function unattendedAircraft(base,connected,dt,id){
 export function missionError(world,base,payload='HE'){
  if(!validPayload(payload))return 'Choose a supported bomber payload.';
  if(!base||!base.aircraft||base.aircraft.state==='vacant')return 'Choose an aircraft.';
+ if(isAirGunship(base.aircraft))return 'Aerial gunship uses manual side guns / automatic orbit is a later stage.';
+ if(base.aircraft.sling)return 'Set down the carried vehicle before assigning fire support.';
  if(isHelicopter(base.aircraft)&&payload!=='HE')return 'Helicopters use HE cannon and rockets.';
  if(isAttackJet(base.aircraft)&&payload!=='HE')return 'Attack jets use the autocannon.';
  if(!isCruising(base.aircraft)&&(base.destroyed||world.logistics?.jobs?.[base.id]))return 'A completed operational airbase is required.';
+ if(!isCruising(base.aircraft)&&base.carrier&&!shipStopped(base.carrier))return 'Stop the carrier before launching an aircraft.';
  if(missionActive(base.aircraft)&&!isCruising(base.aircraft))return 'This aircraft already has a mission.';
  if(base.aircraft.occupant)return 'Disembark before assigning a mission.';
- return (!isCruising(base.aircraft)&&launchError(base.aircraft))|| (isHelicopter(base.aircraft)?!(base.aircraft.rounds>0||base.aircraft.rockets>0)?'Empty. Recall to rearm.':null:isAttackJet(base.aircraft)?base.aircraft.rounds<=0?'Autocannon empty. Recall to rearm.':null:base.aircraft.runs<payloadProfile(payload).cost?'Wait for enough bay charges to rearm.':null);
+ return (!isCruising(base.aircraft)&&launchError(base.aircraft))|| (isHelicopter(base.aircraft)?!(base.aircraft.rounds>0||base.aircraft.rockets>0)?'Empty. Recall to rearm.':null:isAttackJet(base.aircraft)?null:base.aircraft.bombCooldown>0?'Bomb system cooling / '+Math.ceil(base.aircraft.bombCooldown)+'s.':null);
 }
 export function strikePlan(world,target,bearing=0,payload='HE',plane=null){
  if(isHelicopter(plane))return helicopterPlan(world,target,bearing);
  if(!validPayload(payload))return {error:'Choose a supported bomber payload.'};
  if(!target||![target.x,target.y,bearing].every(Number.isFinite)||![0,1,2,3].includes(bearing))return {error:'Choose a target and a cardinal approach.'};
- const jet=isAttackJet(plane),roundCount=jet?Math.min(AUTO_STRAFE.rounds,plane.rounds||0):0;
- const profile=payloadProfile(payload),angle=bearing*Math.PI/2,dx=Math.sin(angle),dy=-Math.cos(angle),lead=jet?JET.range+AIR.minSpeed*Math.max(0,roundCount-1)*AUTO_STRAFE.interval/2:AIR.minSpeed*(AIR.fall+(profile.count-1)*AIR.interval/2);
+ const jet=isAttackJet(plane),roundCount=jet?AUTO_STRAFE.rounds:0;
+ const profile=payloadProfile(payload),angle=bearing*Math.PI/2,dx=Math.sin(angle),dy=-Math.cos(angle),lead=jet?JET.range+AIR.minSpeed*Math.max(0,roundCount-1)*AUTO_STRAFE.interval/2:AIR.minSpeed*(AIR.fall+bombReleaseDuration(profile)/2);
  const release={x:target.x-dx*lead,y:target.y-dy*lead},entry={x:release.x-dx*MISSION.approach,y:release.y-dy*MISSION.approach};
  const points=jet?Array.from({length:roundCount},(_,i)=>({x:release.x+dx*(JET.range+i*AIR.minSpeed*AUTO_STRAFE.interval),y:release.y+dy*(JET.range+i*AIR.minSpeed*AUTO_STRAFE.interval)})):bombPattern({...release,angle,speed:AIR.minSpeed,payload});
- if([entry,release,...points].some(p=>p.x<MISSION.margin||p.y<MISSION.margin||p.x>world.width-MISSION.margin||p.y>world.height-MISSION.margin))return {error:'Move the target inward or change approach: the complete flight and bombing strip must fit inside the map.'};
+ if([entry,release,...points].some(p=>p.x<Math.max(MISSION.margin,profile.radius)||p.y<Math.max(MISSION.margin,profile.radius)||p.x>world.width-Math.max(MISSION.margin,profile.radius)||p.y>world.height-Math.max(MISSION.margin,profile.radius)))return {error:'Move the target inward or change approach: the complete flight and bombing strip must fit inside the map.'};
+ const exit={x:release.x+dx*(AIR.minSpeed*(bombReleaseDuration(profile)+2)),y:release.y+dy*(AIR.minSpeed*(bombReleaseDuration(profile)+2))};
+ if(!flightLineClear(world,entry,exit,5)||!mountainClear(world,target))return {error:'High mountains block this attack run. Change the target or approach direction.'};
  return {error:undefined,payload,weapon:jet?'strafe':'bombs',roundCount,target:{x:target.x,y:target.y},bearing,angle,entry,release,points};
 }
 export function assignMission(base,plan,id,actorId){
@@ -123,7 +133,7 @@ export function tickMission(world,base,dt,release){
   if(m.phase==='release'&&m.weapon==='strafe'&&m.shotsRemaining>0){
    m.burstTime+=step;m.nextShot-=step;p.releaseRemaining=Math.max(.1,p.releaseRemaining);
    if(m.nextShot<=0){const error=release(p);if(!error){m.shotsRemaining--;m.nextShot=AUTO_STRAFE.interval;}else m.nextShot=.05;}
-   if(m.burstTime>5||p.rounds<=0){m.shotsRemaining=0;m.reason='Strafing pass ended';}
+   if(m.burstTime>5){m.shotsRemaining=0;m.reason='Strafing pass ended';}
   }
   if(m.phase==='release'&&p.releaseRemaining<=0&&!(m.shotsRemaining>0)){if(m.resumeCruise)hold(world,p);else{m.phase='return';m.returnTime=0;}}
   if(m.phase==='egress'){
@@ -140,6 +150,7 @@ export function tickMission(world,base,dt,release){
     m.phase='emergency';m.reason='Runway unavailable / emergency landing';p.state='emergency-landing';p.remaining=AIR.transition;p.speed=0;continue;
    }
   }
+  if(['return','cruise'].includes(m.phase))target=mountainWaypoint(world,p,target);
   const desired=Math.atan2(target.x-p.x,-(target.y-p.y)),delta=angleDelta(p.angle,desired),turn=AIR.turnSpeed*AIR.minSpeed/p.speed;
   tickAircraft(world,base,{steer:Math.max(-1,Math.min(1,delta/(turn*step))),throttle:-1,automatic:true},step);
  }
@@ -151,7 +162,7 @@ export function validateMission(world,base,plan){
  if(plan.error)return plan.error;
  const trial=structuredClone(base);if(!isCruising(trial.aircraft))delete trial.aircraft.mission;
  assignMission(trial,plan,'preview','preview');
- for(let t=0;t<2*MISSION.timeout+20&&missionActive(trial.aircraft)&&!(trial.aircraft.mission.released&&isCruising(trial.aircraft));t+=.1)tickMission(world,trial,.1,(p,target,rocket)=>{if(isHelicopter(p)){const e=helicopterFireError(world,p,target,rocket);if(e)return e;spendHelicopterShot(p,rocket);return null;}if(isAttackJet(p)){const e=strafeError(world,p);if(e)return e;p.rounds--;return null;}const e=bombError(world,p);if(e)return e;const profile=payloadProfile(plan.payload);p.runs-=profile.cost;p.releaseRemaining=(profile.count-1)*AIR.interval;return null;});
+ for(let t=0;t<2*MISSION.timeout+20&&missionActive(trial.aircraft)&&!(trial.aircraft.mission.released&&isCruising(trial.aircraft));t+=.1)tickMission(world,trial,.1,(p,target,rocket)=>{if(isHelicopter(p)){const e=helicopterFireError(world,p,target,rocket);if(e)return e;spendHelicopterShot(p,rocket);return null;}if(isAttackJet(p)){const e=strafeError(world,p);if(e)return e;return null;}const e=bombError(world,p);if(e)return e;const profile=payloadProfile(plan.payload);p.bombCooldown=profile.cooldown;p.releaseRemaining=bombReleaseDuration(profile);return null;});
  if(!trial.aircraft.mission.released||!['complete','cruise'].includes(trial.aircraft.mission.phase))return 'No safe approach from this base. Change target or approach direction.';
  return null;
 }

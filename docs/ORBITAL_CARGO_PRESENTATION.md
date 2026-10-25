@@ -1,5 +1,9 @@
 # Orbital cargo and local construction
 
+The [22 October panel-footprint stage](ORBITAL_PANEL_FOOTPRINTS.md) supersedes
+the compact cosmetic-wall geometry below for new orbital facility purchases.
+It retains these delivery timers and the orbital/local construction distinction.
+
 17 October 2026. The author clarified that orbital deliveries contain finished
 equipment: the metal crate lands, its four walls unfold, then its contents deploy
 in about a second. Construction drones belong to local assembly and repairs.

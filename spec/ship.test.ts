@@ -39,7 +39,7 @@ it('sweeps sailing and turning against shore and other hulls, and requires align
 });
 it('uses current turret bearing with an independent target distance and range bounds',()=>{
  const s={...vessel(),turret:Math.PI/2};expect(shipSolution(s,{x:s.x,y:s.y+10})).toMatchObject({x:s.x+10,y:s.y,range:10,inRange:true});
- expect(shipSolution(s,{x:s.x,y:s.y+41}).inRange).toBe(false);expect(shipSolution(s,s).inRange).toBe(false);
+ expect(shipSolution(s,{x:s.x,y:s.y+101}).inRange).toBe(false);expect(shipSolution(s,s).inRange).toBe(false);
 });
 async function fixture(ready=false,blocked=false,away=false,submarine=false,wreck=false){
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-ship-'));let app=createApp({dataDir:dir});await app.close();const db=new DatabaseSync(path.join(dir,'world.sqlite')),tokens=[randomUUID(),randomUUID()];
@@ -86,11 +86,11 @@ it('authorizes submarine depth changes, blocks underwater operations and saves p
   expect((await f.post('ships/depth',{action:'invalid'})).status).toBe(400);
   expect((await f.post('ships/depth',{action:'dive'})).status).toBe(200);
   await expect.poll(async()=>(await f.state()).ships[0].depth,{timeout:4000}).toBe('submerged');
-  for(const [route,data] of [['ships/fire',{x:40,y:20}],['ships/ramp',{deployed:true}],['ships/exit',{}],['ships/contact',{}]] as const){expect((await f.post(route,data)).status).toBe(409);}
+  for(const [route,data] of [['ships/ramp',{deployed:true}],['ships/exit',{}],['ships/contact',{}]] as const){expect((await f.post(route,data)).status).toBe(409);}
   // Reaching submerged state can coincide exactly with the transition tick.
   // Observe battery use before restarting instead of relying on HTTP latency.
-  await expect.poll(async()=>(await f.state()).ships[0].diveBattery).toBeLessThan(30);
-  await f.restart();const saved=(await f.state()).ships[0];expect(saved.depth).toBe('submerged');expect(saved.diveBattery).toBeLessThan(30);
+  await expect.poll(async()=>(await f.state()).ships[0].diveBattery).toBeLessThan(300);
+  await f.restart();const saved=(await f.state()).ships[0];expect(saved.depth).toBe('submerged');expect(saved.diveBattery).toBeLessThan(300);
   await new Promise(r=>setTimeout(r,250));expect((await f.state()).ships[0].diveBattery).toBe(saved.diveBattery);
   // A disconnected pilot does not stop battery drain when another scout watches.
   await f.connect(1);await expect.poll(async()=>(await f.state()).ships[0].diveBattery).toBeLessThan(saved.diveBattery);
@@ -138,8 +138,8 @@ it('fires on server turret bearing, locks reload across ammo and restart, then c
  expect((await f.post('ships/fire',{x:18,y:12})).status).toBe(409);
  // Initial turret points west; cursor east does not snap it around.
  expect((await f.post('ships/fire',{x:27.5,y:12.5,angle:Math.PI/2,mode:'salvo'})).status).toBe(200);
- const flights=(await f.state()).combat.salvos;expect(flights).toHaveLength(4);
- expect(new Set(flights.map((s:any)=>s.owner)).size).toBe(4);
+ const flights=(await f.state()).combat.salvos;expect(flights).toHaveLength(9);
+ expect(new Set(flights.map((s:any)=>s.owner)).size).toBe(9);
  for(const flight of flights){expect(flight.targetX).toBeLessThan(10);expect(flight.weapon).toBe('HE');}
  expect(flights[0].targetX).toBeCloseTo(6.45);expect(flights[0].targetY).toBeCloseTo(13.05);
  await f.post('ships/ammo',{ammo:'INCENDIARY'});expect((await f.post('ships/fire',{x:27.5,y:12.5})).status).toBe(409);
@@ -157,15 +157,15 @@ it('authorizes side mounts, waits for traverse, fires during main reload and sav
  expect((await f.post('ships/fire',{x:27.5,y:12.5})).status).toBe(200);
  // Hull initially faces west: port points south. Forged angle and weapon cannot change the mount.
  const shot=await f.post('ships/secondary',{x:17.5,y:16.5,angle:0,weapon:'HE'});
- expect(shot.body.fired).toBe(1);const first=await f.state();
- expect(first.ships[0].reload).toBeGreaterThan(5);expect(first.combat.shots.at(-1)).toMatchObject({owner:'ship-a:port',weapon:'NAVAL_APCR'});
+ expect(shot.body.fired).toBe(2);const first=await f.state();
+ expect(first.ships[0].reload).toBeGreaterThan(5);expect(first.combat.shots.at(-1)).toMatchObject({batterySide:'port',weapon:'NAVAL_APCR',muzzleAtTip:true});
  const target={x:14.5,y:15.5};expect((await f.post('ships/secondary',target)).body.fired).toBe(0);
  await expect.poll(async()=>Math.abs((await f.state()).ships[0].portTurret+Math.PI/2),{timeout:1500}).toBeGreaterThan(.3);
- await expect.poll(async()=>(await f.post('ships/secondary',target)).body.fired,{timeout:1500,interval:100}).toBe(1);
+ await expect.poll(async()=>(await f.post('ships/secondary',target)).body.fired,{timeout:1500,interval:100}).toBe(2);
  const accepted=(await f.state()).combat.shots.filter((s:any)=>s.weapon==='NAVAL_APCR').map((s:any)=>s.id);
  await new Promise(r=>setTimeout(r,350));expect((await f.state()).combat.shots.filter((s:any)=>s.weapon==='NAVAL_APCR').map((s:any)=>s.id)).toEqual(accepted);
  await new Promise(r=>setTimeout(r,600));const pose=(await f.state()).ships[0];await f.restart();const saved=(await f.state()).ships[0];
- for(const key of ['turret','aftTurret','portTurret','starboardTurret'])expect(saved[key]).toBeCloseTo(pose[key]);
+ for(const key of ['turret','raisedTurret','aftTurret','portTurret','starboardTurret','portForeTurret','portAftTurret','starboardForeTurret','starboardAftTurret'])expect(saved[key]).toBeCloseTo(pose[key]);
  expect((await f.post('ships/secondary',target)).status).toBe(409); // disconnected seat cannot fire
  }finally{await f.close();}
 },8000);
@@ -173,13 +173,15 @@ it('fires alternating turret volleys, persists independent reloads and rejects f
  const f=await fixture(true);try{await f.connect();
  expect((await f.post('ships/fire',{x:27.5,y:12.5,mode:'burst'})).status).toBe(409);
  expect((await f.post('ships/fire',{x:27.5,y:12.5})).status).toBe(200);
- const first=await f.state();expect(first.combat.salvos.map((s:any)=>s.mount)).toEqual(['fore','fore']);expect(first.ships[0].mainReloads.aft).toBe(0);
+ const first=await f.state();expect(first.combat.salvos.map((s:any)=>s.mount)).toEqual(['fore','fore','fore']);expect(first.ships[0].mainReloads.aft).toBe(0);
  await f.restart();const resumed=await f.state();expect(resumed.ships[0].mainReloads.fore).toBeGreaterThan(5);expect(resumed.ships[0].mainReloads.aft).toBe(0);
  await f.connect();await f.post('ships/ammo',{ammo:'INCENDIARY'});
  expect((await f.post('ships/fire',{x:27.5,y:12.5})).status).toBe(200);
- const second=await f.state();expect(second.combat.salvos.map((s:any)=>s.mount)).toEqual(['aft','aft']);
+ const second=await f.state();expect(second.combat.salvos.map((s:any)=>s.mount)).toEqual(['raised','raised','raised']);
+ expect((await f.post('ships/fire',{x:27.5,y:12.5,mode:'salvo'})).status).toBe(200);
+ expect((await f.state()).ships[0].mainReloads.aft).toBeGreaterThan(5);
  expect((await f.post('ships/fire',{x:27.5,y:12.5,mode:'salvo'})).status).toBe(409);
- expect((await f.state()).combat.salvos).toHaveLength(2);
+ expect((await f.state()).combat.salvos).toHaveLength(6);
  }finally{await f.close();}
 },8000);
 it('anchors and saves a remote shore ramp, exits, reboards after restart and retracts before sailing',async()=>{
@@ -211,7 +213,7 @@ it('deploys and restores a submarine beside the same owners gunship without repl
  await f.restart();const ships=(await f.state()).ships;expect(ships).toHaveLength(2);expect(ships.find((s:any)=>s.id===drop.body.ship.id).kind).toBe('submarine');expect(ships.find((s:any)=>s.id==='ship-a').kind).toBe('gunship');
  }finally{await f.close();}
 });
-it('authorizes submarine missiles, braces briefly, then sails and preserves shared ammo reload across restart',async()=>{
+it('authorizes submarine missiles while sailing and preserves all four group reloads across restart',async()=>{
  const f=await fixture(true,false,false,true);try{await f.connect();await f.connect(1);
  expect((await f.post('ships/fire',{x:43,y:12},1)).status).toBe(409);
  expect((await f.post('ships/fire',{x:18,y:12})).status).toBe(409);expect((await f.state()).ships[0].reload).toBe(0);
@@ -219,11 +221,11 @@ it('authorizes submarine missiles, braces briefly, then sails and preserves shar
  expect((await f.post('ships/fire',{x:43,y:12,rotated:'yes'})).status).toBe(400);
  expect((await f.post('ships/fire',{x:43,y:12,rotated:true})).status).toBe(200);
  const before=await f.state();expect(before.combat.salvos).toHaveLength(0);expect(before.combat.barrages[0].missiles).toHaveLength(6);expect(before.combat.barrages[0].box).toMatchObject({width:8,height:6});
- await f.helm(4,0,0);await new Promise(r=>setTimeout(r,250));expect((await f.state()).ships[0].x).toBe(before.ships[0].x);
+ await f.helm(4,0,0);await expect.poll(async()=>(await f.state()).ships[0].x,{timeout:1200}).toBeLessThan(before.ships[0].x);
  await expect.poll(async()=>(await f.state()).ships[0].launchRemaining,{timeout:2500}).toBe(0);
  await f.helm(4,0,0);await expect.poll(async()=>(await f.state()).ships[0].x).toBeLessThan(before.ships[0].x);
- await f.post('ships/ammo',{ammo:'GAS'});expect((await f.post('ships/fire',{x:43,y:12})).status).toBe(409);
- await f.restart();const saved=await f.state();expect(saved.ships[0]).toMatchObject({kind:'submarine',ammo:'GAS',occupant:'a',launchRemaining:0});expect(saved.ships[0].reload).toBeGreaterThan(15);expect(saved.combat.barrages).toHaveLength(0);
+ await f.post('ships/ammo',{ammo:'GAS'});for(let i=0;i<3;i++)expect((await f.post('ships/fire',{x:43,y:12})).status).toBe(200);expect((await f.post('ships/fire',{x:43,y:12})).status).toBe(409);
+ await f.restart();const saved=await f.state();expect(saved.ships[0]).toMatchObject({kind:'submarine',ammo:'GAS',occupant:'a',launchRemaining:0});expect(saved.ships[0].reload).toBeGreaterThan(15);expect(saved.ships[0].siloReloads).toHaveLength(4);expect(saved.ships[0].siloReloads.every((r:number)=>r>0)).toBe(true);expect(saved.combat.barrages).toHaveLength(0);
  await f.connect();expect((await f.post('ships/fire',{x:43,y:12})).status).toBe(409);
  }finally{await f.close();}
 },8000);
@@ -231,7 +233,7 @@ it('authorizes submarine missiles, braces briefly, then sails and preserves shar
 it('replaces the selected submarine in a two-vessel fleet without changing the gunship',async()=>{
  const f=await fixture(true,false,false,true,true);try{await f.connect();await f.connect(1);const before=(await f.state()).ships.find((s:any)=>s.id==='other-gun');
  expect((await f.post('vehicles/replace',{kind:'ship',id:'ship-a'},1)).status).toBe(404);
- const response=await f.post('vehicles/replace',{kind:'ship',id:'ship-a'});expect(response.status).toBe(200);expect(response.body.vehicle).toMatchObject({id:'ship-a',kind:'submarine',health:300,destroyed:false,elapsed:0,ramp:null,reload:0});
- expect((await f.post('vehicles/replace',{kind:'ship',id:'ship-a'})).status).toBe(200);const after=(await f.state()).ships;expect(after).toHaveLength(2);expect(after.find((s:any)=>s.id==='other-gun')).toEqual(before);
+ const response=await f.post('vehicles/replace',{kind:'ship',id:'ship-a'});expect(response.status).toBe(200);expect(response.body.vehicle).toMatchObject({kind:'submarine',health:300,destroyed:false,elapsed:0,ramp:null,reload:0});
+ expect((await f.post('vehicles/replace',{kind:'ship',id:'ship-a'})).status).toBe(200);const after=(await f.state()).ships;expect(after).toHaveLength(3);expect(after.find((s:any)=>s.id==='ship-a').destroyed).toBe(true);expect(response.body.vehicle.id).not.toBe('ship-a');expect(after.find((s:any)=>s.id==='other-gun')).toEqual(before);
  }finally{await f.close();}
 });

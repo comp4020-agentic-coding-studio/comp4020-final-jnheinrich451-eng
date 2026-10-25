@@ -1,5 +1,5 @@
 ﻿import { submerged } from './submarine-depth.js';
-import { tileAt } from './world.js';
+import { waterTileAt as tileAt } from './world.js';
 import { hull, rectanglesOverlap } from './ship.js';
 import { hullPoint, hullDistance, operational, hurtVehicle } from './vehicle.js';
 import { insideField, heatSpeed, activeSectors } from './hazards.js';

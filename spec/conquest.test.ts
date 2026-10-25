@@ -99,6 +99,9 @@ it('keeps site defenders out of drill completion and does not reset accepted str
   combat.start([]); expect(combat.snapshot().salvos).toHaveLength(1);
   advance(combat, 5); expect(site.hp).toBeLessThan(ALERT.hp);
   const saved = combat.checkpoint(); saved.enemies = saved.enemies.filter((e: any) => e.siteId);
+  // The stronger rail blast can kill every nearby guard. Keep an unrelated survivor
+  // so this tests drill completion rather than the old weapon balance.
+  saved.enemies.push({id:++saved.serial,siteId:site.id,hp:60,x:site.x+30,y:site.y+30,homeX:site.x+30,homeY:site.y+30,angle:0,path:[],reroute:0,behavior:'guarding'});
   const replay = createCombat(setup().world, saved); advance(replay, 1);
   expect(replay.snapshot().status).toBe('cleared');
   expect(replay.snapshot().enemies.length).toBeGreaterThan(0);

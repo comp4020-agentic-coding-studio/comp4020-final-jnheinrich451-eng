@@ -1,4 +1,5 @@
 import { isCarrier, CARRIER } from './carrier.js';
+import { shipDimensions } from './naval-scale.js';
 ﻿import { POD } from './pod.js';
 export const SHIP_REPAIR_DELAY = 5;
 export const VEHICLE = Object.freeze({tank:200,ship:300,replacement:12});
@@ -15,7 +16,8 @@ export function hurtVehicle(v,amount) {
 // Closest point on an oriented hull. Shared by targeting and strike revalidation.
 export function hullPoint(v,p) {
  const ship=vehicleKind(v)==='ship',angle=ship?v.angle:0,c=Math.cos(angle),s=Math.sin(angle),dx=p.x-v.x,dy=p.y-v.y;
- const x=Math.max(-(ship?(isCarrier(v)?1.5:1):.42),Math.min(ship?1:.42,dx*c+dy*s)),y=Math.max(-(ship?(isCarrier(v)?2.5:2):.42),Math.min(ship?2:.42,-dx*s+dy*c));
+ const size=shipDimensions(v),halfWidth=ship?size.width/2:.42,halfLength=ship?size.length/2:.42;
+ const x=Math.max(-halfWidth,Math.min(halfWidth,dx*c+dy*s)),y=Math.max(-halfLength,Math.min(halfLength,-dx*s+dy*c));
  return{x:v.x+x*c-y*s,y:v.y+x*s+y*c};
 }
 export const hullDistance=(v,p)=>{const q=hullPoint(v,p);return Math.hypot(q.x-p.x,q.y-p.y);};

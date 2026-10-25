@@ -15,12 +15,12 @@ it('solves the upper arc, clamps range, and converges at physical traverse/eleva
   expect(Math.abs(g.elevation - 75)).toBeLessThanOrEqual(.800001);
   for (let i = 0; i < 60; i++) { g.inputTime = .35; g.lease = 5; tickCarriage(g, .1); }
   const impact = artillerySolution(g); expect(impact.x).toBeCloseTo(target.x); expect(impact.y).toBeCloseTo(target.y);
-  expect(artilleryAim(g, { x: 200, y: 13.5 })).toMatchObject({ elevation: 45, inRange: false });
-  expect(artilleryAim(g, { x: 20.5, y: 13.5 }).elevation).toBeCloseTo(87);
+  expect(artilleryAim(g, { x: 220, y: 13.5 })).toMatchObject({ elevation: 45, inRange: false });
+  expect(artilleryAim(g, { x: 20.5, y: 13.5 }).elevation).toBeCloseTo(RAIL.maxElevation);
 });
 
 it('stale pointer input stops aiming and early fire keeps the current physical landing point', () => {
-  const g = gun(), w = field(), combat = createCombat(w); g.target = { x: 20.5, y: 30.5 };
+  const g = gun(), w = {...field(),width:512,height:384}, combat = createCombat(w); g.target = { x: 20.5, y: 30.5 };
   tickCarriage(g, .35); const angle = g.angle, elevation = g.elevation;
   tickCarriage(g, .5); expect(g.angle).toBe(angle); expect(g.elevation).toBe(elevation);
   const solution = artillerySolution(g);

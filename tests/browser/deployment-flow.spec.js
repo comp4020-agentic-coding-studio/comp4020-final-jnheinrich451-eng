@@ -53,7 +53,7 @@ for(const mobile of [false,true])test('separate empty airbase and map-selected a
 });
 test('naval deployment separates an empty dock from its map-selected ship',async({browser})=>{
  const f=await field(browser),p=f.page;try{
-  await p.locator('#build-mode').click();await p.locator('#tab-navy').click();await p.locator('#dock-card').click();await tile(p,27,30);await expect(p.locator('#place-building')).toBeEnabled();await p.locator('#place-building').click();
+  await p.locator('#build-mode').click();await p.locator('#tab-navy').click();await p.locator('#dock-card').click();await tile(p,22,30);await expect(p.locator('#place-building')).toBeEnabled();await p.locator('#place-building').click();
   await expect.poll(async()=>(await f.state()).logistics.shipyards.length).toBe(1);let s=await f.state();expect(s.ships).toHaveLength(0);const yard=s.logistics.shipyards[0];
   await expect.poll(async()=>(await f.state()).logistics.shipyards[0].elapsed,{timeout:10000}).toBeGreaterThanOrEqual(SHIP.duration);
   await p.locator('#build-mode').click();await p.locator('#tab-navy').click();await p.locator('#transport-card').click();await expect(p.locator('#shipyard-dialog')).toBeHidden();await tile(p,Math.floor(yard.dock.x),Math.floor(yard.dock.y));

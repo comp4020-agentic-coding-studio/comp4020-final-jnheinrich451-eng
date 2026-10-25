@@ -1,3 +1,4 @@
+import { fieldHelicopterBlocks } from './footprints.js';
 import { bridgeAt } from './bridge-geometry.js';
 import { clampStrike } from './strike-aim.js';
 import { airbaseAt, hostileAt } from './footprints.js';
@@ -31,7 +32,7 @@ export function missileTargetError(gun, world, target, rotated = false) {
 export function missileFireError(gun, world, target = gun.target, rotated = gun.rotated, volleys = [], fields = [], salvos = []) {
   if (!['HE', 'INCENDIARY', 'GAS'].includes(gun.ammo || 'HE')) return 'Choose HE, incendiary or gas.';
   if (gun.reload > .001) return `Battery reloading (${gun.reload.toFixed(1)}s).`;
-  if (volleys.length >= MISSILE.maxVolleys) return 'Two missile volleys are already in flight. Wait for their impacts.';
+  if (volleys.filter(b=>b.kind!=='submarine').length >= MISSILE.maxVolleys) return 'Two missile volleys are already in flight. Wait for their impacts.';
   return missileTargetError(gun, world, target, rotated) || fieldCapacityError(fields, salvos, gun.ammo || 'HE', MISSILE.width * MISSILE.height);
 }
 export function missilePlacementError(world, buildings, occupants, x, y, owner) {
@@ -41,6 +42,7 @@ export function missilePlacementError(world, buildings, occupants, x, y, owner) 
   for (let cy = y; cy < y + 4; cy++) for (let cx = x; cx < x + 4; cx++) {
     if(bridgeAt(world,cx,cy))return 'Keep bridges clear of missile batteries.';
     if (hostileAt(world, cx, cy)) return 'An alien station occupies the battery footprint.';
+    if(fieldHelicopterBlocks(world,cx+.5,cy+.5,.5))return 'Keep the helicopter landing area clear.';
     if(airbaseAt(world,cx,cy))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,cx,cy))return 'Keep the shoreline dock clear.';
     if (tankBlocks(world, cx + .5, cy + .5, .5)) return 'A tank or incoming pod occupies this footprint.';

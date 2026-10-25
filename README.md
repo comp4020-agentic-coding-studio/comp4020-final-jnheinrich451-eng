@@ -116,12 +116,45 @@ invitations, remembered account membership, orbital landing and the first
 permanent conquest objective. In-game help provides controls;
 [GAME_DESIGN.md](GAME_DESIGN.md) holds the boundaries and stage roadmap.
 
+The local [air-power refinement](docs/AIR_POWER_REFINEMENT.md) adds unlimited
+fixed-wing ammunition with cooldowns, stronger bomber payloads, the attack jet's
+RMB 30 mm gun, and compact green flight instruments. Its next-stage proposal is
+a slower side-firing gunship; that aircraft is not implemented yet.
+
 Email/password registration, verification and recovery are implemented locally,
 with SMTP for real delivery or a private simulated Demo inbox. Actual Brevo inbox
 receipt still needs testing. Guests join by invitation and keep their contributions
 in the host's world; only accounts host. [The permission decision](docs/decisions/002-identity-and-permissions.md)
 explains server-enforced ownership, shared equipment and the guest lifetime.
-Multiple planets, cinematic introductions, final textures and sound are deferred.
+Multiple planets, cinematic introductions, final textures and ambient sounds are deferred.
+
+The local [orbital expansion](docs/ORBITAL_EXPANSION_AND_POLISH.md) adds a heavy
+bomb, a seeded 15-second barrage, and three-shell cluster strikes. New cutting
+beams sweep up to 72 tiles over 18 seconds. All use the shared ORB pool and save
+accepted impact progress across restarts. The same roadmap records future
+presentation art, terrain variety and two additional planets.
+
+The local [helicopter and submarine refinement](docs/HELICOPTER_AND_SUBMARINE_REFINEMENT.md)
+now includes Remote helicopter movement, field landing and vehicle pickup/drop,
+plus submarine navigation, depth control and underwater missile orders. Use F
+from your robot and select the aircraft or submarine. Commands and cargo transfers
+are saved; named campaigns also preserve accepted missile salvos. The local
+[polish roadmap](docs/VEHICLE_POLISH_ROADMAP.md) now includes heavy-tank art,
+utility-vehicle handling and friendly wreck recycling. Park a recycler near a
+land wreck, or stop a transport carrying a recycler near a sea wreck, to recover
+half its recorded purchase payment as salvage. Deployment cards now have distinct
+strike/support icons, and missile batteries and railway cannons have more detailed
+overhead artwork. [Apex of Conquest](docs/BACKGROUND_MUSIC.md) now loops as local
+background music after your first click, tap or key press. Help (?) contains music
+on/off and volume controls. [Weapon sound effects](docs/SOUND_EFFECTS.md) now have
+their own controls, distance fading and bounded overlapping fire. Movement and
+ambient sounds, adaptive music and terrain remain later stages.
+
+Local [crew communication](docs/CHAT_EMOTES_AND_SOUND_PLAN.md) adds bottom-left
+chat: Enter opens, Enter sends and closes, and Esc keeps the draft. Empty Enter
+submissions close without a blank message. Hold Q, point and release to send a
+pixel emote above your controlled unit; touch users can tap the Emote button.
+Messages stay in the current room's short session history, not campaign saves.
 
 ## Influences and choices
 

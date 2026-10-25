@@ -1,5 +1,70 @@
 # Vehicle handling
 
+## Hull-relative ground controls - 24 October 2026
+
+Current manual controls for tanks, recyclers and bridge builders:
+W/up drives forward along the saved hull heading; S/down brakes then reverses.
+A/left and D/right turn the nose left/right, including assisted pivoting at rest.
+Steering alone does not translate a stopped vehicle. Release the controls to brake.
+Forward and reverse limits, acceleration, speed-dependent turn rate, collision,
+construction locks and safety stops retain their existing values. The tank turret
+still follows mouse aim independently; foot movement remains world-relative.
+
+Remote/path commands still supply world-space route directions through an explicit
+path-driving adapter. This preserves recycler routes, narrow bridge approaches,
+collection and delivery. No save conversion is needed: vehicles already save their
+hull heading. HUD/key help and action logs describe forward/reverse and steering.
+A gold chevron marks the controlled vehicle nose. Mobile tank chat buttons sit
+above the steering pad; touch button labels describe the current vehicle controls.
+
+Validation: 96 focused movement, action-log, tank, logistics and bridge tests passed,
+including peer movement snapshots, collision, braking, input expiry, saved heading,
+remote recycler routes and construction locks. All three vehicles passed desktop
+keyboard and phone touch checks for pivoting, forward/reverse, braking and reload.
+
+This supersedes the older world-direction and automatic-reverse descriptions below.
+
+
+## Utility vehicles - 23 October 2026
+
+Originally recycler and bridge-builder WASD chose a world direction (superseded
+by the 24 October controls above). Both use
+the tank's bounded ground movement integrator with separate tuning. Turning
+slows at speed; low-speed assisted turning keeps small bridge approaches usable.
+Releasing input brakes naturally; an opposite direction brakes through zero
+before reversing. Their appearances, collision radii, prices and cargo stay the same.
+
+| Vehicle | Forward / reverse (tiles/s) | Acceleration / braking (tiles/s squared) |
+| --- | --- | --- |
+| Recycler | 3.5 / 1.7 | 3.6 / 7 |
+| Bridge builder | 3.5 / 1.4 | 2.5 / 6 |
+
+The builder turns more slowly. Remote recycler routes retain a 2.5 tiles/s cap,
+skip straight intermediate nodes, brake at corners and align before proceeding.
+They use the same hull collision checks as manual driving. An obstructed route
+stops with its existing blocked notice. Cargo work starts after arrival; manual
+collection waits until the vehicle is stationary for half a second.
+
+Missing/expired input and disconnect stop occupied vehicles immediately. Boarding,
+exit, pause and construction locks clear momentum; startup clears saved motion
+fields, including old records without them. Remote paths and tasks can resume
+from rest. Ship and helicopter cargo transfers clear velocity as well.
+
+Client-only dust is stronger on sand than grass, absent on flooring and water,
+and disabled with reduced effects. At most ten analytic puffs are drawn per
+vehicle, without persistent particles or network events.
+
+Validation: 99 focused tests passed across utility/tank movement, logistics,
+bridges, ship transport and helicopter sling behavior. This includes remote
+collection/delivery through a server restart and a one-tile right-angle corridor.
+Desktop (1920 x 1080) and phone (390 x 844) browser checks passed for driving,
+parking, salvage/unloading, rocket shipment, bridge construction and crossing.
+Typecheck and JavaScript syntax checks passed; screenshots were inspected.
+
+The 23 October [air-power refinement](AIR_POWER_REFINEMENT.md) supersedes finite
+fixed-wing ammunition, refill waits, the old bomb pattern and the U systems HUD.
+Helicopter ammunition is unchanged. Earlier stage evidence below is historical.
+
 Agreed 19 October 2026. One reference for the vehicle-handling polish sequence:
 ships first, aircraft second, then tank tuning. Ship and fixed-wing handling are
 implemented locally; the tank tuning follow-up is recorded below.
@@ -99,9 +164,9 @@ reduced motion removes that added visual while retaining handling and readouts.
 
 | Vehicle | Existing behaviour | Proposed next refinement |
 | --- | --- | --- |
-| Tank | Acceleration, braking, slower automatic reverse, bounded hull turning; world-direction WASD and independent turret | Revised acceleration, stopping distance and speed-dependent turns; player feedback next |
+| Tank | Acceleration, braking, slower automatic reverse, bounded hull turning; hull-relative driving and independent turret | Revised acceleration, stopping distance and speed-dependent turns; player feedback next |
 | Jets/bombers | Distinct manual acceleration and bank response; compact flight instruments | Playtest tuning; automatic mission/landing controllers retained |
-| Helicopter | Hover, directional flight and gradual velocity changes | Tune braking and sideways drift separately from fixed-wing aircraft |
+| Helicopter | Bounded directional acceleration, braking drift, capped speed and cosmetic tilt | Playtest responsiveness and helipad approach |
 | Recycler/builder | Existing vehicle controls | Consider weight and braking after the main combat vehicles |
 
 Fixed-wing aircraft must never inherit ship Stop/Reverse controls in flight.
@@ -110,8 +175,8 @@ need regression checks before altering aircraft steering.
 
 ## Tank tuning follow-up
 
-The 20 October pass retains 3 tiles/s forward, 1.6 reverse and world-direction
-WASD. Acceleration is now 3 tiles/s squared (one second to full speed), braking
+The 20 October pass retained 3 tiles/s forward, 1.6 reverse and world-direction
+WASD; the 24 October controls above supersede that input mapping. Acceleration is now 3 tiles/s squared (one second to full speed), braking
 6 tiles/s squared (about half a second and 0.71 tiles to stop at full speed).
 The hull turns at up to 144 degrees/s near rest, falling to about 67 degrees/s
 at full forward speed. The existing alignment rule slows sharp corners; the
@@ -125,6 +190,43 @@ renewing the lease. These are provisional local tuning values,
 superseding the initial rates in GROUND_WEAPONS.md.
 
 ## Verification
+
+### Helicopter refinement, 22 October
+
+Hold a world-direction WASD key to accelerate at 4 tiles/s squared to the existing
+4 tiles/s maximum (one second from hover). Continued input holds that speed;
+diagonal input shares the same cap. Release brakes at 6 tiles/s squared, stopping
+from full speed in about 0.67 seconds and 1.33 tiles. Reversing first brakes the
+existing velocity, then accelerates in the new direction. Turns retain sideways
+momentum while approaching the new direction. These are provisional game values.
+
+The existing server tick integrates velocity in steps of at most 25 ms. Map edges
+remove outward velocity while permitting movement along the edge. No input brakes
+to hover; an expired manual command cannot continue accelerating. Mouse aim and
+turret tracking remain independent. Existing rocket windows, landing conditions,
+automatic support/cruise/return and save/recovery rules remain in use.
+
+The browser leans the body and rotor disc up to 26 degrees in the travel direction,
+using a layered hull, cockpit, skids and raised rotor hub. A modest perspective
+effect distinguishes lowered and raised ends: forward flight lowers the nose,
+backward flight raises it, and sideways flight banks left/right. WASD remains
+world-relative, so attitude follows travel relative to the mouse-facing hull.
+It levels as speed
+falls. This is a cosmetic overhead approximation, with no altitude simulation or
+change to hitboxes, weapon origin or aim. Reduced effects removes the added tilt.
+
+Domain checks cover acceleration, steady speed, diagonal normalization, braking,
+reversal, turns, tick-size consistency, map edges and cosmetic attitude. Existing
+helicopter mission, landing, ammunition and persistence tests remain required;
+browser checks exercise keyboard flight and the existing desktop/phone controls.
+
+Local validation: TypeScript and all 17 targeted helicopter tests passed. Seven
+browser scenarios passed: acceleration/hover, desktop and phone held fire, helipad
+deployment, remote support, intact-pad landing and destroyed-pad feedback. The
+handling scenario also checks desktop-to-phone resizing. Not deployed to Fly.
+Directional-tilt follow-up: TypeScript, the five handling checks and the browser
+flight/resize scenario passed again. Inspected hover, forward/backward and both
+sideways attitudes together at enlarged and normal game scales.
 
 Ship checks cover acceleration, braking through zero, rudder centring, turn
 radius, carrier response, bounded steps, collisions, actual-rest interaction

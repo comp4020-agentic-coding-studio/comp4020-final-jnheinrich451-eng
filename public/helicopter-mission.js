@@ -1,9 +1,14 @@
 import { heliParking, HELI } from './helicopter.js';
+import {mountainClear} from './terrain-rules.js';
+import {mountainWaypoint} from './mountain-flight.js';
+import { beginSlingLower } from './helicopter-sling.js';
+import { emergencyLandingPoint, fieldLandingError } from './helicopter-landing.js';
 import { flightRoute, cruiseSite } from './air-routing.js';
 
 export function helicopterPlan(world,target,bearing){
   if(!target||![target.x,target.y,bearing].every(Number.isFinite)||![0,1,2,3].includes(bearing))return {error:'Choose an area and approach direction.'};
   const angle=bearing*Math.PI/2,entry={x:target.x-Math.sin(angle)*8,y:target.y+Math.cos(angle)*8};
+  if(!mountainClear(world,entry,2))return {error:'High mountains block this hovering position. Change the approach.'};
   if([target,entry].some(p=>p.x<2||p.y<2||p.x>world.width-2||p.y>world.height-2))return {error:'Keep the target and hovering position inside the map.'};
   return {payload:'HE',weapon:'helicopter',target:{...target},bearing,angle,entry,release:entry,points:[{...target}]};
 }
@@ -41,10 +46,30 @@ export function tickHelicopterMission(world,base,dt,release,tick){
     if(m.phase==='cruise')target=m.cruiseCenter;
     if(m.phase==='return'||m.phase==='landing'){
       target=heliParking(base);m.returnTime=(m.returnTime||0)+step;
-      if((base.destroyed||world.logistics?.jobs?.[base.id])&&Math.hypot(p.x-target.x,p.y-target.y)<1.3||m.returnTime>120){lose('Helipad unavailable / emergency landing');return true;}
+      if(!p.sling&&(base.destroyed||world.logistics?.jobs?.[base.id]||m.returnTime>120)){
+        m.reason='Helipad unavailable / finding clear ground';
+        m.searchWait=Math.max(0,(m.searchWait||0)-step);
+        if(!m.emergencyPoint&&!m.searchWait){m.emergencyPoint=emergencyLandingPoint(world,p);m.searchWait=2;}
+        target=m.emergencyPoint||{x:p.x,y:p.y};
+        if(!p.sling&&p.state==='flying'&&m.emergencyPoint&&Math.hypot(p.x-target.x,p.y-target.y)<.6&&p.speed<.8){
+          if(fieldLandingError(world,p,target)){m.emergencyPoint=null;}
+          else Object.assign(p,{fieldLanding:{...target},state:'landing',remaining:HELI.transition,speed:0,vx:0,vy:0});
+        }
+      }
+      // Unattended recovery keeps the load attached until a clear nearby ground
+      // site exists. Lower first, then continue the ordinary pad/field landing.
+      if(p.sling){
+        m.searchWait=Math.max(0,(m.searchWait||0)-step);
+        if(!m.slingRecoveryPoint&&!m.searchWait){m.slingRecoveryPoint=emergencyLandingPoint(world,p);m.searchWait=2;}
+        target=m.slingRecoveryPoint||(!base.destroyed&&!world.logistics?.jobs?.[base.id]?heliParking(base):{x:p.x,y:p.y});
+        if(!p.slingOperation&&m.slingRecoveryPoint&&Math.hypot(p.x-target.x,p.y-target.y)<.4&&p.speed<.4){
+          const error=beginSlingLower(world,p);if(error){m.slingRecoveryPoint=null;m.reason=error;}
+        }
+      }
       p.leftBase=true;
     }else if(m.elapsed>120&&!['cruise','service'].includes(m.phase)){m.phase='return';m.returnTime=0;m.reason='Support route timed out';}
     if(p.state==='landing')m.phase='landing';
+    if(['return','cruise','landing'].includes(m.phase))target=mountainWaypoint(world,p,target);
     const dx=target.x-p.x,dy=target.y-p.y,distance=Math.hypot(dx,dy),scale=Math.min(1,distance/2)/Math.max(.001,distance);
     tick(world,base,{x:dx*scale,y:dy*scale,target:m.phase==='support'?p.target:target},step);
     if(m.phase==='complete'||m.phase==='lost')break;

@@ -6,9 +6,14 @@ export const ORBITAL_PAYLOADS=Object.freeze({
  HE:Object.freeze({...ORBITAL,label:'Walking HE',color:'#f4c36b'}),
  INCENDIARY:Object.freeze({cost:100,label:'Incendiary curtain',color:'#ff9a54',count:7,spacing:3,radius:2.1,duration:18,cooldown:45,craterSize:4.7}),
  GAS:Object.freeze({cost:100,label:'Gas seeding',color:'#c5e69b',count:7,radius:2.8,spread:4.2,capacity:24,cooldown:45,craterSize:6.3}),
- BEAM:Object.freeze({cost:180,label:'Cutting beam',color:'#ff8e71',radius:1.25,lethalRadius:.5,damage:45,edgeDamage:15,duration:6,interval:.15,maxLength:24,minLength:2,cooldown:45})
+ BEAM:Object.freeze({cost:180,label:'Cutting beam',color:'#ff8e71',radius:1.25,lethalRadius:.5,damage:45,edgeDamage:15,duration:18,interval:.15,maxLength:72,minLength:2,cooldown:45}),
+ HEAVY:Object.freeze({cost:300,label:'Heavy orbital bomb',color:'#ffe2ac',radius:12,lethalRadius:4,damage:1200,edgeDamage:100,craterSize:28,cooldown:60}),
+ BARRAGE:Object.freeze({cost:240,label:'Sustained barrage',color:'#efaa75',count:31,duration:15,spread:10,radius:3,lethalRadius:1,damage:220,edgeDamage:30,craterSize:7.5,cooldown:60}),
+ CLUSTER:Object.freeze({cost:200,label:'Cluster line',color:'#f6cf89',count:3,spacing:12,interval:1.6,radius:2.6,lethalRadius:.9,damage:220,edgeDamage:30,craterSize:7.5,cooldown:50,
+  bomblet:Object.freeze({count:6,spread:4,radius:2.3,lethalRadius:.65,damage:120,edgeDamage:20,craterSize:4.5})})
 });
 export const orbitalProfile=value=>typeof value==='string'?ORBITAL_PAYLOADS[value]:value.profile||ORBITAL_PAYLOADS[value.payload||'HE'];
+export const orbitalImpactProfile=(order,point)=>point.stage==='bomblet'?orbitalProfile(order).bomblet:orbitalProfile(order);
 export const orbitalHazard=payload=>['INCENDIARY','GAS'].includes(payload);
 export const orbitalBox=(points,radius)=>{const xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs)-radius,y=Math.min(...ys)-radius;return{x,y,width:Math.max(...xs)+radius-x,height:Math.max(...ys)+radius-y};};
 function touchesWater(world,point,radius){
@@ -30,12 +35,34 @@ export function orbitalPlan(world,target,bearing,sequence=orbitalState(world).se
  }
  if(payload==='INCENDIARY')for(let i=0;i<profile.count;i++)points.push({x:target.x+dx*i*profile.spacing,y:target.y+dy*i*profile.spacing,row:i,offset:i*.12,landed:false});
  if(payload==='GAS')for(let i=0;i<profile.count;i++){const a=(i-1)*Math.PI/3,r=i?profile.spread:0;points.push({x:target.x+Math.cos(a)*r,y:target.y+Math.sin(a)*r,row:0,offset:i*.12,landed:false});}
+ if(payload==='HEAVY')points.push({...target,row:0,offset:0,landed:false});
+ if(payload==='BARRAGE'){
+  // Stratified disk: seeded rotation/jitter keeps a repeatable broad coverage,
+  // instead of allowing every random shell to clump into one corner.
+  const rotation=random()*Math.PI*2;
+  for(let i=0;i<profile.count;i++){
+   const a=rotation+i*Math.PI*(3-Math.sqrt(5))+(random()-.5)*.3,r=profile.spread*Math.sqrt((i+random())/profile.count);
+   points.push({x:target.x+Math.cos(a)*r,y:target.y+Math.sin(a)*r,row:i,offset:i*profile.duration/(profile.count-1),landed:false});
+  }
+  // Shuffle positions, retaining the fixed half-second cadence: bombardment
+  // visits the whole area throughout its duration rather than spiralling out.
+  for(let i=points.length-1;i>0;i--){const j=Math.floor(random()*(i+1));const {x,y}=points[i];points[i].x=points[j].x;points[i].y=points[j].y;points[j].x=x;points[j].y=y;}
+ }
+ if(payload==='CLUSTER')for(let row=0;row<profile.count;row++){
+  const x=target.x+dx*row*profile.spacing,y=target.y+dy*row*profile.spacing,offset=row*profile.interval;
+  points.push({x,y,row,offset,stage:'parent',landed:false});
+  const rotation=random()*Math.PI*2;
+  for(let i=0;i<profile.bomblet.count;i++){
+   const a=rotation+i*Math.PI*2/profile.bomblet.count+(random()-.5)*.25,r=profile.bomblet.spread*(.8+random()*.2);
+   points.push({x:x+Math.cos(a)*r,y:y+Math.sin(a)*r,originX:x,originY:y,row,offset:offset+.45+i*.07,stage:'bomblet',landed:false});
+  }
+ }
  if(payload==='BEAM'){
   if(!end||![end.x,end.y].every(Number.isFinite))return {error:'Choose a beam endpoint.'};
-  const length=Math.hypot(end.x-target.x,end.y-target.y);if(length<profile.minLength||length>profile.maxLength)return {error:'Choose a beam length between 2 and 24 tiles.'};
+  const length=Math.hypot(end.x-target.x,end.y-target.y);if(length<profile.minLength||length>profile.maxLength)return {error:`Choose a beam length between ${profile.minLength} and ${profile.maxLength} tiles.`};
   const steps=Math.round(profile.duration/profile.interval);for(let i=0;i<=steps;i++)points.push({x:target.x+(end.x-target.x)*i/steps,y:target.y+(end.y-target.y)*i/steps,row:i,offset:i*profile.interval,landed:false});
  }
- if(points.some(p=>p.x-profile.radius<0||p.y-profile.radius<0||p.x+profile.radius>world.width||p.y+profile.radius>world.height))return {error:'Keep all impact rings inside the map.'};
+ if(points.some(p=>{const radius=p.stage==='bomblet'?profile.bomblet.radius:profile.radius;return p.x-radius<0||p.y-radius<0||p.x+radius>world.width||p.y+radius>world.height;}))return {error:'Keep all impact rings inside the map.'};
  if(orbitalHazard(payload)&&points.some(p=>touchesWater(world,p,profile.radius)))return {error:'Keep all fire or gas rings on land, clear of open water.'};
  const previous=orbitalState(world).lastPosition||world.orbitalOrigin||{x:world.width/2,y:world.height/2};
  const delay=Math.min(ORBITAL.maxDelay,ORBITAL.baseDelay+Math.hypot(target.x-previous.x,target.y-previous.y)/ORBITAL.travelSpeed);

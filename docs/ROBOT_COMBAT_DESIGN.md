@@ -191,3 +191,30 @@ small body footprint, independent of the temporary artwork or gait animation.
 Review each playable step. Check expiry/re-ignition, one death per enemy, walls,
 blocked escape routes, held-fire cancellation and representative resource use.
 The tuning values above need playtesting; sound and wider battle scales remain unvalidated.
+
+## Humanoid robot appearance, 24 October 2026
+
+The author supplied a reference for a tall humanoid robot. The right arm ends in
+the weapon instead of a hand: a flamethrower barrel above a laser emitter. The left
+hand grips the gun, its thumb on the release. `drawRobot` now draws this in pure
+overhead view:
+- clawed feet that step out behind the body, following the existing gait vector;
+- hips and a compact fuel pack, with a red hose running along the right arm;
+- a broad chest plate, domed pauldrons, and a small head with a red V-visor;
+- the left arm wrapping to the grip;
+- the right arm merging into the ribbed flamethrower, with a perforated nozzle
+  over the emitter housing and its red lens.
+
+Armour stays the current yellow; teammates keep their grey-green. The gun axis is
+3 px right of centre, so the existing laser (drawn from 24 px ahead) and flame
+trail leave the barrel. Weapons, origins, ranges, controls and saves are
+unchanged. Height cannot be shown in pure overhead view.
+
+Local validation:
+- Art study (`.local/check-robot-art.mjs`): close-ups, walking and strafing gait,
+  game scale with a laser.
+- Live desktop and phone screenshots on a pier (`.local/transport-live-*.png`).
+- The robot WASD deployment-flow spec passes.
+- `frontier.spec.js` fails at its first assertion: it expects a 128 x 96 world,
+  but the planet is now 512 x 384. That is a stale expectation from before the
+  planet expansion.

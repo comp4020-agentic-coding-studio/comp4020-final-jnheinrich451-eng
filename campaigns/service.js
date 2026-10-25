@@ -73,7 +73,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     const dir = path.join(dataDir, 'campaigns', record.id);
     const release = lockWorld(dir);
     try {
-      room.runtime = createRuntime(dir, { campaign: true, campaignId: record.id, accounts: legacy.accounts,
+      room.runtime = createRuntime(dir, { campaign: true, campaignId: record.id, planetTemplate:record.template, accounts: legacy.accounts,
         frozen: () => frozen(room), roomView: () => view(room), authorized,
         canManage: (owner, pilot) => pilot === room.ownerPilot && !!db.prepare('SELECT 1 FROM campaign_abandoned WHERE campaign_id=? AND pilot_id=?').get(record.id, owner) });
     } catch (error) { release(); throw error; }
@@ -163,7 +163,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     rate(actor);
     if (action === 'create') {
       if (!actor.accountId) fail('Sign in with an Email or Demo account to host a campaign.', 403);
-      const template = data.template === undefined ? PLANETS[0].id : data.template;
+      const template = data.template === undefined ? 'caldera-v1' : data.template;
       if (!PLANETS.some(planet => planet.id === template)) fail('Choose an available planet template.', 400);
       const name = typeof data.name === 'string' ? data.name.trim() : '';
       if (!name || name.length > 48 || /[\x00-\x1f]/.test(name)) fail('Choose a campaign name of 1–48 characters.', 400);
@@ -237,7 +237,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       if (!match) return fallback(req, res);
       const actor = legacy.identity(req, res), room = rooms.get(match[1]), visit = visits.get(actor.id);
       if (!room || room.state !== 'open' || visit?.campaignId !== match[1] || visit.credential !== actor.credential) fail('This room is closed or your visit has ended. Return to campaigns.', 403);
-      if (!['world', 'events'].includes(match[2]) && req.method === 'GET') fail('Unknown action.', 404);
+      if (!['world', 'events', 'communication'].includes(match[2]) && req.method === 'GET') fail('Unknown action.', 404);
       if (req.method !== 'GET' && frozen(room)) fail('The campaign is paused or waiting for its owner.');
       audit.actor(actor, visit.pilotId);
       req.campaignId = match[1]; req.campaignResponse = res;

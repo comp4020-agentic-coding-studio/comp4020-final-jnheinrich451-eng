@@ -13,9 +13,9 @@ import { createApp } from '../server.js';
 
 const flat = () => ({ ...createWorld(), terrain:Array(48*36).fill(2), tanks:[] as any[], cores:[] as any[] });
 const tank = () => ({id:'tank',owner:'a',podX:30,podY:19,x:32.5,y:19.5,elapsed:TANK.duration,angle:Math.PI/2,turret:Math.PI/2,occupant:null as string|null,weapon:'HE',secondary:'APCR'});
-it('shares pod timing with a 17-cell cross, reserves panels and preserves terrain beneath flooring', () => {
+it('shares pod timing with a 5-cell cross, reserves panels and preserves terrain beneath flooring', () => {
   const w=flat(),t={...tank(),elapsed:0};w.tanks.push(t);w.terrain[18*48+30]=3;
-  expect(tankPodCells(30,19)).toHaveLength(17);expect(tankPodCell(t,26,15)).toBeNull();
+  expect(tankPodCells(30,19)).toHaveLength(5);expect(tankPodCell(t,26,15)).toBeNull();
   expect(canStand(w,[],30.5,18.5)).toBe(false);expect(tileAt(w,30,18)).toBe(3);
   t.elapsed=TANK.duration;
   expect(tileAt(w,30,18)).toBe(4);expect(w.terrain[18*48+30]).toBe(3);expect(canStand(w,[],30.5,18.5)).toBe(true);
@@ -24,9 +24,9 @@ it('shares pod timing with a 17-cell cross, reserves panels and preserves terrai
 it('rejects ocean, edges, overlapping pods, units and parked tanks while allowing rock conversion', () => {
   const w=flat();w.terrain[18*48+30]=3;
   expect(tankPlacementError(w,[],[],30,19,'a')).toBeNull();
-  expect(tankPlacementError(w,[],[],1,1,'a')).toBeTruthy();
+  expect(tankPlacementError(w,[],[],0,0,'a')).toBeTruthy();
   w.terrain[18*48+30]=0;expect(tankPlacementError(w,[],[],30,19,'a')).toContain('Ocean');w.terrain[18*48+30]=2;
-  expect(tankPlacementError(w,[],[{x:30.5,y:15.5}],30,19,'a')).toContain('unit');
+  expect(tankPlacementError(w,[],[{x:30.5,y:18.5}],30,19,'a')).toContain('unit');
   w.tanks.push(tank());expect(tankPlacementError(w,[],[],40,20,'a')).toBeNull();
   expect(tankPlacementError(w,[],[],30,19,'b')).toContain('pod');
 });
@@ -74,15 +74,15 @@ it('saves a resumable drop, pauses unused worlds, boards exclusively, drives, sa
     await f.restart();const paused=(await f.state()).tanks[0].elapsed;await new Promise(r=>setTimeout(r,250));expect((await f.state()).tanks[0].elapsed).toBe(paused);
     await f.connect();await expect.poll(async()=>(await f.state()).tanks[0].elapsed,{timeout:6500}).toBe(TANK.duration);
     expect((await f.post('tanks/board',{id})).status).toBe(409);
-    expect((await f.post('navigate',{x:31,y:19})).status).toBe(200);
-    await expect.poll(async()=>Math.hypot((await f.state()).me.x-32.5,(await f.state()).me.y-19.5),{timeout:6000}).toBeLessThan(1.8);
+    expect((await f.post('navigate',{x:30,y:19})).status).toBe(200);
+    await expect.poll(async()=>Math.hypot((await f.state()).me.x-31.5,(await f.state()).me.y-19.5),{timeout:6000}).toBeLessThan(1.8);
     expect((await f.post('tanks/board',{id})).status).toBe(200);
     await f.connect(1);expect((await f.post('tanks/board',{id},1)).status).toBe(409);
     expect((await f.state()).me).toMatchObject({body:'rover',vehicleId:id,guarding:false});
     expect((await f.post('tank-weapon',{weapon:'MAGNETIC'})).status).toBe(200);
     expect((await f.post('tank-weapon',{slot:'secondary',weapon:'HEAVY_FLAME'})).status).toBe(200);
-    expect((await f.post('input',{x:1,y:0,aim:Math.PI/2})).status).toBe(200);
-    await expect.poll(async()=>(await f.state()).tanks[0].x).toBeGreaterThan(32.7);
+    expect((await f.post('input',{x:0,y:-1,aim:Math.PI/2})).status).toBe(200);
+    await expect.poll(async()=>(await f.state()).tanks[0].x).toBeGreaterThan(31.7);
     await f.post('input',{x:0,y:0,aim:Math.PI/2});await f.restart();const resumed=await f.state();
     expect(resumed.me).toMatchObject({vehicleId:id,body:'rover',tankWeapon:'MAGNETIC',tankSecondary:'HEAVY_FLAME'});expect(resumed.me.x).toBe(resumed.tanks[0].x);
     await f.connect();expect((await f.post('fire',{weapon:'MAGNETIC',x:resumed.me.x+5,y:resumed.me.y})).status).toBe(200);
@@ -100,7 +100,7 @@ it('shares tank motion with a peer and clears momentum on expired input, disconn
   try{
     const driver=await f.connect();await f.connect(1);
     const initial=(await f.state()).me;
-    const forward=()=>f.post('input',{x:1,y:0,aim:0});
+    const forward=()=>f.post('input',{x:0,y:-1,aim:0});
     await forward();held=setInterval(()=>{
       const request=forward().then(r=>{expect(r.status).toBe(200);}).catch(error=>{inputErrors.push(error);}).finally(()=>inFlight.delete(request));
       inFlight.add(request);

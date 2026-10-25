@@ -32,8 +32,8 @@ async function field(browser,mobile,airKind=null){
 for(const mobile of [false,true])test('Ground catalogue and direct remote control / '+(mobile?'phone':'desktop'),async({browser})=>{
  const f=await field(browser,mobile),p=f.page;try{
   await p.locator('#build-mode').click();await p.locator('#tab-ground').click();
-  for(const id of ['artillery-card','missile-card'])await expect(p.locator('#'+id)).toBeVisible();
-  await p.locator('#tab-rail').click();await expect(p.locator('#artillery-card')).toBeHidden();await expect(p.locator('#rail-card')).toBeVisible();
+  await expect(p.locator('#missile-card')).toBeVisible();await expect(p.locator('#artillery-card')).toBeHidden();
+  await p.locator('#tab-rail').click();await expect(p.locator('#artillery-card')).toBeVisible();await expect(p.locator('#rail-card')).toBeVisible();
   await p.locator('#tab-strike').click();await expect(p.locator('#missile-card')).toBeHidden();
   await p.keyboard.press('Escape');await expect(p.locator('#artillery-panel')).toHaveCount(0);
   for(const id of ['cannon','missile']){
@@ -94,7 +94,7 @@ for(const mobile of [false,true])for(const kind of ['bomber','attack-jet'])test(
   const result=await response;expect(await result.json()).toMatchObject({saved:true});expect(result.status()).toBe(201);
   await expect(p.locator('#remote-air')).toBeHidden();const state=await f.state();expect(state.me.body).toBe('robot');expect(state.airbases[0].aircraft.occupant).toBeNull();expect(state.airbases[0].aircraft.mission.resumeCruise).toBe(true);
   expect(state.airbases[0].aircraft.mission.weapon).toBe(kind==='bomber'?'bombs':'strafe');
-  if(kind==='attack-jet'&&!mobile)await expect.poll(async()=>(await f.state()).airbases[0].aircraft.rounds,{timeout:22000}).toBeLessThan(90);
+  if(kind==='attack-jet'&&!mobile){await expect.poll(async()=>(await f.state()).airbases[0].aircraft.mission.shotsRemaining,{timeout:22000}).toBe(0);expect((await f.state()).airbases[0].aircraft.rounds).toBe(90);}
   expect(f.errors).toEqual([]);
  }finally{await f.close();}
 });

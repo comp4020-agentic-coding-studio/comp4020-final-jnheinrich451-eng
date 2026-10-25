@@ -16,7 +16,7 @@ export function tickMortars(world, robots, shells, now, dt, nextId, emit = event
     !['orbital', 'rover', 'ship', 'aircraft', 'recycler'].includes(p.body) && !tanks.some(v => v.occupant === p.id));
   const targets = foot.map(p => ({ id: p.id, x: p.x, y: p.y })).concat(tanks.map(v => ({ id: 'vehicle:' + v.id, x: v.x, y: v.y }))).concat(facilities.map(f=>({id:f.id,x:f.x,y:f.y})));
   let changed = shells.length > 0;
-  for (const shell of shells) if (!shell.impacted && now >= shell.landAt) {
+  for (const shell of shells) if (shell.weapon!=='BILE' && !shell.impacted && now >= shell.landAt) {
     shell.impacted = true;
     for (const p of foot) {
       const damage = acidDamage(Math.hypot(p.x - shell.x, p.y - shell.y));
@@ -28,7 +28,7 @@ export function tickMortars(world, robots, shells, now, dt, nextId, emit = event
       if (damage && hurtVehicle(v, damage)) emit({ event: 'enemy.weapon.hit', kind: 'system', sourceId: shell.sourceId, projectileId: shell.id, targetId: v.id, weapon: 'ACID', hp: v.health });
     }
   }
-  for (let i = shells.length - 1; i >= 0; i--) if (now >= shells[i].landAt + 900) shells.splice(i, 1);
+  for (let i = shells.length - 1; i >= 0; i--) if (shells[i].impacted && now >= shells[i].landAt + 900) shells.splice(i, 1);
   for (const site of world.sites || []) {
     if (site.kind !== 'mortar') continue;
     const m = site.mortar ||= { angle: 0, nextShot: 0, targetId: null, charge: null };

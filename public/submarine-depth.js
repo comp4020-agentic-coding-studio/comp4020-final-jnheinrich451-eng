@@ -1,12 +1,19 @@
 import { operational } from './vehicle.js';
 
-export const DIVE = Object.freeze({transition:2, battery:30, recharge:2, minimum:10});
+export const DIVE = Object.freeze({transition:2, battery:300, recharge:2, minimum:10});
 export const depthState = ship => ship?.kind==='submarine' ? ship.depth||'surfaced' : 'surfaced';
 export const surfaced = ship => depthState(ship)==='surfaced';
 export const submerged = ship => depthState(ship)==='submerged';
 export const diveBattery = ship => ship.diveBattery??DIVE.battery;
+// Upgrade old 30-second saves proportionally once; reconnect never refills them.
+export function restoreDepth(ship){
+ if(ship.kind!=='submarine')return;
+ const capacity=ship.diveCapacity||30;
+ ship.diveBattery=ship.diveBattery===undefined?DIVE.battery:Math.max(0,Math.min(DIVE.battery,ship.diveBattery*DIVE.battery/capacity));
+ ship.diveCapacity=DIVE.battery;ship.depth ||= 'surfaced';ship.depthRemaining ||= 0;
+}
 export function resetDepth(ship) {
-  if(ship.kind==='submarine')Object.assign(ship,{depth:'surfaced',depthRemaining:0,diveBattery:DIVE.battery});
+  if(ship.kind==='submarine')Object.assign(ship,{depth:'surfaced',depthRemaining:0,diveBattery:DIVE.battery,diveCapacity:DIVE.battery});
 }
 export function depthError(ship,action) {
   if(ship?.kind!=='submarine'||!operational(ship))return 'Board a ready submarine first.';
@@ -16,7 +23,6 @@ export function depthError(ship,action) {
   if(action==='dive'){
     if(state==='surfacing')return 'Finish surfacing before diving again.';
     if(ship.ramp)return 'Retract the shore ramp before diving.';
-    if(ship.launchRemaining>0)return 'Finish launching before diving.';
     if(diveBattery(ship)<DIVE.minimum)return 'Recharge at least 10 seconds of dive battery on the surface.';
   }
   return null;

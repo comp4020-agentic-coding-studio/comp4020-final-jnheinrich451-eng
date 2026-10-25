@@ -24,61 +24,25 @@ function setup(){
   const $=(id:string)=>dom.window.document.getElementById(id) as any;
   return {world,me,yard,api,args,$};
 }
-it('offers dock rebuilding in the shipyard and explains the ground-supply shortage',async()=>{
-  const {world,me,yard,api,args,$}=setup(),ui=shipyardUI(args);ui.update();
-  expect($('dock-rebuild').hidden).toBe(false);expect($('dock-rebuild').disabled).toBe(true);
-  expect($('dock-rebuild-help').textContent).toContain('Need 90 GND; 68 available');
-  world.logistics.groundSupplies=90;ui.update();expect($('dock-rebuild').disabled).toBe(false);
-  await $('dock-rebuild').onclick();expect(api).toHaveBeenCalledWith('logistics/repair',{kind:'dock',id:yard.id});
-  world.logistics.jobs[yard.id]={kind:'repair',remaining:6.2};ui.update();
-  expect($('dock-rebuild').disabled).toBe(true);expect($('dock-rebuild').textContent).toContain('7s');
-  delete world.logistics.jobs[yard.id];me.body='tank';ui.update();expect($('dock-rebuild').disabled).toBe(true);
-  me.body='robot';yard.dockDestroyed=false;ui.update();expect($('dock-rebuild').hidden).toBe(true);
+it('marks a lost dock as a permanent ruin and leaves new deployment available',()=>{
+  const {world,args,$}=setup(),ui=shipyardUI(args);world.logistics.supplies=300;ui.update();
+  expect($('dock-rebuild').hidden).toBe(true);expect($('dock-rebuild-help').textContent).toContain('permanent ruin');
+  expect($('shipyard-new-dialog').disabled).toBe(false);
+  expect($('yard-build-gunship').disabled).toBe(true);
 });
-it('shows repair cost and progress in Field logistics and preserves IDs containing colons',async()=>{
-  const {world,yard,api,args,$}=setup(),ui=logisticsUI(args);ui.update();
-  expect($('logistics-repair').value).toBe('dock:'+yard.id);
-  expect($('logistics-rebuild').disabled).toBe(true);expect($('logistics-repair-help').textContent).toContain('Need 90 GND; 68 available');
-  world.logistics.groundSupplies=90;ui.update();expect($('logistics-rebuild').disabled).toBe(false);
-  await $('logistics-rebuild').onclick();expect(api).toHaveBeenCalledWith('logistics/repair',{kind:'dock',id:yard.id});
-  world.logistics.jobs[yard.id]={kind:'repair',remaining:3.4};ui.update();expect($('logistics-rebuild').disabled).toBe(true);expect($('logistics-rebuild').textContent).toContain('4s');
-  delete world.logistics.jobs[yard.id];yard.dockDestroyed=false;ui.update();expect($('logistics-rebuild').disabled).toBe(true);expect($('logistics-repair-help').textContent).toContain('No destroyed docks');
+it('locates an abandoned facility without payment and preserves IDs containing colons',()=>{
+  const {world,yard,api,args,$}=setup(),locate=vi.fn();$('logistics-dialog').close=()=>{};
+  const ui=logisticsUI({...args,locate});ui.update();
+  expect($('logistics-repair').value).toBe('dock:'+yard.id);expect($('logistics-rebuild').disabled).toBe(false);
+  expect($('logistics-repair-help').textContent).toContain('cannot be repaired');
+  $('logistics-rebuild').onclick();expect(locate).toHaveBeenCalledWith({x:yard.dock.x,y:yard.dock.y});expect(api).not.toHaveBeenCalled();expect(world.logistics.groundSupplies).toBe(68);
+  yard.dockDestroyed=false;ui.update();expect($('logistics-rebuild').disabled).toBe(true);
 });
-it('recalculates affordability when switching from a dock to a more expensive airbase repair',()=>{
-  const {world,args,$}=setup();world.logistics.groundSupplies=100;world.airbases=[{id:'base',owner:'pilot',destroyed:true,x:50,y:50}];
-  const ui=logisticsUI(args);ui.update();expect($('logistics-rebuild').disabled).toBe(false);
-  $('logistics-repair').value='airbase:base';$('logistics-repair').onchange();
-  expect($('logistics-rebuild').disabled).toBe(true);expect($('logistics-repair-help').textContent).toContain('Need 150 GND; 100 available');
-});
-it('opens global repairs on the nearby runway, rather than the first damaged facility',async()=>{
-  const {world,me,args,api,$}=setup();
-  world.airbases=[{...newAirbase('far','pilot',70,70),destroyed:true},{...newAirbase('near:runway','pilot',40,40),destroyed:true}];
-  Object.assign(me,{x:42,y:43});world.logistics.groundSupplies=300;
-  $('logistics-dialog').showModal=()=>{};
-  const notify=vi.fn(),ui=logisticsUI({...args,notify});ui.open();
-  expect($('logistics-repair').value).toBe('airbase:near:runway');
-  expect($('logistics-rebuild').textContent).toContain('Airbase 40:40');
-  await $('logistics-rebuild').onclick();
-  expect(api).toHaveBeenCalledWith('logistics/repair',{kind:'airbase',id:'near:runway'});
-  expect(notify).toHaveBeenCalledWith('Airbase 40:40 repair started / 8s.');
-  world.airbases[1].destroyed=false;ui.update();
-  expect(notify).toHaveBeenCalledWith(expect.stringContaining('Airbase 40:40 repaired.'));
-});
-it('keeps a local airbase panel through destruction and repair, then exposes aircraft construction',async()=>{
-  const {world,me,args,api}=setup();
-  const base:any={...newAirbase('here','pilot',40,40),destroyed:true};
-  base.aircraft.state='destroyed';world.airbases=[base];Object.assign(me,{x:42,y:43});world.logistics.groundSupplies=149;
-  const ui=facilityServiceUI({...args,manage:()=>{},airSupport:()=>{}});ui.update();
-  const panel=dom.window.document.querySelector('#facility-service') as HTMLElement;
-  const button=panel.querySelector('.service-rebuild') as HTMLButtonElement;
-  expect(panel.hidden).toBe(false);expect(button.disabled).toBe(true);
-  expect(panel.textContent).toContain('Need 150 GND; 149 available.');
-  world.logistics.groundSupplies=300;ui.update();expect(button.disabled).toBe(false);
-  await (button.onclick as any)();expect(api).toHaveBeenCalledWith('logistics/repair',{kind:'airbase',id:'here'});
-  world.logistics.jobs.here={kind:'repair',remaining:4};ui.update();
-  expect(panel.hidden).toBe(false);expect(button.disabled).toBe(true);expect(button.textContent).toContain('4s');
-  delete world.logistics.jobs.here;base.destroyed=false;ui.update();
-  expect(panel.hidden).toBe(false);expect(button.hidden).toBe(true);
-  const bomber=panel.querySelector('[data-kind="bomber"]') as HTMLButtonElement;
-  expect(bomber.disabled).toBe(false);expect(bomber.textContent).toContain('Build Bomber');
+it('offers manufacturing at a new intact base instead of reopening an overlapping abandoned runway',()=>{
+  const {world,me,args}=setup();const old:any={...newAirbase('old','pilot',40,40),destroyed:true};old.aircraft.state='destroyed';
+  const fresh:any=newAirbase('new','pilot',40,40);fresh.aircraft.state='vacant';world.airbases=[old];Object.assign(me,{x:42,y:43});
+  const ui=facilityServiceUI({...args,manage:()=>{},airSupport:()=>{}});ui.update();const panel=document.querySelector('#facility-service') as HTMLElement;
+  expect(panel.hidden).toBe(true);world.airbases.push(fresh);world.logistics.groundSupplies=300;ui.update();
+  expect(panel.hidden).toBe(false);expect((panel.querySelector('.service-rebuild') as HTMLElement).hidden).toBe(true);
+  expect((panel.querySelector('[data-kind="bomber"]') as HTMLButtonElement).disabled).toBe(false);
 });

@@ -31,7 +31,7 @@ for(const mobile of [false,true])test(`coastal ship delivery, sailing, cannon an
   await page.locator('#ship-systems-toggle').click();await expect(page.locator('#ship-controls')).toBeVisible();expect((await state(page)).me.body).toBe('ship');
   await page.locator('#world-canvas').focus();await page.keyboard.down('w');await expect.poll(async()=>(await state(page)).ships[0].x,{intervals:[50]}).toBeLessThan(16);await page.keyboard.up('w');
   const before=await state(peer);expect(before.ships[0].occupant).toBe('navy-player');
-  await page.locator('#ship-interact').click();await expect(page.locator('#toast')).toContainText('Return to a dock');expect((await state(page)).me.body).toBe('ship');
+  await page.locator('#ship-interact').click();await expect(page.locator('#toast')).toContainText('Stop and align alongside the dock berth');expect((await state(page)).me.body).toBe('ship');
   await page.locator('#world-canvas').focus();await page.keyboard.press('2');await expect(page.locator('[data-ship-shell="INCENDIARY"]')).toHaveAttribute('aria-pressed','true');
   // Keyboard zoom is shared with the other vehicles; aim six or more tiles away.
   await page.keyboard.press('-');await page.keyboard.press('-');await page.keyboard.press('-');await page.keyboard.press('-');

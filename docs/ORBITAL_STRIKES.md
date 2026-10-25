@@ -1,5 +1,22 @@
 # Orbital weapons: roster and staged implementation
 
+Current expansion: [23 October orbital additions and polish](ORBITAL_EXPANSION_AND_POLISH.md)
+adds heavy HE, sustained barrage and cluster line, and extends new beam orders
+to 72 tiles over 18 seconds. Its values supersede the original four-payload
+roster below; existing committed strikes retain their saved profiles.
+
+## 24 October: catalogue closes after selection
+
+Selecting a strike now hides the deployment window and uses the freed map space
+for aiming. The large catalogue and its panel are replaced by transparent status
+text and compact Rotate, Deploy / B and Esc controls. R and map-click calling
+still work; the beam still needs two clicks. Touch has the same actions.
+
+B reopens the Orbital catalogue and cancels the uncommitted targeting mode so
+another strike can be selected. It spends no resources. Already accepted attacks
+continue and retain the existing shared lock/cooldown. Esc exits targeting.
+This supersedes the attached catalogue/aiming strip described below.
+
 Approved 17 October 2026. Complete a small weapons roster, review the combat
 loop, then polish existing systems, expand the map and refine AI. This approval
 started walking HE. The author subsequently approved completing the remaining

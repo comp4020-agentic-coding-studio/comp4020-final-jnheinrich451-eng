@@ -9,7 +9,7 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 it('keeps stable asset codes when ground weapons move between categories', () => {
   expect(new Set(ASSETS.map(a => a.code)).size).toBe(ASSETS.length);
   const prefix: Record<string, string> = { ground: 'G', rail: 'R', strike: 'S', logistics: 'L', navy: 'N', air: 'A' };
-  expect(assetsIn('ground').map(a=>a.code)).toEqual(['G-01','G-02','G-03','R-02','S-01']);
+  expect(assetsIn('ground').map(a=>a.code)).toEqual(['G-01','G-02','G-03','S-01']);
   for (const tab of TABS.filter(t=>t.id!=='ground')) assetsIn(tab.id).forEach((a, i) => expect(a.code).toBe(`${prefix[tab.id]}-${String(i + (tab.id==='strike'?2:1)).padStart(2, '0')}`));
 });
 

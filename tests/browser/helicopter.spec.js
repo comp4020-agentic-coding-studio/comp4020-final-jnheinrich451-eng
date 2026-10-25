@@ -27,6 +27,26 @@ async function field(browser,mobile=false,cruise=false,landing=null){
  return {page,errors,state:()=>page.evaluate(async()=>(await fetch('/api/world')).json()),post:(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};},{route,data}),async close(){await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-helicopter-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
 }
 const plane=s=>s.airbases.find(b=>b.id==='pad').aircraft;
+test('helicopter accelerates, holds speed and brakes to hover through keyboard controls',async({browser})=>{
+ const f=await field(browser),p=f.page;try{
+  await p.setViewportSize({width:1920,height:1080});
+  await p.locator('#aircraft-interact').click();await expect.poll(async()=>plane(await f.state()).state).toBe('flying');
+  await p.locator('#world-canvas').focus();await p.keyboard.down('d');
+  await expect.poll(async()=>plane(await f.state()).speed).toBeGreaterThan(.1);
+  expect(plane(await f.state()).speed).toBeLessThan(4);
+  await expect.poll(async()=>plane(await f.state()).speed).toBe(4);
+  const before=plane(await f.state());await expect.poll(async()=>plane(await f.state()).x).toBeGreaterThan(before.x+1);
+  expect(plane(await f.state()).speed).toBe(4);
+  await p.screenshot({path:'.local/helicopter-tilt-flight.png'});
+  await p.keyboard.up('d');const released=plane(await f.state());
+  await expect.poll(async()=>plane(await f.state()).speed).toBe(0);
+  const stopped=plane(await f.state());expect(stopped.x).toBeGreaterThan(released.x);expect(stopped.x-released.x).toBeLessThan(2.5);
+  await p.setViewportSize({width:390,height:844});await p.screenshot({path:'.local/helicopter-hover-mobile.png'});
+  expect(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await p.reload();await expect(p.locator('#connection')).toContainText('live');expect(plane(await f.state()).speed).toBe(0);
+  expect(f.errors).toEqual([]);
+ }finally{await f.close();}
+});
 async function tile(p,x,y){if(!await p.locator('#tile-x').isVisible())await p.locator('#coordinate-details summary').click();await p.locator('#tile-x').fill(String(x));await p.locator('#tile-y').fill(String(y));await p.locator('#select-tile').click();}
 for(const mobile of [false,true])test('helicopter manual flight and sweeping rocket pods / '+(mobile?'phone':'desktop'),async({browser})=>{
  test.setTimeout(45000);const f=await field(browser,mobile),p=f.page;try{

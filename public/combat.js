@@ -1,9 +1,12 @@
+import { HEAVY_SHELL_LIMIT } from './weapons.js';
+import {aquaticTargets,tickAquatic,isSpitter} from './aquatic-hive.js';
 import { createDirector, tickDirector, pressureGroups, sleepEnemies, raidContacts, raidPointClear } from './encounter-director.js';
 import { tankGuardStep } from './tank-guard.js';
 import { mobileLaser, tickMobileLaser, cancelMobileLaser } from './mobile-laser.js';
 import { airRecords } from './air-traffic.js';
+import {gunshipFireError,GUNSHIP_GUNS} from './air-gunship.js';
 import { helicopterFireError, helicopterPoint, spendHelicopterShot, HELI_CANNON, HELI_ROCKET } from './helicopter.js';
-import { orbitalProfile, orbitalHazard, orderOrbital, tickOrbital } from './orbital.js';
+import { orbitalImpactProfile, orbitalHazard, orderOrbital, tickOrbital } from './orbital.js';
 import { createEnemyNavigator } from './enemy-navigation.js';
 import { enemyProfile, canDamageEnemy, newGroundEnemy } from './enemy-profiles.js';
 import { LAND_AI, landTarget, rememberTarget, targetDistance, attackGoals } from './land-ai.js';
@@ -14,10 +17,10 @@ import { addRemains, facilityTargets, facilityPoint, facilityDistance, hurtFacil
 import { tickAntiAir } from './anti-air.js';
 import { tickLasers } from './laser-tower.js';
 import { missileAim } from './missile.js';
-import { submarineAim } from './submarine.js';
+import { submarineLaunchOrigin, submarineAim } from './submarine.js';
 import { AIR, bombError, makeBombRun } from './aircraft.js';
-import { bomberPayload, payloadProfile } from './bomber-payloads.js';
-import { JET, strafeError, strafePoint } from './attack-jet.js';
+import { bomberPayload, payloadProfile, bombReleaseDuration } from './bomber-payloads.js';
+import { JET, JET_GUN, jetBurstPoints, strafeError, strafePoint } from './attack-jet.js';
 import { fogRadius } from './contaminator.js';
 import { ALERT, damageSites, siteDistance, tickSites, queuePressure } from './conquest.js';
 import { SCANNER } from './sensors.js';
@@ -25,9 +28,9 @@ import { tickMortars } from './mortar.js';
 import { reportSectorAttack, investigationPoint } from './sector-defense.js';
 import { hostileAt } from './footprints.js';
 import { surfaced } from './submarine-depth.js';
-import { mainSalvo, mainMounts, mainReload, readyMainMounts, SIDE_MOUNTS, sideSolution } from './ship-armament.js';
+import { mainSalvo, mainMounts, mainReload, readyMainMounts, SIDE_MOUNTS, sideSolution, secondaryMounts, secondaryRound, twinBattery, TWIN_BATTERY } from './ship-armament.js';
 import { SHIP } from './ship.js';
-import { isSubmarine, SUBMARINE, submarineFireError, makeSubmarineBarrage } from './submarine.js';
+import { isSubmarine, submarineFireError, makeSubmarineBarrage, nextSubmarineGroup, spendSubmarineGroup } from './submarine.js';
 import { SWIMMER, navalSpawn, swimStep, canSwim } from './naval.js';
 import { hullHealth, hullDistance, hullPoint, operational, hurtVehicle } from './vehicle.js';
 import { canStand, findPath, tileAt } from './world.js';
@@ -35,7 +38,7 @@ import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
 import { HE, APCR, FLAME, WEAPONS } from './weapons.js';
 import { raycast } from './raycast.js';
 import { SURVIVAL, hurtRobot } from './survival.js';
-import { ARTILLERY_HE, ARTILLERY_SHELLS } from './weapons.js';
+import { ARTILLERY_HE, ARTILLERY_SHELLS, RAIL_SHELLS, MAC } from './weapons.js';
 import { artilleryBlocks } from './footprints.js';
 import { guardStep } from './guard.js';
 import { fieldCapacityError, makeField, contactField, fireBlocked, heatSpeed, lureRoute, insideField } from './hazards.js';
@@ -59,6 +62,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   let serial = 0, now = 0, enemies = [], shells = [], impacts = [], status = 'ready', health = 100, kills = 0;
   let shots = [], marks = [], jets = [], salvos = [], fields = [], barrages = [], charges = structuredClone(saved?.tankCharges || []);
   const acidShells = structuredClone(saved?.acidShells || []);
+  const aquaticClouds = structuredClone(saved?.aquaticClouds || []);
   const flakShells = structuredClone(saved?.flakShells || []);
   const epoch = `${Date.now()}-${Math.random()}`;
   const causes = new Map(saved?.causes || []), events = [], automatic = new Map();
@@ -68,7 +72,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     return (...args) => {
       const before = serial, result = fn(...args);
       if (auditContext) for (const p of [...shells.filter(s => s.weapon === 'HE'), ...salvos, ...barrages]) if (p.id > before) {
-        const context = { ...((fn===bombRun||fn===strafe||fn===helicopterFire)&&args[0].mission?.context||auditContext()), projectileId: p.id, sourceId: args[0].id, weapon: p.weapon };
+        const context = { ...((fn===bombRun||fn===strafe||fn===helicopterFire)&&args[0].mission?.context||fn===navalSalvo&&args[3]&&args[0].remoteOrder?.context||auditContext()), projectileId: p.id, sourceId: args[0].id, weapon: p.weapon };
         causes.set(p.id, context); events.push({ event: 'weapon.launched', ...context });
       }
       return result;
@@ -117,7 +121,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   fields=fields.filter(f=>!f.orbital).concat(world.logistics?.orbitalFields||[]);
   serial=Math.max(serial,...fields.map(f=>f.id));
   function orbitalOrder(data,caller){
-    const result=orderOrbital(world,data,caller,plan=>orbitalHazard(plan.payload)?fieldCapacityError(fields,salvos,plan.payload,plan.box.width*plan.box.height):null);
+    const result=orderOrbital(world,data,caller,plan=>orbitalHazard(plan.payload)?fieldCapacityError(fields.concat(aquaticClouds),salvos,plan.payload,plan.box.width*plan.box.height):null);
     if(result.order&&!result.duplicate&&orbitalHazard(result.order.payload)){
       const field=makeOrbitalField(result.order,++serial,now);result.order.fieldId=field.id;
       fields.push(field);(world.logistics.orbitalFields ||= []).push(field);
@@ -125,8 +129,10 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     return result;
   }
   const rollbackOrbital=id=>{fields=fields.filter(f=>f.id!==id);};
+  // Synchronous remote missile acceptance can roll back if its checkpoint fails.
+  const strikeRollback=()=>{const before={serial,barrages:[...barrages],salvos:[...salvos],fields:[...fields],causes:new Map(causes),events:events.length};return ()=>{serial=before.serial;barrages=before.barrages;salvos=before.salvos;fields=before.fields;causes.clear();for(const [k,v] of before.causes)causes.set(k,v);events.length=before.events;};};
   const checkpoint = () => JSON.parse(JSON.stringify({ version: 1, serial, now, sites: world.sites, ...(director?{director}:{}),
-    enemies, shells, status, health, kills, jets, salvos, tankCharges:charges.filter(c=>c.tankId&&!c.cancelled), fields:fields.filter(f=>!f.orbital), barrages, acidShells, flakShells, causes: [...causes],
+    enemies, shells, status, health, kills, jets, salvos, tankCharges:charges.filter(c=>c.tankId&&!c.cancelled), fields:fields.filter(f=>!f.orbital), barrages, acidShells, aquaticClouds, flakShells, causes: [...causes],
     navalCooldown, navalStatus, objective, frenzy, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
   const frenzyRoster=()=>{
     const roster={hunter:0,breaker:0,bulwark:0,'twin-lens':0,'heavy-lens':0,...(frenzy?.source==='natural'?{swimmer:0}:{})};if(!frenzy)return roster;
@@ -137,7 +143,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   const frenzyView=()=>frenzy?{roster:frenzyRoster(),source:frenzy.source,medium:frenzy.medium,id:frenzy.id,phase:frenzy.phase,until:frenzy.until,outcome:frenzy.outcome,points:frenzy.points.map(p=>({...p})),count:enemies.filter(e=>e.hp>0&&frenzy.members.includes(e.id)).length,hunters:Object.values(frenzy.orders).filter(o=>o.role==='hunt').length,raiders:Object.values(frenzy.orders).filter(o=>o.role==='raid').length}:null;
   const snapshot = () => ({ encounters:director?{elapsed:director.elapsed,nextRaid:director.nextRaid,sequence:director.sequence,sleeping:director.sleeping.length}:null, frenzy:frenzyView(), sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
     barrages: barrages.map(b => ({ ...b, ...(b.profile?{profile:{...b.profile}}:{}), box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: damageTargets().map(({ path, reroute, lurePath, ...e }) => structuredClone(e)), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
-    flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
+    aquaticClouds:structuredClone(aquaticClouds),flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
   function damage(enemy, amount, weapon) {
     if (enemy.hp > 0 && amount > 0) reportSectorAttack(world.sites, enemies, enemy.x, enemy.y, now, event => events.push(event));
     const blocked = !canDamageEnemy(enemy, weapon);
@@ -213,38 +219,74 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   function lob(source, x, y, trajectory = null, weapon = 'HE') {
     if (!Object.hasOwn(ARTILLERY_SHELLS, weapon)) return 'Choose HE, incendiary or gas.';
     const distance = Math.hypot(x - source.x, y - source.y);
-    if (![x, y].every(Number.isFinite) || x < 0 || y < 0 || x >= world.width || y >= world.height || distance < ARTILLERY_HE.minRange || distance > ARTILLERY_HE.range + .000001) return 'Heavy HE range is 6 to 60 tiles inside the battlefield.';
-    if (salvos.length >= 8) return 'Too many heavy shells in flight.';
-    const limit = fieldCapacityError(fields, salvos, weapon); if (limit) return limit;
+    if (![x, y].every(Number.isFinite) || x < 0 || y < 0 || x >= world.width || y >= world.height || distance < ARTILLERY_HE.minRange - .000001 || distance > ARTILLERY_HE.range + .000001) return `Heavy HE range is ${ARTILLERY_HE.minRange} to ${ARTILLERY_HE.range} tiles inside the battlefield.`;
+    if (salvos.length >= HEAVY_SHELL_LIMIT) return 'Too many heavy shells in flight.';
+    const limit = fieldCapacityError(fields.concat(aquaticClouds), salvos, weapon); if (limit) return limit;
     const id = ++serial, angle = Math.atan2(y - source.y, x - source.x) + Math.PI / 2;
     salvos.push({ id, weapon, x: source.x, y: source.y, targetX: x, targetY: y, elapsed: 0, duration: trajectory?.duration ?? 1 + distance / 18,
-      verticalSpeed: trajectory?.verticalSpeed, gravity: trajectory?.gravity, elevation: trajectory?.elevation, profile: { ...ARTILLERY_SHELLS[weapon] } });
+      verticalSpeed: trajectory?.verticalSpeed, gravity: trajectory?.gravity, elevation: trajectory?.elevation, profile: { ...RAIL_SHELLS[weapon] } });
     shots.push({ id, weapon, mount: 'artillery', owner: source.id, x: source.x, y: source.y, angle, elevation: trajectory?.elevation, at: now }); shots = shots.slice(-64);
     return null;
   }
-  function navalSalvo(ship,target,mode='salvo') {
+  function macFire(gun){
+    if(gun.kind!=='mac'||![gun.x,gun.y,gun.angle].every(Number.isFinite))return 'Select a rail MAC.';
+    if(gun.move||gun.brace>.001||gun.reload>.001)return 'Stop, brace and finish cooling before charging.';
+    if(salvos.length>=HEAVY_SHELL_LIMIT)return 'Too many heavy shells in flight.';
+    const x=gun.x+.5,y=gun.y+.5,dx=Math.sin(gun.angle),dy=-Math.cos(gun.angle);
+    salvos.push({id:++serial,owner:gun.id,kind:'mac',weapon:'MAC',x,y,originX:x,originY:y,dx,dy,
+      targetX:x+dx*MAC.range,targetY:y+dy*MAC.range,elapsed:0,duration:MAC.charge+MAC.range/MAC.speed,
+      remaining:MAC.range,hitIds:[],profile:{...MAC}});
+    return null;
+  }
+  function tickMAC(s,dt,buildings){
+    const previous=s.elapsed;s.elapsed+=dt;
+    if(s.elapsed<=s.profile.charge+1e-8)return;
+    let travel=Math.min(s.remaining,(s.elapsed-Math.max(previous,s.profile.charge))*s.profile.speed);
+    const start={x:s.x,y:s.y},space={...world,artillery:(world.artillery||[]).filter(g=>g.id!==s.owner)};
+    const first=previous<=s.profile.charge+1e-8;
+    // At most three enemy intersections plus one cover intersection per tick.
+    while(travel>.000001&&s.hitIds.length<s.profile.penetration){
+      const hit=raycast(space,buildings,s,s.dx,s.dy,travel,damageTargets().filter(e=>!s.hitIds.includes(e.id)));
+      s.x=hit.x;s.y=hit.y;s.remaining=Math.max(0,s.remaining-hit.distance);travel-=hit.distance;
+      if(hit.enemy){
+        s.hitIds.push(hit.enemy.id);
+        const result=damage(hit.enemy,s.profile.damage,'MAC');impact('MAC',hit.x,hit.y,[result]);
+        if(hit.enemy.kind!=='swimmer')marks.push({id:++serial,kind:'mac-blood',x:hit.enemy.x,y:hit.enemy.y,angle:Math.atan2(s.dx,-s.dy),at:now});
+        marks=marks.slice(-48);
+      }else if(hit.blocked){
+        const site=hostileAt(world,hit.x+s.dx*.001,hit.y+s.dy*.001);
+        const hits=site?damageSites([site],hit.x+s.dx*.001,hit.y+s.dy*.001,{radius:.05,lethalRadius:.05,damage:s.profile.damage,edgeDamage:s.profile.damage},now,blastDamage):[];
+        objectiveHits(s,hits);impact('MAC',hit.x,hit.y,hits);s.remaining=0;break;
+      }else break;
+    }
+    if(s.hitIds.length>=s.profile.penetration)s.remaining=0;
+    shots.push({id:++serial,weapon:'MAC',mount:'rail-mac',owner:s.owner,x:start.x,y:start.y,endX:s.x,endY:s.y,angle:Math.atan2(s.dx,-s.dy),at:now,first});shots=shots.slice(-64);
+    if(s.remaining<=.000001)s.elapsed=s.duration;
+  }
+  function navalSalvo(ship,target,mode='salvo',targets=null) {
     if(ship.kind==='carrier')return 'The carrier has defensive side guns only.';
     if(isSubmarine(ship))return 'Use the submarine missile tubes.';
     if(!operational(ship))return 'This ship cannot fire.';
     if(!['volley','salvo'].includes(mode))return 'Choose volley or salvo.';
     if(![target.x,target.y].every(Number.isFinite)||target.x<0||target.y<0||target.x>=world.width||target.y>=world.height)return 'Aim inside the battlefield.';
     const range=Math.hypot(target.x-ship.x,target.y-ship.y);
-    if(range<SHIP.minRange||range>SHIP.range)return 'Naval cannon range is 6 to 40 tiles.';
+    if(range<SHIP.minRange||range>SHIP.range)return 'Naval cannon range is 6 to 100 tiles.';
     const ready=readyMainMounts(ship);
-    if(!ready.length)return 'Both main turrets are reloading.';
+    if(!ready.length)return 'All main turrets are reloading.';
     const mounts=mode==='salvo'?ready:[ready.find(m=>m.id===ship.nextMainMount)||ready[0]];
-    const rounds=mainSalvo(ship,target,mounts),weapon=ship.ammo||'HE';
+    if(targets&&(mounts.length!==mainMounts(ship).length||targets.length!==mounts.length))return 'Wait for all main turrets to reload.';
+    const rounds=targets?mounts.flatMap((m,i)=>mainSalvo(ship,targets[i],[m],true)):mainSalvo(ship,target,mounts),weapon=ship.ammo||'HE';
     if(!Object.hasOwn(ARTILLERY_SHELLS,weapon))return 'Choose HE, Fire or Gas.';
-    if(salvos.length+rounds.length>8)return `Need ${rounds.length} free heavy-shell slots for this shot.`;
+    if(salvos.length+rounds.length>HEAVY_SHELL_LIMIT)return `Need ${rounds.length} free heavy-shell slots for this shot.`;
     const reserved=[...salvos];
     for(const r of rounds){
       if(r.targetX<0||r.targetY<0||r.targetX>=world.width||r.targetY>=world.height)return 'The complete salvo must land inside the battlefield.';
-      const error=fieldCapacityError(fields,reserved,weapon);if(error)return error;reserved.push({weapon});
+      const error=fieldCapacityError(fields.concat(aquaticClouds),reserved,weapon);if(error)return error;reserved.push({weapon});
     }
     for(const r of rounds){const id=++serial;salvos.push({...r,id,weapon,elapsed:0,profile:{...ARTILLERY_SHELLS[weapon]}});shots.push({id,weapon,mount:'naval-main',owner:r.owner,x:r.x,y:r.y,angle:r.angle,at:now});}
     ship.mainReloads=Object.fromEntries(mainMounts(ship).map(m=>[m.id,mounts.includes(m)?SHIP.reload:mainReload(ship,m.id)]));
     ship.reload=Math.max(...Object.values(ship.mainReloads));
-    ship.nextMainMount=mounts.at(-1).id==='fore'?'aft':'fore';
+    const all=mainMounts(ship);ship.nextMainMount=all[(all.indexOf(mounts.at(-1))+1)%all.length].id;
     shots=shots.slice(-64);return null;
   }
   function navalSecondary(ship,target,buildings=[]) {
@@ -252,7 +294,29 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     if(!operational(ship))return {error:'This ship cannot fire.',fired:0};
     if(![target.x,target.y].every(Number.isFinite)||target.x<0||target.y<0||target.x>=world.width||target.y>=world.height)return {error:'Aim inside the battlefield.',fired:0};
     let fired=0,ready=0;
-    for(const m of SIDE_MOUNTS){const aim=sideSolution(ship,target,m);if(!aim.inArc||!aim.inRange||!aim.aligned)continue;ready++;
+    if(twinBattery(ship)){
+      for(const side of SIDE_MOUNTS){
+        const mounts=secondaryMounts(ship).filter(m=>m.side===side.id),sequence=ship.secondarySequence?.[side.id]||0;
+        const candidates=mounts.map((_,i)=>mounts[(sequence+i)%mounts.length]);
+        const eligible=candidates.filter(m=>{const a=sideSolution(ship,target,m);return a.inArc&&a.inRange&&a.aligned;});
+        ready+=eligible.length;
+        const key=ship.id+':'+side.id+':NAVAL_APCR';
+        if(!eligible.length||(cooldowns.get(key)||0)>now||shells.length+charges.length+2>64)continue;
+        const mount=eligible[0],rounds=[-1,1].map(barrel=>secondaryRound(ship,target,mount,barrel,sequence));
+        if(rounds.some(r=>r.x<0||r.y<0||r.x>=world.width||r.y>=world.height))continue;
+        // Commit the complete pair and a broadside-wide cadence together.
+        for(const r of rounds){
+          const id=++serial;
+          shells.push({id,weapon:'NAVAL_APCR',speed:WEAPONS.NAVAL_APCR.speed,x:r.x,y:r.y,dx:Math.sin(r.angle),dy:-Math.cos(r.angle),remaining:r.remaining,blast:null,damage:TWIN_BATTERY.damage,owner:r.owner});
+          shots.push({id,weapon:'NAVAL_APCR',mount:'naval-secondary',muzzleAtTip:true,...r,at:now});
+        }
+        cooldowns.set(key,now+TWIN_BATTERY.interval);
+        ship.secondarySequence={...ship.secondarySequence,[side.id]:sequence+candidates.indexOf(mount)+1};
+        fired+=2;
+      }
+      shots=shots.slice(-64);return {error:null,fired,ready};
+    }
+    for(const m of secondaryMounts(ship)){const aim=sideSolution(ship,target,m);if(!aim.inArc||!aim.inRange||!aim.aligned)continue;ready++;
       if(!shoot({...aim,id:ship.id+':'+m.id,turret:aim.angle,mount:'naval-secondary'},target.x,target.y,'NAVAL_APCR',buildings))fired++;
     }
     return {error:null,fired,ready};
@@ -309,6 +373,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     }
     changed = tickSites(world.sites, world, buildings, weaponSources, enemies, now, () => ++serial, fireBlocked(fields), frenzy?.phase==='warning'?frenzy.points.length:0,director) || changed;
     changed = tickMortars(world, robots, acidShells, now, dt, () => ++serial, event => events.push(event), facilities) || changed;
+    changed = tickAquatic(world,enemies,director?.sleeping||[],aquaticTargets(world,robots,facilities),aquaticClouds,acidShells,now,dt,()=>++serial,capacity,
+      area=>!fieldCapacityError(fields.concat(aquaticClouds),salvos,'TOXIC',area),event=>events.push(event)) || changed;
     changed = tickLasers(world, buildings, robots, dt, event => events.push(event)) || changed;
     changed = tickAntiAir(world, flakShells, now, dt, () => ++serial, event => events.push(event)) || changed;
     for (const before of sensorBefore) {
@@ -398,7 +464,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
           if (hit.killed || now >= (e.burnFeedback || 0)) { impact('BURN', e.x, e.y, [hit]); e.burnFeedback = now + 500; }
           if (hit.killed) continue;
         }
-        if (e.kind === 'swimmer') { swimStep(world,e,world.ships||[],fields,now,dt); fieldContact(e); continue; }
+        if (e.kind === 'swimmer') { if(!isSpitter(e))swimStep(world,e,world.ships||[],fields,now,dt); fieldContact(e); continue; }
         const role = enemyProfile(e);
         if(e.frenzyRecoveryUntil>now){e.attack=null;e.path=[];cancelMobileLaser(e);continue;}
         if (e.behavior === 'fleeing' && e.burnUntil <= now) { e.behavior = 'attacking'; e.reroute = 0; e.path = []; }
@@ -524,7 +590,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     for(const ship of world.ships||[])if(rampSentryStep(world,ship,enemies,buildings,dt,shoot))changed=true;
     let hazardsLanded = false;
     changed = tickOrbital(world,dt,(order,point)=>{
-      const profile=orbitalProfile(order);
+      const profile=orbitalImpactProfile(order,point);
       if(orbitalHazard(order.payload)){
         landOrbitalField(fields.find(f=>f.id===order.fieldId),point,order,now);hazardsLanded=true;
         impact(order.payload,point.x,point.y,[],1.2,profile.craterSize,true);return;
@@ -537,6 +603,11 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     }) || changed;
     for (const barrage of barrages) {
       barrage.age += dt;
+      if(barrage.kind==='submarine')for(const [i,m] of barrage.missiles.entries())if(m.launchPending&&barrage.age>=m.launch){
+        const source=world.ships?.find(s=>s.id===barrage.owner&&!s.destroyed);
+        if(source)Object.assign(m,submarineLaunchOrigin(source,m.tube??i));
+        m.launchPending=false;
+      }
       for (const m of barrage.missiles) if (!m.landed && barrage.age >= m.launch + m.flight) {
         m.landed = true; const hits = [];
         if (barrage.weapon !== 'HE') {
@@ -557,6 +628,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     }
     barrages = barrages.filter(b => b.missiles.some(m => !m.landed));
     for (const salvo of salvos) {
+      if(salvo.kind==='mac'){tickMAC(salvo,dt,buildings);continue;}
       salvo.elapsed += dt;
       if (salvo.elapsed < salvo.duration) continue;
       if (salvo.weapon !== 'HE') {
@@ -572,7 +644,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       }
       hits.push(...damageSites(world.sites, salvo.targetX, salvo.targetY, salvo.profile, now, blastDamage));
       objectiveHits(salvo, hits);
-      impact('HE', salvo.targetX, salvo.targetY, hits, salvo.profile.radius, salvo.profile.craterSize);
+      impact('HE', salvo.targetX, salvo.targetY, hits, salvo.profile.radius, salvo.profile.craterSize, salvo.kind==='jet-burst');
     }
     salvos = salvos.filter(s => s.elapsed < s.duration);
     // Resolve all new regions together: simultaneous fire wins over gas.
@@ -612,7 +684,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         // A single radial damage event; decorative particles never apply damage.
         for (const enemy of damageTargets()) {
           if (enemy.hp <= 0) continue;
-          const amount = s.weapon === 'HE' ? blastDamage(Math.hypot(enemy.x - s.x, enemy.y - s.y), s.blast) : enemy === directTarget ? WEAPONS[s.weapon].damage : 0;
+          const amount = s.weapon === 'HE' ? blastDamage(Math.hypot(enemy.x - s.x, enemy.y - s.y), s.blast) : enemy === directTarget ? (s.weapon==='NAVAL_APCR'&&s.damage!==undefined?s.damage:WEAPONS[s.weapon].damage) : 0;
           if (amount) hits.push(damage(enemy, amount, s.weapon));
         }
         if (s.weapon === 'HE') hits.push(...damageSites(world.sites, s.x, s.y, s.blast, now, blastDamage));
@@ -634,27 +706,27 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     return changed;
   }
   function barrage(gun, target, rotated) {
-    if (barrages.length >= MISSILE.maxVolleys) return 'Two missile volleys are already in flight.';
+    if (barrages.filter(b=>b.kind!=='submarine').length >= MISSILE.maxVolleys) return 'Two missile volleys are already in flight.';
     const weapon = gun.ammo || 'HE';
     if (!['HE', 'INCENDIARY', 'GAS'].includes(weapon)) return 'Choose HE, incendiary or gas.';
-    const limit = fieldCapacityError(fields, salvos, weapon, MISSILE.width * MISSILE.height); if (limit) return limit;
+    const limit = fieldCapacityError(fields.concat(aquaticClouds), salvos, weapon, MISSILE.width * MISSILE.height); if (limit) return limit;
     const volley = makeBarrage(gun, missileAim(gun, world, target, rotated), rotated, ++serial);
     if (weapon !== 'HE') fields.push(makeBarrageField(volley, now));
     barrages.push(volley); return null;
   }
   function submarineStrike(ship,target,rotated=false){
-    const error=submarineFireError(ship,world,target,rotated,barrages,fields,salvos);if(error)return error;
-    const volley=makeSubmarineBarrage(ship,submarineAim(ship,world,target,rotated),rotated,++serial);
+    const error=submarineFireError(ship,world,target,rotated,barrages,fields.concat(aquaticClouds),salvos);if(error)return error;
+    const group=nextSubmarineGroup(ship),volley=makeSubmarineBarrage(ship,submarineAim(ship,world,target,rotated),rotated,++serial,group);
     if(volley.weapon!=='HE')fields.push(makeBarrageField(volley,now));
-    barrages.push(volley);ship.launchRemaining=(SUBMARINE.count-1)*SUBMARINE.interval;ship.reload=SUBMARINE.reload+ship.launchRemaining;return null;
+    barrages.push(volley);spendSubmarineGroup(ship,group);return null;
   }
   function bombRun(plane){
     const error=bombError(world,plane);if(error)return error;
-    if(barrages.length>=MISSILE.maxVolleys)return 'Two bombardments are already in flight.';
+    if(barrages.filter(b=>b.kind!=='submarine').length>=MISSILE.maxVolleys)return 'Two bombardments are already in flight.';
     const volley=makeBombRun(plane,serial+1),profile=payloadProfile(bomberPayload(plane));
-    const limit=fieldCapacityError(fields,salvos,volley.weapon,volley.box.width*volley.box.height);if(limit)return limit;
+    const limit=fieldCapacityError(fields.concat(aquaticClouds),salvos,volley.weapon,volley.reservedArea??volley.box.width*volley.box.height);if(limit)return limit;
     serial++;if(volley.weapon!=='HE')fields.push(makeBarrageField(volley,now));
-    barrages.push(volley);plane.runs-=profile.cost;plane.releaseRemaining=(profile.count-1)*AIR.interval;return null;
+    barrages.push(volley);plane.bombCooldown=profile.cooldown;plane.releaseRemaining=bombReleaseDuration(profile);return null;
   }
   function helicopterFire(plane,target,rocket=false){
     const error=helicopterFireError(world,plane,target,rocket);if(error)return error;
@@ -664,14 +736,26 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     shots.push({id,weapon:rocket?'HE':'APCR',owner:plane.id,x:plane.x,y:plane.y,angle:plane.turret,at:now});
     spendHelicopterShot(plane,rocket);return null;
   }
-  function strafe(plane){
-    const error=strafeError(world,plane);if(error)return error;
-    const key=plane.id+':strafe';if((cooldowns.get(key)||0)>now)return 'Autocannon reloading.';
+  function gunshipFire(plane,target,weapon){
+    const error=gunshipFireError(world,plane,target,weapon);if(error)return error;
     if(salvos.length>=JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
-    const point=strafePoint(plane),id=++serial;
-    salvos.push({id,kind:'strafe',weapon:'HE',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.angle,elapsed:0,duration:JET.flight,profile:{...JET}});
-    shots.push({id,weapon:'APCR',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});
-    plane.rounds--;cooldowns.set(key,now+JET.cooldown);return null;
+    const profile=GUNSHIP_GUNS[weapon],id=++serial,angle=Math.atan2(target.x-plane.x,plane.y-target.y);
+    const x=plane.x-Math.cos(plane.angle)*.35,y=plane.y-Math.sin(plane.angle)*.35;
+    salvos.push({id,kind:weapon==='25'?'jet-burst':'strafe',weapon:'HE',owner:plane.id,x,y,targetX:target.x,targetY:target.y,angle,elapsed:0,duration:profile.flight,profile:{...profile}});
+    shots.push({id,weapon:'APCR',mount:'air-gunship-'+weapon,owner:plane.id,x,y,angle,at:now});shots=shots.slice(-64);
+    plane.gunshipCooldowns ||= {};plane.gunshipCooldowns[weapon]=profile.cooldown;plane.gunshipWeapon=weapon;return null;
   }
-  return { checkpoint, drainEvents, startFrenzy, orbitalOrder, rollbackOrbital, helicopterFire:track(helicopterFire), strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
+  function strafe(plane,rapid=false){
+    const error=strafeError(world,plane);if(error)return error;
+    const profile=rapid?JET_GUN:JET,points=rapid?jetBurstPoints(plane):[strafePoint(plane)];
+    const key=plane.id+(rapid?':30mm':':strafe');if((cooldowns.get(key)||0)>now)return 'Autocannon reloading.';
+    if(salvos.length+points.length>JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
+    if(points.some(p=>p.x<profile.radius||p.y<profile.radius||p.x>world.width-profile.radius||p.y>world.height-profile.radius))return 'Keep every impact inside the map.';
+    for(const point of points){const id=++serial;
+      salvos.push({id,kind:rapid?'jet-burst':'strafe',weapon:'HE',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.angle,elapsed:0,duration:profile.flight,profile:{...profile}});
+    }
+    shots.push({id:serial,weapon:'APCR',mount:rapid?'jet-30mm':'jet-cannon',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});shots=shots.slice(-64);
+    cooldowns.set(key,now+profile.cooldown);return null;
+  }
+  return { checkpoint, strikeRollback, drainEvents, startFrenzy, orbitalOrder, rollbackOrbital, gunshipFire:track(gunshipFire), helicopterFire:track(helicopterFire), strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), macFire: track(macFire), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };
 }

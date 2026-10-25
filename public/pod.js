@@ -13,8 +13,8 @@ export function podCells(x, y, size = 3, length = 4) {
   }
   return cells;
 }
-export function podCell(pod, x, y, size = 3) {
+export function podCell(pod, x, y, size = 3, length = 4) {
   const dx = Math.floor(x) - pod.x, dy = Math.floor(y) - pod.y;
   if (dx >= 0 && dx < size && dy >= 0 && dy < size) return 'core';
-  return ((dx >= 0 && dx < size && dy >= -4 && dy < size + 4) || (dy >= 0 && dy < size && dx >= -4 && dx < size + 4)) ? 'floor' : null;
+  return ((dx >= 0 && dx < size && dy >= -length && dy < size + length) || (dy >= 0 && dy < size && dx >= -length && dx < size + length)) ? 'floor' : null;
 }

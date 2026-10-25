@@ -5,7 +5,8 @@ const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
 // Bounded, deterministic client presentation. No dust or panel physics entities.
 export class CoreEffects {
-  constructor(tile, size = 3) {
+  constructor(tile, size = 3, length = size === 1 ? 1 : 4) {
+    this.length = length;
     this.size = size;
     this.tile = tile;
     this.cloud = document.createElement('canvas'); this.cloud.width = this.cloud.height = 96;
@@ -31,11 +32,11 @@ export class CoreEffects {
   }
   preview(c, x, y, valid, zoom) {
     c.save(); c.fillStyle = valid ? '#dfc98730' : '#f1866740'; c.strokeStyle = valid ? '#f5d995' : '#ffa78b'; c.lineWidth = 1 / zoom;
-    for (const cell of podCells(x, y, this.size)) { c.fillRect(cell.x * this.tile, cell.y * this.tile, this.tile, this.tile); c.strokeRect(cell.x * this.tile + 1, cell.y * this.tile + 1, this.tile - 2, this.tile - 2); }
-    c.fillStyle = '#e9e7cc'; c.font = `bold ${11 / zoom}px monospace`; c.textAlign = 'center'; c.fillText(this.size === 1 ? 'TANK POD / 17 TILES' : 'CORE / 57 TILES', (x + this.size / 2) * this.tile, (y - 4.5) * this.tile); c.restore();
+    for (const cell of podCells(x, y, this.size, this.length)) { c.fillRect(cell.x * this.tile, cell.y * this.tile, this.tile, this.tile); c.strokeRect(cell.x * this.tile + 1, cell.y * this.tile + 1, this.tile - 2, this.tile - 2); }
+    c.fillStyle = '#e9e7cc'; c.font = `bold ${11 / zoom}px monospace`; c.textAlign = 'center'; c.fillText(this.size === 1 ? 'TANK POD / 5 TILES' : 'CORE / 57 TILES', (x + this.size / 2) * this.tile, (y - this.length - .5) * this.tile); c.restore();
   }
   draw(c, core, time, reduced) {
-    const T = this.tile, size = this.size, half = size / 2, cx = (core.x + half) * T, cy = (core.y + half) * T;
+    const T = this.tile, size = this.size, length = this.length, half = size / 2, cx = (core.x + half) * T, cy = (core.y + half) * T;
     c.save(); c.translate(cx, cy);
     if (time < CORE.impact) {
       const descent = clamp(time / CORE.impact);
@@ -56,12 +57,12 @@ export class CoreEffects {
       if (!progress) continue;
       const projected = Math.sin(smooth(progress) * Math.PI / 2);
       c.save(); c.rotate(side * Math.PI / 2); c.translate(0, -half * T);
-      c.fillStyle = `rgba(15,29,29,${.25 * (1 - progress)})`; c.fillRect(-half * T + 12 * (1 - progress), -4 * T * projected - 14 * (1 - progress), size * T, 4 * T * projected);
-      c.drawImage(this.panel, 0, 0, size * T, 4 * T, -half * T, -4 * T * projected, size * T, 4 * T * projected);
+      c.fillStyle = `rgba(15,29,29,${.25 * (1 - progress)})`; c.fillRect(-half * T + 12 * (1 - progress), -length * T * projected - 14 * (1 - progress), size * T, length * T * projected);
+      c.drawImage(this.panel, 0, 0, size * T, length * T, -half * T, -length * T * projected, size * T, length * T * projected);
       c.fillStyle = '#b6bbae'; c.fillRect(-half * T, -3, size * T, 6);
       for (let i = 0; i < size * 2; i++) { c.fillStyle = '#27383c'; c.fillRect((-half + .15) * T + i * 23, -5, 10, 10); }
       const strike = time - (CORE.unfold + side * CORE.stagger + CORE.panelDuration);
-      if (strike >= 0 && strike < .75) this.dust(c, 0, -4 * T, strike, .75, reduced ? 4 : 12, side + 10, .65);
+      if (strike >= 0 && strike < .75) this.dust(c, 0, -length * T, strike, .75, reduced ? 4 : 12, side + 10, .65);
       c.restore();
     }
     c.fillStyle = '#263a3c'; c.fillRect(-half * T, -half * T, size * T, size * T);
@@ -90,6 +91,11 @@ export class CoreEffects {
       c.restore();
     }
     if (size === 1 && open >= 1) { c.drawImage(this.panel, 0, 0, T, T, -T / 2, -T / 2, T, T); c.strokeStyle = '#d9b675'; c.lineWidth = 2; c.strokeRect(-T*.3, -T*.3, T*.6, T*.6); }
+    if(core.protected&&time>=CORE.duration){
+      c.strokeStyle='#a2e0ed';c.lineWidth=2;c.strokeRect(-half*T-3,-half*T-3,size*T+6,size*T+6);
+      c.fillStyle='#16383fe8';c.fillRect(-1.7*T,(half+.12)*T,3.4*T,.35*T);
+      c.fillStyle='#b6e8ee';c.font='bold 10px monospace';c.textAlign='center';c.fillText('RECOVERY / PROTECTED',0,(half+.37)*T);
+    }
     const impactAge = time - CORE.impact;
     if (impactAge < 1.25) this.dust(c, 0, 0, impactAge, 1.25, reduced ? 10 : 32, 3, 1.7);
     c.restore();

@@ -138,3 +138,9 @@ robot movement during Remote, automatic aiming dismissal, order progress,
 carrier launch, Escape, reload and phone landscape. Evidence is under
 `.local/remote-naval-*` and `.local/naval-remote-*`. Local functional checks do not
 establish sustained combat capacity on the Fly machine.
+
+## Transport update, 24 October 2026
+
+The transport's single turret is now a stern triple turret
+([Armored transport](ARMORED_TRANSPORT.md)). A Bombard order fires it three times
+for nine shells total; Shore orders beach large transports bow-first.

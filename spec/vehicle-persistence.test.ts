@@ -23,7 +23,7 @@ async function fixture(kind='ship',health=35){
  const restart=async()=>{for(const c of controllers.values())c.abort();controllers.clear();await app.close();app=createApp({dataDir:dir});await listen();};
  return{state,post,connect,disconnect,restart,close:async()=>{for(const c of controllers.values())c.abort();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-loss-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}};
 }
-for(const kind of ['ship','tank'] as const)it(`persists ${kind} destruction and pilot recovery across restart, then replaces without duplicating saved vehicles`,async()=>{
+for(const kind of ['ship','tank'] as const)it(`persists ${kind} destruction and pilot recovery across restart, then builds one new identity while retaining the wreck`,async()=>{
  const f=await fixture(kind);try{
  await f.connect();await f.connect(1);const action=kind==='ship'?'ships/contact':'drill';expect((await f.post(action)).status).toBe(200);
  if(kind==='ship')f.disconnect(); // Another viewer keeps the battle running; the pilot cannot avoid damage by disconnecting.
@@ -38,8 +38,8 @@ for(const kind of ['ship','tank'] as const)it(`persists ${kind} destruction and 
  expect((await f.post('vehicles/replace',{kind,id:kind},1)).status).toBe(404);expect((await f.post('vehicles/replace',{kind,id:kind})).status).toBe(409);
  await expect.poll(async()=>(await f.state())[list][0].replacement,{timeout:13000}).toBe(0);
  const replaced=await f.post('vehicles/replace',{kind,id:kind});expect(replaced.status).toBe(200);expect(replaced.body.vehicle.health).toBe(VEHICLE[kind]);expect(replaced.body.vehicle.elapsed).toBe(0);
- expect((await f.post('vehicles/replace',{kind,id:kind})).status).toBe(200);expect((await f.state())[list]).toHaveLength(1);
- await f.restart();expect((await f.state())[list][0]).toMatchObject({destroyed:false,health:VEHICLE[kind],occupant:null});
+ expect((await f.post('vehicles/replace',{kind,id:kind})).status).toBe(200);expect((await f.state())[list]).toHaveLength(2);expect(replaced.body.vehicle.id).not.toBe(kind);
+ await f.restart();expect((await f.state())[list].find((v:any)=>v.id===replaced.body.vehicle.id)).toMatchObject({destroyed:false,health:VEHICLE[kind],occupant:null});expect((await f.state())[list].find((v:any)=>v.id===kind)).toMatchObject({destroyed:true,health:0,replacedBy:replaced.body.vehicle.id});
  }finally{await f.close();}
 },40000);
 it('persists nonlethal hull damage, rejects forged repair and keeps ownership through boarding',async()=>{

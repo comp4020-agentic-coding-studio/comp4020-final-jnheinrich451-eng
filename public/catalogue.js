@@ -5,7 +5,7 @@ import { CARRIER } from './carrier.js';
 // Every number below is read from the module that owns it, never copied here.
 import { COSTS, FACILITY_HP, ECONOMY, LOCAL_KINDS, quote } from './logistics.js';
 import { CONSTRUCTION, needsConstruction } from './construction.js';
-import { HE, APCR, HEAVY_FLAME, MAGNETIC, ARTILLERY_HE } from './weapons.js';
+import { HE, APCR, HEAVY_FLAME, MAGNETIC, ARTILLERY_HE, RAIL_HE, MAC } from './weapons.js';
 import { MISSILE } from './missile.js';
 import { SHIP } from './ship.js';
 import { NAVAL_GUN } from './ship-armament.js';
@@ -17,7 +17,7 @@ import { SENTRY_TURRET } from './turret.js';
 
 export const TABS = Object.freeze([
   { id: 'ground', label: 'Ground' }, { id: 'rail', label: 'Rail' }, { id: 'strike', label: 'Orbital' },
-  { id: 'logistics', label: 'Logistics' }, { id: 'navy', label: 'Naval' }, { id: 'air', label: 'Air' },
+  { id: 'logistics', label: 'Facilities' }, { id: 'navy', label: 'Naval' }, { id: 'air', label: 'Air' },
 ]);
 
 const degrees = radians => Math.round(radians * 180 / Math.PI);
@@ -29,12 +29,14 @@ export const ASSETS = Object.freeze([
     specs: [['Weapon', `APCR ${APCR.range} t or heavy fuel ${HEAVY_FLAME.range} t`], ['Traverse', `${degrees(SENTRY_TURRET.speed)}°/s, fires when aligned`]] },
   { code: 'G-02', tab: 'ground', card: 'core-card', kind: 'core', cost: 'core', hp: 'core', name: 'Orbital core', footprint: '57-cell cross',
     specs: [['Delivers', 'Robot · core sentry · flooring'], ['Support', `${CONSTRUCTION.radius} t construction radius`]], limit: `1 per scout · ${CORE.max} per world`, costNote: 'first landing free' },
-  { code: 'G-03', tab: 'ground', card: 'tank-card', kind: 'tank', cost: 'tank', name: 'Tank drop pod', footprint: '17-cell cross',
+  { code: 'G-03', tab: 'ground', card: 'tank-card', kind: 'tank', cost: 'tank', name: 'Tank drop pod', footprint: '5-cell cross',
     specs: [['Cannon', `HE ${HE.range} t or magnetic ${MAGNETIC.range} t`], ['Secondary', `APCR ${APCR.range} t or fuel ${HEAVY_FLAME.range} t`]], limit: 'No fixed cap / supplies and clear sites' },
   { code: 'R-01', tab: 'rail', card: 'rail-card', kind: 'rail', name: 'Rail track', footprint: '1 tile · corners · junctions',
     specs: [['Corridor', '3 tiles wide'], ['Lay', '1 or 5 tiles per order']] },
-  { code: 'R-02', tab: 'ground', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',
-    specs: [['Range', `${ARTILLERY_HE.minRange}–${ARTILLERY_HE.range} t`], ['Shells', 'HE · Fire · Gas'], ['Reload', `${ARTILLERY_HE.cooldown / 1000} s`]] },
+  { code: 'R-02', tab: 'rail', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',
+    specs: [['Range', `${ARTILLERY_HE.minRange}–${ARTILLERY_HE.range} t`], ['HE blast', `${RAIL_HE.radius} t / ${RAIL_HE.damage} damage`], ['Shells', 'HE · Fire · Gas'], ['Reload', `${ARTILLERY_HE.cooldown / 1000} s`]] },
+  {code:'R-03',tab:'rail',card:'mac-card',kind:'mac',cost:'mac',hp:'artillery',name:'Rail MAC',footprint:'3 x 3 on track',
+    specs:[['Range',MAC.range+' t / direct fire'],['Damage',MAC.damage+' / up to '+MAC.penetration+' enemies'],['Charge',MAC.charge+' s / locks bearing'],['Cooldown',MAC.cooldown+' s']],limit:'One per scout / eight total rail weapons'},
   { code: 'S-01', tab: 'ground', card: 'missile-card', kind: 'missile', cost: 'missile', hp: 'missile', name: 'Missile battery', footprint: `${MISSILE.size} × ${MISSILE.size} fixed`,
     specs: [['Strike', `${MISSILE.count} missiles · ${MISSILE.width} × ${MISSILE.height} area`], ['Range', `${MISSILE.minRange}–${MISSILE.range} t`], ['Reload', `${MISSILE.reload} s after last launch`]] },
   ...Object.entries(ORBITAL_PAYLOADS).map(([payload, profile], index) => ({
@@ -50,21 +52,22 @@ export const ASSETS = Object.freeze([
     specs: [['Drive', 'E board / WASD / park to collect'], ['Cargo', `${ECONOMY.cargo} per trip`], ['Collect', `${ECONOMY.collectTime} s at conquered ruins`]] },
   { code: 'L-04', tab: 'logistics', card: 'builder-card', kind: 'builder', cost: 'builder', hp: 'recycler', name: 'Bridge builder', footprint: '1 x 1 pod', specs: [['Role','E board / WASD drive / plan bank endpoints'],['Bridge','3 tiles wide / cables then rolling deck']], limit:'1 per scout' },
   { code: 'L-05', tab: 'logistics', card: 'outpost-card', kind: 'outpost', cost: 'outpost', hp: 'outpost', name: 'Support outpost', footprint: '2 x 2', specs: [['Support','Shared robot respawn and local construction'],['Receiver','Raw salvage to shared ground supplies']] },
-  { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'vessel', cost: 'ship', name: 'Coastal gunship', footprint: '2 x 4 hull / shipyard berth',
+  { code: 'N-01', tab: 'navy', card: 'ship-card', kind: 'vessel', cost: 'ship', name: 'Coastal gunship', footprint: '4 x 12 hull / large dock',
     specs: [['Main guns', `${SHIP.minRange}–${SHIP.range} t · ${SHIP.reload} s per turret`], ['Side guns', `${NAVAL_GUN.range} t · ${degrees(NAVAL_GUN.halfArc * 2)}° arcs`]], limit: '1 per dock' },
-  { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'vessel', cost: 'submarine', name: 'Missile submarine', footprint: '2 x 4 hull / shipyard berth',
-    specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Reload', `${SUBMARINE.reload} s`]], limit: '1 per dock' },
-  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'vessel', cost: 'transport', name: 'Armored transport', footprint: '2 x 4 hull / shipyard berth', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Bow turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
-  { code:'N-04',tab:'navy',card:'carrier-card',kind: 'vessel',cost:'carrier',name:'Aircraft carrier',footprint:'3 x 5 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
-  { code:'N-05',tab:'navy',card:'dock-card',kind:'ship',cost:'shipyard',name:'Empty dock',footprint:'3 x 1 shore / 3 x 5 pier',specs:[['Role','One ship slot; build or exchange separately']],limit:'4 per scout / 8 per campaign' },
+  { code: 'N-02', tab: 'navy', card: 'submarine-card', kind: 'vessel', cost: 'submarine', name: 'Missile submarine', footprint: '2.5 x 12 hull / large dock',
+    specs: [['Strike', `${SUBMARINE.count} missiles · ${SUBMARINE.width} × ${SUBMARINE.height} area`], ['Range', `${SUBMARINE.minRange}–${SUBMARINE.range} t`], ['Magazine', `${SUBMARINE.groups} groups / ${SUBMARINE.count} each`], ['Reload', `${SUBMARINE.reload} s per group`], ['Depth','Ctrl dive / Space surface / 5 min']], limit: '1 per dock' },
+  { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'vessel', cost: 'transport', name: 'Armored transport', footprint: '4.5 x 10 hull / bow ramp', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Stern triple turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
+  { code:'N-04',tab:'navy',card:'carrier-card',kind: 'vessel',cost:'carrier',name:'Aircraft carrier',footprint:'6 x 12 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
+  { code:'N-05',tab:'navy',card:'dock-card',kind:'ship',cost:'shipyard',name:'Empty dock',footprint:'7 x 1 shore / 7 x 12 pier',specs:[['Role','One ship slot; build or exchange separately'],['Site','Select water 8 tiles from a clear shore'],['Berth','8 x 14 reserved / clear departure water'],['Older docks','Retain their original smaller hulls']],limit:'4 per scout / 8 per campaign' },
   { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Empty airbase', footprint: `${AIR.width} × ${AIR.height}`,
     specs: [['Role', 'Runway, aircraft parking and service'], ['Aircraft', 'Order separately after construction']] },
   { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'aircraft', aircraftKind: 'attack-jet', cost: 'aircraft', name: 'Attack jet', footprint: 'Existing free runway',
-    specs: [['Autocannon', JET.ammo + ' HE rounds'], ['Delivery', 'Select a runway on the map']], placement: 'Your completed, empty airbase or carrier' },
+    specs: [['Autocannon', 'Unlimited / cooldown'], ['Delivery', 'Select a runway on the map']], placement: 'Your completed, empty airbase or carrier' },
   { code: 'A-03', tab: 'air', card: 'bomber-card', kind: 'aircraft', aircraftKind: 'bomber', cost: 'aircraft', name: 'Bomber', footprint: 'Existing free runway',
     specs: [['Payloads', 'HE / heavy HE / fire / gas'], ['Delivery', 'First bomber free per campaign']], placement: 'Your completed, empty airbase or carrier' },
-  { code: 'A-04', tab:'air',card:'helipad-card',kind:'helipad',cost:'helipad',hp:'helipad',name:'Helipad',footprint:'3 x 3',specs:[['Capacity','One helicopter / separate from runway fleet']],limit:'4 helipads per campaign' },
-  { code: 'A-05',tab:'air',card:'helicopter-card',kind:'aircraft',aircraftKind:'helicopter',cost:'helicopter',name:'Helicopter',footprint:'Existing free helipad',specs:[['Flight','Hover / 4 tiles per second'],['Weapons','LMB HE cannon / RMB rocket pods, 5s burst']],placement:'Your completed empty helipad' },
+  { code: 'A-04', tab:'air',card:'helipad-card',kind:'helipad',cost:'helipad',hp:'helipad',name:'Helipad',footprint:'3 x 3',specs:[['Capacity','One helicopter / separate from runway fleet']],limit:'8 active helipads / ruins excluded' },
+  { code: 'A-05',tab:'air',card:'helicopter-card',kind:'aircraft',aircraftKind:'helicopter',cost:'helicopter',name:'Helicopter',footprint:'Existing free helipad',specs:[['Flight','Hover / 4 tiles per second'],['Landing','E / clear 3 x 3 ground; helipad for service'],['Weapons','LMB HE cannon / RMB rocket pods, 5s burst']],placement:'Your completed empty helipad' },
+  {code:'A-06',tab:'air',card:'air-gunship-card',kind:'aircraft',aircraftKind:'air-gunship',cost:'aircraft',name:'Aerial gunship',footprint:'Existing free runway',specs:[['Flight','4–8 tiles/s / wide turns'],['Weapons','Left side / 25, 40, 105 mm'],['Orders','Manual flight / automatic recovery']],placement:'Your completed, empty airbase or carrier'},
 ]);
 
 export const assetsIn = tab => ASSETS.filter(a => a.tab === tab);

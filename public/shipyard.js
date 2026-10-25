@@ -1,21 +1,28 @@
 import { shipStopped } from './ship-motion.js';
 import { isCarrier } from './carrier.js';
 import { operational, hullHealth, VEHICLE, SHIP_REPAIR_DELAY } from './vehicle.js';
-import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock } from './ship.js';
+import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock, recallShipError } from './ship.js';
 
 export const SHIPYARD = Object.freeze({ max: 8, perOwner: 4, buildTime: 12, wrecks: 24 });
+export function yardRetireError(world,yard,people=[]){
+  if(!yard)return 'Select an empty dock first.';
+  if((world.ships||[]).some(s=>(s.yardId||s.id)===yard.id)||world.logistics?.jobs?.[yard.id])return 'Retire its vessel and finish construction first.';
+  return recallShipError(world,{...yard,destroyed:true},people);
+}
 // Old saves and isolated domain fixtures still carry their dock on the hull.
 export function dockRecords(world) {
   const yards = world.logistics?.shipyards || [];
-  return [...yards, ...(world.ships || []).filter(s => !yards.some(y => y.id === (s.yardId || s.id)))];
+  return [...yards.filter(y=>!y.supersededBy), ...(world.ships || []).filter(s => !yards.some(y => y.id === (s.yardId || s.id)))];
 }
 export function yardFromShip(s) {
-  return { id: s.yardId || s.id, owner: s.owner, dock: { ...s.dock }, dockStyle: s.dockStyle,
+  return { id: s.yardId || s.id, owner: s.owner, dock: { ...s.dock }, dockStyle: s.dockStyle, dockScale:s.dockScale,
     berthX: s.berthX, berthY: s.berthY, angle: s.dock.angle, siteX: s.siteX, siteY: s.siteY,
     elapsed: s.dockReady ? SHIP.duration : s.elapsed, dockReady: dockComplete(s), dockDestroyed: !!s.dockDestroyed };
 }
 export function linkYard(ship, yard) {
+  if(ship.berthX===undefined){ship.navalScale=yard.dockScale===2?2:1;if(ship.navalScale===2)ship.aftTurret??=(ship.angle||0)+Math.PI;}
   Object.assign(ship, { yardId: yard.id, dock: yard.dock, dockStyle: yard.dockStyle,
+    dockScale:yard.dockScale,
     berthX: yard.berthX, berthY: yard.berthY, siteX: yard.siteX, siteY: yard.siteY,
     dockReady: dockComplete(yard), dockDestroyed: !!yard.dockDestroyed });
 }
@@ -25,22 +32,32 @@ export function syncShipyards(world) {
     if (yard) linkYard(ship, yard);
   }
 }
-export function shipyardSite(world, buildings, occupants, x, y, owner) {
-  const yards = dockRecords(world);
+export function shipyardSite(world, buildings, occupants, x, y, owner,layoutVersion=1) {
+  const yards = dockRecords(world).filter(y=>!y.dockDestroyed);
   if (yards.length >= SHIPYARD.max || yards.filter(y => y.owner === owner).length >= SHIPYARD.perOwner)
     return { error: 'Shipyard limit: four per scout, eight per campaign.', ship: null };
-  return shipSite(world, buildings, occupants, x, y, owner, 'gunship', 'unfolding', null, true);
+  const ruin=yardsAtRuinedSite(world,x,y,owner);
+  if(!ruin)return shipSite(world, buildings, occupants, x, y, owner, 'gunship', 'unfolding', null, true,null,layoutVersion);
+  const survivor=(world.ships||[]).find(s=>!s.destroyed&&s.owner===owner&&(s.yardId||s.id)===ruin.id);
+  // Hide only this abandoned deck during validation. The surviving hull still
+  // blocks the new pier; only its own reserved berth may contain that hull.
+  const all=dockRecords(world),placement={...world,logistics:{...world.logistics,shipyards:all.map(y=>y.id===ruin.id?{...y,supersededBy:'placement'}:y)}};
+  const people=occupants.filter(p=>!survivor||p.id!==survivor.occupant);
+  const site=shipSite(placement,buildings,people,x,y,owner,'gunship','unfolding',ruin,true,survivor?.id);
+  if(!site.error)Object.assign(site.ship,{replacesYardId:ruin.id,survivingShipId:survivor?.id||null});
+  return site;
 }
+export const yardsAtRuinedSite=(world,x,y,owner)=>dockRecords(world).find(d=>d.dockDestroyed&&d.owner===owner&&d.dockStyle==='unfolding'&&d.siteX===x&&d.siteY===y);
 export function yardBuildError(world, yard, owner, kind, previous = null, people = []) {
   if (!yard || yard.owner !== owner) return 'Choose your own shipyard.';
   if (!['gunship', 'submarine', 'transport','carrier'].includes(kind)) return 'Choose a supported vessel.';
-  if (yard.dockDestroyed) return 'Rebuild this dock in Dock controls, or press L for Field logistics → Damaged infrastructure.';
+  if (yard.dockDestroyed) return 'Dock destroyed permanently. Deploy a new shipyard.';
   if (!dockComplete(yard) || world.logistics?.jobs?.[yard.id]) return 'Wait for the shipyard to finish assembly or repairs.';
-  if ((world.ships || []).some(s => s.id !== previous?.id && (s.yardId || s.id) === yard.id)) return 'This shipyard already supports a vessel. Retire it before changing type.';
+  if ((world.ships || []).some(s => !s.destroyed && s.id !== previous?.id && (s.yardId || s.id) === yard.id)) return 'This shipyard already supports a vessel. Retire it before changing type.';
   if (world.ships.filter(s=>!s.destroyed&&s.id!==previous?.id).length >= SHIP.max) return 'Fleet limit: four vessels per campaign.';
-  if(previous?.aircraft&&!['vacant','destroyed'].includes(previous.aircraft.state)&&kind!=='carrier')return 'An airborne aircraft still uses this carrier slot. Rebuild as a carrier.';
+  if([previous?.aircraft,previous?.wing?.aircraft].some(p=>p&&!['vacant','destroyed'].includes(p.state))&&kind!=='carrier')return 'An airborne aircraft still uses this carrier slot. Rebuild as a carrier.';
   if (previous && (!previous.destroyed || previous.replacement > .001)) return 'Wait for the lost vessel replacement countdown.';
-  const next = { ...yard, kind, id: previous?.id || 'preview', x: yard.berthX, y: yard.berthY, angle: yard.dock.angle };
+  const next = { ...yard, kind, navalScale:yard.dockScale===2?2:1, id: previous?.id || 'preview', x: yard.berthX, y: yard.berthY, angle: yard.dock.angle };
   if (!canSail(world, next, next.x, next.y, next.angle, true)) return 'Clear the shipyard water berth.';
   if (people.some(p => p.body !== 'aircraft' && p.life !== 'disabled' && (p.hp === undefined || p.hp > 0) && rectanglesOverlap(hull(next, true), { x: p.x, y: p.y, w: .8, h: .8, angle: 0 }))) return 'A unit blocks the shipyard berth.';
   return null;
@@ -48,7 +65,7 @@ export function yardBuildError(world, yard, owner, kind, previous = null, people
 export function rememberWreck(world, ship) {
   if (!ship.destroyed || ship.wreckRecorded) return false;
   const wrecks = world.logistics.wrecks ||= [];
-  wrecks.push({ id: ship.id + ':' + (ship.hurt || 0), kind: shipKind(ship), x: ship.x, y: ship.y, angle: ship.angle });
+  wrecks.push({ id: ship.id + ':' + (ship.hurt || 0), kind: shipKind(ship), navalScale:ship.navalScale, x: ship.x, y: ship.y, angle: ship.angle });
   if (wrecks.length > SHIPYARD.wrecks) wrecks.splice(0, wrecks.length - SHIPYARD.wrecks);
   ship.wreckRecorded = true;
   return true;

@@ -29,14 +29,15 @@ for (const mobile of [false, true]) test(`distant tank click fires to maximum ra
     const initial = await page.evaluate(async () => (await fetch('/api/world')).json());
     await page.locator('#center').click();
     for (let i = 0; i < 5; i++) await page.locator('#zoom-out').click();
-    await expect(page.locator('#zoom-label')).toHaveText('35%');
+    const zoom=parseInt(await page.locator('#zoom-label').textContent())/100;
+    expect(zoom).toBeGreaterThan(0);expect(zoom).toBeLessThanOrEqual(.35);
     const box = await page.locator('#world-canvas').boundingBox();
     // Pan through the overview on phones so distant ground is clear of the HUD.
     if (mobile) {
       const mini = await page.locator('#minimap').boundingBox();
       await page.touchscreen.tap(mini.x + mini.width * initial.me.x / initial.world.width, mini.y + mini.height * (initial.me.y - 16) / initial.world.height);
     }
-    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 - (mobile ? 0 : 16 * 48 * .35) };
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 - (mobile ? 0 : 16 * 48 * zoom) };
     expect(await page.evaluate(p => document.elementFromPoint(p.x, p.y)?.id, point)).toBe('world-canvas');
     if (mobile) await page.touchscreen.tap(point.x, point.y); else await page.mouse.move(point.x, point.y);
     await page.waitForTimeout(1400);

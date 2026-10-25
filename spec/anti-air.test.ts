@@ -51,7 +51,7 @@ it('saves burst prediction without wall-clock catch-up and accepts pre-flak chec
 it('disables a damaged aircraft, blocks launch, and replaces it at its original base after simulation time',()=>{
   const {world,base,p}=fixture();expect(hurtAircraft(p,180)).toBe(true);
   expect(p).toMatchObject({health:0,state:'destroyed',speed:0,remaining:20});
-  expect(launchAircraft(p)).toContain('Replacement');expect(hurtAircraft(p,10)).toBe(false);
+  expect(launchAircraft(p)).toContain('destroyed');expect(hurtAircraft(p,10)).toBe(false);
   // Server releases the seat and disables the pilot atomically before this tick.
   p.occupant=null;tickAircraft(world,base,null,19);expect(p.state).toBe('destroyed');
   const restored=JSON.parse(JSON.stringify(base));tickAircraft(world,restored,null,1);

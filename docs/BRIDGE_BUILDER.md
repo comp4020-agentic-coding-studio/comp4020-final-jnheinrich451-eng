@@ -1,4 +1,46 @@
-# Bridge builder - first crossing stage
+# Bridge builder - standard and heavy crossings
+
+## 24 October: heavy bridge profile
+
+Implemented locally. The existing builder now offers **Standard** and **Heavy**
+under **Plan bridge → Bridge type**, in both automatic and manual planning.
+These are sizes, not water-specific vehicles: either profile can span ocean,
+river or lake water within its limit. Ocean ships pass beneath completed spans;
+Vesper's rivers and lakes remain closed to player ships. Swimmers retain access.
+
+| Profile | Width | Interior deck rows | GND price | Construction time |
+| --- | --- | --- | --- | --- |
+| Standard | 3 tiles | 1–24 | 30 + 6 per row | 2 + 0.65 seconds per row |
+| Heavy | 5 tiles | 1–48 | 50 + 10 per row | (2 + 0.65 × rows) × 5/3 seconds |
+
+For example, a heavy bridge with 30 interior rows costs 350 GND and takes
+35.8 simulation seconds. The maximum heavy crossing costs 530 GND and takes
+55.3 seconds. Width scales materials and work by 5/3; tuning remains provisional.
+Both profiles share the existing eight-bridge campaign cap and four-tile builder
+reach. Full-width land anchors and approaches must be clear, as must all deck
+cells. Mountains and rocks cannot be covered by a bridge.
+
+The preview shows the entire footprint, price and duration. The camera frames
+it beside the planner on desktop and above it on phones. Two cables tension,
+then the full-width roller lays deck rows. Both traffic layers remain reserved
+until completion; all five heavy lanes then support ground traffic. Construction
+continues after the driver exits, but stops when the room simulation pauses.
+
+Server admission selects an allowlisted profile and computes price/timing; client
+width, price or duration overrides cannot discount construction. New records save
+profile, width, cable/row timing, total duration and actual cost. Retrying the same
+profile/endpoints, including reversed endpoints, returns the same crossing without
+another charge; requesting a different profile on an existing crossing fails.
+Legacy records without a profile retain three-wide geometry and original timing,
+cost and direction. No saved terrain or bridge is regenerated.
+
+Validation includes full-width obstruction and approach checks, both orientations,
+48-row planning, legacy compatibility, inland-water exclusion, atomic payment,
+retry handling and restart during construction. Desktop and phone browser checks
+exercise switching profiles, manual/automatic planning, unfolding and driving the
+builder across a 30-row heavy span. Local tests do not establish Fly capacity.
+
+## Original standard-bridge stage
 
 12 October 2026. Implemented locally after the author found a railway cannon
 blocking the original causeway. The purpose is to open a second ground route for
@@ -37,8 +79,10 @@ pan/zoom and recenter still work. Movement resumes camera following.
   30 plus six GND per deck row, including rows over land. A six-row crossing
   costs 66 GND and takes 5.9 simulation seconds. Local builder assembly uses
   the shared support-network discount and construction rules.
-- The whole span is reserved immediately. Ground traffic waits until completion;
-  ships cannot sail under either pending or finished bridges in this version.
+- The whole span is reserved immediately. Ground and water traffic wait until
+  completion. Ships and swimmers can then pass beneath the deck wherever the
+  original terrain is water; ground traffic crosses above them. Dry banks,
+  anchors, causeways and docks remain solid. No pillars or height checks are added.
 - Finished decks accept ground traffic but reject facility and rail placement.
   This prevents a new railway cannon from occupying the alternate route. Vehicles
   can still temporarily obstruct one another; this is not a traffic-routing system.
@@ -128,3 +172,26 @@ the builder, and either anchor satisfies the four-tile reach rule. Existing
 bridges retain their saved direction. Reversing an already accepted order returns
 the same bridge without charging again. Clear anchors, approaches, occupancy,
 length and shared GND checks still apply.
+
+## 22 October: ships beneath completed bridges
+
+This supersedes the earlier rule that all bridge spans block ships. Water-level
+navigation uses original terrain beneath completed decks, including authored
+bridge tiles with recorded water underneath. Solid causeways are not excavated.
+Existing saves need no migration. All four vessel types use the same rule; hull
+clearance against shore, docks and other vessels still applies. Ship delivery
+cradles and shore ramps cannot occupy the bridge.
+
+The deck keeps its current artwork. Water-level ships and swimmers are masked
+under it; ground units stay visible above it. A parked carrier aircraft follows
+its ship beneath the deck, while airborne aircraft remain above. This is a
+two-layer crossing rule, not an altitude or mast-clearance simulation.
+
+The ship-scale follow-up is planned in SHIP_VISUAL_SCALE.md.
+
+Validation: TypeScript and all 625 automated tests passed. Domain checks cover
+all four vessels, water/land separation, unfinished reservations, other hulls,
+delivery restrictions, saved restoration and aquatic pursuit. Desktop and phone
+browser checks used two players: a recycler drove above a stationary crewed ship,
+then the ship sailed through the crossing. Both screenshots were inspected.
+Implemented locally; not pushed or deployed.

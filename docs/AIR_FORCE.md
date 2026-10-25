@@ -1,5 +1,9 @@
 # Airbase and HE bomber: first flight stage
 
+The 23 October [air-power refinement](AIR_POWER_REFINEMENT.md) supersedes finite
+fixed-wing ammunition, refill waits, the old bomb pattern and the U systems HUD.
+Helicopter ammunition is unchanged. Earlier stage evidence below is historical.
+
 For the 14 October proposed automatic missions, paid aircraft servicing and shared
 support rules, see [Bomber and support network](BOMBER_AND_SUPPORT_NETWORK.md).
 This file records the original flight stage; later anti-air and economy stages

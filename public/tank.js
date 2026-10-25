@@ -1,4 +1,6 @@
+import { fieldHelicopterBlocks } from './footprints.js';
 import { bridgeAt } from './bridge-geometry.js';
+import { incomingCargoAt } from './cargo-pods.js';
 import { logisticsAt } from './footprints.js';
 import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
@@ -7,13 +9,15 @@ import { artilleryBlocks, railCorridor } from './footprints.js';
 export const TANK = Object.freeze({ radius: .42, boardRange: 1.8, speed: 3, ...POD });
 export const tankRecords = world => [
   ...(world.tanks||[]).map(tank=>({tank,carrier:null})),
-  ...(world.ships||[]).filter(ship=>ship.cargo?.kind==='tank').map(carrier=>({tank:carrier.cargo.vehicle,carrier}))
+  ...(world.ships||[]).filter(ship=>ship.cargo?.kind==='tank').map(carrier=>({tank:carrier.cargo.vehicle,carrier})),
+  ...(world.airbases||[]).map(b=>b.aircraft).filter(p=>p?.sling?.kind==='tank').map(carrier=>({tank:carrier.sling.vehicle,carrier}))
 ];
 export const emergencyTankWreck = (world,owner) => (world.tanks||[]).find(t=>t.owner===owner&&t.destroyed);
-export const tankPodCells = (x, y) => podCells(x, y, 1);
-export const tankPodCell = (tank, x, y) => podCell({ x: tank.podX, y: tank.podY }, x, y, 1);
+export const tankPodCells = (x, y) => podCells(x, y, 1, 1);
+export const tankPodCell = (tank, x, y) => podCell({ x: tank.podX, y: tank.podY }, x, y, 1, 1);
 /** @param {string|null} [ignore] */
 export function tankBlocks(world, x, y, radius = .21, ignore = null) {
+  if([-radius,radius].some(dx=>[-radius,radius].some(dy=>incomingCargoAt(world,x+dx,y+dy))))return true;
   return world.tanks?.some(t => {
     if (t.id === ignore || t.destroyed) return false;
     if (t.elapsed < POD.duration) return [-radius, radius].some(dx => [-radius, radius].some(dy => tankPodCell(t, x + dx, y + dy)));
@@ -23,14 +27,16 @@ export function tankBlocks(world, x, y, radius = .21, ignore = null) {
 export function tankPlacementError(world, buildings, occupants, x, y, owner) {
   if (![x, y].every(Number.isInteger)) return 'Choose a tile for the tank pod.';
   for (const cell of tankPodCells(x, y)) {
+    if(world.mountains?.[cell.y*world.width+cell.x])return 'High mountains cannot be covered by a deployment pod.';
+    if(fieldHelicopterBlocks(world,cell.x+.5,cell.y+.5,.5))return 'Keep the helicopter landing area clear.';
     if(bridgeAt(world,cell.x,cell.y))return 'Keep bridges clear of deployment pods.';
     if(logisticsAt(world,cell.x,cell.y))return 'Construction facility occupies the pod footprint.';
     if (hostileAt(world, cell.x, cell.y)) return 'An alien station occupies the pod footprint.';
     if(airbaseAt(world,cell.x,cell.y))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,cell.x,cell.y))return 'Keep the shoreline dock clear.';
-    if (cell.x < 0 || cell.y < 0 || cell.x >= world.width || cell.y >= world.height) return 'The entire 17-tile cross must fit inside the map.';
+    if (cell.x < 0 || cell.y < 0 || cell.x >= world.width || cell.y >= world.height) return 'The entire 5-tile cross must fit inside the map.';
     if (world.terrain[cell.y * world.width + cell.x] === 0) return 'Ocean is restricted. All tank pod panels need land.';
-    if (world.cores?.some(c => podCell(c, cell.x, cell.y)) || world.tanks?.some(t => tankPodCell(t, cell.x, cell.y))) return 'Another pod or its panels occupy this site.';
+    if (world.cores?.some(c => podCell(c, cell.x, cell.y)) || world.tanks?.some(t => !t.destroyed && tankPodCell(t, cell.x, cell.y))) return 'Another pod or its panels occupy this site.';
     if (railCorridor(world, cell.x, cell.y) || artilleryBlocks(world, cell.x, cell.y) || buildings.some(b => b.x === cell.x && b.y === cell.y)) return 'A facility or rail corridor occupies the pod footprint.';
     if (tankBlocks(world, cell.x + .5, cell.y + .5, .5) || occupants.some(p => p.life !== 'disabled' && (p.hp === undefined || p.hp > 0) && Math.abs(p.x - cell.x - .5) < .75 && Math.abs(p.y - cell.y - .5) < .75)) return 'A unit is inside the pod footprint.';
   }
@@ -38,5 +44,5 @@ export function tankPlacementError(world, buildings, occupants, x, y, owner) {
 }
 export function tankArrivalPosition(tank, elapsed = tank.elapsed) {
   const progress = Math.max(0, Math.min(1, (elapsed - POD.exit) / (POD.duration - POD.exit)));
-  return { x: tank.podX + .5 + progress * 2, y: tank.podY + .5 };
+  return { x: tank.podX + .5 + progress, y: tank.podY + .5 };
 }

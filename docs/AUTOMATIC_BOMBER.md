@@ -1,5 +1,9 @@
 # Automatic HE bomber missions
 
+The 23 October [air-power refinement](AIR_POWER_REFINEMENT.md) supersedes finite
+fixed-wing ammunition, refill waits, the old bomb pattern and the U systems HUD.
+Helicopter ammunition is unchanged. Earlier stage evidence below is historical.
+
 Implemented locally on 14 October 2026, after the shared economy/support stage.
 The author confirmed: abort and return after home-base loss; if the runway is
 still unavailable on arrival, emergency-land and retain a wreck for replacement.

@@ -64,15 +64,16 @@ it('the HTTP server owns traverse and ignores forged firing angles while the hul
     expect((await post('fire', { x: initial.me.x + 5, y: initial.me.y, weapon: 'HE', turret: Math.PI / 2 })).status).toBe(200);
     expect((await state()).combat.shots[0].angle).toBe(0);
     await expect.poll(async () => (await state()).me.turret).toBeCloseTo(Math.PI / 2, 4);
-    // The client refreshes held keys; one packet expires after 400 ms, before
-    // the tank's gradual hull traverse can finish a quarter turn.
+    // A/D now steers continuously in place rather than selecting a compass
+    // heading. Stop after a visible turn; aiming remains independent.
     await expect.poll(async () => {
       expect((await post('input', { x: -1, y: 0, aim: Math.PI / 2, turret: -Math.PI / 2 })).status).toBe(200);
-      return angleDelta((await state()).me.angle, -Math.PI / 2);
-    }, { interval: 50, timeout: 3000 }).toBeCloseTo(0, 4);
+      return (await state()).me.angle;
+    }, { interval: 50, timeout: 3000 }).toBeLessThan(-.7);
     expect((await post('input', { x: 0, y: 0, aim: Math.PI / 2 })).status).toBe(200);
     const turned = await state();
-    expect(turned.me.x).toBeLessThan(initial.me.x);
+    expect(turned.me.x).toBeCloseTo(initial.me.x);
+    expect(turned.me.y).toBeCloseTo(initial.me.y);
     expect(turned.me.turret).toBeCloseTo(Math.PI / 2);
     expect((await post('fire', { x: turned.me.x, y: turned.me.y - 5, weapon: 'APCR', turret: 0 })).status).toBe(200);
     const shot = (await state()).combat.shots.find((s: { weapon: string }) => s.weapon === 'APCR');

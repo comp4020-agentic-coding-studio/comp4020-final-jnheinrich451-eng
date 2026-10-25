@@ -44,7 +44,13 @@ export function gunCells(gun) {
 export const artilleryBlocks = (world, x, y) => world.artillery?.some(g => g.kind === 'missile' ? Math.floor(x) >= g.x && Math.floor(x) < g.x + 4 && Math.floor(y) >= g.y && Math.floor(y) < g.y + 4 : (Math.abs(g.x - Math.floor(x)) <= 1 && Math.abs(g.y - Math.floor(y)) <= 1) || (g.move?.bounds && insideBounds(g.move.bounds, Math.floor(x), Math.floor(y))) || (g.move && Math.abs(g.move.fromX - Math.floor(x)) <= 1 && Math.abs(g.move.fromY - Math.floor(y)) <= 1));
 export const railCorridor = (world, x, y) => world.rails?.some(r => isCurve(r) ? insideBounds(curveBounds(r), x, y) : isCompact(r) ? r.x === x && r.y === y : r.shape === 'EW' ? r.x === x && Math.abs(r.y - y) <= 1 : r.y === y && Math.abs(r.x - x) <= 1);
 
-export const airbaseAt=(world,x,y)=>world.airbases?.some(b=>x>=b.x&&x<b.x+airSize(b).width&&y>=b.y&&y<b.y+airSize(b).height)||false;
-export const hangarBlocks=(world,x,y)=>world.airbases?.some(b=>!isHelipad(b)&&x>=b.x+4&&x<b.x+6&&y>=b.y+1&&y<b.y+4)||false;
+export const airbaseAt=(world,x,y)=>world.airbases?.some(b=>!b.destroyed&&x>=b.x&&x<b.x+airSize(b).width&&y>=b.y&&y<b.y+airSize(b).height)||false;
+export const hangarBlocks=(world,x,y)=>world.airbases?.some(b=>!b.destroyed&&!isHelipad(b)&&x>=b.x+4&&x<b.x+6&&y>=b.y+1&&y<b.y+4)||false;
+
+export const fieldHelicopterBlocks=(world,x,y,radius=0)=>world.airbases?.some(b=>{
+  const p=b.aircraft,q=p?.fieldLanding;
+  const drop=p?.slingOperation;
+  return q&&['landing','parked','takeoff'].includes(p.state)&&Math.abs(x-q.x)<1.5+radius&&Math.abs(y-q.y)<1.5+radius || drop?.kind==='lower'&&Math.abs(x-drop.point.x)<.42+radius&&Math.abs(y-drop.point.y)<.42+radius;
+})||false;
 
 export const logisticsAt = (world,x,y) => world.logistics?.facilities?.some(f => x>=f.x && y>=f.y && x<f.x+(['factory','outpost'].includes(f.kind)?2:3) && y<f.y+(['factory','outpost'].includes(f.kind)?2:3)) || false;

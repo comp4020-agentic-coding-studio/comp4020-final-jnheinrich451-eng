@@ -16,7 +16,7 @@ for(const [mobile,ground] of [[false,1200],[true,1200],[false,19.53]])test(`brid
   for(let y=0;y<96;y++)for(let x=35;x<=40;x++)w.terrain[y*128+x]=0;
   w.terrain[41*128+35]=1;w.terrain[41*128+36]=1;w.terrain[43*128+40]=2;
   db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify({...freshLogistics(),groundSupplies:ground}));
-  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Engineer',32.5,42.5,0);
+  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Engineer',32.3,41.3,0);
   db.prepare('INSERT INTO robot_states VALUES (?,?)').run('pilot',JSON.stringify({...freshLife(),deployed:true}));db.close();app=createApp({dataDir:dir,logSink:()=>{}});
   try{
     await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
@@ -47,8 +47,9 @@ for(const [mobile,ground] of [[false,1200],[true,1200],[false,19.53]])test(`brid
     await page.screenshot({path:`.local/bridge-ahead-unfolding-${mobile?'mobile':'desktop'}.png`});
     await expect.poll(async()=>bridgeReady((await state()).logistics.bridges[0]),{timeout:9000}).toBe(true);
     await page.locator('#world-canvas').focus();
-    if(mobile){const b=await page.locator('[data-direction="right"]').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await expect.poll(async()=>(await state()).me.x,{timeout:8000}).toBeGreaterThan(42.8);await page.mouse.up();}
-    else{await page.keyboard.down('d');await expect.poll(async()=>(await state()).me.x,{timeout:8000}).toBeGreaterThan(42.8);await page.keyboard.up('d');}
+    await page.keyboard.down('d');try{await expect.poll(async()=>(await state()).logistics.recyclers[0].angle,{intervals:[25]}).toBeGreaterThan(1.48);}finally{await page.keyboard.up('d');}
+    if(mobile){const b=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await expect.poll(async()=>(await state()).me.x,{timeout:8000}).toBeGreaterThan(42.8);await page.mouse.up();}
+    else{await page.keyboard.down('w');await expect.poll(async()=>(await state()).me.x,{timeout:8000}).toBeGreaterThan(42.8);await page.keyboard.up('w');}
     await expect.poll(async()=>(await state()).me.x).toBeGreaterThan(42.8);expect((await state()).logistics.supplies).toBe(1120);expect((await state()).logistics.groundSupplies).toBe(1134);
     await page.reload();await expect(page.locator('#connection')).toContainText('live');expect(bridgeReady((await state()).logistics.bridges[0])).toBe(true);expect((await state()).me.x).toBeGreaterThan(42.8);
     if(!mobile)await page.setViewportSize({width:1024,height:768});

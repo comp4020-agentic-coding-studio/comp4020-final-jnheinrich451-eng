@@ -39,6 +39,7 @@
 @media(max-width:760px),(pointer:coarse){.battlefield:has(#tank-loadout:not([hidden])) .fire-button{bottom:190px}.battlefield:has(#tank-loadout:not([hidden])) .machine-gun-button{bottom:270px}.battlefield:has(#tank-loadout:not([hidden])) .touch-pad{bottom:190px}}
 
 .tank-interact{margin-bottom:6px;width:100%;min-height:36px;background:var(--actual);color:var(--on-light);border:0;font-weight:600}.tank-interact[hidden]{display:none}
+@media(max-width:760px),(pointer:coarse){.battlefield:has(#transport-drive-off:not([hidden])) .touch-pad{bottom:215px}.battlefield:has(#transport-drive-off:not([hidden])) .fire-button{bottom:215px}.battlefield:has(#transport-drive-off:not([hidden])) .machine-gun-button{bottom:295px}.battlefield:has(#transport-drive-off:not([hidden])) .communication{bottom:330px}}
 @media(max-width:760px),(pointer:coarse){.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout:not([hidden])) .fire-button{bottom:230px}.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout:not([hidden])) .machine-gun-button{bottom:310px}.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout:not([hidden])) .touch-pad{bottom:230px}}
 
 @media(max-width:760px),(pointer:coarse){.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout[hidden]) .touch-pad{bottom:160px}.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout[hidden]) .fire-button{bottom:155px}.battlefield:has(#tank-interact:not([hidden])):has(#tank-loadout[hidden]) .machine-gun-button{bottom:235px}}
@@ -81,6 +82,51 @@
 #logistics-dialog h2{font-size:16px;margin:20px 0 8px}#logistics-dialog label,#construction-method-row{display:block;font-size:12px;margin:10px 0}#logistics-dialog select,#construction-method{display:block;width:100%;min-height:44px;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:2px;margin-top:5px;padding:6px}.logistics-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.logistics-actions button{flex:1;padding:8px;font-size:12px}#logistics-message{color:var(--warn)}
 /* Stage 1 instrument icons: inline line art, coloured by the surrounding control. */
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:miter;flex-shrink:0;vertical-align:middle}
+.music-settings{margin:18px 0;padding:12px;border:1px solid var(--rule);display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.music-settings legend{font:12px var(--mono);color:var(--actual)}
+.music-settings button{min-height:44px;padding:8px 14px}
+.music-settings button[aria-pressed="true"]{border-color:var(--actual);color:var(--actual)}
+.music-settings label{font-size:12px}
+.music-settings input{min-width:80px;min-height:44px;flex:1;width:100px;accent-color:var(--actual)}
+.music-settings p{flex-basis:100%;margin:0;font-size:11px;line-height:1.5}
+/* Room chat stays small until opened; wheel owns the pointer but not WASD. */
+/* Loading and load failures must not expose battlefield communication controls. */
+#loading:not(.hidden) ~ .communication,#loading:not(.hidden) ~ .emote-cover{display:none}
+.communication{position:absolute;left:20px;bottom:82px;width:min(340px,calc(100% - 40px));z-index:11;pointer-events:none;font:11px var(--mono)}
+.communication button,.communication input,.chat-history{pointer-events:auto}
+.communication,.communication button,.communication input{text-shadow:0 1px 2px #07161c,0 0 4px #07161c}
+.communication button,.communication button:hover:not(:disabled){background:transparent;border-color:var(--rule-strong)}
+.communication button:hover:not(:disabled){border-color:var(--actual)}
+.communication-buttons{display:flex;gap:4px}
+/* Placement actions sit above passive chat shortcuts on narrow screens.
+   Explicitly opened chat can still take input above the placement sheet. */
+@media(max-width:760px){.site-panel{z-index:12}.ship-systems-open .bottom-hud{z-index:12}.communication.chat-expanded{z-index:14}}
+.communication-buttons button{min-height:36px;padding:6px 9px;background:transparent}
+.communication kbd{font-size:9px;margin-left:4px}
+.chat-history{background:transparent;border-left:2px solid var(--actual);margin-bottom:6px;padding:7px 9px}
+#chat-messages{list-style:none;padding:0;margin:0;max-height:96px;overflow:auto;overflow-wrap:anywhere;line-height:1.5}
+#chat-messages li{margin:4px 0;color:var(--ink)}
+#chat-messages strong{color:var(--actual);font-weight:500}
+.communication:not(.chat-expanded) #chat-messages li:not(:nth-last-child(-n+3)){display:none}
+.chat-expanded #chat-messages{max-height:200px}
+#chat-form{pointer-events:auto;background:transparent;border:1px solid var(--rule-strong);padding:10px;display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-bottom:6px}
+#chat-form[hidden],.emote-cover[hidden]{display:none}
+#chat-form label,#chat-form small{grid-column:1/-1}
+#chat-form small{font-size:10px;color:var(--muted)}
+#chat-input{min-width:0;min-height:44px;background:transparent;border:1px solid var(--actual);color:var(--ink);padding:7px;font:14px var(--mono)}
+#chat-form button{min-height:44px;padding:6px}
+#chat-status{background:transparent;padding:8px;margin:4px 0;line-height:1.5;color:var(--warn)}
+.emote-cover{position:absolute;inset:0;z-index:15;display:grid;place-items:center;background:#07161c28}
+#emote-wheel{position:relative;width:300px;height:300px;border:1px solid var(--rule-strong);border-radius:50%;background:#101e22f2;box-shadow:0 5px 24px #0005}
+.emote-option{position:absolute;transform:translate(-50%,-50%);width:78px;height:67px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:10px var(--mono);background:#1c333c;border:1px solid var(--rule-strong)}
+.emote-option img{image-rendering:pixelated;object-fit:contain}
+.emote-option.selected,.emote-option:focus-visible{border-color:#f5d48c;background:#51472b;color:#ffe3a0}
+.emote-center{position:absolute;inset:103px 84px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:6px;pointer-events:none;font:11px var(--mono)}
+.emote-center small{font-size:9px;color:var(--muted)}
+.emote-center button{pointer-events:auto;font:9px var(--mono);min-height:30px;padding:4px;white-space:nowrap}
+@media(max-width:760px){.communication{left:10px;bottom:230px;width:min(310px,calc(100% - 20px))}.communication-buttons button{min-height:44px}.chat-expanded #chat-messages{max-height:110px}.communication:not(.chat-expanded) .chat-history{max-height:76px;overflow:hidden}}
+@media(max-width:760px){.in-recycler .communication{bottom:350px}.chat-typing .communication{bottom:230px}.chat-typing .touch-pad,.chat-typing .fire-button,.chat-typing .machine-gun-button{visibility:hidden}}
+@media(max-height:540px){.communication{bottom:82px}.chat-expanded #chat-messages{max-height:70px}}
 .mode-dock svg.i{width:16px;height:16px}
 .map-tools button,.hud-header nav button{display:grid;place-items:center}
 .unit-art svg.i{width:30px;height:30px}
@@ -225,22 +271,19 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 
 #orbital-open,#bomber-open{font:600 13px var(--mono)}
 
-/* Direct strike controls share the slim catalogue bar. */
-#orbital-panel.orbital-inline{position:static;transform:none;width:auto;max-width:none;max-height:none;flex-shrink:0;margin:6px 0 0;padding:6px 0 0;border:0;border-top:1px solid var(--rule);box-shadow:none;background:transparent}
-.orbital-planning .deployment-tray{overflow-y:auto}
-.orbital-planning .tray-body{display:block;flex-shrink:0}
-.orbital-planning .asset-spec,.orbital-planning .in-field,.orbital-planning .unit-art,.orbital-planning .asset-line{display:none}
-.orbital-planning .unit-grid{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}
-.orbital-planning .unit-grid .unit-card{flex:0 0 156px;min-height:70px;padding:8px}
+/* A selected strike aims directly on the battlefield; no catalogue window. */
+.orbital-planning .map-hint{visibility:hidden}
+#orbital-panel.orbital-aiming{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);width:min(660px,calc(100% - 32px));max-height:none;margin:0;padding:0;border:0;box-shadow:none;background:none;backdrop-filter:none;z-index:10;pointer-events:none;text-shadow:0 1px 3px #07161c,0 0 5px #07161c}
+.orbital-aiming p{margin:3px 0;font:11px/1.4 var(--mono)}
+.orbital-command-row{display:flex;gap:8px;align-items:center}.orbital-command-row p{flex:1;min-width:0}.orbital-command-row button{pointer-events:auto;min-height:36px;flex-shrink:0;padding:0 10px;font:11px var(--mono);text-shadow:inherit}
+.orbital-aiming #orbital-reason{color:var(--hostile)}
 .unit-card[aria-pressed=true]{border-color:var(--intent);background:#f0c44c12}
-.orbital-inline p{margin:3px 0;font:11px/1.4 var(--mono)}
-.orbital-command-row{display:flex;gap:8px;align-items:center}.orbital-command-row p{flex:1;min-width:0}.orbital-command-row button{min-height:36px;flex-shrink:0;padding:0 10px;font:11px var(--mono)}
-.orbital-inline #orbital-reason{color:var(--hostile)}
-@media(max-width:760px){.orbital-planning .deployment-tray{bottom:12px;max-height:40dvh}.orbital-planning .tray-supplies{font-size:10px}.orbital-planning .unit-grid .unit-card{flex-basis:145px}.orbital-inline p{font-size:10px}}
+@media(max-width:760px){#orbital-panel.orbital-aiming{bottom:100px;width:calc(100% - 24px)}.orbital-command-row{flex-wrap:wrap;gap:5px}.orbital-command-row p{flex-basis:100%}.orbital-command-row button{min-height:44px}.orbital-aiming p{font-size:10px}.battlefield:has(#deployment-tray:not([hidden])) .communication{bottom:calc(46dvh + 110px)}}
 
 #bridge-coordinates[hidden],#bridge-direction-label[hidden]{display:none}.bridge-planner>label{display:block;margin-top:8px}.bridge-planner select{display:block;width:100%;padding:8px;background:var(--field);color:var(--ink);border:1px solid var(--line)}.bridge-planner{max-height:calc(100vh - 180px);overflow-y:auto}
 @media(max-width:650px){.bridge-planner{max-height:50vh}.battlefield:has(#bridge-planner:not([hidden])) .objective,.battlefield:has(#bridge-planner:not([hidden])) .touch-pad{display:none!important}}
 @media(max-width:650px){.battlefield:has(#bridge-planner:not([hidden])) .survey,.battlefield:has(#bridge-planner:not([hidden])) .map-tools button:not(#zoom-in):not(#zoom-out){display:none}.battlefield:has(#bridge-planner:not([hidden])) .map-tools{top:100px}}
+@media(max-width:650px){.battlefield:has(#bridge-planner:not([hidden])) .communication{bottom:calc(50vh + 88px)}}
 @media(max-width:650px){.orbital-planning .map-tools button:not(#zoom-in):not(#zoom-out){display:none}}
 
 /* Campaign globe: bounded browser rendering, no effect on simulation. */
@@ -311,7 +354,9 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 #remote-air select { background:var(--field);color:var(--ink);max-width:180px;min-height:40px; } #remote-air button { padding:4px 10px; }
 #remote-air p { margin-top:6px;line-height:1.5; } .remote-air-planning .mode-dock,.remote-air-planning .map-hint { visibility:hidden; }
 
-@media(max-width:760px) { .remote-air-planning .touch-pad { bottom:190px!important; } }
+#remote-heli-actions{margin-top:8px}#remote-heli-actions [aria-pressed=true]{border-color:#efd387;color:#efd387;background:#3b382b}
+#remote-air,#remote-naval{box-sizing:border-box;max-height:calc(100dvh - 100px);overflow:auto}
+@media(max-width:760px) { .remote-air-planning .touch-pad { bottom:290px!important; } }
 
 /* Shared encounter warning stays visible in robot, vehicle and aircraft HUDs. */
 #frenzy-status{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:24;max-width:min(720px,90vw);padding:8px 12px;border:1px solid #e3a358;background:#17201fee;color:#ffe3b1;font:11px/1.5 var(--font-mono,monospace);text-align:center;pointer-events:none}
@@ -330,6 +375,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 
 /* Sailing instruments stay separate from the optional systems panel. */
 .ship-helm{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:96px;width:138px;padding:10px;background:#0c1b21c9;border:1px solid var(--line);border-radius:3px;color:var(--ink);font:10px/1.5 var(--mono);box-shadow:0 3px 16px #0003;z-index:2}
+#submarine-helm-depth{margin-top:6px;border-top:1px solid var(--line);padding-top:6px}#submarine-helm-depth span{display:block;font-size:9px;color:var(--intent)}#submarine-helm-depth button{display:block;width:100%;min-height:32px;margin-top:3px;padding:4px;font:10px var(--mono)}
 #ship-throttle-order{display:block;color:var(--intent);font-size:10px}#ship-speed{display:block;min-height:30px;margin:4px 0 6px;font-variant-numeric:tabular-nums;color:var(--actual)}
 .ship-telegraph{display:flex;gap:5px}.ship-throttles{display:flex;flex:1;flex-direction:column;gap:2px}.ship-throttles button{width:100%;min-height:30px;padding:0 5px;text-align:right;border-color:transparent;font:10px var(--mono)}.ship-throttles button[aria-pressed=true]{color:var(--intent);box-shadow:inset 0 0 0 1px var(--intent);background:#f0c44c14}
 .ship-speed-track{position:relative;width:17px;flex:none}.ship-speed-rail{position:absolute;top:15px;bottom:15px;left:8px;border-left:1px solid var(--actual)}#ship-speed-needle{position:absolute;left:-5px;width:12px;height:2px;background:var(--actual);box-shadow:0 0 5px #a9dcff80;transform:translateY(-50%);transition:top .16s linear}#ship-speed-needle:after{content:'';position:absolute;left:9px;top:-3px;border-left:5px solid var(--actual);border-top:4px solid transparent;border-bottom:4px solid transparent}
@@ -354,4 +400,53 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 @media(min-width:761px) and (max-height:780px){.flight-meter{right:132px}}
 @media(max-height:550px) and (orientation:landscape){.flight-meter{right:124px;bottom:16px;width:132px;padding:6px}.flight-bank{height:24px;margin:2px 0}.flight-meter small{display:none}#flight-speed{margin:2px 0}#flight-meter-status{margin:2px 0;min-height:15px}.aircraft-controls{max-height:calc(100dvh - 110px)}}
 @media(prefers-reduced-motion:reduce){#flight-bank-needle{transition:none}}
+/* Green flight instruments: airspeed and bank, not simulated pitch/altitude. */
+.flight-meter{color:#a9edbc;border-color:#81c69a66;background:#0b211de8;width:152px}
+.flight-meter strong,#flight-speed,#flight-bank-label,#flight-meter-status{color:#b5f4c7}
+.flight-speed-dial{position:relative;height:64px;width:112px;margin:4px auto 0;border-radius:60px 60px 0 0;border:1px solid #83b995;border-bottom:0;background:repeating-conic-gradient(from -120deg at 50% 100%,#ade8bc 0deg 1deg,transparent 1deg 20deg);clip-path:ellipse(60% 98% at 50% 100%)}
+.flight-speed-dial:before{content:'';position:absolute;inset:8px 8px 0;border-radius:60px 60px 0 0;background:#0b211d}
+.flight-speed-dial i{position:absolute;left:50%;bottom:0;height:50px;width:2px;background:#c3f7cd;transform-origin:50% 100%;transform:rotate(var(--speed-angle,-120deg));transition:transform .12s linear}
+.flight-speed-dial b{position:absolute;bottom:3px;left:8px;font:8px var(--mono)}.flight-speed-dial b:nth-of-type(2){top:12px;bottom:auto;left:53px}.flight-speed-dial b:nth-of-type(3){left:auto;right:6px}
+#flight-speed{display:inline-block;font-size:13px;margin:3px 0}#flight-heading{float:right;font-size:9px;padding-top:5px}
+#flight-speed-gauge{display:none}.flight-bank{height:48px;border-bottom:0;border-top:1px solid #8ec69c;border-radius:65% 65% 0 0;margin:8px 4px 2px}.flight-bank:before{top:30px;left:10%;width:80%;border-color:#8ec69c55}.flight-bank .bank-arc{font-size:8px;text-align:center;margin-top:2px;white-space:pre}.flight-bank b{position:absolute;left:48%;top:8px}#flight-bank-needle{top:29px;left:15%;width:70%;background:#b5f4c7}#flight-bank-needle:before,#flight-bank-needle:after{content:'';position:absolute;top:-7px;height:14px;width:14px;border-top:1px solid #8ec69c;border-bottom:1px solid #8ec69c}#flight-bank-needle:before{left:10px}#flight-bank-needle:after{right:10px}
+#flight-meter-status{min-height:16px;font-size:9px}#flight-systems-toggle{color:#b5f4c7;border-color:#81c69a66;font-size:9px}.flight-weapons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(100px,1.3fr);gap:4px;padding:8px;background:#10221fe8;border:1px solid #7eb28e66}.flight-weapons button{min-height:46px;padding:5px;font:10px var(--mono);color:#b9e5c4}.flight-weapons kbd{display:block;width:max-content;margin:0 auto 5px}.flight-weapons button.active{border-color:#e6cc8b;color:#efd999;background:#3b382b}.flight-weapons button.firing{background:#d1efb9;color:#132c23;border-color:#fff3b9}.flight-weapons.jet-weapons{grid-template-columns:1fr 1fr}.fixed-wing-control .bottom-hud{width:min(600px,calc(100vw - 24px))}.fixed-wing-control:not(.flight-systems-open) .touch-pad{bottom:94px!important}
+.fixed-wing-control #aircraft-interact:disabled{display:none}
+@media(max-width:760px){.flight-meter{width:125px;bottom:100px;padding:7px}.flight-speed-dial{width:96px;height:54px}.flight-speed-dial b:nth-of-type(2){left:45px}.flight-speed-dial i{height:44px}.flight-weapons{gap:3px;padding:5px;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(70px,1.3fr)}.flight-weapons button{font-size:9px;padding:4px;min-height:48px}.flight-meter small{font-size:7px}#flight-speed{font-size:11px}#flight-heading{font-size:8px}.fixed-wing-control .touch-pad{bottom:112px!important}}
+@media(max-height:550px) and (orientation:landscape){.flight-speed-dial{display:none}.flight-meter{bottom:90px;right:124px}.flight-bank{height:38px}.flight-meter small{display:none}}
 #flight-speed-gauge{appearance:none;border:0;background:#263d47}#flight-speed-gauge::-webkit-progress-bar{background:#263d47}#flight-speed-gauge::-webkit-progress-value{background:var(--actual)}#flight-speed-gauge::-moz-progress-bar{background:var(--actual)}
+
+/* Aircraft dock: one aligned stack for weapons, parked controls and exit. */
+.fixed-wing-control .bottom-hud{gap:6px}.aircraft-control .bottom-hud>.aircraft-controls,.fixed-wing-control .bottom-hud>.flight-weapons,.fixed-wing-control .bottom-hud>#aircraft-interact{width:100%;min-width:0;box-sizing:border-box;margin-inline:0}.flight-weapons.gunship-weapons{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(100px,1.3fr)}
+
+#remote-naval{position:absolute;z-index:14;left:50%;transform:translateX(-50%);bottom:18px;width:min(760px,calc(100% - 24px));padding:10px;font:11px var(--mono);box-sizing:border-box}
+#remote-naval>div{display:flex;align-items:center;gap:6px;flex-wrap:wrap} #remote-naval strong{margin-right:auto} #remote-naval button,#remote-naval select{min-height:40px;padding:4px 9px} #remote-naval select{background:var(--field);color:var(--ink)} #remote-naval [aria-pressed="true"]{border-color:#efd387;color:#efd387} #remote-naval p{margin-top:6px;line-height:1.5} .remote-naval-planning .mode-dock,.remote-naval-planning .map-hint{visibility:hidden}
+@media(max-width:760px){.remote-naval-planning .touch-pad{bottom:280px!important}}
+
+@media(max-height:500px){.remote-naval-planning .touch-pad{bottom:150px!important;transform:scale(.8);transform-origin:bottom left}}
+
+/* Keep landing and sling actions together, with stable instrument dimensions. */
+.aircraft-interactions{display:flex;gap:6px;width:100%;margin-top:6px}
+.aircraft-interactions #aircraft-interact{flex:1;min-width:0;margin:0;min-height:44px}
+#helicopter-sling{flex:0 0 35%;min-width:132px;min-height:44px;background:#e8bf57;border:1px solid #f5d78a;color:#242015;font:600 11px var(--mono);padding:6px}
+#helicopter-sling:hover:not(:disabled){background:#f5d78a}
+#helicopter-sling-status{font:10px/1.4 var(--mono);color:var(--muted)}
+.helicopter-dashboard{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:96px;z-index:2;box-sizing:border-box;width:158px;display:grid;grid-template-columns:1fr;gap:10px;align-items:center;padding:10px;background:#0b211de8;border:1px solid #81c69a66;border-radius:3px;color:#b5f4c7;font:10px var(--mono);font-variant-numeric:tabular-nums;text-align:left;pointer-events:none;box-shadow:0 3px 16px #0003}
+.helicopter-dashboard .heli-attitude{justify-self:center}
+.heli-speed{display:grid;gap:4px}.heli-speed>small{font-size:8px;color:#8cb5a2}.heli-speed strong{font-size:20px;font-weight:500;white-space:nowrap}.heli-speed strong small{font-size:9px}.heli-speed>span{font-size:8px;min-height:10px}
+#heli-speed-gauge{width:100%;height:4px;appearance:none;border:0;background:#263d36;accent-color:#b5f4c7}
+#heli-speed-gauge::-webkit-progress-bar{background:#263d36}#heli-speed-gauge::-webkit-progress-value{background:#b5f4c7}#heli-speed-gauge::-moz-progress-bar{background:#b5f4c7}
+.heli-angles{display:grid;gap:8px;font-size:9px;white-space:nowrap}
+.heli-attitude{position:relative;width:76px;height:64px;overflow:hidden;border:1px solid #81c69a88;border-radius:50%;background:#122d2a}
+#heli-horizon{position:absolute;inset:-35px;transform-origin:center;background:linear-gradient(to bottom,#173e3d 50%,#29352d 50%)}
+#heli-horizon:after{content:'';position:absolute;top:50%;left:0;right:0;border-top:1px solid #b5f4c7}
+#heli-horizon i,#heli-horizon b{position:absolute;left:42%;width:16%;height:13px;border-top:1px solid #81c69a;border-bottom:1px solid #81c69a}
+#heli-horizon i{bottom:calc(50% + 7px)}#heli-horizon b{top:calc(50% + 7px)}
+.heli-reticle{position:absolute;top:50%;left:17%;width:66%;height:6px;border-top:2px solid #f5d78a}
+.heli-reticle:after{content:'';position:absolute;left:calc(50% - 3px);top:-4px;width:6px;height:6px;border:1px solid #f5d78a;background:#122d2a}
+.helicopter-control .aircraft-controls{box-sizing:border-box}
+@media(max-width:1100px){.helicopter-dashboard{right:12px;bottom:calc(var(--heli-hud-height,240px) + max(18px,env(safe-area-inset-bottom)) + 8px);width:180px;grid-template-columns:1fr 64px;gap:8px;padding:8px}.helicopter-dashboard .heli-attitude{width:64px;height:58px}.helicopter-dashboard .heli-angles{grid-column:1 / -1;font-size:8px;gap:5px}.helicopter-dashboard .heli-speed strong{font-size:18px}}
+@media(max-width:760px){.helicopter-control .touch-pad{bottom:260px!important}.helicopter-control #aircraft-readout{font-size:9px}}
+@media(max-height:520px) and (orientation:landscape){.helicopter-control .aircraft-controls{max-height:calc(100dvh - 145px);overflow:auto}.helicopter-control .touch-pad{bottom:110px!important}.helicopter-control .bottom-hud{left:12px;transform:none;width:calc(100vw - 316px)}.helicopter-dashboard{right:124px;bottom:16px;width:168px}}
+
+/* Keep chat clear of the tank steering pad on narrow screens. */
+@media(max-width:760px){.ground-steering:not(.in-recycler):not(.chat-typing) .communication{bottom:330px}}

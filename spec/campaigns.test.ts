@@ -1,4 +1,4 @@
-import {orbitalPlan,ORBITAL} from '../public/orbital.js';
+import {orbitalPlan,ORBITAL,ORBITAL_PAYLOADS,orbitalHazard} from '../public/orbital.js';
 import {freshLife} from '../public/survival.js';
 import { expect, it, vi } from 'vitest';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
@@ -13,6 +13,67 @@ import { resetWorld } from '../world-maintenance.js';
 
 const password = 'a unique campaign password 123!';
 const worldRoute = (id: string, action = 'world') => `/api/campaign-world/${id}/${action}`;
+
+it('persists a paid rail MAC and one locked charge across release and campaign restart',async()=>fixture(async h=>{
+ const owner=await h.account('mac-owner'),id=await h.open(owner),pilot=(await owner.request(worldRoute(id))).data.me.id;
+ await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);w.sites=[];
+  db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
+  db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('mac-core',pilot,30,60,99);
+  db.prepare('UPDATE scouts SET x=32,y=65 WHERE id=?').run(pilot);
+  db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot,JSON.stringify({...freshLife(),deployed:true}));
+  for(const center of [40,55])for(let x=center-2;x<=center+2;x++)db.prepare('INSERT INTO rails VALUES (?,?,?,?)').run(x,40,'EW',pilot);
+  db.prepare('INSERT INTO artillery VALUES (?,?)').run('old-he',JSON.stringify({id:'old-he',owner:pilot,x:55,y:40,shape:'EW',angle:0,aim:0,elevation:75,reload:0,brace:0}));
+  const l=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get()!.value as string);l.supplies=1200;l.groundSupplies=1000;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);saved.sites=[];saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ const request=(action:string,data:any)=>owner.request(worldRoute(id,action),data),state=async()=>(await owner.request(worldRoute(id))).data;
+ expect((await request('artillery',{kind:'forged',x:40,y:40})).status).toBe(400);
+ const first=await request('artillery',{kind:'mac',x:40,y:40});expect(first.status,JSON.stringify(first.data)).toBe(201);
+ const gun=first.data.gun,paid=(await state()).logistics.supplies;
+ expect(gun.kind).toBe('mac');expect(paid).toBeCloseTo(920,0);
+ expect((await request('artillery',{kind:'mac',x:40,y:40})).status).toBe(200);expect((await state()).logistics.supplies).toBe(paid);
+ expect((await state()).artillery).toHaveLength(2);
+ await expect.poll(async()=>(await state()).logistics.jobs[gun.id],{timeout:7000,interval:100}).toBeFalsy();
+ expect((await request('artillery/fire',{id:gun.id})).status).toBe(403);
+ expect((await request('artillery/control',{id:gun.id})).status).toBe(200);
+ expect((await request('artillery/ammo',{id:gun.id,ammo:'HE'})).status).toBe(409);
+ await expect.poll(async()=>(await state()).artillery.find((g:any)=>g.id===gun.id).brace,{timeout:3000,interval:100}).toBe(0);
+ expect((await request('artillery/fire',{id:gun.id})).status).toBe(200);
+ expect((await request('artillery/fire',{id:gun.id})).status).toBe(409);
+ expect((await request('artillery/move',{id:gun.id,step:1})).status).toBe(409);
+ const accepted=(await state()).combat.salvos.find((s:any)=>s.kind==='mac');expect(accepted.hitIds).toEqual([]);
+ await request('artillery/control',{id:gun.id,release:true});await owner.request('/api/campaigns/leave',{});await h.restart();
+ await owner.request('/api/campaigns/enter',{id});const paused=await state();
+ expect(paused.artillery.find((g:any)=>g.id===gun.id).operator).toBeNull();
+ expect(paused.combat.salvos.filter((s:any)=>s.kind==='mac')).toHaveLength(1);
+ expect(paused.combat.salvos.find((s:any)=>s.kind==='mac')).toMatchObject({id:accepted.id,dx:accepted.dx,dy:accepted.dy});
+ await h.connect(owner,id);
+ await expect.poll(async()=>(await state()).combat.salvos.some((s:any)=>s.kind==='mac'),{timeout:5000,interval:100}).toBe(false);
+ expect((await state()).artillery.find((g:any)=>g.id===gun.id).reload).toBeGreaterThan(0);
+ expect(h.logs.filter((e:any)=>e.event==='weapon.launched'&&e.weapon==='MAC')).toHaveLength(1);
+}),20000);
+
+it('checkpoints remote submarine missiles and receipts together in a named campaign',async()=>fixture(async h=>{
+ const owner=await h.account('remote-submarine'),id=await h.open(owner),pilot=(await owner.request(worldRoute(id))).data.me.id;
+ await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);for(let y=0;y<w.height;y++)for(let x=0;x<90;x++)w.terrain[y*w.width+x]=0;db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
+  db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('sub-core',pilot,100,100,99);db.prepare('UPDATE scouts SET x=110,y=110 WHERE id=?').run(pilot);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot,JSON.stringify({...freshLife(),deployed:true}));
+  const s={id:'remote-sub',owner:pilot,kind:'submarine',x:65,y:70,angle:0,elapsed:99,health:300,ammo:'HE',depth:'submerged',diveBattery:250,diveCapacity:300,occupant:null,berthX:87.5,berthY:70,dock:{x:90.5,y:70,angle:-Math.PI/2}};db.prepare('INSERT INTO ships VALUES (?,?)').run(s.id,JSON.stringify(s));
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);saved.sites=[];saved.enemies=[];db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ const order={id:'remote-sub',action:'strike',target:{x:110,y:70},ammo:'HE',rotated:false,expected:0,orderId:'campaign-remote-sub-strike'};
+ const first=await owner.request(worldRoute(id,'ships/remote-action'),order);expect(first.status,JSON.stringify(first.data)).toBe(201);
+ const volley=(await owner.request(worldRoute(id))).data.combat.barrages[0];expect(volley.missiles).toHaveLength(6);expect(volley.missiles[0].underwater).toBe(true);
+ await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ expect((await owner.request(worldRoute(id,'ships/remote-action'),order)).status).toBe(200);
+ const after=(await owner.request(worldRoute(id))).data;expect(after.combat.barrages).toHaveLength(1);expect(after.combat.barrages[0].id).toBe(volley.id);const sub=after.ships.find((s:any)=>s.id==='remote-sub');expect(sub.siloReloads[0]).toBeGreaterThan(0);expect(sub.siloReloads.slice(1)).toEqual([0,0,0]);expect(sub.nextSiloGroup).toBe(1);expect(sub.reload).toBe(0);
+ expect(h.logs.some((e:any)=>e.event==='weapon.launched'&&e.action==='ships/remote-action')).toBe(true);
+}),15000);
 
 it('backs up the Bulwark roster upgrade once without refilling guards or replacing living enemies', async () => fixture(async h => {
   const owner = await h.account('armorowner'), id = await h.open(owner);
@@ -203,7 +264,12 @@ it('shares distant planetary construction through terrain-free live updates and 
   await owner.request('/api/campaigns/leave', {}); await h.restart(); await owner.request('/api/campaigns/enter', { id });
   const saved = (await owner.request(worldRoute(id))).data;
   expect([saved.world.width, saved.world.height]).toEqual([512, 384]);
-  expect(saved.buildings).toEqual(expect.arrayContaining(built.map(r => expect.objectContaining(r.data.building))));
+  for(const result of built){
+    const {purchase,...building}=result.data.building;
+    expect(saved.buildings).toEqual(expect.arrayContaining([expect.objectContaining(building)]));
+    // Buildings use SQL columns; their payment provenance lives in logistics.
+    expect(saved.logistics.purchases['sentry:'+building.id]).toEqual(purchase);
+  }
 }), 15000);
 
 it.each([false, true])('saves flak consumption, aircraft loss and an offline=%s pilot together before reporting damage', async offline => fixture(async h => {
@@ -323,7 +389,7 @@ it('serializes named-room construction and boarding races, with private attribut
   expect((await walker.request(worldRoute(id,'fire'),{x:24.5,y:10.5,weapon:'LASER'})).status).toBe(200);
   await h.restart(); // Close flushes the pending bounded summaries.
   const inputs=h.logs.filter((e:any)=>e.action==='input'&&e.outcome==='accepted');
-  expect(inputs.map((e:any)=>[e.unitType,e.command]).sort()).toEqual([['robot','move north'],['robot','move south'],['tank','move north'],['tank','move south']]);
+  expect(inputs.map((e:any)=>[e.unitType,e.command]).sort()).toEqual([['robot','move north'],['robot','move south'],['tank','forward; hold heading'],['tank','reverse; hold heading']]);
   expect(h.logs.some((e:any)=>e.unitType==='tank'&&e.command==='fire machine gun'&&e.outcome==='accepted')).toBe(true);
   expect(h.logs.some((e:any)=>e.unitType==='robot'&&e.command==='fire laser rifle'&&e.outcome==='accepted')).toBe(true);
   const serialized = JSON.stringify(h.logs);expect(serialized).not.toContain('spoofed-carrier');expect(serialized).not.toContain('never-log-this');
@@ -379,12 +445,33 @@ it('counts buffered writes as queued and reports a slow stream skipped by the re
   const first = h.logs.find((e: any) => e.event === 'state.broadcast');
   expect(first).toMatchObject({ campaignId: id, queuedWrites: 1, droppedStreams: 0 });
   // Model a browser that stopped draining, without filling a real socket with MBs.
-  Object.defineProperty(responses[0], 'writableLength', { configurable: true, value: 65537 });
+  Object.defineProperty(responses[0], 'writableLength', { configurable: true, value: (responses[0].snapshotBytes || 0) + 65537 });
   const second = await h.connect(owner, id);
   await expect.poll(second.output).toContain('"revision":');
   await h.restart(); // Flush the summary after the old stream was removed.
   expect(h.logs.some((e: any) => e.event === 'state.broadcast.summary' && e.campaignId === id && e.droppedStreams === 1 && e.queuedWrites >= 1)).toBe(true);
 }), 15000);
+
+it('communication stays room-local, streams to peers, survives reconnect without duplicate sends and ends with the runtime',async()=>fixture(async h=>{
+ const owner=await h.account('chat-owner'),peer=h.client(),other=await h.account('chat-other');
+ const id=await h.open(owner),otherId=await h.open(other);
+ const code=(await owner.request('/api/campaigns/invite',{id})).data.code;
+ await peer.request('/api/campaigns/join',{code});const stream=await h.connect(peer,id);
+ const route=worldRoute(id,'communication'),packet={kind:'chat',text:'private-crew-text',requestId:'message-owner-001'};
+ const results=await Promise.all([owner.request(route,packet),peer.request(route,{kind:'chat',text:'peer-answer',requestId:'message-peer-001'})]);
+ expect(results.map(r=>r.status)).toEqual([200,200]);
+ await expect.poll(()=>stream.output()).toContain('private-crew-text');
+ expect((await peer.request(route)).data.messages).toHaveLength(2);
+ expect((await owner.request(route,packet)).data.duplicate).toBe(true);
+ expect((await other.request(route)).status).toBe(403);
+ expect((await other.request(worldRoute(otherId,'communication'))).data.messages).toHaveLength(0);
+ const rejoined=await h.connect(peer,id);await expect.poll(()=>rejoined.output()).toContain('"type":"history"');
+ expect((await peer.request(route)).data.messages).toHaveLength(2);
+ expect(JSON.stringify(h.logs)).not.toContain('private-crew-text');expect(h.logs.some((e:any)=>e.event==='communication.delivered'&&e.count>=2)).toBe(true);
+ await peer.request('/api/campaigns/leave',{});expect((await peer.request(route,packet)).status).toBe(403);
+ await h.restart();await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
+ expect((await owner.request(route)).data.messages).toHaveLength(0);
+}),20000);
 
 async function fixture(run: (h: any) => Promise<void>) {
   const dir = await mkdtemp(path.join(tmpdir(), 'frontier-campaigns-'));
@@ -501,7 +588,7 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s 
 it('lists available planets and rejects unknown templates without creating a save', async () => fixture(async h => {
   const owner = await h.account('planet');
   const catalogue = (await owner.request('/api/campaigns/list')).data;
-  expect(catalogue.planets.map((p: any) => p.id)).toEqual(['caldera-v1']);
+  expect(catalogue.planets.map((p: any) => p.id)).toEqual(['caldera-v1','vesper-v1']);
   for (const template of ['unavailable', null, { id: 'caldera-v1' }]) {
     expect((await owner.request('/api/campaigns/create', { name: 'Invalid', template })).status).toBe(400);
   }
@@ -509,6 +596,20 @@ it('lists available planets and rejects unknown templates without creating a sav
   expect((await owner.request('/api/campaigns/create', { name: 'Selected world', template: catalogue.planets[0].id })).status).toBe(200);
   expect((await owner.request('/api/campaigns/list')).data.campaigns[0]).toMatchObject({ name: 'Selected world', template: 'caldera-v1' });
 }));
+
+it('creates Vesper separately and preserves its terrain masks and Caldera across restart',async()=>fixture(async h=>{
+ const owner=await h.account('vesper-owner'),legacy=(await owner.request('/api/world')).data.world;
+ const caldera=await h.open(owner),old=(await owner.request(worldRoute(caldera))).data.world;await owner.request('/api/campaigns/leave',{});
+ const created=await owner.request('/api/campaigns/create',{name:'Vesper expedition',template:'vesper-v1'});expect(created.status).toBe(200);const id=created.data.id;
+ expect((await owner.request('/api/campaigns/enter',{id})).status).toBe(200);await h.connect(owner,id);
+ const first=(await owner.request(worldRoute(id))).data;expect(first.world).toMatchObject({name:'Vesper',template:'vesper-v1',width:512,height:384});
+ expect(first.world.mountains.some(Boolean)).toBe(true);expect(first.world.waterKinds.includes(3)).toBe(true);expect(first.me).toMatchObject({x:72.5,y:80.5});
+ expect((await owner.request(worldRoute(id,'cores'),{x:72,y:80})).status).toBe(201);
+ await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});
+ const saved=(await owner.request(worldRoute(id))).data;expect(saved.world.terrain).toEqual(first.world.terrain);expect(saved.world.mountains).toEqual(first.world.mountains);expect(saved.world.waterKinds).toEqual(first.world.waterKinds);expect(saved.cores).toHaveLength(1);
+ await owner.request('/api/campaigns/leave',{});await owner.request('/api/campaigns/enter',{id:caldera});expect((await owner.request(worldRoute(caldera))).data.world.terrain).toEqual(old.terrain);
+ expect((await owner.request('/api/world')).data.world.terrain).toEqual(legacy.terrain);
+}),20000);
 
 it('isolates reads, writes and streams while preserving legacy saves and campaign landing across restart', async () => fixture(async h => {
   const a = await h.account('alpha'), b = await h.account('bravo');
@@ -696,9 +797,9 @@ it.each(['HE','HEAVY','INCENDIARY','GAS'])('shares one %s bomber order, preserve
  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
  await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.mission.released).toBe(true);
  await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});
- const first=(await owner.request(worldRoute(id))).data;expect(first.airbases[0].aircraft.runs).toBe(payload==='HEAVY'?0:1);expect(first.airbases[0].aircraft.mission.payload).toBe(payload);expect(first.combat.barrages[0].payload).toBe(payload);expect(first.combat.barrages[0].missiles).toHaveLength(payload==='HEAVY'?1:6);if(['INCENDIARY','GAS'].includes(payload))expect(first.combat.fields[0]).toMatchObject({weapon:payload,pending:6});expect(first.combat.barrages).toHaveLength(1);const projectile=first.combat.barrages[0].id;
+ const first=(await owner.request(worldRoute(id))).data;expect(first.airbases[0].aircraft.bombCooldown).toBeGreaterThan(0);expect(first.airbases[0].aircraft.mission.payload).toBe(payload);expect(first.combat.barrages[0].payload).toBe(payload);expect(first.combat.barrages[0].missiles).toHaveLength(payload==='HEAVY'?1:12);if(['INCENDIARY','GAS'].includes(payload))expect(first.combat.fields[0]).toMatchObject({weapon:payload,pending:12});expect(first.combat.barrages).toHaveLength(1);const projectile=first.combat.barrages[0].id;
  await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.x).toBe(first.airbases[0].aircraft.x);
- await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.runs).toBe(payload==='HEAVY'?0:1);
+ await h.connect(owner,id);await new Promise(r=>setTimeout(r,250));const next=(await owner.request(worldRoute(id))).data;expect(next.combat.barrages.map((r:any)=>r.id)).toEqual([projectile]);expect(next.airbases[0].aircraft.bombCooldown).toBeGreaterThan(0);
  expect(h.logs.some((e:any)=>e.event==='weapon.launched'&&e.action==='aircraft/mission'&&e.pilotId===[a,b][winner])).toBe(true);
 }),15000);
 
@@ -768,7 +869,7 @@ it('saves shared orbital spending, successive impacts, pause and caller departur
  await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;expect(state.logistics.orbital.order.points.every((p:any)=>p.landed)).toBe(true);expect(state.combat.sites.find((s:any)=>s.id==='orbital-test').state).toBe('conquered');
 }),30000);
 
-it.each(['INCENDIARY','GAS','BEAM'])('checkpoints orbital %s payload, reservation and effects without recharge on resume',async payload=>fixture(async h=>{
+it.each(['INCENDIARY','GAS','BEAM','HEAVY','BARRAGE','CLUSTER'])('checkpoints orbital %s payload, reservation and effects without recharge on resume',async payload=>fixture(async h=>{
  const owner=await h.account('orbitalpayload'),id=await h.open(owner),pilot=(await owner.request(worldRoute(id))).data.me.id;await owner.request('/api/campaigns/leave',{});
  h.database(id,(db:DatabaseSync)=>{
   const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
@@ -778,13 +879,52 @@ it.each(['INCENDIARY','GAS','BEAM'])('checkpoints orbital %s payload, reservatio
  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);
  const data={orderId:'orbital-saved-'+payload,sequence:1,payload,target:{x:64,y:48},bearing:1,end:{x:80,y:48}};
  expect((await owner.request(worldRoute(id,'orbital/strike'),data)).status).toBe(200);expect((await owner.request(worldRoute(id,'orbital/strike'),data)).status).toBe(200);
- let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(payload==='BEAM'?1020:1100);if(payload!=='BEAM')expect(state.combat.fields).toHaveLength(1);
+ let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(1200-ORBITAL_PAYLOADS[payload as keyof typeof ORBITAL_PAYLOADS].cost);if(orbitalHazard(payload))expect(state.combat.fields).toHaveLength(1);
  await owner.request('/api/campaigns/leave',{});await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;const age=state.logistics.orbital.order.age;expect(state.logistics.orbital.order.payload).toBe(payload);
- if(payload!=='BEAM')expect(state.combat.fields).toHaveLength(1);await new Promise(r=>setTimeout(r,100));expect((await owner.request(worldRoute(id))).data.logistics.orbital.order.age).toBe(age);
- await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.logistics.orbital.order.points.every((p:any)=>p.landed),{timeout:15000}).toBe(true);
+ if(orbitalHazard(payload))expect(state.combat.fields).toHaveLength(1);await new Promise(r=>setTimeout(r,100));expect((await owner.request(worldRoute(id))).data.logistics.orbital.order.age).toBe(age);
+ await h.connect(owner,id);await expect.poll(async()=>(await owner.request(worldRoute(id))).data.logistics.orbital.order.points.every((p:any)=>p.landed),{timeout:32000}).toBe(true);
  await owner.request('/api/campaigns/pause',{id,paused:true});state=(await owner.request(worldRoute(id))).data;
- if(payload==='BEAM')expect(state.logistics.orbital.scars).toHaveLength(1);else expect(state.combat.fields[0].sectors).toHaveLength(7);
+ if(payload==='BEAM')expect(state.logistics.orbital.scars).toHaveLength(1);else if(orbitalHazard(payload)) expect(state.combat.fields[0].sectors).toHaveLength(7);
  const before=structuredClone(state.logistics.orbitalFields||[]);await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;
- expect(state.logistics.supplies).toBe(payload==='BEAM'?1020:1100);expect(state.logistics.orbitalFields||[]).toEqual(before);expect(state.combat.fields).toHaveLength(payload==='BEAM'?0:1);
+ expect(state.logistics.supplies).toBe(1200-ORBITAL_PAYLOADS[payload as keyof typeof ORBITAL_PAYLOADS].cost);expect(state.logistics.orbitalFields||[]).toEqual(before);expect(state.combat.fields).toHaveLength(orbitalHazard(payload)?1:0);
  if(payload==='BEAM')expect(state.logistics.orbital.scars).toHaveLength(1);
-}),25000);
+}),40000);
+
+
+it('adds one aquatic hive to saved Vesper with backup, shares its state, and preserves conquest and accepted bile across restart',async()=>fixture(async h=>{
+ const owner=await h.account('aquatic-owner'),friend=await h.account('aquatic-friend');
+ const id=(await owner.request('/api/campaigns/create',{name:'Aquatic trial',template:'vesper-v1'})).data.id;
+ await owner.request('/api/campaigns/enter',{id});
+ const first=(await owner.request(worldRoute(id))).data;
+ expect(first.combat.sites.filter((s:any)=>s.kind==='aquatic-hive')).toHaveLength(1);
+ const hive=first.combat.sites.find((s:any)=>s.kind==='aquatic-hive');
+ await owner.request('/api/campaigns/leave',{});
+ // Recreate a pre-stage save, including existing assets and terrain.
+ h.database(id,(db:DatabaseSync)=>{
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+  saved.sites=saved.sites.filter((s:any)=>s.kind!=='aquatic-hive');
+  db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+  db.prepare("DELETE FROM meta WHERE key='aquatic-hive-v1'").run();
+ });
+ await owner.request('/api/campaigns/enter',{id});
+ const migrated=(await owner.request(worldRoute(id))).data;
+ expect(migrated.world).toEqual(first.world);expect(migrated.combat.sites.filter((s:any)=>s.kind==='aquatic-hive')).toEqual([hive]);
+ const backups=(await readdir(path.join(h.dir,'campaigns',id,'backups'))).filter(n=>n.startsWith('before-aquatic-hive-'));expect(backups).toHaveLength(2);
+ expect(backups.some(name=>{const db=new DatabaseSync(path.join(h.dir,'campaigns',id,'backups',name),{readOnly:true});try{return !JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string).sites.some((s:any)=>s.kind==='aquatic-hive');}finally{db.close();}})).toBe(true);
+ await h.connect(owner,id);const invitation=await owner.request('/api/campaigns/invite',{id});expect(invitation.status,JSON.stringify(invitation.data)).toBe(200);const code=invitation.data.code;const joined=await friend.request('/api/campaigns/join',{code});expect(joined.status,JSON.stringify(joined.data)).toBe(200);const entered=await friend.request('/api/campaigns/enter',{id});expect(entered.status,JSON.stringify(entered.data)).toBe(200);
+ expect((await friend.request(worldRoute(id))).data.combat.sites.find((s:any)=>s.id===hive.id)).toMatchObject(hive);
+ await friend.request('/api/campaigns/leave',{});await owner.request('/api/campaigns/leave',{});
+ h.database(id,(db:DatabaseSync)=>{
+  const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string),site=saved.sites.find((s:any)=>s.id===hive.id);
+  Object.assign(site,{hp:0,state:'conquered',conqueredAt:saved.now});
+  saved.acidShells=[{id:++saved.serial,sourceId:999,weapon:'BILE',fromX:330,fromY:110,x:335,y:110,at:saved.now,landAt:saved.now+1400,impacted:false}];
+  saved.aquaticClouds=[{id:++saved.serial,sourceId:999,weapon:'TOXIC',kind:'puddle',x:335,y:110,radius:1.6,activeAt:saved.now+1400,expiresAt:saved.now+4900}];
+  db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
+ });
+ await h.restart();await owner.request('/api/campaigns/enter',{id});
+ const restored=(await owner.request(worldRoute(id))).data;
+ expect(restored.combat.sites.filter((s:any)=>s.kind==='aquatic-hive')).toHaveLength(1);expect(restored.combat.sites.find((s:any)=>s.id===hive.id)).toMatchObject({hp:0,state:'conquered'});
+ expect(restored.combat.acidShells).toHaveLength(1);expect(restored.combat.aquaticClouds).toHaveLength(1);for(const key of ['terrain','waterKinds','mountains'])expect(restored.world[key]).toEqual(first.world[key]);
+ expect((await readdir(path.join(h.dir,'campaigns',id,'backups'))).filter(n=>n.startsWith('before-aquatic-hive-'))).toHaveLength(2);
+ expect((await owner.request('/api/world')).data.world.template).not.toBe('vesper-v1');
+}),20000);

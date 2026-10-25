@@ -1,6 +1,7 @@
-import { bridgeAt, bridgeReady } from './bridge-geometry.js';
+import { bridgeAt, bridgeReady, bridgeDeckAt } from './bridge-geometry.js';
+import { mountainAt } from './terrain-rules.js';
 import { logisticsAt } from './footprints.js';
-import { airbaseAt, hangarBlocks, hostileAt } from './footprints.js';
+import { airbaseAt, hangarBlocks, hostileAt, fieldHelicopterBlocks } from './footprints.js';
 import { dockAt, dockFloorAt, shipBlocks } from './ship.js';
 // World coordinates are measured in tiles; artwork never determines collision.
 import { CORE, coreCell, coreBlocks } from './core.js';
@@ -35,6 +36,7 @@ export function createWorld() {
 
 export function tileAt(world, x, y) {
   x = Math.floor(x); y = Math.floor(y);
+  if(mountainAt(world,x,y))return TERRAIN.ROCK;
   if(dockFloorAt(world,x,y))return TERRAIN.FLOOR;
   const bridge=bridgeAt(world,x,y);if(bridge&&bridgeReady(bridge))return TERRAIN.FLOOR;
   const floors=world.logistics?.floors;
@@ -48,9 +50,20 @@ export function tileAt(world, x, y) {
   return x < 0 || y < 0 || x >= world.width || y >= world.height ? 0 : world.terrain[y * world.width + x];
 }
 
+// Water-level navigation sees the original water beneath completed decks.
+// Dry causeways, shore anchors, docks and unfinished spans still block passage.
+export function waterTileAt(world,x,y){
+  x=Math.floor(x);y=Math.floor(y);
+  const bridge=bridgeAt(world,x,y);
+  if(bridge&&!bridgeReady(bridge))return TERRAIN.FLOOR;
+  if(bridgeDeckAt(world,x,y)&&world.terrain[y*world.width+x]===TERRAIN.WATER&&!dockFloorAt(world,x,y))return TERRAIN.WATER;
+  return tileAt(world,x,y);
+}
+
 /** @param {string|null} [ignoreTank] */
 export function canStand(world, buildings, x, y, ignoreTank = null, radius = .21) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  if (fieldHelicopterBlocks(world,x,y,radius)) return false;
   if (shipBlocks(world, x, y, radius)) return false;
   if (tankBlocks(world, x, y, radius, ignoreTank)) return false;
   if (artilleryUnitBlocks(world, x, y, radius)) return false;
@@ -79,6 +92,7 @@ export function clearSpawn(world, buildings) {
 }
 
 export function placementError(world, buildings, players, x, y) {
+  if(fieldHelicopterBlocks(world,x+.5,y+.5,.5))return 'Keep the helicopter landing area clear.';
   if(bridgeAt(world,x,y))return 'Keep bridge decks and anchors clear for traffic.';
   if (logisticsAt(world,x,y)) return 'Construction facility occupies this tile.';
   if (hostileAt(world, x, y)) return 'Destroy the alien station before building on its footprint.';

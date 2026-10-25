@@ -41,7 +41,8 @@ it.each(['HE', 'INCENDIARY', 'GAS'])('resolves heavy %s correctly without wastin
   const { c } = field();
   expect(c.lob({ id: 'rail', x: 12.5, y: 18.5 }, 20.5, 18.5, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, weapon)).toBeNull();
   c.tick(.01, []);
-  expect(c.snapshot().enemies[0].hp).toBe(weapon === 'HE' ? 310 : 450);
+  // Rail HE now deals 420 damage; ship/aircraft heavy shells keep their own profile.
+  expect(c.snapshot().enemies[0].hp).toBe(weapon === 'HE' ? 30 : 450);
   if (weapon === 'GAS') expect(c.snapshot().fields[0].capacity).toBe(c.snapshot().fields[0].initialCapacity);
 });
 

@@ -38,6 +38,20 @@ async function fixture(seed:(db:DatabaseSync,w:any,l:any)=>void=()=>{}){
   const connect=async(i=0)=>{const c=new AbortController();controllers.push(c);const r=await fetch(base+'/api/events',{headers:{Cookie:'frontier='+tokens[i]},signal:c.signal});void(async()=>{try{for await(const chunk of r.body as any){}}catch{}})();return c;};
   return{state,post,connect,restart:async()=>{controllers.forEach(c=>c.abort());controllers=[];await app.close();await open();},close:async()=>{controllers.forEach(c=>c.abort());await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-logistics-'))throw Error('Unexpected test path');await rm(dir,{recursive:true,force:true});}};
 }
+it('accepts orbital helipads outside support, rejects local construction there, and keeps the eight-pad cap',async()=>{
+ const f=await fixture((_db,_w,l)=>{l.supplies=2000;});try{
+  await f.connect();
+  const local=await f.post('airbases',{x:85,y:55,empty:true,kind:'helicopter',facilityKind:'helipad',method:'factory',factoryId:'friendly'});
+  expect(local.status).toBe(409);expect(local.data.error).toContain('24 tiles');
+  for(const [x,y] of [[85,55],[100,55],[85,70],[100,70],[115,55],[115,70],[85,85],[100,85]]){
+   const result=await f.post('airbases',{x,y,empty:true,kind:'helicopter',facilityKind:'helipad',method:'orbital'});expect(result.status).toBe(201);
+  }
+  const before=await f.state();expect(before.logistics.supplies).toBe(720);expect(before.logistics.groundSupplies).toBe(1200);
+  const capped=await f.post('airbases',{x:115,y:85,empty:true,kind:'helicopter',facilityKind:'helipad',method:'orbital'});
+  expect(capped.status).toBe(409);expect(capped.data.error).toContain('Helipad limit reached (8/8)');
+  expect((await f.state()).logistics.supplies).toBe(720);expect((await f.state()).airbases).toHaveLength(8);
+ }finally{await f.close();}
+});
 it('migrates orbital funds once without duplicating ground funds or changing old refund currency',()=>{
  const l:any={...freshLogistics(),version:1,supplies:423,jobs:{old:{cost:132,remaining:12}}};delete l.groundSupplies;
  migrateLogistics(l);expect(l).toMatchObject({version:2,supplies:423,groundSupplies:0,jobs:{old:{pool:'supplies'}}});
@@ -91,6 +105,19 @@ it('opens orbital cargo walls before revealing contents, with a one-second deplo
   expect(assemblyStage(.001,CARGO_POD_DURATION,20).active).toBe(true);
   expect(assemblyStage(0,CARGO_POD_DURATION)).toMatchObject({phase:'READY',reveal:1,active:false});
 });
+it('atomically reserves full orbital walls, rejects competing orders and restores completed flooring',async()=>{
+ const f=await fixture();try{
+  await f.connect();await f.connect(1);
+  const r=await f.post('airbases',{facilityKind:'helipad',kind:'helicopter',empty:true,x:90,y:60});expect(r.status,JSON.stringify(r.data)).toBe(201);
+  const first=await f.state(),pod=first.logistics.cargoPods[0];expect(pod).toMatchObject({x:90,y:60,w:3,h:3});
+  const rejected=await f.post('buildings',{x:90,y:58},1);expect(rejected.status).toBe(409);
+  expect((await f.state()).logistics.supplies).toBe(first.logistics.supplies);
+  await f.restart();expect((await f.state()).logistics.cargoPods[0].remaining).toBeGreaterThan(0);
+  await f.connect();await expect.poll(async()=>(await f.state()).logistics.cargoPods[0].remaining,{timeout:6000}).toBe(0);
+  const completed=await f.state();expect(completed.logistics.floors).toContain(58*completed.world.width+90);
+  await f.restart();expect((await f.state()).logistics.floors).toHaveLength(45);
+ }finally{await f.close();}
+},12000);
 it('saves a short orbital facility delivery and keeps it unusable until completion',async()=>{
  const f=await fixture();try{
   await f.connect();const r=await f.post('logistics/deploy',{kind:'outpost',x:90,y:60,method:'orbital'});expect(r.status).toBe(201);

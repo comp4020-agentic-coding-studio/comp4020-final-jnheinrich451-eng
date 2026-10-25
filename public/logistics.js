@@ -1,4 +1,5 @@
 import { ORBITAL } from './orbital.js';
+import { isStartingCore } from './starting-core.js';
 import { POD, CARGO_POD_DURATION } from './pod.js';
 import { dockRecords } from './shipyard.js';
 // All balance values for the first conquest economy live here. Server-owned;
@@ -7,7 +8,7 @@ export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 20
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
   rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, tank: 100, ship: 240,
-  submarine: 280, transport: 200, carrier:400, airbase: 300, helipad:160, helicopter:60, artillery: 180, missile: 220, outpost: 80, factory: 150,
+  submarine: 280, transport: 200, carrier:400, airbase: 300, helipad:160, helicopter:60, artillery: 180, mac:280, missile: 220, outpost: 80, factory: 150,
   uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
 export const LOGISTICS_SIZE = Object.freeze({ outpost: 2, factory: 2, uplink: 3, recycler: 1, builder: 1 });
 export const FACILITY_HP = Object.freeze({ core: 500, sentry: 140, artillery: 350,
@@ -86,7 +87,7 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
     const id = kind + ':' + object.id;
     const max=object.kind==='helipad'?FACILITY_HP.helipad:FACILITY_HP[kind];
     const hp = l.durability[id] ||= { health: max, max, armor: kind === 'recycler' ? 1 : 2 };
-    targets.push({ id, object, kind, x, y, w, h, hp });
+    targets.push({ id, object, kind, x, y, w, h, hp, protected:kind==='core'&&isStartingCore(world,object) });
   };
   for (const c of world.cores || []) add(c,'core',c.x+1.5,c.y+1.5,3,3);
   for (const b of buildings) if (!b.coreId) add(b,'sentry',b.x+.5,b.y+.5,1,1);
@@ -103,14 +104,14 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
   for (const s of world.ships || []) if(s.ramp && !s.destroyed && s.rampGun && !s.rampGun.destroyed) add(s.rampGun,'ramp',s.ramp.x,s.ramp.y,.6,.6);
   for (const f of l.facilities) { const size=LOGISTICS_SIZE[f.kind]; add(f,f.kind,f.x+size/2,f.y+size/2,size,size); }
   for (const r of l.recyclers) add(r,'recycler',r.x,r.y,.8,.8);
-  return includeDestroyed ? targets : targets.filter(t=>t.hp.health>0);
+  return includeDestroyed ? targets : targets.filter(t=>t.hp.health>0&&!t.protected);
 }
 export function facilityPoint(f, p) {
   return { x: Math.max(f.x-f.w/2,Math.min(f.x+f.w/2,p.x)), y:Math.max(f.y-f.h/2,Math.min(f.y+f.h/2,p.y)) };
 }
 export const facilityDistance = (f,p) => { const q=facilityPoint(f,p); return Math.hypot(q.x-p.x,q.y-p.y); };
 export function hurtFacility(f, amount, penetration = 2) {
-  if (f.hp.health<=0 || penetration < f.hp.armor || !Number.isFinite(amount) || amount<=0) return false;
+  if (f.protected || f.hp.health<=0 || penetration < f.hp.armor || !Number.isFinite(amount) || amount<=0) return false;
   f.hp.health=Math.max(0,f.hp.health-amount); return true;
 }
 
@@ -120,7 +121,7 @@ export function migrateLogistics(state) {
   if(state.version===1){state.groundSupplies=0;state.freeBomberUsed=false;for(const job of Object.values(state.jobs||{}))job.pool='supplies';state.version=2;}
   return state;
 }
-export const LOCAL_KINDS = ['helipad','airbase','ship','submarine','transport','carrier','artillery','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
+export const LOCAL_KINDS = ['helipad','airbase','ship','submarine','transport','carrier','artillery','mac','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
 export const poolFor = (kind, local=false) => local || ['dockRepair','baseRepair','rampRepair'].includes(kind) ? 'groundSupplies' : 'supplies';
 export const poolLabel = pool => pool==='groundSupplies'?'ground SUP':'orbital SUP';
 export function supportSources(world){return [

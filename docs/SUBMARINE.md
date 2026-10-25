@@ -1,22 +1,25 @@
 # Missile submarine
 
 Surface missile stage implemented 2026-10-04; dive controls added 2026-10-05.
-The submarine carries six vertical-launch missiles and can temporarily evade
-surface swimmers underwater. Torpedoes, hostile sonar, aircraft and carriers
-remain later work.
+23 October: moving depth changes, submerged launches and five-minute endurance
+are implemented locally. See HELICOPTER_AND_SUBMARINE_REFINEMENT.md for the staged plan.
+25 October: four independent groups of six silos are implemented locally.
+The submarine carries 24 vertical-launch missiles and can temporarily evade
+surface swimmers underwater. Torpedoes and hostile sonar remain later work.
 
 ## Playing
 
-Deploy your core, then choose **Navy / Missile submarine**. Select coastal water
-for the orbital cradle, wait for arrival, approach the marked shore point and
-press **E / Board ship**. Existing gunships remain available. Each scout may own
-one gunship and one submarine; the shared world still permits four vessels.
+Build or exchange a missile submarine at the dock workshop, then board it.
+Current deployment, fleet and permanent-loss rules are in FACILITY_LIFECYCLE.md
+and REMOTE_NAVAL_ORDERS.md; older prototype ownership caps no longer apply.
 
-Use **W/S** to sail forward/reverse and **A/D** to steer. The submarine shares
+Use **W/S** to select engine throttle and **A/D** to steer. The submarine shares
 the gunship's 2-by-4 collision hull, 300 health, 2.5-tile/s forward speed,
-1.5-tile/s reverse speed and 36-degree/s steering for this first balance pass.
-Its separate canvas hull shows a sail, periscope and six deck hatches. The HUD
-shows its depth and remaining dive battery. Swimmers can damage and destroy it
+1.5-tile/s reverse speed and the shared speed-dependent rudder dynamics.
+Its Ohio-inspired canvas hull shows a sail and two rows of twelve silo lids;
+each strike releases six missiles from its own group. The compact helm shows
+ready groups, each group's countdown, depth,
+remaining dive endurance, Space / Surface and Ctrl / Dive buttons. Swimmers can damage and destroy it
 while surfaced or transitioning.
 
 - Mouse movement or a map tap selects a **6-by-8-tile** strike rectangle.
@@ -24,12 +27,18 @@ while surfaced or transitioning.
   the map and between **12 and 80 tiles** from the submarine.
 - **LMB / Launch 6** commits six missiles at quarter-second intervals.
   These are a single strike, not the gunship's click/double-click turret modes.
+  Four consecutive commands use silos **1–6, 7–12, 13–18 and 19–24**.
+  Each group reloads independently. A fifth command can use the first ready
+  group without waiting for the other three. Reload never waits for all 24 to fire.
+  Yellow aiming means a group is ready; red means all four are reloading or
+  the target is invalid. Remote strikes use the same saved groups.
 - **1/2/3** selects HE, incendiary or gas. Changing ammunition cannot modify
   an accepted strike or bypass reload.
-- The hull braces for **1.25 seconds**, until the final missile launches.
-  It can then sail while missiles climb, cruise and dive toward their committed
-  impact points. Reload takes **18 seconds after the final launch** (19.25
-  seconds from the command). Keep moving after launching to avoid swimmers.
+- The six launches span **1.25 seconds**, without stopping the hull.
+  Sailing, diving and surfacing remain available during the sequence. Each
+  tube fixes its world origin when it fires, while impact points stay committed. Reload takes **18 seconds after the final launch** (19.25
+  seconds from that group's command). Other groups can fire during this sequence.
+  Keep moving after launching to avoid swimmers.
 - The submarine has no secondary gun in this stage. RMB/J do not fire a hidden
   gunship weapon. The manual and touch controls show its missile controls.
 - **G** deploys/retracts the existing shore ramp; **E** boards/disembarks at a
@@ -46,19 +55,20 @@ the selected type and original delivery site, preserving the other vessel.
 
 ## Diving and dock defense
 
-- **Left Ctrl / Dive** and **Space / Surface** are press commands; touch buttons
+- **Ctrl / Dive** and **Space / Surface** are press commands; touch buttons
   expose both. Space does not launch submarine missiles. Gunship controls remain.
 - Dive and surface transitions each take **two seconds** and remain vulnerable.
   Only a fully submerged submarine disappears from surface swimmers' target list.
   Pending strikes and pursuit paths are cancelled on loss of detection. Swimmers
   seek another surfaced vessel or stop searching until a visible target returns.
   They can reacquire as soon as surfacing starts.
-- The battery supplies **30 seconds underwater**, then forces surfacing. It
-  recharges at **two battery seconds per second** while fully surfaced; diving
+- The battery supplies **300 seconds underwater**, then forces surfacing. It
+  recharges at **two endurance seconds per second** while fully surfaced; diving
   needs at least **10 seconds** of charge. Surfacing can interrupt a dive.
-- Missiles, boarding, disembarking and ramps require a fully surfaced hull.
-  Finish the launch sequence and retract the ramp before diving. Reload continues
-  underwater. WASD sailing and the existing conservative water/hull collision
+- Missiles launch at all depths, including during transitions. Boarding,
+  disembarking and ramps still require a fully surfaced hull. Retract the ramp
+  before diving. Reload continues underwater. A brief cosmetic bubble/splash
+  cue marks each submerged launch position; enemy tracking is unchanged. WASD sailing and the existing conservative water/hull collision
   remain active at every depth; this is not a layered underwater physics model.
 - A berth grants **no damage immunity**. A surfaced empty ship can be destroyed.
   Build existing APCR or heavy-flame sentries on shore near the dock, keeping its
@@ -89,29 +99,35 @@ as later missiles arrive. Impact flashes/craters for fire and gas remain
 cosmetic; the existing hazard contact logic applies damage. Friendlies and
 terrain remain unaffected.
 
-Submarine strikes and ground batteries share the existing maximum of **two
-missile volleys in flight**. Each incoming/active submarine hazard reserves
+Submarine strikes have a separate limit of **16 six-missile volleys in flight**
+across the campaign (four groups for each of the maximum four ships). Batteries
+and bombers retain their shared two-volley budget. Each incoming/active submarine hazard reserves
 48 square tiles against the existing 512-total/256-per-type area limits and
 field count limits. For example, a 216-tile ground fire strike plus a 48-tile
 submarine fire strike exceeds the per-type limit and is rejected. Admission is
 atomic: invalid targets, cooldown, capacity or ammunition spend no reload and
-create no partial strike. No additional global combat budget is introduced.
+create no partial strike. The additional submarine budget is bounded at 96
+missiles; this is not a claim of measured Fly capacity.
 
 ## Saving and compatibility
 
 The existing ships table stores `kind: submarine`; missing kinds remain
 gunships. Placement, exclusive seats, movement checkpoints, ramp state, hull
 damage, destruction/recovery and replacement use the existing server rules.
-Accepted firing saves the complete shared missile reload before acknowledgement.
+Accepted firing saves all four silo reloads and the next-group cursor before acknowledgement.
 Neither a forged firing mode nor the gunship cannon endpoint bypasses it.
 
-Missiles and hazards are transient across restart, as with ground batteries.
-Reload persists. The brief launch brace is transient and clears on restart;
-there is no hidden launch queue that resumes later. While running, accepted
-strikes retain their origins, aim and warheads even if the operator leaves or
-the vessel is destroyed. New empty worlds need no schema migration, and existing
-worlds are not regenerated. No new bitmap assets or server particle simulation
-are required.
+Named campaigns persist accepted missiles, pending tube origins, hazards and
+reload through combat checkpoints. Legacy drill combat remains transient. The
+aggregate launch countdown is reconstructed from the saved group reloads;
+it no longer locks movement. Old single-timer saves retain that cooldown on
+group one and start groups two through four ready. A replacement hull starts fresh.
+Accepted impacts survive loss of the vessel: pending tubes use their accepted
+fallback origin if the source hull is destroyed. No new particle simulation.
+
+Old endurance values upgrade proportionally once (30/30 becomes 300/300,
+10/30 becomes 100/300, zero stays zero). The saved diveCapacity marker prevents
+repeat scaling. Existing depth and transition progress are preserved.
 
 ## Validation
 
@@ -148,3 +164,64 @@ Dive-stage verification: type checking and all 154 domain/HTTP tests passed.
 Six browser cases passed across submarine, gunship armament and shore ramps.
 Desktop and phone submerged-state screenshots were inspected. These are local
 checks, not deployment or sustained-load validation.
+
+## 23 October operation checks
+
+28 focused submarine, depth and ship domain/HTTP tests pass, covering endurance
+migration, exhaustion/recharge, moving launches, committed targets, per-tube
+origins, checkpoint recovery, swimmer escape and shared cooldowns. Desktop and
+phone direct Playwright checks pass actual boarding, throttle, keyboard/touch
+depth changes, underwater fire and responsive resize. Screenshots were inspected.
+Local disposable worlds only; no live campaign reset or Fly deployment.
+
+## Ohio-class art and silo animation, 24 October 2026
+
+The author asked for an Ohio-class appearance from overhead photographs, with all
+24 silos and animated lids. `public/submarine-art.js` now draws both hull sizes:
+- a long black hull with a hemispherical bow, parallel body and long tapered stern;
+- the sail and fairwater planes forward;
+- a raised missile deck (turtleback);
+- stern planes, rudder top and propulsor.
+
+Large 2.5 x 12 hulls show 24 silos; legacy 2 x 4 hulls keep their 16 (24 do not
+fit their tube spacing). Silo positions use `submarineTubeLocal`, so the six firing
+tubes are exactly the missile launch origins. Weapons, salvo size, range, timing
+and saves are unchanged.
+
+Silo animation is presentation only. It derives from the saved `reload` countdown
+(salvo age = 18 + 1.25 - reload):
+- At peace, each lid is closed and marked by a shallow ring.
+- On firing, the six lids swing open about their outboard hinges, showing the dark
+  top and then the pale underside.
+- A white missile cap remains in each tube until its 0.25 s staggered launch; the
+  tube is then empty, with a brief vapour ring.
+- The lids close from about 2.2 s.
+- Reduced effects show the lids open or closed without tweening or rings.
+
+Local validation:
+- Art study (`.local/check-sub-art.mjs`): closed, opening, mid-launch, all away,
+  closing, legacy hull and under way.
+- Submarine and naval-scale domain tests: 26/26.
+- Browser at desktop and phone sizes: submarine-operations (moving, depth,
+  underwater launch) and remote-branches pass.
+- `submarine.spec.js` fails at both sizes before any submarine is placed: it
+  expects the Deploy ship card enabled "AT SHIPYARD". That is a stale
+  deployment-flow expectation; this stage changed only drawing files.
+- Not committed, deployed or playtested by the author.
+
+### Reload targeting colour - 24 October 2026
+The manual missile aiming box, sector grid, label and guide line turn red when no group is ready; a valid target with a ready group is yellow. Remote submarine strike previews and land missile battery previews use the same red reload indication. The original colour change was verified with a browser submarine launch, typecheck and the two readiness checks.
+
+### Four-group validation - 25 October 2026
+
+Local checks cover independent timers, exact silo origins, moving and submerged
+launches, capacity, old saves, restart, repeat remote commands and transaction
+rollback for both manual and remote launches. Browser checks cover four successive
+commands, the empty-magazine indication, reload restoration, firing again when a
+group becomes ready, and desktop/phone layout. A rendered art review shows all
+four groups opening their own six lids. Validation uses disposable worlds and
+does not reset the player's campaign.
+
+Dive and surfacing water (24 October): vent spray, bubble boil and foam ring
+effects are browser-only and bounded. They are driven by the saved depth
+countdown; see [Ship visual scale](SHIP_VISUAL_SCALE.md).

@@ -73,7 +73,7 @@ export function tickDirector(d,world,buildings,people,enemies,now,dt,frenzy,pres
 }
 export function pressureGroups(d,world,contacts,enemies,pendingCount,queue){
  const groups=new Map();
- for(const site of world.sites||[])if(site.state==='hostile'){
+ for(const site of world.sites||[])if(site.state==='hostile'&&site.kind!=='aquatic-hive'){
   const key=groupKey(site);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(site);
  }
  const entries=[...groups.entries()];if(!entries.length)return;

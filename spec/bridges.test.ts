@@ -1,9 +1,10 @@
 import { expect, it } from 'vitest';
 import { bridgeError, bridgeSupplyError } from '../public/bridge.js';
-import { BRIDGE, bridgeCells, bridgeCost, bridgeDuration, bridgeReady, bridgeFromBuilder } from '../public/bridge-geometry.js';
-import { createWorld, tileAt, canStand, findPath, placementError } from '../public/world.js';
+import { BRIDGE, bridgeCells, bridgeCost, bridgeDuration, bridgeReady, bridgeFromBuilder, bridgeWidth } from '../public/bridge-geometry.js';
+import { createWorld, tileAt, waterTileAt, canStand, findPath, placementError } from '../public/world.js';
 import { freshLogistics } from '../public/logistics.js';
-import { canSail } from '../public/ship.js';
+import { canSail, sailStep } from '../public/ship.js';
+import { canSwim, waterRoute } from '../public/naval.js';
 import { railError } from '../public/rail.js';
 import { bridgeFacing, planBridgeAhead } from '../public/bridge-plan.js';
 import { tankPlacementError } from '../public/tank.js';
@@ -19,6 +20,37 @@ it('explains a ground supply shortfall even when orbital and carrier stores are 
   expect(bridgeSupplyError(w,96)).toContain('shared ground pool has 19 (short 77)');
   expect(bridgeSupplyError(w,96)).toContain('core or outpost');
   w.logistics.groundSupplies=96;expect(bridgeSupplyError(w,96)).toBeNull();
+});
+it.each([false,true])('builds a five-wide 48-row heavy crossing and keeps its outer lanes usable: vertical=%s',vertical=>{
+  const {w,truck}=setup(vertical);w.terrain.fill(2);
+  for(let i=10;i<=57;i++)for(let j=0;j<64;j++)w.terrain[(vertical?i:j)*64+(vertical?j:i)]=0;
+  const b:any={profile:'heavy',from:vertical?{x:20,y:9}:{x:9,y:20},to:vertical?{x:20,y:58}:{x:58,y:20},elapsed:0};
+  Object.assign(truck,vertical?{x:20.5,y:7.5}:{x:7.5,y:20.5});
+  expect(bridgeError(w,[],[],truck,b.from,b.to,'standard')).toContain('24');expect(bridgeError(w,[],[],truck,b.from,b.to,'heavy')).toBeNull();
+  expect(bridgeCost(b)).toBe(530);expect(bridgeDuration(b)).toBeCloseTo(55.33333);expect(bridgeCells(b)).toHaveLength(250);expect(bridgeCells(b).filter(c=>c.anchor)).toHaveLength(10);
+  const plan=planBridgeAhead(w,[],[],truck,vertical?2:1,'heavy');expect(plan.error).toBeNull();expect(plan.profile).toBe('heavy');
+  w.logistics.bridges=[b];const p=vertical?{x:22.5,y:30.5}:{x:30.5,y:22.5};expect(canStand(w,[],p.x,p.y)).toBe(false);
+  b.elapsed=bridgeDuration(b);expect(canStand(w,[],p.x,p.y,null,.42)).toBe(true);expect(tileAt(w,vertical?23:30,vertical?30:23)).toBe(0);
+  const restored=JSON.parse(JSON.stringify(w));expect(bridgeWidth(restored.logistics.bridges[0])).toBe(5);expect(canStand(restored,[],p.x,p.y)).toBe(true);
+});
+it('checks the heavy bridge outer anchor, approach, full deck and limit',()=>{
+  const {w,truck}=setup();truck.x=18.5;truck.y=20.5;const from={x:20,y:20},to={x:27,y:20};
+  expect(bridgeError(w,[],[],truck,from,to,'heavy')).toBeNull();
+  w.terrain[22*64+20]=0;expect(bridgeError(w,[],[],truck,from,to,'heavy')).toContain('5 x 1');w.terrain[22*64+20]=2;
+  w.terrain[22*64+19]=3;expect(bridgeError(w,[],[],truck,from,to,'heavy')).toContain('five-tile');w.terrain[22*64+19]=2;
+  expect(bridgeError(w,[{x:24,y:22}],[],truck,from,to,'heavy')).toContain('facilities');
+  expect(bridgeError(w,[],[{x:24.5,y:22.5,hp:10}],truck,from,to,'heavy')).toContain('unit');
+  expect(bridgeError(w,[],[],truck,from,{x:70,y:20},'heavy')).toContain('48');
+  expect(bridgeError(w,[],[],truck,from,to,'__proto__')).toContain('Choose');
+});
+it.each([1,2,3])('keeps heavy spans passable to ocean ships only, with water type %s',waterKind=>{
+  const {w,b,truck}=setup();truck.y=20.5;b.profile='heavy';w.waterKinds=Array(4096).fill(waterKind);w.logistics.bridges=[b];
+  const ship={id:'s',x:23.5,y:20.5,angle:0,kind:'gunship'};
+  expect(canSail(w,ship)).toBe(false);b.elapsed=bridgeDuration(b);expect(canSail(w,ship)).toBe(waterKind===1);expect(canSwim(w,23.5,20.5)).toBe(true);
+});
+it('keeps legacy bridge geometry and timing alongside saved heavy profiles',()=>{
+ const {b}=setup();expect(bridgeWidth(b)).toBe(3);expect(bridgeDuration(b)).toBeCloseTo(5.9);expect(bridgeCost(b)).toBe(66);
+ const saved={...b,profile:'heavy',width:5,cableTime:4,rowTime:2,duration:16,cost:110};expect(bridgeDuration(saved)).toBe(16);expect(bridgeCells(saved)).toHaveLength(40);
 });
 it.each([false,true])('constructs two three-tile anchors and six deck rows; crossing opens only on completion (vertical=%s)',vertical=>{
   const {w,b,truck}=setup(vertical);expect(bridgeError(w,[],[],truck,b.from,b.to)).toBeNull();
@@ -75,7 +107,32 @@ it('requires some water and keeps clear approaches even with inland anchors',()=
 it('reserves unfinished spans against ships without rewriting the original water',()=>{
   const {w,b}=setup();const ship={id:'ship',x:23.5,y:20.5,angle:0,elapsed:99};expect(canSail(w,ship)).toBe(true);
   w.logistics.bridges=[b];expect(canSail(w,ship)).toBe(false);expect(tileAt(w,23,20)).toBe(0);expect(w.terrain[20*64+23]).toBe(0);
-  b.elapsed=bridgeDuration(b);expect(canSail(w,ship)).toBe(false);expect(w.terrain[20*64+23]).toBe(0);
+  b.elapsed=bridgeDuration(b);expect(canSail(w,ship)).toBe(true);expect(w.terrain[20*64+23]).toBe(0);
+});
+it.each(['gunship','submarine','transport','carrier'])('sails %s through a finished span while keeping the ground deck usable',kind=>{
+  const {w,b}=setup();b.elapsed=bridgeDuration(b);w.logistics.bridges=[b];
+  const ship:any={id:'ship',kind,x:23.5,y:26,berthX:23.5,berthY:20.5,dock:{x:20.5,y:26,angle:0},angle:0,elapsed:99,driveSpeed:0};w.ships=[ship];
+  for(let i=0;i<140;i++)sailStep(w,ship,0,1,.1);
+  expect(ship.y).toBeLessThan(15);expect(tileAt(w,23,20)).toBe(4);expect(waterTileAt(w,23,20)).toBe(0);
+  ship.y=20.5;expect(canStand(w,[],23.5,20.5,null,.42)).toBe(true);
+  expect(canSail(w,ship,20.5,20.5)).toBe(false); // Shore remains solid.
+  expect(canSail(w,ship,ship.x,ship.y,ship.angle,true)).toBe(false); // No delivery under a deck.
+  w.ships.push({...ship,id:'other'});expect(canSail(w,ship)).toBe(false);
+  w.ships.pop();const restored=JSON.parse(JSON.stringify(w));expect(canSail(restored,restored.ships[0])).toBe(true);
+});
+it('keeps aquatic pursuit beneath completed decks and reserves unfinished water crossings',()=>{
+  const {w,b}=setup();w.logistics.bridges=[b];
+  expect(canSwim(w,23.5,20.5)).toBe(false);
+  b.elapsed=bridgeDuration(b);expect(canSwim(w,23.5,20.5)).toBe(true);
+  const route=waterRoute(w,{x:23.5,y:24.5},(x,y)=>x===23.5&&y===16.5);
+  expect(route).not.toBeNull();expect(route?.some(p=>p.y===20.5)).toBe(true);
+});
+it('preserves land under mixed spans and only opens authored bridge tiles with original water',()=>{
+  const {w,b}=setup();b.elapsed=bridgeDuration(b);w.logistics.bridges=[b];w.terrain[20*64+24]=2;
+  const ship={id:'ship',x:23.5,y:20.5,angle:0,elapsed:99};expect(canSail(w,ship)).toBe(false);
+  w.logistics.bridges=[];w.terrain[20*64+24]=0;w.bridges=[{x:23,y:20}];
+  expect(tileAt(w,23,20)).toBe(4);expect(waterTileAt(w,23,20)).toBe(0);expect(canSail(w,ship)).toBe(true);
+  w.terrain[20*64+23]=4;expect(waterTileAt(w,23,20)).toBe(4);expect(canSail(w,ship)).toBe(false);
 });
 
 it.each([0,1,2,3])('finds a valid shore crossing in facing direction %s without endpoint input',bearing=>{

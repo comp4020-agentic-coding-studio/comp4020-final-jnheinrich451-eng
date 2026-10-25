@@ -1,3 +1,4 @@
+import { fieldHelicopterBlocks } from './footprints.js';
 import { bridgeAt } from './bridge-geometry.js';
 import { airbaseAt, hostileAt } from './footprints.js';
 import { dockAt } from './ship.js';
@@ -5,14 +6,17 @@ import { tileAt } from './world.js';
 import { tankBlocks } from './tank.js';
 import { CORE, coreBlocks } from './core.js';
 import { gunCells, artilleryBlocks, compactTurnHits } from './footprints.js';
-import { ARTILLERY_HE } from './weapons.js';
+import { ARTILLERY_HE, MAC } from './weapons.js';
 import { isCurve, isCompact, railPorts, joinedShape, curveEnds, curveCells, curveBounds, curvePoint } from './track.js';
 import { turnTurret } from './turret.js';
 import { switchAt, switchEntryError } from './switches.js';
 
-export const RAIL = Object.freeze({ maxTiles: 256, maxGuns: 8, turnSpeed: Math.PI / 4, elevationSpeed: 8, minElevation: 10, maxElevation: 87, defaultElevation: 75, gravity: 12, inputTime: .35, moveTime: 1.2, braceTime: 1.2, leaseTime: 5 });
+export const RAIL = Object.freeze({ maxTiles: 256, maxGuns: 8, turnSpeed: Math.PI / 4, elevationSpeed: 8, minElevation: 10, maxElevation: 90 - Math.asin(ARTILLERY_HE.minRange / ARTILLERY_HE.range) * 90 / Math.PI, defaultElevation: 75, gravity: 12, inputTime: .35, moveTime: 1.2, braceTime: 1.2, leaseTime: 5 });
+export const isMAC=gun=>gun?.kind==='mac';
+export const macCharging=gun=>isMAC(gun)&&gun.reload>MAC.cooldown+.000001;
 // Flat terrain, fixed launch speed, no drag. These are game units, not metres.
 export function artillerySolution(gun) {
+  if(isMAC(gun)){const p=gunPosition(gun);return {x:p.x+Math.sin(gun.angle)*MAC.range,y:p.y-Math.cos(gun.angle)*MAC.range,range:MAC.range,elevation:0,duration:MAC.range/MAC.speed,verticalSpeed:0,gravity:0,height:0};}
   const elevation = gun.elevation ?? RAIL.defaultElevation, pitch = elevation * Math.PI / 180;
   const speed = Math.sqrt(ARTILLERY_HE.range * RAIL.gravity), horizontalSpeed = speed * Math.cos(pitch), verticalSpeed = speed * Math.sin(pitch);
   const duration = 2 * verticalSpeed / RAIL.gravity, range = horizontalSpeed * duration;
@@ -23,13 +27,15 @@ export function artillerySolution(gun) {
 // The upper ballistic branch gives steep descent; mechanics still traverse gradually.
 export function artilleryAim(gun, target) {
   const origin = gunPosition(gun), dx = target.x - origin.x, dy = target.y - origin.y;
-  const distance = Math.hypot(dx, dy), minimum = ARTILLERY_HE.range * Math.sin(2 * RAIL.maxElevation * Math.PI / 180);
+  if(isMAC(gun)){const d=Math.hypot(dx,dy);return {angle:d<.001?gun.angle:Math.atan2(dy,dx)+Math.PI/2,elevation:0,inRange:d>=MAC.minRange&&d<=MAC.range,minimum:MAC.minRange};}
+  const distance = Math.hypot(dx, dy), minimum = ARTILLERY_HE.minRange;
   const range = Math.max(minimum, Math.min(ARTILLERY_HE.range, distance));
   return { angle: distance < .001 ? gun.angle : Math.atan2(dy, dx) + Math.PI / 2,
     elevation: (Math.PI - Math.asin(range / ARTILLERY_HE.range)) * 90 / Math.PI,
     inRange: distance >= minimum && distance <= ARTILLERY_HE.range, minimum };
 }
 export function driveCarriage(gun, x, y, world, buildings, occupants) {
+  if(macCharging(gun))return 'MAC charging: carriage locked until release.';
   if (gun.move) return null; // Never queue a turn or reverse midway through its reservation.
   const rail = world.rails.find(r => r.x === gun.x && r.y === gun.y);
   if (isCompact(rail)) {
@@ -50,6 +56,7 @@ export function railSegment(x, y, shape, length = 5) {
 function groundError(world, buildings, x, y) {
   if(bridgeAt(world,x,y))return 'Field bridges are reserved for road traffic, not rail cannons.';
   if (hostileAt(world, x, y)) return 'An alien station blocks the carriage corridor.';
+    if(fieldHelicopterBlocks(world,x+.5,y+.5,.5))return 'Keep the helicopter landing area clear.';
   if(airbaseAt(world,x,y))return 'Keep the airbase runway and apron clear.';
   if(dockAt(world,x,y))return 'Keep the shoreline dock clear.';
   if (tankBlocks(world, x + .5, y + .5, .5)) return 'A tank or incoming pod blocks the carriage corridor.';
@@ -131,6 +138,7 @@ function compactMove(gun, dx, dy, world, buildings, occupants) {
   return null;
 }
 export function moveCarriage(gun, step, world, buildings, occupants) {
+  if(macCharging(gun))return 'MAC charging: carriage locked until release.';
   if (![-1, 1].includes(step)) return 'Choose one step forward or backward.';
   if (gun.move) return 'The carriage is already moving.';
   const direction = step * (gun.heading || 1), dx = gun.shape === 'EW' ? direction : 0, dy = gun.shape === 'NS' ? direction : 0;
@@ -162,11 +170,12 @@ export function moveCarriage(gun, step, world, buildings, occupants) {
 }
 export function artilleryFireError(gun, world) {
   const { x, y, range } = artillerySolution(gun);
-  if (![x, y].every(Number.isFinite) || x < 0 || y < 0 || x >= world.width || y >= world.height) return 'Landing point outside this map. Adjust bearing or elevation.';
+  if (![x, y].every(Number.isFinite) || !isMAC(gun)&&(x < 0 || y < 0 || x >= world.width || y >= world.height)) return 'Landing point outside this map. Adjust bearing or elevation.';
+  if(macCharging(gun))return 'MAC charging: direction locked.';
   if (gun.move) return 'Stop the carriage before firing.';
   if (gun.brace > .001) return 'Stabilizers are deploying.';
   if (gun.reload > .001) return 'The heavy cannon is reloading.';
-  if (range < ARTILLERY_HE.minRange || range > ARTILLERY_HE.range + .000001) return 'Heavy HE range is 6 to 60 tiles.';
+  if (range < ARTILLERY_HE.minRange - .000001 || range > ARTILLERY_HE.range + .000001) return `Heavy HE range is ${ARTILLERY_HE.minRange} to ${ARTILLERY_HE.range} tiles.`;
   return null;
 }
 export function tickCarriage(gun, dt) {
@@ -176,7 +185,7 @@ export function tickCarriage(gun, dt) {
   gun.reload = Math.max(0, gun.reload - dt);
   if (gun.move) { const duration = gun.move.duration || RAIL.moveTime; gun.move.elapsed = Math.min(duration, gun.move.elapsed + dt); if (gun.move.elapsed >= duration) gun.move = null; }
   else gun.brace = Math.max(0, gun.brace - dt);
-  const inputDt = gun.operator ? Math.min(dt, gun.inputTime || 0, gun.lease) : 0;
+  const inputDt = gun.operator&&!macCharging(gun) ? Math.min(dt, gun.inputTime || 0, gun.lease) : 0;
   if (gun.input?.mode === 'pointer' && gun.target) {
     const desired = artilleryAim(gun, gun.target);
     gun.aim = desired.angle;

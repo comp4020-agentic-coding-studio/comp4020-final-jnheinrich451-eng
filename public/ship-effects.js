@@ -1,14 +1,32 @@
+import { drawSubmarineHull } from './submarine-art.js';
+import {drawCapitalShip} from './naval-art.js';
+import {BATTLESHIP_LAYOUTS,drawBattleshipBody,drawBattleshipFunnels,drawIowaTurret,drawTwinMount} from './battleship-art.js';
+import {largeHull,largeDock,dockDimensions,shipDimensions} from './naval-scale.js';
+import {TRANSPORT_LAYOUTS,drawTransportBody,drawTripleTurret,drawOpenMount} from './transport-art.js';
+import {drawFordCarrier} from './carrier-art.js';
 import { depthState, diveBattery, DIVE } from './submarine-depth.js';
 import { SHIP, hull, hullCells, shipName, shipKind, dockRects, dockComplete } from './ship.js';
-import { mainMounts, SIDE_MOUNTS } from './ship-armament.js';
+import { mainMounts, mainBarrels, SIDE_MOUNTS, secondaryMounts, secondaryAngle } from './ship-armament.js';
 import { hullPoint } from './vehicle.js';
 import { CoreEffects } from './core-effects.js';
 import { drawRuinedSlab } from './facility-ruins.js';
+import { drawShipWater, drawShipExhaust, drawDiveBubbles } from './ship-water-effects.js';
 const clamp=n=>Math.max(0,Math.min(1,n));
+// Gunship and transport art is narrower than the saved hull; start drawn ramps
+// at the painted side so they visibly touch it. Ends keep the saved length.
+function drawnHullPoint(ship,point){
+  const p=hullPoint(ship,point),kind=shipKind(ship),layouts=kind==='gunship'?BATTLESHIP_LAYOUTS:kind==='transport'?TRANSPORT_LAYOUTS:null;
+  if(!layouts)return p;
+  const half=shipDimensions(ship).width/2,beam=layouts[largeHull(ship)?'large':'legacy'].beam,rx=Math.cos(ship.angle),ry=Math.sin(ship.angle),lateral=(p.x-ship.x)*rx+(p.y-ship.y)*ry;
+  if(Math.abs(lateral)<half-.01)return p;
+  const inset=Math.sign(lateral)*half*(1-beam);return {x:p.x-rx*inset,y:p.y-ry*inset};
+}
+// Shore-facing wall, three roof leaves, then the ocean-facing wall.
+export const dockPanelPhases=Object.freeze([{start:2.05,rows:1,offset:0},{start:2.4,rows:3,offset:1},{start:2.95,rows:1,offset:4}]);
 export class ShipEffects extends CoreEffects {
   ramp(c,ship,point,zoom,preview=false) {
     if(!point)return;
-    const T=this.tile,start=hullPoint(ship,point),dx=point.x-start.x,dy=point.y-start.y,length=Math.hypot(dx,dy)*T;
+    const T=this.tile,start=drawnHullPoint(ship,point),dx=point.x-start.x,dy=point.y-start.y,length=Math.hypot(dx,dy)*T;
     c.save();c.translate(start.x*T,start.y*T);c.rotate(Math.atan2(dy,dx));
     c.strokeStyle=preview?'#bceac799':'#e3c489';c.fillStyle='#546f70';c.lineWidth=2/zoom;
     if(preview){c.setLineDash([5/zoom,4/zoom]);c.strokeRect(0,-T*.21,length,T*.42);}
@@ -20,7 +38,7 @@ export class ShipEffects extends CoreEffects {
   }
   vehicleRamp(c,ship,point,zoom){
     if(!point)return;
-    const T=this.tile,start=hullPoint(ship,point),dx=start.x-point.x,dy=start.y-point.y;
+    const T=this.tile,start=drawnHullPoint(ship,point),dx=start.x-point.x,dy=start.y-point.y;
     c.save();c.translate(point.x*T,point.y*T);c.rotate(Math.atan2(dy,dx));
     c.fillStyle='#526d70';c.fillRect(0,-T,Math.hypot(dx,dy)*T,2*T);
     c.strokeStyle='#e8c778';c.lineWidth=2/zoom;c.strokeRect(0,-T,Math.hypot(dx,dy)*T,2*T);
@@ -52,7 +70,7 @@ export class ShipEffects extends CoreEffects {
     c.strokeStyle='#7c9390';c.lineWidth=T*.4;c.stroke();
     c.strokeStyle='#d4bb7c';c.lineWidth=2;for(let i=0;i<=length-SHIP.length/2;i+=.3){const x=(d.x+dx/length*i)*T,y=(d.y+dy/length*i)*T;c.beginPath();c.moveTo(x-dy/length*T*.2,y+dx/length*T*.2);c.lineTo(x+dy/length*T*.2,y-dx/length*T*.2);c.stroke();}
     c.fillStyle='#516f72';c.fillRect((d.x-.45)*T,(d.y-.45)*T,T*.9,T*.9);c.strokeStyle='#ead29c';c.strokeRect((d.x-.4)*T,(d.y-.4)*T,T*.8,T*.8);
-    c.fillStyle='#eef0d4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'BOARDING POINT':s.dockDestroyed?'DOCK LOST / L REPAIR':'DOCK / E',d.x*T,(d.y+.85)*T);
+    c.fillStyle='#eef0d4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'BOARDING POINT':s.dockDestroyed?'DOCK RUIN / SLOT FREE':'DOCK / E',d.x*T,(d.y+.85)*T);
     c.translate(s.berthX*T,s.berthY*T);c.rotate(d.angle);c.strokeStyle='#baded055';c.lineWidth=1/zoom;c.setLineDash([6/zoom,7/zoom]);c.strokeRect(-1.2*T,-2.2*T,2.4*T,4.4*T);c.setLineDash([]);
     c.beginPath();c.moveTo(-.3*T,-2.6*T);c.lineTo(0,-2.9*T);c.lineTo(.3*T,-2.6*T);c.stroke();c.restore();
   }
@@ -83,43 +101,52 @@ export class ShipEffects extends CoreEffects {
   }
   unfoldingDock(c,s,zoom,time,preview=false){
     const T=this.tile;if(time<SHIP.impact&&!preview)return;
+    const size=dockDimensions(s),phases=largeDock(s)?[{start:2.05,rows:3,offset:0},{start:2.4,rows:6,offset:3},{start:2.95,rows:3,offset:9}]:dockPanelPhases;
     const spread=clamp((time-SHIP.impact)/.7);
     c.save();c.translate(s.dock.x*T,s.dock.y*T);c.rotate(s.dock.angle);
     const panel=(x,y,w,h)=>{c.fillStyle='#4a6369';c.fillRect(x*T,y*T,w*T,h*T);if(h<.15)return;c.strokeStyle='#b5bca0';c.lineWidth=1/zoom;c.strokeRect((x+.06)*T,(y+.06)*T,(w-.12)*T,(h-.12)*T);c.fillStyle='#d5bb7d';c.fillRect((x+.09)*T,(y+.1)*T,Math.max(.04,w-.18)*T,.06*T);};
-    panel(-.5-spread,-.5,1+spread*2,1);
-    for(let row=0;row<5;row++){
-      const open=clamp((time-2.05-row*.25)/.45);if(!open)continue;
-      for(let col=0;col<3;col++)panel(col-1.5,-.5-row-open,1,open);
+    panel(-.5-spread*(size.width-1)/2,-.5,1+spread*(size.width-1),1);
+    for(const phase of phases){
+      const progress=clamp((time-phase.start)/.45),open=Math.sin(progress*progress*(3-2*progress)*Math.PI/2);if(!open)continue;
+      // A roof leaf folds as one rigid plate; seams keep its tile scale legible.
+      for(let row=0;row<phase.rows;row++)for(let col=0;col<size.width;col++)panel(col-size.width/2,-.5-phase.offset-(row+1)*open,1,open);
     }
-    c.fillStyle='#edd5a4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?'SHORE CAPSULE / 3 x 5 DOCK':time<SHIP.exit?'DOCK UNFOLDING':s.dockDestroyed?'DOCK LOST / L REPAIR':'DOCK / E',0,T);
+    c.fillStyle='#edd5a4';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(preview?`SHORE CAPSULE / ${size.width} x ${size.length} DOCK`:time<SHIP.exit?'DOCK UNFOLDING':s.dockDestroyed?'DOCK RUIN / SLOT FREE':'DOCK / E',0,T);
     c.restore();
-    if(time>=SHIP.exit){c.save();c.strokeStyle='#c6e6cd88';c.setLineDash([6/zoom,6/zoom]);c.translate(s.berthX*T,s.berthY*T);c.rotate(s.dock.angle);c.strokeRect(-1.4*T,-2.4*T,2.8*T,4.8*T);c.restore();}
+    if(time>=SHIP.exit){c.save();c.strokeStyle='#c6e6cd88';c.setLineDash([6/zoom,6/zoom]);c.translate(s.berthX*T,s.berthY*T);c.rotate(s.dock.angle);c.strokeRect((-size.berthWidth/2+.1)*T,(-size.berthLength/2+.1)*T,(size.berthWidth-.2)*T,(size.berthLength-.2)*T);c.restore();}
+  }
+  dockShake(s,time,camera,reduced,enabled){
+    if(reduced||!enabled)return {x:0,y:0};
+    let strength=0;
+    for(const [at,power] of [[SHIP.impact,7],[SHIP.impact+.7,3],...dockPanelPhases.map(p=>[p.start+.45,p.rows===3?5:3])]){
+      const age=time-at;if(age>=0&&age<.3)strength+=power*(1-age/.3);
+    }
+    strength*=Math.max(0,1-Math.hypot(s.dock.x*this.tile-camera.x,s.dock.y*this.tile-camera.y)*camera.zoom/700);
+    return {x:Math.sin(time*119)*strength,y:Math.cos(time*97)*strength*.65};
   }
 }
 export function drawShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0) {
+  if(largeHull(s)){drawCapitalShip(c,s,T,mine,zoom,time,reduced,recoil);return;}
   if(shipKind(s)==='carrier'){drawCarrier(c,s,T,mine,zoom,time,reduced,recoil);return;}
   if(shipKind(s)==='submarine'){drawSubmarine(c,s,T,mine,zoom,time,reduced);return;}
+  const battleship=shipKind(s)==='gunship';
   c.save();c.translate(s.x*T,s.y*T);c.rotate(s.angle);
-  if(s.speed>.05){c.strokeStyle='#b9ebe184';c.lineWidth=2;c.beginPath();c.moveTo(-.75*T,1.6*T);c.quadraticCurveTo(-1.2*T,2.4*T,-1.5*T,3.5*T);c.moveTo(.75*T,1.6*T);c.quadraticCurveTo(1.2*T,2.4*T,1.5*T,3.5*T);c.stroke();if(!reduced)for(let i=0;i<4;i++){const p=(time*.0007+i/4)%1;c.globalAlpha=(1-p)*.3;c.beginPath();c.ellipse(0,(2+p*2)*T,(.5+p*.7)*T,.18*T,0,0,Math.PI*2);c.stroke();}c.globalAlpha=1;}
-  c.fillStyle='#102e37';c.beginPath();c.moveTo(0,-2*T);c.lineTo(.93*T,-1.05*T);c.lineTo(T,1.5*T);c.quadraticCurveTo(T,2*T,.6*T,2*T);c.lineTo(-.6*T,2*T);c.quadraticCurveTo(-T,2*T,-T,1.5*T);c.lineTo(-.93*T,-1.05*T);c.closePath();c.fill();c.strokeStyle=mine?'#ecc987':'#86b5b4';c.lineWidth=3;c.stroke();
-  c.fillStyle='#607c7e';c.beginPath();c.moveTo(0,-1.75*T);c.lineTo(.72*T,-.9*T);c.lineTo(.73*T,1.62*T);c.lineTo(-.73*T,1.62*T);c.lineTo(-.72*T,-.9*T);c.closePath();c.fill();
-  c.strokeStyle='#a8b9a7';c.lineWidth=1;c.stroke();
-  c.fillStyle='#304c57';c.fillRect(-.36*T,-.35*T,.72*T,.7*T);c.fillStyle='#a3bdb0';c.fillRect(-.3*T,-.3*T,.6*T,.22*T);
-  c.strokeStyle='#c5d9c5';c.lineWidth=2;c.beginPath();c.moveTo(0,-.1*T);c.lineTo(0,.32*T);c.moveTo(-.2*T,.1*T);c.lineTo(.2*T,.1*T);c.stroke();
-  if(shipKind(s)==='transport'){
-    c.fillStyle='#203e45';c.fillRect(-.63*T,.35*T,1.26*T,1.35*T);c.strokeStyle='#cfb573';c.setLineDash([5,4]);c.strokeRect(-.63*T,.35*T,1.26*T,1.35*T);c.setLineDash([]);
-    if(s.cargo){c.fillStyle=s.cargo.kind==='tank'?'#b9ac78':'#829d9d';c.fillRect(-.35*T,.62*T,.7*T,.75*T);c.fillStyle='#23383d';c.fillRect(-.43*T,.58*T,.12*T,.85*T);c.fillRect(.31*T,.58*T,.12*T,.85*T);if(s.cargo.kind==='tank'){c.fillStyle='#d9c792';c.fillRect(-.08*T,.38*T,.16*T,.6*T);}}
-  }
+  drawShipWater(c,s,T,time,reduced);
+  if(battleship)drawBattleshipBody(c,T,BATTLESHIP_LAYOUTS.legacy,mine?'#ecc987':'#86b5b4',3);
+  else drawTransportBody(c,T,TRANSPORT_LAYOUTS.legacy,mine?'#ecc987':'#86b5b4',3,s.cargo);
   for(const m of mainMounts(s)){
     c.save();c.translate(0,m.y*T);c.rotate((s[m.key]??s.turret)-s.angle);
-    c.fillStyle='#1b3540';c.beginPath();c.arc(0,0,T*.36,0,Math.PI*2);c.fill();c.fillStyle='#d1c395';c.fillRect(-.29*T,-.3*T,.58*T,.56*T);c.strokeStyle='#ecdeb5';c.strokeRect(-.29*T,-.3*T,.58*T,.56*T);
-    for(const side of [-1,1]){const kick=recoil(s.id+':'+m.id+':'+side,s.ammo);c.fillStyle='#344f58';c.fillRect((side*.13-.045)*T,-.8*T+kick,.09*T,.68*T);c.fillStyle=s.ammo==='GAS'?'#b2d48b':s.ammo==='INCENDIARY'?'#ef9f5a':'#bedcdb';c.fillRect((side*.13-.065)*T,-.8*T+kick,.13*T,.12*T);}
+    (battleship?drawIowaTurret:drawTripleTurret)(c,T,mainBarrels(s),side=>recoil(s.id+':'+m.id+':'+side,s.ammo),s.ammo==='GAS'?'#b2d48b':s.ammo==='INCENDIARY'?'#ef9f5a':'#bedcdb');
     c.restore();
   }
-  for(const m of SIDE_MOUNTS){
-    c.save();c.translate(m.x*T,0);c.rotate(s[m.key]??m.center);c.fillStyle='#29434b';c.beginPath();c.arc(0,0,T*.2,0,Math.PI*2);c.fill();c.strokeStyle='#bed5c0';c.lineWidth=1.5;c.stroke();
-    c.fillStyle='#96b5a9';c.fillRect(-.12*T,-.17*T,.24*T,.27*T);c.fillStyle='#dbc694';c.fillRect(-.045*T,-.43*T+recoil(s.id+':'+m.id,'NAVAL_APCR'),.09*T,.33*T);c.restore();
+  for(const m of secondaryMounts(s)){
+    c.save();c.translate(m.x*T,(m.y||0)*T);c.rotate(secondaryAngle(s,m));
+    if(battleship)drawTwinMount(c,T,side=>recoil(s.id+':'+m.id+':'+side,'NAVAL_APCR'));else drawOpenMount(c,T,recoil(s.id+':'+m.id,'NAVAL_APCR'));
+    c.restore();
   }
+  const funnels=(battleship?BATTLESHIP_LAYOUTS:TRANSPORT_LAYOUTS).legacy.funnels;
+  drawBattleshipFunnels(c,T,funnels);
+  drawShipExhaust(c,s,T,time,reduced,funnels);
   c.restore();
   c.save();c.fillStyle='#193934dd';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=(mine?'YOU / ':'')+shipName(s).toUpperCase()+(s.cargo?' / LOADED':s.occupant&&!mine?' / OCCUPIED':''),w=c.measureText(label).width;c.fillRect(s.x*T-w/2-5,s.y*T+2.4*T,w+10,16/zoom);c.fillStyle='#e5d8ac';c.fillText(label,s.x*T,s.y*T+2.4*T+11/zoom);c.restore();
 }
@@ -127,27 +154,20 @@ function drawSubmarine(c,s,T,mine,zoom,time,reduced){
  const state=depthState(s),remaining=s.depthRemaining||0;
  const depth=state==='submerged'?1:state==='diving'?1-remaining/DIVE.transition:state==='surfacing'?remaining/DIVE.transition:0;
  c.save();c.translate(s.x*T,s.y*T);c.rotate(s.angle);
- if(depth>0){c.strokeStyle='#9cd9df';c.globalAlpha=.45;c.lineWidth=1.5/zoom;c.setLineDash([4/zoom,5/zoom]);c.beginPath();c.ellipse(0,0,1.3*T,2.3*T,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
-   if(!reduced&&state!=='submerged')for(let i=0;i<6;i++){const phase=(time*.0006+i/6)%1;c.globalAlpha=(1-phase)*.55;c.beginPath();c.arc(Math.sin(i*4.1)*T,(i/6-.5)*3*T,Math.max(1,phase*.4*T),0,Math.PI*2);c.stroke();}
- }c.restore();
+ if(depth>0){c.strokeStyle='#9cd9df';c.globalAlpha=.45;c.lineWidth=1.5/zoom;c.setLineDash([4/zoom,5/zoom]);c.beginPath();c.ellipse(0,0,1.05*T,2.55*T,0,0,Math.PI*2);c.stroke();c.setLineDash([]);}
+ c.restore();
  c.save();c.translate(s.x*T,s.y*T);c.rotate(s.angle);
  c.globalAlpha=1-depth*.65;
- if(s.speed>.05&&depth<.5){c.strokeStyle='#b9ebe177';c.lineWidth=2;c.beginPath();c.moveTo(-.65*T,1.5*T);c.lineTo(-T,3*T);c.moveTo(.65*T,1.5*T);c.lineTo(T,3*T);c.stroke();}
- c.fillStyle='#18323e';c.strokeStyle=mine?'#edcd89':'#91bdb7';c.lineWidth=2.5;c.beginPath();c.ellipse(0,0,T,2*T,0,0,Math.PI*2);c.fill();c.stroke();
- c.fillStyle='#4d6970';c.beginPath();c.ellipse(0,0,.67*T,1.72*T,0,0,Math.PI*2);c.fill();
- c.fillStyle='#233f49';c.fillRect(-.25*T,-1.14*T,.5*T,.7*T);c.strokeStyle='#adcec4';c.strokeRect(-.25*T,-1.14*T,.5*T,.7*T);c.lineWidth=2;c.beginPath();c.moveTo(0,-.8*T);c.lineTo(0,-1.35*T);c.lineTo(.23*T,-1.35*T);c.stroke();
- for(let i=0;i<6;i++){const x=(i%2-.5)*.6*T,y=(Math.floor(i/2)-1)*.6*T+.5*T;c.fillStyle=s.launchRemaining>0?'#171f23':s.reload>0?'#53666a':'#b2c6b0';c.fillRect(x-.2*T,y-.2*T,.4*T,.4*T);c.strokeStyle=s.launchRemaining>0?'#efbc71':'#819f98';c.lineWidth=1.5;c.strokeRect(x-.2*T,y-.2*T,.4*T,.4*T);if(s.launchRemaining>0&&!reduced){c.globalAlpha=.4+.25*Math.sin(time*.02+i);c.fillStyle='#ffc27a';c.fillRect(x-.12*T,y-.12*T,.24*T,.24*T);c.globalAlpha=1;}}
+ if(depth<.5)drawShipWater(c,s,T,time,reduced);
+ drawSubmarineHull(c,s,T,mine,zoom,time,reduced);
+ drawDiveBubbles(c,s,T,time,reduced,2,4);
  c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';const label=(mine?'YOU / ':'')+shipName(s).toUpperCase()+' / '+state.toUpperCase()+(depth>0?' / '+Math.ceil(diveBattery(s))+'s':''),w=c.measureText(label).width;c.fillStyle='#163737dd';c.fillRect(s.x*T-w/2-4,(s.y+2.35)*T,w+8,16/zoom);c.fillStyle='#e5d8ac';c.fillText(label,s.x*T,(s.y+2.35)*T+11/zoom);c.restore();
 }
 
 function drawCarrier(c,s,T,mine,zoom,time,reduced,recoil){
  c.save();c.translate(s.x*T,s.y*T);c.rotate(s.angle);
- if(s.speed>.05){c.strokeStyle='#c2e7dd70';c.lineWidth=2/zoom;c.beginPath();c.moveTo(-1.2*T,2*T);c.lineTo(-1.8*T,4*T);c.moveTo(1.2*T,2*T);c.lineTo(1.8*T,4*T);c.stroke();}
- c.fillStyle='#182f38';c.strokeStyle=mine?'#edce89':'#9ac3c0';c.lineWidth=2/zoom;c.beginPath();c.moveTo(-1.35*T,-2.15*T);c.lineTo(-.85*T,-2.5*T);c.lineTo(1.2*T,-2.5*T);c.lineTo(1.5*T,-1.9*T);c.lineTo(1.5*T,2.2*T);c.lineTo(.9*T,2.5*T);c.lineTo(-1.35*T,2.5*T);c.closePath();c.fill();c.stroke();
- c.fillStyle='#596e73';c.fillRect(-1.18*T,-2.25*T,2.3*T,4.5*T);c.fillStyle='#273d47';c.fillRect(-.85*T,-2.1*T,1.3*T,4.2*T);
- c.strokeStyle='#e9e3ba';c.lineWidth=.04*T;c.setLineDash([.3*T,.22*T]);c.beginPath();c.moveTo(-.2*T,-2.05*T);c.lineTo(-.2*T,2.1*T);c.stroke();c.setLineDash([]);
- for(const y of [-1.9,1.7])for(let i=0;i<4;i++){c.fillStyle='#e1d6ac';c.fillRect((-.72+i*.3)*T,y*T,.13*T,.3*T);}
- c.fillStyle='#283d48';c.fillRect(.62*T,-1.25*T,.65*T,1.5*T);c.fillStyle='#8da8a5';c.fillRect(.7*T,-1.13*T,.49*T,.45*T);c.strokeStyle='#d6bf85';c.beginPath();c.moveTo(.97*T,-.7*T);c.lineTo(.97*T,-1.8*T);c.stroke();
+ drawShipWater(c,s,T,time,reduced,3,5);
+ drawFordCarrier(c,T,3,5,mine?'#edce89':'#9ac3c0');
  for(const m of SIDE_MOUNTS){c.save();c.translate(m.x*T,0);c.rotate(s[m.key]??m.center);c.fillStyle='#adc0aa';c.fillRect(-.15*T,-.15*T,.3*T,.3*T);c.fillStyle='#dec88e';c.fillRect(-.045*T,-.5*T+recoil(s.id+':'+m.id,'NAVAL_APCR'),.09*T,.4*T);c.restore();}
  if(s.repairing&&!reduced){c.strokeStyle='#a3e7d2';c.lineWidth=1/zoom;for(let i=0;i<3;i++){const a=time*.002+i*2.1,x=Math.cos(a)*T,y=Math.sin(a)*2*T;c.strokeRect(x-.09*T,y-.09*T,.18*T,.18*T);}}
  c.restore();c.save();c.font='bold '+10/zoom+'px monospace';c.textAlign='center';c.fillStyle='#e5dbb2';c.fillText((mine?'YOU / ':'')+'CARRIER / '+Math.floor(s.deckSupplies||0)+' GND',s.x*T,(s.y+3)*T);c.restore();

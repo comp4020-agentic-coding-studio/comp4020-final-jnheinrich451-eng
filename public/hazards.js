@@ -2,7 +2,7 @@ import { findPath } from './world.js';
 import { ARTILLERY_SHELLS } from './weapons.js';
 import { enemyProfile } from './enemy-profiles.js';
 
-export const FIELD_LIMIT = 12, TYPE_LIMIT = 8, ENEMY_RADIUS = .38;
+export const FIELD_LIMIT = 12, TYPE_LIMIT = 9, ENEMY_RADIUS = .38;
 export const FIELD_AREA_LIMIT = 512, TYPE_AREA_LIMIT = 256;
 export const rectangleDistance = (r, x, y) => Math.hypot(Math.max(r.x - x, 0, x - r.x - r.width), Math.max(r.y - y, 0, y - r.y - r.height));
 export const activeSectors = field => (field.sectors || []).filter(s => field.weapon === 'INCENDIARY' ? s.remaining > 0 : field.capacity > 0);
@@ -12,11 +12,13 @@ export function insideField(field, x, y, margin = ENEMY_RADIUS) {
   const padding = Math.max(0, margin - ENEMY_RADIUS);
   return rectangleDistance(field.box, x, y) <= padding && field.sectors.some(s => (field.weapon === 'INCENDIARY' ? s.remaining > 0 : field.capacity > 0) && Math.hypot(s.x - x, s.y - y) <= s.radius + padding);
 }
-export const fieldArea = f => f.box ? f.box.width * f.box.height : Math.PI * (f.radius ?? ARTILLERY_SHELLS[f.weapon].radius) ** 2;
+// Bomber strips reserve the sum of all sector areas, conservatively counting
+// overlap twice, without charging for empty corners of a diagonal bounding box.
+export const fieldArea = f => f.reservedArea ?? (f.box ? f.box.width * f.box.height : Math.PI * (f.radius ?? ARTILLERY_SHELLS[f.weapon].radius) ** 2);
 export function fieldCapacityError(fields, salvos, weapon, area = Math.PI * (ARTILLERY_SHELLS[weapon]?.radius || 0) ** 2) {
   if (weapon === 'HE') return null;
-  const reserved = [...fields, ...salvos.filter(s => s.weapon && s.weapon !== 'HE')];
-  if (reserved.length >= FIELD_LIMIT || reserved.filter(f => f.weapon === weapon).length >= TYPE_LIMIT) return 'Field limit reached (12 total, 8 of one type), including shells in flight. Let fire expire or gas be consumed.';
+  const reserved = [...fields, ...salvos.filter(s => ['INCENDIARY','GAS'].includes(s.weapon))];
+  if (reserved.length >= FIELD_LIMIT || reserved.filter(f => f.weapon === weapon).length >= TYPE_LIMIT) return 'Field limit reached (12 total, 9 of one type), including shells in flight. Let fire expire or gas be consumed.';
   if (reserved.reduce((sum, f) => sum + fieldArea(f), 0) + area > FIELD_AREA_LIMIT || reserved.filter(f => f.weapon === weapon).reduce((sum, f) => sum + fieldArea(f), 0) + area > TYPE_AREA_LIMIT) return 'Hazard area limit reached. Let fire expire or gas be consumed; HE remains available.';
   return null;
 }

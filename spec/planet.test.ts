@@ -19,14 +19,14 @@ it('extends the existing field without moving any tile or saved coordinates', ()
   expect(remapFloors([0, 127, 128, 95 * 128 + 127], 128, 512)).toEqual([0, 127, 512, 95 * 512 + 127]);
 });
 
-it('provides usable new airfield plains, shores and open ocean without raising caps', () => {
+it.each([1,2])('provides usable airfield plains, shores and open ocean for dock layout %s', (layout) => {
   const world: any = { ...expandPlanet(expandWorld(createWorld())), airbases: [], ships: [], cores: [], tanks: [], rails: [], artillery: [], sites: [] };
   for (const p of [[220, 90], [86, 260], [365, 245]]) expect(airbaseError(world, [], [], p[0], p[1], 'pilot')).toBeNull();
   expect(tileAt(world, 240, 200)).toBe(0);
   let dock = null;
   for (let y = 25; y < 165 && !dock; y++) for (let x = 140; x < 310 && !dock; x++) {
     if (tileAt(world, x, y) !== 0) continue;
-    const result = shipyardSite(world, [], [], x, y, 'pilot'); if (!result.error) dock = result.ship;
+    const result = shipyardSite(world, [], [], x, y, 'pilot',layout); if (!result.error) dock = result.ship;
   }
   expect(dock).not.toBeNull();
 });

@@ -1,3 +1,4 @@
+import { fieldHelicopterBlocks } from './footprints.js';
 import { bridgeAt } from './bridge-geometry.js';
 import { logisticsAt } from './footprints.js';
 import { airbaseAt, hostileAt } from './footprints.js';
@@ -33,6 +34,8 @@ export function corePlacementError(world, buildings, occupants, x, y, owner) {
   if (cores.some(c => c.owner === owner)) return 'Your core is already deployed. This field test provides one per scout.';
   if (cores.length >= CORE.max) return 'This island has reached its core limit.';
   for (const cell of coreCells(x, y)) {
+    if(world.mountains?.[cell.y*world.width+cell.x])return 'High mountains cannot be covered by a deployment pod.';
+    if(fieldHelicopterBlocks(world,cell.x+.5,cell.y+.5,.5))return 'Keep the helicopter landing area clear.';
     if(bridgeAt(world,cell.x,cell.y))return 'Keep bridges clear of deployment pods.';
     if(logisticsAt(world,cell.x,cell.y))return 'Construction facility occupies this site.';
     if (hostileAt(world, cell.x, cell.y)) return 'An alien station occupies the deployment footprint.';

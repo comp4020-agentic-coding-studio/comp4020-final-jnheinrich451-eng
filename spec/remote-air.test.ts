@@ -23,14 +23,14 @@ for(const kind of ['bomber','attack-jet'])it('flies a '+kind+' pass and relocate
  let shots=0,sawEgress=false;for(let t=0;t<150&&!(p.mission.released&&isCruising(p));t+=.05){combat.tick(.05,[],[]);tickMission(w,b,.05,(q:any)=>{const e=kind==='attack-jet'?combat.strafe(q):combat.bombRun(q);if(!e)shots++;return e;});sawEgress ||= p.mission.phase==='egress';}
  expect(shots).toBe(kind==='attack-jet'?12:1);expect(sawEgress).toBe(true);expect(isCruising(p)).toBe(true);expect(p.occupant).toBeNull();
  expect(Math.hypot(p.mission.cruiseCenter.x-85,p.mission.cruiseCenter.y-40)).toBeGreaterThanOrEqual(30);
- expect(kind==='attack-jet'?p.rounds:p.runs).toBe(kind==='attack-jet'?78:1);
+ expect(kind==='attack-jet'?p.rounds:p.runs).toBe(kind==='attack-jet'?90:2);
 });
 it('restores the remaining jet burst without replaying spent rounds',()=>{
  const {w,b,p}=fixture('attack-jet'),combat=createCombat(w);assignMission(b,prepareMission(w,b,strikePlan(w,{x:85,y:40},1,'HE',p)),'saved-jet','pilot');
- for(let t=0;t<120&&p.rounds>85;t+=.05){combat.tick(.05,[],[]);tickMission(w,b,.05,(q:any)=>combat.strafe(q));}
- expect(p.rounds).toBe(85);const saved=JSON.parse(JSON.stringify({world:w,combat:combat.checkpoint()})),next=createCombat(saved.world,saved.combat),base=saved.world.airbases[0];
- for(let t=0;t<150&&!isCruising(base.aircraft);t+=.05){next.tick(.05,[],[]);tickMission(saved.world,base,.05,(q:any)=>next.strafe(q));}
- expect(base.aircraft.rounds).toBe(78);expect(isCruising(base.aircraft)).toBe(true);
+ let accepted=0;for(let t=0;t<120&&accepted<5;t+=.05){combat.tick(.05,[],[]);tickMission(w,b,.05,(q:any)=>{const e=combat.strafe(q);if(!e)accepted++;return e;});}
+ expect(accepted).toBe(5);expect(p.mission.shotsRemaining).toBe(7);const saved=JSON.parse(JSON.stringify({world:w,combat:combat.checkpoint()})),next=createCombat(saved.world,saved.combat),base=saved.world.airbases[0];let after=0;
+ for(let t=0;t<150&&!isCruising(base.aircraft);t+=.05){next.tick(.05,[],[]);tickMission(saved.world,base,.05,(q:any)=>{const e=next.strafe(q);if(!e)after++;return e;});}
+ expect(after).toBe(7);expect(base.aircraft.rounds).toBe(90);expect(isCruising(base.aircraft)).toBe(true);
 });
 
 it('flies the transit detour outside a flak envelope using the real turn controller',()=>{

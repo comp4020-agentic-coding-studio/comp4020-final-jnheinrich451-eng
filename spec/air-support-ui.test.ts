@@ -32,5 +32,6 @@ it('explains parked and unavailable-runway states and formats floating carrier c
  expect($('bomber-recall-help').textContent).toContain('Already on the ground');expect($('bomber-recall').disabled).toBe(true);
  $('bomber-select').value='c';b.destroyed=true;c.destroyed=true;$('bomber-select').onchange();expect($('bomber-recall').disabled).toBe(true);expect($('bomber-recall-help').textContent).toContain('No compatible free');
  c.x=44.000016;c.y=54.99999;expect(aircraftOption(world,c,1)).toContain('Runway 44:55');expect(aircraftOption(world,c,1)).not.toContain('000016');
- expect(aircraftStatus({...c.aircraft,state:'parked',rearm:5})).toBe('REARMING');
+ expect(aircraftStatus({...c.aircraft,state:'parked',rearm:5})).toBe('PARKED');
+ expect(aircraftStatus({...c.aircraft,kind:'helicopter',state:'parked',rearm:5})).toBe('REARMING');
 });

@@ -7,8 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-for(const mobile of [false,true])test(`broadside controls and four-round salvo on ${mobile?'phone':'desktop'}`,async({browser},info)=>{
- test.setTimeout(35000);
+for(const mobile of [false,true])test(`broadside controls and nine-round salvo on ${mobile?'phone':'desktop'}`,async({browser},info)=>{
+ test.setTimeout(45000);
  const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-armament-'));let app=createApp({dataDir,logSink:()=>{}}),context,other;
  await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=createWorld(),token=randomUUID();world.terrain=world.terrain.map((_,i)=>i%48<20?0:2);
  db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');
@@ -27,12 +27,13 @@ for(const mobile of [false,true])test(`broadside controls and four-round salvo o
   const hold=async()=>{if(mobile){const box=await page.locator('#ship-secondary').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();}else await page.mouse.down({button:'right'});};
   const release=async()=>page.mouse.up({button:mobile?'left':'right'});
   const sideShots=async()=>(await state()).combat.shots.filter(s=>s.weapon==='NAVAL_APCR');
-  await hold();await expect.poll(async()=>(await sideShots()).length).toBeGreaterThanOrEqual(3);
-  expect((await sideShots()).every(s=>s.owner==='ship:port')).toBe(true);
+  await hold();await expect.poll(async()=>new Set((await sideShots()).map(s=>s.owner.split(':')[1])).size).toBe(3);
+  expect(new Set((await sideShots()).map(s=>s.barrel))).toEqual(new Set([-1,1]));
+  expect((await sideShots()).every(s=>s.batterySide==='port')).toBe(true);
   await page.screenshot({path:info.outputPath(`ship-side-guns-${mobile?'mobile':'desktop'}.png`)});await release();
   await page.waitForTimeout(200);const stopped=Math.max(0,...(await sideShots()).map(s=>s.id));await page.waitForTimeout(450);expect((await sideShots()).every(s=>s.id<=stopped)).toBe(true);
   await aim(cx+(mobile?2.2:3)*scale,cy-(mobile?1.5:2.5)*scale);await expect(page.locator('#ship-starboard-status')).toContainText('Ready');
-  await page.locator('#world-canvas').focus();await page.keyboard.down('j');await expect.poll(async()=>(await sideShots()).some(s=>s.owner==='ship:starboard')).toBe(true);await page.keyboard.up('j');
+  await page.locator('#world-canvas').focus();await page.keyboard.down('j');await expect.poll(async()=>(await sideShots()).some(s=>s.batterySide==='starboard')).toBe(true);await page.keyboard.up('j');
   // Focus loss clears held fire; the same key release must not be needed to stop it.
   await page.keyboard.down('j');await page.waitForTimeout(250);await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.waitForTimeout(200);
   const blurred=Math.max(0,...(await sideShots()).map(s=>s.id));await page.waitForTimeout(400);expect((await sideShots()).every(s=>s.id<=blurred)).toBe(true);await page.keyboard.up('j');await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
@@ -43,16 +44,16 @@ for(const mobile of [false,true])test(`broadside controls and four-round salvo o
   const single=async()=>{if(mobile)await page.locator('#ship-fire').tap();else await page.mouse.click(viewport.width*.8,viewport.height*.28);};
   await single();await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.waitForTimeout(350);
   expect((await state()).combat.salvos).toHaveLength(0);expect(mainRequests).toHaveLength(0);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await single();await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(2);
+  await single();await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(3);
   const first=(await state());expect(first.combat.salvos.every(s=>s.mount==='fore')).toBe(true);expect(first.ships[0].mainReloads.aft).toBe(0);
-  await expect(page.locator('#ship-status')).toContainText('AFT READY');
+  await expect(page.locator('#ship-status')).toContainText('RAISED READY');await expect(page.locator('#ship-status')).toContainText('AFT READY');
   await page.screenshot({path:info.outputPath(`ship-volley-${mobile?'mobile':'desktop'}.png`)});
-  await page.waitForTimeout(300);await single();await expect.poll(async()=>(await state()).combat.salvos.filter(s=>s.mount==='aft').length,{intervals:[50]}).toBe(2);
-  expect((await state()).combat.salvos.filter(s=>s.mount==='aft')).toHaveLength(2);
-  await expect.poll(async()=>(await state()).ships[0].reload,{timeout:7000}).toBe(0);
+  await page.waitForTimeout(300);await single();await expect.poll(async()=>(await state()).combat.salvos.filter(s=>s.mount==='raised').length,{intervals:[50]}).toBe(3);
+  expect((await state()).combat.salvos.filter(s=>s.mount==='raised')).toHaveLength(3);
+  await expect.poll(async()=>(await state()).ships[0].reload,{timeout:12000}).toBe(0);
   if(mobile){const b=await page.locator('#ship-fire').boundingBox();await page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);await page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.dblclick(viewport.width*.8,viewport.height*.28,{delay:70});
   expect(mainRequests.map(r=>r.mode)).toEqual(['volley','volley','salvo']);
-  await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(4);
+  await expect.poll(async()=>(await state()).combat.salvos.length,{intervals:[50]}).toBe(9);
   expect((await state()).ships[0].reload).toBeGreaterThan(5);
   await page.waitForTimeout(350);await page.screenshot({path:info.outputPath(`ship-salvo-${mobile?'mobile':'desktop'}.png`)});
   await expect.poll(async()=>(await state()).combat.salvos.length,{timeout:4000}).toBe(0);

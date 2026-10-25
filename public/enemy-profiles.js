@@ -14,7 +14,7 @@ export const ENEMY_ROLES = Object.freeze({
 });
 export const enemyProfile = enemy => ENEMY_ROLES[enemy.kind] || ENEMY_ROLES.hunter;
 export const heavyEnemy = enemy => ['breaker', 'bulwark'].includes(enemy.kind);
-export const canDamageEnemy = (enemy, weapon) => enemy.kind !== 'bulwark' || ['HE', 'MAGNETIC'].includes(weapon);
+export const canDamageEnemy = (enemy, weapon) => enemy.kind !== 'bulwark' || ['HE', 'MAGNETIC', 'MAC'].includes(weapon);
 export function newGroundEnemy(kind, id, point) {
   const role = Object.hasOwn(ENEMY_ROLES, kind) ? kind : 'hunter', profile = ENEMY_ROLES[role];
   return { id, kind: role, ...point, hp: profile.hp, maxHp: profile.hp, angle: 0, path: [], reroute: 0 };

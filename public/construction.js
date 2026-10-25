@@ -2,6 +2,7 @@ import { readyFactory, LOGISTICS_SIZE, LOCAL_KINDS } from './logistics.js';
 import { POD } from './pod.js';
 import { AIR } from './aircraft.js';
 import { MISSILE } from './missile.js';
+import { dockDimensions } from './naval-scale.js';
 
 // Construction support is an admission rule, not a power network or unit cap.
 export const CONSTRUCTION = Object.freeze({ radius: 24 });
@@ -29,10 +30,10 @@ export function constructionError(world, kind, x, y, ship = null) {
   if(kind==='helipad') points=corners(x+1.5,y+1.5,3,3);
   else if (kind === 'airbase') points = corners(x + AIR.width / 2, y + AIR.height / 2, AIR.width, AIR.height);
   else if (kind === 'missile') points = corners(x + MISSILE.size / 2, y + MISSILE.size / 2, MISSILE.size, MISSILE.size);
-  else if (kind === 'artillery') points = corners(x + .5, y + .5, 3, 3);
+  else if (['artillery','mac'].includes(kind)) points = corners(x + .5, y + .5, 3, 3);
   else if (LOGISTICS_SIZE[kind]) points = corners(x + LOGISTICS_SIZE[kind]/2, y + LOGISTICS_SIZE[kind]/2, LOGISTICS_SIZE[kind], LOGISTICS_SIZE[kind]);
-  else if (ship?.dock) points = corners(ship.dock.x, ship.dock.y, ship.dockStyle === 'unfolding' ? 3 : 1, 1, ship.dock.angle);
-  else if(kind==='tank') points=corners(x+.5,y+.5,9,9);
+  else if (ship?.dock) points = corners(ship.dock.x, ship.dock.y, ship.dockStyle === 'unfolding' ? dockDimensions(ship).width : 1, 1, ship.dock.angle);
+  else if(kind==='tank') points=corners(x+.5,y+.5,3,3);
   else points=corners(x+.5,y+.5,1,1);
   if (cores.some(c => points.every(p => Math.hypot(p.x - c.x - 1.5, p.y - c.y - 1.5) <= CONSTRUCTION.radius + 1e-8))) return null;
   return `Keep the ${kind === 'ship' ? 'shore platform' : 'whole facility'} within ${CONSTRUCTION.radius} tiles of a completed friendly core or factory. Follow the blue construction circle.`;

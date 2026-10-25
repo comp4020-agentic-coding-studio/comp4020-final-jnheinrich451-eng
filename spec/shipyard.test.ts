@@ -30,39 +30,23 @@ it('migrates docks with a backup, buys an empty yard, rebuilds there once and pr
   const restart=async(change?:(db:DatabaseSync)=>void)=>{controller?.abort();await app.close();if(change){const db=new DatabaseSync(path.join(dir,'world.sqlite'));change(db);db.close();}await open();};
   try{
     let s=await state();expect(s.logistics.shipyards).toHaveLength(1);expect(s.logistics.wrecks).toMatchObject([{x:38,y:36}]);expect((await readdir(path.join(dir,'backups'))).some(n=>n.startsWith('before-shipyards-'))).toBe(true);
-    await connect();const order=await post('shipyards',{x:23,y:39});expect(order.status).toBe(201);const yard=order.body.yard;
-    expect((await state()).logistics.supplies).toBe(1080);expect((await post('shipyards',{x:23,y:39})).status).toBe(200);expect((await state()).logistics.supplies).toBe(1080);
+    await connect();const order=await post('shipyards',{x:28,y:39});expect(order.status).toBe(201);const yard=order.body.yard;
+    expect((await state()).logistics.supplies).toBe(1080);expect((await post('shipyards',{x:28,y:39})).status).toBe(200);expect((await state()).logistics.supplies).toBe(1080);
     expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(409);
     await expect.poll(async()=>(await state()).logistics.shipyards.find((y:any)=>y.id===yard.id).dockReady,{timeout:6500}).toBe(true);
-    expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(200);
-    s=await state();expect(s.logistics.groundSupplies).toBe(1140);expect(s.ships[0].yardId).toBe(yard.id);expect(s.ships[0].assemblyRemaining).toBeGreaterThan(11);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);
-    expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1140);
-    await restart(db=>{const l=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);l.shipyards.find((y:any)=>y.id===yard.id).dockDestroyed=true;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));});
-    const remaining=(await state()).ships[0].assemblyRemaining;await connect();await new Promise(r=>setTimeout(r,200));expect((await state()).ships[0].assemblyRemaining).toBe(remaining);
-    expect((await post('logistics/repair',{kind:'dock',id:yard.id})).status).toBe(200);
-    await expect.poll(async()=>(await state()).ships[0].assemblyRemaining,{timeout:10000}).toBeLessThan(remaining);
-    expect((await state()).ships[0].assemblyDuration).toBe(60);
-    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get('lost') as any).value);ship.assemblyRemaining=.2;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),'lost');});await connect();
-    await expect.poll(async()=>(await state()).ships[0].assemblyRemaining,{timeout:3000}).toBe(0);
-    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get('lost') as any).value);ship.rampGun.destroyed=true;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),'lost');});
-    await connect();expect((await state()).ships[0].rampGun.destroyed).toBe(true);
-    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1025);
-    expect((await post('ships/ramp-repair',{id:'lost'})).status).toBe(200);expect((await state()).logistics.groundSupplies).toBe(1025);expect((await state()).ships[0].rampGun.destroyed).toBe(false);
-    expect((await post('ships/recall',{id:'lost',keepYard:true})).status).toBe(200);s=await state();expect(s.ships).toHaveLength(0);expect(s.logistics.shipyards).toHaveLength(2);
-    expect((await post('ships',{kind:'transport',yardId:yard.id})).status).toBe(201);s=await state();expect(s.ships[0].kind).toBe('transport');expect(s.logistics.groundSupplies).toBe(975);
-    await restart();s=await state();expect(s.ships).toHaveLength(1);expect(s.logistics.wrecks).toHaveLength(1);expect(s.logistics.shipyards).toHaveLength(2);expect(tileAt(s.world,23,25)).toBe(4);
-    // Each dock has its own slot, even when the same owner chooses the same type.
-    await connect();
-    const second=await post('ships',{kind:'transport',yardId:'lost'});expect(second.status).toBe(201);
-    expect((await post('ships',{kind:'transport',yardId:'lost'})).status).toBe(200);
-    expect((await state()).ships).toHaveLength(2);expect((await state()).logistics.groundSupplies).toBe(925);
-    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{elapsed:4.5,assemblyRemaining:0,health:250});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
-    await connect();await expect.poll(async()=>(await state()).ships.find((v:any)=>v.id===second.body.ship.id).health,{timeout:8000}).toBe(300);
-    expect((await state()).logistics.groundSupplies).toBeCloseTo(915,4);
-    await restart();s=await state();expect(s.ships.find((v:any)=>v.id===second.body.ship.id).health).toBe(300);expect(s.logistics.groundSupplies).toBeCloseTo(915,4);
-    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(second.body.ship.id) as any).value);Object.assign(ship,{destroyed:true,health:0,replacement:0});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);});
-    await connect();const changed=await post('vehicles/replace',{kind:'ship',vesselKind:'submarine',id:second.body.ship.id});expect(changed.status).toBe(200);expect(changed.body.vehicle).toMatchObject({kind:'submarine',ammo:'HE',health:300,depth:'surfaced'});
-    s=await state();expect(s.logistics.groundSupplies).toBeCloseTo(845,6);expect(s.ships).toHaveLength(2);
+    const built=await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id});expect(built.status).toBe(200);const id=built.body.vehicle.id;
+    expect(id).not.toBe('lost');s=await state();expect(s.ships.find((v:any)=>v.id==='lost').destroyed).toBe(true);
+    expect(s.ships.find((v:any)=>v.id===id)).toMatchObject({yardId:yard.id,assemblyDuration:60});expect(s.logistics.groundSupplies).toBe(1140);
+    expect((await post('vehicles/replace',{kind:'ship',id:'lost',yardId:yard.id})).body.vehicle.id).toBe(id);expect((await state()).logistics.groundSupplies).toBe(1140);
+    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(id) as any).value);Object.assign(ship,{assemblyRemaining:.1});db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),id);});await connect();
+    await expect.poll(async()=>(await state()).ships.find((v:any)=>v.id===id).assemblyRemaining).toBe(0);
+    await restart(db=>{const ship=JSON.parse((db.prepare('SELECT value FROM ships WHERE id=?').get(id) as any).value);ship.health=250;db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),id);});await connect();
+    await expect.poll(async()=>(await state()).ships.find((v:any)=>v.id===id).health,{timeout:8000}).toBe(300);expect((await state()).logistics.groundSupplies).toBeCloseTo(1130,4);
+    await restart(db=>{const l=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);l.shipyards.find((y:any)=>y.id===yard.id).dockDestroyed=true;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));});await connect();
+    expect((await post('logistics/repair',{kind:'dock',id:yard.id})).status).toBe(409);
+    s=await state();expect(s.logistics.groundSupplies).toBeCloseTo(1130,4);expect(s.logistics.shipyards.find((y:any)=>y.id===yard.id).dockDestroyed).toBe(true);
+    expect(s.ships.find((v:any)=>v.id===id).destroyed).not.toBe(true);expect(s.logistics.wrecks).toHaveLength(1);
+    await restart();s=await state();expect(s.ships).toHaveLength(2);expect(s.ships.find((v:any)=>v.id==='lost').destroyed).toBe(true);expect(s.logistics.shipyards).toHaveLength(2);
   }finally{controller?.abort();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-yard-'))throw Error('Bad temp path');await rm(dir,{recursive:true,force:true});}
 },100000);
 

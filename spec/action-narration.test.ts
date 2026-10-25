@@ -3,7 +3,20 @@ import {EventEmitter} from 'node:events';
 import {controlledUnit,describeCommand} from '../action-narration.js';
 import {createAudit} from '../observability.js';
 import {parseAuditLine,presentAudit} from '../log-presentation.js';
+
+it('names the rapid aircraft gun distinctly without accepting arbitrary log weapon text',()=>{
+ const unit:any={unitType:'attack-jet',unitId:'jet',bodyType:'aircraft',object:{kind:'attack-jet'}};
+ expect(describeCommand('aircraft/strafe',{weapon:'30mm'},{},unit)).toMatchObject({weapon:'30mm',command:'fire 30 mm burst'});
+ expect(describeCommand('aircraft/strafe',{weapon:'injected text'},{},unit).command).toBe('fire autocannon');
+});
 const player={id:'pilot',x:20,y:20,life:'active'};
+it('identifies the AC-130 and each side gun without accepting arbitrary weapon log text',()=>{
+ const world:any={airbases:[{aircraft:{id:'air-gunship',occupant:'pilot',kind:'air-gunship',state:'flying'}}]};
+ const unit=controlledUnit(world,player,'aircraft');expect(unit.unitType).toBe('air-gunship');
+ for(const weapon of ['25','40','105'])expect(describeCommand('aircraft/gunship-fire',{weapon},world,unit)).toMatchObject({weapon:weapon+'mm',command:'fire '+weapon+' mm side gun'});
+ expect(describeCommand('aircraft/gunship-fire',{weapon:'untrusted'},world,unit)).toMatchObject({weapon:'unknown',command:'invalid side gun'});
+ expect(describeCommand('input',{x:-1,y:-1},world,unit).command).toBe('accelerate; turn left');
+});
 const robot=()=>controlledUnit({},player,'robot');
 it('translates world movement and aiming without treating keyboard input as completed movement',()=>{
  for(const [x,y,direction]of [[0,-1,'north'],[1,0,'east'],[0,1,'south'],[-1,0,'west'],[-1,-1,'north-west'],[0,0,'stop']]){
@@ -51,4 +64,8 @@ it('keeps transport evidence and instance identities visible in the readable log
  const text=presentAudit({at:'2026-10-22T05:00:00Z',event:'state.broadcast.summary',campaignId:'room',kind:'system',count:10,firstRevision:2,revision:11,connections:3,connectedPlayers:2,queuedWrites:29,droppedStreams:1,transport:'sse',machineId:'fly-machine',instanceId:'boot-id',runtimeId:'room-run',buildId:'build-id'});
  for(const part of ['state.broadcast.summary','revision 2..11','2 connected players','3 streams','29 queued writes','1 skipped streams','machine fly-machine','instance boot-id','runtime room-run','build build-id'])expect(text).toContain(part);
  expect(text).not.toContain('delivered');
+});
+
+it.each(['tank','recycler','bridge-builder'])('describes %s hull-relative commands without claiming world movement',unitType=>{
+ const unit:any={...robot(),unitType};expect(describeCommand('input',{x:1,y:-1},{},unit)).toMatchObject({throttle:'forward',rotation:'right',command:'forward; turn right'});expect(describeCommand('input',{x:-1,y:1},{},unit).command).toBe('reverse; turn left');expect(describeCommand('input',{x:0,y:0},{},unit).command).toBe('brake; hold heading');
 });

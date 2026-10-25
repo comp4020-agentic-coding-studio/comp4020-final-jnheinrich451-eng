@@ -24,7 +24,7 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await page.goto(base); await expect(page.locator('#identity')).toContainText('Demo account');
     await expect(page.locator('#create-panel')).toBeHidden();
     await expect(page.locator('#motion')).toHaveAttribute('aria-pressed', String(mobile));
-    expect(await page.locator('.planet-surface').evaluate(el => getComputedStyle(el).animationPlayState)).toBe(mobile ? 'paused' : 'running');
+    expect(await page.locator('.planet-surface').first().evaluate(el => getComputedStyle(el).animationPlayState)).toBe(mobile ? 'paused' : 'running');
     if (!mobile) { await page.locator('#motion').click(); await expect(page.locator('#motion')).toHaveAttribute('aria-pressed', 'true'); }
     await page.getByRole('button', { name: 'Select Caldera' }).focus(); await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Caldera selected' })).toHaveAttribute('aria-pressed', 'true');

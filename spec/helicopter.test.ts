@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import {createWorld} from '../public/world.js';
 import {newAirbase,airbaseError,tickAircraft,launchAircraft,hurtAircraft} from '../public/aircraft.js';
 import {HELI,HELI_ROCKET,helicopterFireError,spendHelicopterShot} from '../public/helicopter.js';
-import {fleetCapacity,fleetCount,newAircraftError,reserveLanding,freeAirbase} from '../public/air-traffic.js';
+import {requestHelicopterLanding,fleetCapacity,fleetCount,newAircraftError,reserveLanding,freeAirbase} from '../public/air-traffic.js';
 import {createCombat} from '../public/combat.js';
 import {freshLogistics} from '../public/logistics.js';
 import {airbaseAt,hangarBlocks} from '../public/footprints.js';
@@ -27,7 +27,7 @@ it('hovers, strafes independently of aim, brakes and lands at a compatible pad',
  for(let t=0;t<2;t+=.05)tickAircraft(w,b,{x:1,y:0,target:{x:31.5,y:10}},.05);
  expect(p.x).toBeGreaterThan(37);expect(p.y).toBeCloseTo(31.5);expect(p.speed).toBeLessThanOrEqual(HELI.speed);
  for(let t=0;t<2;t+=.05)tickAircraft(w,b,null,.05);expect(p.speed).toBeLessThan(.01);
- Object.assign(p,{x:31.5,y:31.5,vx:0,vy:0,speed:0,leftBase:true});tickAircraft(w,b,null,.05);expect(p.state).toBe('landing');tickAircraft(w,b,null,2.1);expect(p.state).toBe('parked');
+ Object.assign(p,{x:31.5,y:31.5,vx:0,vy:0,speed:0,leftBase:true});tickAircraft(w,b,null,.05);expect(p.state).toBe('flying');expect(requestHelicopterLanding(w,p)).toBeNull();expect(p.state).toBe('landing');tickAircraft(w,b,null,2.1);expect(p.state).toBe('parked');
  p.rockets=0;p.rounds=0;tickAircraft(w,b,null,8.1);expect(p.rockets).toBe(40);expect(p.rounds).toBe(120);
 });
 it('sweeps new rockets while preserving previous trajectories, ammo and cooldown across restoration',()=>{
@@ -57,8 +57,8 @@ it('performs finite remote support and relocates to a different holding area',()
  for(let t=0;t<120&&!(p.mission.released&&isCruising(p));t+=.05){combat.tick(.05,[],[]);tickMission(w,b,.05,(q:any,target:any,rocket:boolean)=>combat.helicopterFire(q,target,rocket));sawEgress ||= p.mission.phase==='egress';}
  expect(sawEgress).toBe(true);expect(isCruising(p)).toBe(true);expect(p.rounds).toBeLessThan(120);expect(p.rockets).toBe(20);expect(Math.hypot(p.x-75,p.y-45)).toBeGreaterThan(25);
 });
-it('recovers unattended helicopters and ends in a wreck if their pad is unavailable',()=>{
+it('recovers unattended helicopters onto clear ground if their pad is unavailable',()=>{
  const {w,b,p}=field();Object.assign(p,{state:'flying',x:60,y:50,leftBase:true});b.destroyed=true;expect(recoverAircraft(b,'return')).toBe(true);
- for(let t=0;t<125&&p.state!=='destroyed';t+=.1)tickMission(w,b,.1,()=>null);
- expect(p.state).toBe('destroyed');expect(b.wrecks).toHaveLength(1);
+ for(let t=0;t<125&&p.state!=='parked';t+=.1)tickMission(w,b,.1,()=>null);
+ expect(p.state).toBe('parked');expect(p.fieldLanding).toBeTruthy();expect(p.health).toBe(180);expect(p.rearm).toBe(0);expect(b.wrecks||[]).toHaveLength(0);
 });

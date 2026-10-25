@@ -1,15 +1,28 @@
 import { expect, it } from 'vitest';
 import { createWorld, canStand, placementError } from '../public/world.js';
 import { corePlacementError } from '../public/core.js';
-import { railSegment, railError, carriageError, moveCarriage, tickCarriage, artilleryFireError, artillerySolution, RAIL } from '../public/rail.js';
+import { railSegment, railError, carriageError, moveCarriage, tickCarriage, artilleryFireError, artillerySolution, artilleryAim, RAIL } from '../public/rail.js';
 import { createCombat, blastDamage } from '../public/combat.js';
-import { ARTILLERY_HE } from '../public/weapons.js';
+import { ARTILLERY_HE, RAIL_HE } from '../public/weapons.js';
 import { raycast } from '../public/raycast.js';
 import { curveEnds, curveBounds } from '../public/track.js';
 import { gunPosition } from '../public/rail.js';
 
 const field = () => ({ ...createWorld(), terrain: Array(48 * 36).fill(2), rails: railSegment(20, 13, 'EW'), artillery: [] as any[], cores: [] });
-const cannon = () => ({ id: 'gun', owner: 'a', x: 20, y: 13, shape: 'EW', angle: Math.PI / 2, aim: Math.PI / 2, elevation: 85, input: null as any, inputTime: 0, target: null as any, move: null as any, brace: 0, reload: 0, operator: null as string | null, lease: 0 });
+const cannon = () => ({ id: 'gun', owner: 'a', x: 20, y: 13, shape: 'EW', angle: Math.PI / 2, aim: Math.PI / 2, elevation: 88.5, input: null as any, inputTime: 0, target: null as any, move: null as any, brace: 0, reload: 0, operator: null as string | null, lease: 0 });
+
+it.each(['HE','INCENDIARY','GAS'])('admits %s at 180 tiles and retains the six-tile inner limit',weapon=>{
+  const world={...field(),width:512,height:384},gun=cannon(),combat=createCombat(world);
+  for(const distance of [6,180]){
+    const target={x:gun.x+.5+distance,y:gun.y+.5},aim=artilleryAim(gun,target);
+    gun.elevation=aim.elevation;gun.angle=aim.angle;
+    expect(artillerySolution(gun).range).toBeCloseTo(distance);
+    expect(artilleryFireError(gun,world)).toBeNull();
+    expect(combat.lob({id:'gun',x:gun.x+.5,y:gun.y+.5},target.x,target.y,artillerySolution(gun),weapon)).toBeNull();
+  }
+  expect(combat.lob({id:'gun',x:20.5,y:13.5},201,13.5,null,weapon)).toContain('180');
+  expect(combat.lob({id:'gun',x:20.5,y:13.5},25.5,13.5,null,weapon)).toContain('6');
+});
 
 it.each(['NE', 'SE', 'SW', 'NW'])('traverses and reverses a %s curve with full reservation and independent turret bearing', shape => {
   const world = field(), curve = { x: 12, y: 12, shape }, [a, b] = curveEnds(curve);
@@ -67,12 +80,12 @@ it('requires three supporting rails and validates the entire 3x3 and swept footp
 it('manual traverse and elevation use server time, stop on stale input and preserve bracing/reload', () => {
   const world = field(), gun = cannon(); gun.operator = 'a'; gun.lease = 5; gun.brace = 1.2;
   gun.input = { traverse: 1, elevate: -1 }; gun.inputTime = RAIL.inputTime;
-  tickCarriage(gun, .1); expect(gun.angle).toBeCloseTo(Math.PI / 2 + RAIL.turnSpeed * .1); expect(gun.elevation).toBeCloseTo(84.2);
+  tickCarriage(gun, .1); expect(gun.angle).toBeCloseTo(Math.PI / 2 + RAIL.turnSpeed * .1); expect(gun.elevation).toBeCloseTo(87.7);
   expect(artilleryFireError(gun, world)).toContain('Stabilizers');
   for (let i = 0; i < 20; i++) tickCarriage(gun, .1);
-  expect(gun.angle).toBeCloseTo(Math.PI / 2 + RAIL.turnSpeed * .35); expect(gun.elevation).toBeCloseTo(82.2);
+  expect(gun.angle).toBeCloseTo(Math.PI / 2 + RAIL.turnSpeed * .35); expect(gun.elevation).toBeCloseTo(85.7);
   expect(artilleryFireError(gun, world)).toBeNull();
-  gun.elevation = 45; expect(artilleryFireError(gun, world)).toContain('outside'); gun.elevation = 85;
+  gun.elevation = 45; expect(artilleryFireError(gun, world)).toContain('outside'); gun.elevation = 88.5;
   gun.reload = 6; expect(artilleryFireError(gun, world)).toContain('reloading');
   tickCarriage(gun, 6); expect(gun.operator).toBeNull(); expect(gun.reload).toBe(0);
 });
@@ -80,13 +93,13 @@ it('manual traverse and elevation use server time, stop on stale input and prese
 it('high and low trajectories agree on range while high elevation gives a longer, steeper flight', () => {
   const gun = cannon(); gun.elevation = 15; const low = artillerySolution(gun);
   gun.elevation = 75; const high = artillerySolution(gun);
-  expect(low.range).toBeCloseTo(30); expect(high.range).toBeCloseTo(low.range);
+  expect(low.range).toBeCloseTo(90); expect(high.range).toBeCloseTo(low.range);
   expect(high.duration).toBeGreaterThan(low.duration); expect(high.height).toBeGreaterThan(low.height);
   expect(high.verticalSpeed * high.duration - .5 * high.gravity * high.duration ** 2).toBeCloseTo(0);
-  gun.elevation = 45; expect(artillerySolution(gun).range).toBeCloseTo(60);
-  gun.elevation = 85; gun.operator = 'a'; gun.lease = 5; gun.input = { traverse: 0, elevate: 1 }; gun.inputTime = 5;
+  gun.elevation = 45; expect(artillerySolution(gun).range).toBeCloseTo(180);
+  gun.elevation = 88.5; gun.operator = 'a'; gun.lease = 5; gun.input = { traverse: 0, elevate: 1 }; gun.inputTime = 5;
   tickCarriage(gun, 5); expect(gun.elevation).toBe(RAIL.maxElevation);
-  const enlarged = { ...field(), width: 128, height: 128 }; gun.elevation = 45; gun.brace = 0;
+  const enlarged = { ...field(), width: 512, height: 384 }; gun.elevation = 45; gun.brace = 0;
   expect(artilleryFireError(gun, enlarged)).toBeNull();
 });
 
@@ -103,10 +116,24 @@ it('heavy HE flies over intervening cover, damages once on arrival and leaves an
   for (let i = 0; i < 15; i++) combat.tick(.1, []);
   expect(combat.snapshot().salvos).toHaveLength(0);
   expect(combat.snapshot().enemies.some(e => e.id === enemy.id)).toBe(false);
-  expect(combat.snapshot().impacts).toHaveLength(1); expect(combat.snapshot().impacts[0].radius).toBe(3);
+  expect(combat.snapshot().impacts).toHaveLength(1); expect(combat.snapshot().impacts[0].radius).toBe(6);
   expect(combat.snapshot().marks.find(m => m.kind === 'crater')?.size).toBe(8);
-  expect(blastDamage(3.5, ARTILLERY_HE)).toBe(0); expect(world.terrain).toEqual(original);
+  expect(blastDamage(3.5, RAIL_HE)).toBeGreaterThan(0); expect(blastDamage(6.01, RAIL_HE)).toBe(0); expect(world.terrain).toEqual(original);
   const kills = combat.snapshot().kills; combat.tick(.5, []); expect(combat.snapshot().kills).toBe(kills);
+});
+
+it('saves the stronger rail HE profile while retaining already accepted shells',()=>{
+  const world=field(),combat=createCombat(world);
+  expect(combat.lob({id:'gun',x:10,y:20},20,20)).toBeNull();
+  const saved=combat.checkpoint();
+  expect(saved.salvos[0].profile).toMatchObject({radius:6,lethalRadius:2.2,damage:420,edgeDamage:60});
+  expect(blastDamage(0,saved.salvos[0].profile)).toBe(420);
+  expect(blastDamage(6,saved.salvos[0].profile)).toBe(60);
+  saved.salvos[0].profile={...ARTILLERY_HE}; // A pre-upgrade shot keeps its launch balance.
+  const restored=createCombat(world,saved);
+  expect(restored.snapshot().salvos[0].profile).toMatchObject({radius:3,damage:140,edgeDamage:20});
+  expect(restored.lob({id:'gun',x:10,y:20},20,20)).toBeNull();
+  expect(restored.snapshot().salvos[1].profile.damage).toBe(420);
 });
 
 it('a ballistic shell retains its launch trajectory when the gun changes bearing or elevation', () => {

@@ -7,6 +7,7 @@ export function makeBarrageField(barrage, now) {
   return { id: barrage.id, weapon: barrage.weapon, x: barrage.box.x + barrage.box.width / 2,
     y: barrage.box.y + barrage.box.height / 2, box: { ...barrage.box }, sectors, pending: barrage.missiles.length, at: now,
     remaining: 0, duration: MISSILE_FIRE_DURATION,
+    ...(barrage.reservedArea===undefined?{}:{reservedArea:barrage.reservedArea}),
     capacity: barrage.weapon === 'GAS' ? (barrage.gasCapacity??MISSILE_GAS_CAPACITY) : 0, initialCapacity: barrage.gasCapacity??MISSILE_GAS_CAPACITY };
 }
 export function landBarrageSector(field, missile, now) {

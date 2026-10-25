@@ -31,12 +31,12 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   await page.locator('#ship-systems-toggle').click();await page.locator('#ship-contact').click();await page.locator('#world-canvas').focus();
   if(mobile)await page.locator('#submarine-dive').click();else await page.keyboard.press('ControlLeft');
   await expect.poll(async()=>(await sub()).depth,{timeout:4500}).toBe('submerged');
-  await expect(page.locator('#submarine-battery')).toContainText('SUBMERGED');await expect(page.locator('#ship-fire')).toBeDisabled();await expect(page.locator('#ship-ramp')).toBeDisabled();
+  await expect(page.locator('#submarine-battery')).toContainText('SUBMERGED');await expect(page.locator('#ship-ramp')).toBeDisabled();
   const submergedId=(await sub()).id;expect((await state(peer)).combat.enemies.every(e=>e.targetId!==submergedId&&!e.attack)).toBeTruthy();
   await page.locator('#world-canvas').focus();for(let i=0;i<10;i++)await page.keyboard.press('+');
   await page.screenshot({path:`docs/previews/submarine-submerged-${mobile?'mobile':'desktop'}.png`});
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
-  await page.locator('#ship-systems-toggle').click();expect((await sub()).depth).toBe('submerged');expect((await sub()).diveBattery).toBeLessThan(30);
+  await page.locator('#ship-systems-toggle').click();expect((await sub()).depth).toBe('submerged');expect((await sub()).diveBattery).toBeLessThan(300);
   await page.locator('#world-canvas').focus();if(mobile)await page.locator('#submarine-surface').click();else await page.keyboard.press('Space');
   await expect.poll(async()=>(await sub()).depth,{timeout:4500}).toBe('surfaced');expect((await state(peer)).combat.barrages).toHaveLength(0);
   // Restore the same orbital aiming scale after page reload.
@@ -47,7 +47,7 @@ for(const mobile of [false,true])test(`surface submarine deployment, missiles an
   await page.screenshot({path:`docs/previews/submarine-aim-${mobile?'mobile':'desktop'}.png`});await page.locator('#ship-fire').click();
   await expect.poll(async()=>(await state(peer)).combat.barrages.length,{intervals:[50]}).toBe(1);const salvo=(await state(peer)).combat.barrages[0];expect(salvo.missiles).toHaveLength(6);expect(salvo.weapon).toBe(mobile?'INCENDIARY':'GAS');expect(salvo.box).toMatchObject({width:8,height:6});
   await page.screenshot({path:`docs/previews/submarine-launch-${mobile?'mobile':'desktop'}.png`});
-  await page.locator('#world-canvas').focus();await page.keyboard.down('w');await page.waitForTimeout(250);expect((await sub()).x).toBe(61.5);
+  await page.locator('#world-canvas').focus();await page.keyboard.down('w');await expect.poll(async()=>(await sub()).x,{timeout:2500}).toBeLessThan(61.5);
   await expect.poll(async()=>(await sub()).x,{timeout:3500,intervals:[100]}).toBeLessThan(59);await page.keyboard.up('w');await page.screenshot({path:`docs/previews/submarine-flight-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await state(peer)).combat.fields[0]?.sectors.length,{timeout:12000,intervals:[100]}).toBe(6);await page.waitForTimeout(1000);
   expect((await sub()).reload).toBeGreaterThan(0);await page.screenshot({path:`docs/previews/submarine-field-${mobile?'mobile':'desktop'}.png`});

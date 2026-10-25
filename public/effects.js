@@ -149,6 +149,13 @@ export class CombatEffects {
   drawGround(c, clock, layer = null) {
     for (const mark of this.marks) {
       if (layer && mark.kind !== layer) continue;
+      if(mark.kind==='mac-blood'){
+        c.save();c.translate(mark.x*this.tile,mark.y*this.tile);c.rotate(mark.angle||0);
+        // A directional stain beyond the biological hit; the actual corpse is separate.
+        ellipse(c,0,-this.tile*.6,this.tile*.16,this.tile*.7,'#633d5280',-.12);
+        for(let i=0;i<7;i++){const offset=Math.sin(mark.id+i*2.4);ellipse(c,offset*this.tile*.2,-this.tile*(.25+i*.18),this.tile*(.025+(i%3)*.013),this.tile*.06,'#87496590',offset*.3);}
+        c.restore();continue;
+      }
       const image = (mark.kind === 'crater' ? this.craters : mark.charred ? this.charredRemains : this.remains)[mark.id % 4], size = mark.kind === 'crater' ? this.tile * (mark.size || 1.9) : this.tile * 1.35;
       const hit = this.hits.get(mark.id), age = hit ? Math.max(0, (clock - hit.born) / 350) : 1;
       c.save(); c.translate(mark.x * this.tile, mark.y * this.tile); c.rotate(mark.kind === 'remains' ? mark.angle || 0 : mark.id * 2.4);
@@ -161,18 +168,18 @@ export class CombatEffects {
       const age = (clock - shot.born) / 1000; if (age > .16) continue;
       c.save(); c.translate(shot.x * this.tile, shot.y * this.tile); c.rotate(shot.angle);
       if (shot.mount === 'artillery') { c.translate(0, -(78 * (.3 + .7 * Math.cos((shot.elevation ?? 75) * Math.PI / 180))) + 40); c.scale(1.3, 1.3); }
-      if (shot.weapon === 'LASER' || shot.weapon === 'MAGNETIC') {
+      if (shot.weapon === 'LASER' || shot.weapon === 'MAGNETIC' || shot.weapon === 'MAC') {
         const distance = Math.hypot(shot.endX - shot.x, shot.endY - shot.y) * this.tile;
         c.globalAlpha = Math.max(0, 1 - age / .16) * (this.reduced ? .65 : 1);
-        for (const [width, color] of (shot.weapon === 'MAGNETIC' ? [[5, '#79d9ff88'], [1.8, '#e4fcff']] : this.reduced ? [[2, '#ff6570']] : [[10, '#ff203c38'], [4, '#ff304e'], [1.5, '#fff0ed']])) {
+        for (const [width, color] of (['MAGNETIC','MAC'].includes(shot.weapon) ? [[shot.weapon==='MAC'?9:5, '#79d9ff88'], [2, '#e4fcff']] : this.reduced ? [[2, '#ff6570']] : [[10, '#ff203c38'], [4, '#ff304e'], [1.5, '#fff0ed']])) {
           c.lineWidth = width; c.strokeStyle = color; c.beginPath(); c.moveTo(0, -Math.min(24, distance)); c.lineTo(0, -distance); c.stroke();
         }
         c.restore(); continue;
       }
-      if (['FLAME', 'HEAVY_FLAME'].includes(shot.weapon)) { c.restore(); continue; }
+      if ((shot.mount?.startsWith('jet-')||shot.mount?.startsWith('air-gunship-')) || ['FLAME', 'HEAVY_FLAME'].includes(shot.weapon)) { c.restore(); continue; }
       if (shot.mount === 'naval-main') c.translate(0,32);
       if (['APCR','NAVAL_APCR'].includes(shot.weapon)) {
-        if (shot.mount === 'naval-secondary') c.translate(0,7);
+        if (shot.mount === 'naval-secondary') c.translate(0,shot.muzzleAtTip?30:7);
         if (shot.mount === 'coax') c.translate(10, 0);
         c.globalAlpha = Math.max(0, 1 - age / .085) * (this.reduced ? .4 : .8);
         c.fillStyle = '#e9ca85'; c.beginPath(); c.moveTo(-2, -24); c.lineTo(-4, -30); c.lineTo(0, -37); c.lineTo(3, -29); c.lineTo(2, -24); c.fill(); c.restore(); continue;

@@ -1,4 +1,5 @@
 import { longitude, latitude, projectPoint, surfacePoint } from './planet.js';
+import { terrainColor } from './terrain-rules.js';
 import { settlements } from './settlement.js';
 
 export function planetUI({ state, stop, visit }) {
@@ -20,7 +21,7 @@ export function planetUI({ state, stop, visit }) {
       const nx = (x + .5 - mid) / radius, ny = (mid - y - .5) / radius, i = (y * n + x) * 4;
       const p = surfacePoint(nx, ny, world.width, world.height, lon, lat);
       if (!p) { bytes[i + 3] = 0; continue; }
-      const index = Math.floor(p.y) * world.width + Math.floor(p.x), color = palette[floors.has(index) ? 4 : world.terrain[index]] || palette[0];
+      const index = Math.floor(p.y) * world.width + Math.floor(p.x),kind=floors.has(index)?4:world.terrain[index],hex=terrainColor(world,Math.floor(p.x),Math.floor(p.y),kind),color=world.template==='vesper-v1'?[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)):palette[kind]||palette[0];
       const z = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)), light = .38 + .62 * Math.max(0, -.3 * nx + .4 * ny + .85 * z);
       for (let k = 0; k < 3; k++) bytes[i + k] = Math.min(255, color[k] * light + (1 - z) ** 4 * [9, 30, 46][k]);
       bytes[i + 3] = 255;

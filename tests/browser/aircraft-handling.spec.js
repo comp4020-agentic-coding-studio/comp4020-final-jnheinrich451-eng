@@ -20,8 +20,8 @@ for(const mobile of [false,true])test('manual flight instruments and bank / '+(m
   await hold('w','up',900);await expect.poll(async()=>(await state()).speed).toBeGreaterThan(7);
   await hold('d','right',300);await expect.poll(async()=>(await state()).angle).toBeGreaterThan(.01);await expect.poll(async()=>(await state()).bank).toBe(0);
   const level=await state();await page.waitForTimeout(400);expect((await state()).angle).toBeCloseTo(level.angle,5);expect((await state()).speed).toBeCloseTo(level.speed,3);
-  await expect(page.locator('#aircraft-controls')).toBeHidden();await page.locator('#flight-systems-toggle').click();await expect(page.locator('#aircraft-controls')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('#aircraft-controls')).toBeHidden();
-  await page.waitForTimeout(250);await expect(page.locator('#aircraft-controls')).toBeHidden();await page.keyboard.press('u');await expect(page.locator('#aircraft-controls')).toBeVisible();await page.locator('#flight-systems-close').click();
+  await expect(page.locator('#aircraft-controls')).toBeHidden();await page.locator('#flight-systems-toggle').click();await expect(page.locator('#aircraft-controls')).toBeHidden();await page.keyboard.press('c');await expect(page.locator('#aircraft-controls')).toBeHidden();
+  await page.waitForTimeout(250);await expect(page.locator('#aircraft-controls')).toBeHidden();await page.keyboard.press('u');await expect(page.locator('#aircraft-controls')).toBeHidden();await page.keyboard.press('c');
   await page.screenshot({path:info.outputPath('flight-meter.png')});
   const saved=new DatabaseSync(path.join(dir,'world.sqlite'),{readOnly:true});expect(JSON.parse(saved.prepare('SELECT value FROM airbases WHERE id=?').get('base').value).aircraft.bank).toBeUndefined();saved.close();
   await page.reload();await expect(page.locator('#connection')).toContainText('live');await expect(page.locator('#flight-meter')).toBeVisible();expect((await state()).bank||0).toBe(0);await expect(page.locator('#aircraft-controls')).toBeHidden();

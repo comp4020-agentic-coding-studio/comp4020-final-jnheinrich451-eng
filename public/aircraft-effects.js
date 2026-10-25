@@ -1,3 +1,6 @@
+import {isAirGunship} from './air-gunship.js';
+import {gunshipShape,gunshipDetails,drawGunshipAim} from './air-gunship-effects.js';
+import {fixedWingShape, fixedWingDetails, takeoffDust} from './fixed-wing-art.js';
 import { isHelicopter, isHelipad } from './helicopter.js';
 import { drawHelipad, drawHelicopter, drawHelicopterAim } from './helicopter-effects.js';
 import { AIR_HULL, aircraftHealth, AIR, airbaseGate, parkingPoint, bombPattern, bombError } from './aircraft.js';
@@ -11,7 +14,7 @@ import { bomberPayload, payloadProfile, bomberDive } from './bomber-payloads.js'
 export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  if(b.destroyed&&!ghost)return drawRuinedAirfield(c,b,T,zoom,isHelipad(b));
  if(isHelipad(b))return drawHelipad(c,b,T,zoom,ghost,valid);
- c.save();c.translate(b.x*T,b.y*T);c.globalAlpha=ghost?.65:1;
+ c.save();c.translate(b.x*T,b.y*T);if(ghost)c.globalAlpha*=.65;
  c.fillStyle='#506460';c.fillRect(0,0,AIR.width*T,AIR.height*T);c.strokeStyle=ghost?(valid?'#f4d18b':'#ef867d'):'#b8bfa7';c.lineWidth=2/zoom;c.strokeRect(0,0,AIR.width*T,AIR.height*T);
  c.fillStyle='#293f45';c.fillRect(.5*T,.5*T,3*T,9*T);c.strokeStyle='#dbd6b4';c.lineWidth=.06*T;c.strokeRect(.7*T,.7*T,2.6*T,8.6*T);
  c.setLineDash([.6*T,.5*T]);c.beginPath();c.moveTo(2*T,T);c.lineTo(2*T,9*T);c.stroke();c.setLineDash([]);
@@ -22,7 +25,7 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.fillStyle='#96aa98';c.fillRect(4*T,6*T,2*T,3.5*T);c.fillStyle='#f2d693';c.beginPath();c.arc(5.5*T,8.5*T,.27*T,0,Math.PI*2);c.fill();
  c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText('AIRBASE / '+(!b.aircraft||['destroyed','vacant'].includes(b.aircraft.state)?'FREE RUNWAY':aircraftName(b.aircraft).toUpperCase()),0,-7/zoom);c.restore();
 }
-export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
+export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false,firing=0,clock=0){
  if(!p||['destroyed','vacant'].includes(p.state))return;
  if(p.state==='delivering'&&p.deliveryMethod==='factory'){
   const duration=p.assemblyDuration||60,reveal=1-p.remaining/duration;
@@ -31,30 +34,33 @@ export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false){
   c.save();c.fillStyle='#edcd83';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('ASSEMBLING '+Math.ceil(p.remaining)+'s',p.x*T,(p.y-2)*T);c.restore();return;
  }
  if(p.state==='delivering'){
-  const time=POD.duration-p.remaining,fall=Math.max(0,1-time/POD.impact),open=Math.max(0,Math.min(1,(time-POD.unfold)/1.4));
+  const time=POD.duration-p.remaining,fall=Math.max(0,1-time/POD.impact),open=Math.max(0,Math.min(1,(time-POD.unfold)/POD.panelDuration));
   c.save();c.translate(p.x*T,p.y*T);c.strokeStyle='#edd496';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);c.strokeRect(-2*T,-2*T,4*T,4*T);c.setLineDash([]);
   c.fillStyle='#172b3555';c.beginPath();c.ellipse(0,0,T,T*.5,0,0,Math.PI*2);c.fill();
   if(!reduced)c.translate(fall*5*T,-fall*9*T);
   for(const side of [-1,1]){c.fillStyle='#53676e';c.strokeStyle='#e9c582';c.fillRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);c.strokeRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);}
+  // Aircraft arrive on an existing runway/deck: folded end caps stay inside
+  // that delivery apron rather than laying permanent flooring over the runway.
+  for(const side of [-1,1]){const y=side<0?-1.5-.5*open:1.5;c.fillStyle='#687c7c';c.strokeStyle='#e9c582';c.fillRect(-T,y*T,2*T,.5*T*open);c.strokeRect(-T,y*T,2*T,.5*T*open);}
+  if(open<1){droneArt ||= new ConstructionEffects(T);c.save();c.globalAlpha=1-open;c.scale(2,3);droneArt.box(c,Math.max(0,time-POD.impact));c.restore();}
   c.fillStyle='#efdbab';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText(time<POD.impact?'ORBITAL AIRCRAFT':'CAPSULE OPENING',0,2*T);c.restore();return;
  }
  if(isHelicopter(p))return drawHelicopter(c,p,T,zoom,mine,reduced);
  const airborne=p.state!=='parked',advance=p.state==='flying'?Math.min(age,.1)*p.speed:0,x=p.x+Math.sin(p.angle)*advance,y=p.y-Math.cos(p.angle)*advance;
- const dive=isAttackJet(p)?0:bomberDive(p);
+ const dive=isAttackJet(p)||isAirGunship(p)?0:bomberDive(p);
+ takeoffDust(c,p,T,clock,reduced);
  c.save();c.translate(x*T,y*T);c.rotate(p.angle);
- const shape=()=>{c.beginPath();c.moveTo(0,-1.8*T);c.lineTo(.23*T,-.5*T);c.lineTo((isAttackJet(p)?1.6:2)*T,.8*T);c.lineTo((isAttackJet(p)?1.5:1.9)*T,1.1*T);c.lineTo(.25*T,.7*T);c.lineTo(.2*T,1.4*T);c.lineTo(.7*T,1.75*T);c.lineTo(-.7*T,1.75*T);c.lineTo(-.2*T,1.4*T);c.lineTo(-.25*T,.7*T);c.lineTo((isAttackJet(p)?-1.5:-1.9)*T,1.1*T);c.lineTo((isAttackJet(p)?-1.6:-2)*T,.8*T);c.lineTo(-.23*T,-.5*T);c.closePath();};
+ const shape=()=>isAirGunship(p)?gunshipShape(c,T):fixedWingShape(c,T,isAttackJet(p));
  if(airborne){c.save();c.translate((.45-.35*dive)*T,(.6-.45*dive)*T);c.fillStyle='#102c3b55';shape();c.fill();c.restore();}
  // Foreshortened nose and a tightening shadow convey pitch in overhead 2D.
  // No collision altitude, extra server entities or anti-air immunity.
  if(!reduced&&dive>0){c.scale(1-.08*dive,1-.3*dive);c.strokeStyle='#dce9dc66';c.lineWidth=1/zoom;for(const side of [-1,1]){c.beginPath();c.moveTo(side*1.7*T,.7*T);c.quadraticCurveTo(side*1.9*T,1.7*T,side*2*T,(2.3+dive)*T);c.stroke();}}
  if(airborne&&!reduced){const bank=Math.max(-1,Math.min(1,p.bank||0));c.transform(1-.22*Math.abs(bank),.08*bank,0,1,0,0);}
- c.fillStyle=isAttackJet(p)?'#798d80':mine?'#afbdc3':'#7897a0';c.strokeStyle=mine?'#f4d18b':'#cbe0df';c.lineWidth=1.3/zoom;shape();c.fill();c.stroke();
- if(isAttackJet(p)){c.fillStyle='#243b3d';c.fillRect(-.07*T,-2.05*T,.14*T,.55*T);for(const x of [-.5,.5]){c.fillRect((x-.18)*T,.15*T,.36*T,.9*T);c.fillStyle='#c2ccaf';c.fillRect((x-.12)*T,.2*T,.24*T,.6*T);c.fillStyle='#243b3d';}}
- c.fillStyle='#294a5a';c.beginPath();c.ellipse(0,-.8*T,.13*T,.32*T,0,0,Math.PI*2);c.fill();
- for(const side of [-1,1]){c.fillStyle='#344c56';c.fillRect(side*.58*T-.1*T,.25*T,.2*T,.8*T);if(airborne){c.fillStyle='#e9c38e';c.fillRect(side*.58*T-.065*T,1.05*T,.13*T,.26*T);}}
- c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+(isAttackJet(p)?'ATTACK JET':'BOMBER')+' / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.fillStyle='#273539';c.fillRect((x-1)*T,(y+2.3)*T,2*T,3/zoom);c.fillStyle=aircraftHealth(p)<60?'#ef927e':'#b7dbb1';c.fillRect((x-1)*T,(y+2.3)*T,2*T*aircraftHealth(p)/AIR_HULL.health,3/zoom);c.restore();
+ if(isAirGunship(p))gunshipDetails(c,p,T,zoom,mine,clock,reduced,firing);else fixedWingDetails(c,p,T,zoom,isAttackJet(p),mine,clock,reduced,firing);
+ c.restore();c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillStyle='#e9dfb9';c.fillText((mine?'YOU / ':'')+aircraftName(p).toUpperCase()+' / '+p.state.toUpperCase(),x*T,(y+2.1)*T);c.fillStyle='#273539';c.fillRect((x-1)*T,(y+2.3)*T,2*T,3/zoom);c.fillStyle=aircraftHealth(p)<60?'#ef927e':'#b7dbb1';c.fillRect((x-1)*T,(y+2.3)*T,2*T*aircraftHealth(p)/AIR_HULL.health,3/zoom);c.restore();
 }
 export function drawBombPrediction(c,world,p,base,T,zoom,obscured=point=>false){
+ if(isAirGunship(p))return drawGunshipAim(c,world,p,T,zoom);
  if(isHelicopter(p))return drawHelicopterAim(c,world,p,T,zoom);
  if(isAttackJet(p)){
   const target=strafePoint(p);c.save();c.strokeStyle=strafeError(world,p)?'#dc927e':'#f4cf83';c.lineWidth=1.5/zoom;c.setLineDash([6/zoom,5/zoom]);c.beginPath();c.moveTo(p.x*T,p.y*T);c.lineTo(target.x*T,target.y*T);c.stroke();c.setLineDash([]);

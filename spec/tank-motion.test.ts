@@ -19,7 +19,7 @@ it('accelerates, brakes within a tank length, and reverses more slowly without t
   for (let i = 0; i < 10; i++) driveTank(p, { x: 0, y: 1 }, .1, clear);
   expect(p.driveSpeed).toBe(-TANK_DRIVE.reverse); expect(p.angle).toBeCloseTo(0); expect(p.turret).toBe(1);
 });
-it('brakes before reversing, limits hull turns and normalizes diagonal demand', () => {
+it('brakes before reversing, limits hull turns and keeps steering independent of throttle', () => {
   const p = { ...body(), driveSpeed: 3 };
   driveTank(p, { x: 0, y: 1 }, .1, clear);
   expect(p.driveSpeed).toBeGreaterThan(0); expect(p.y).toBeLessThan(10.5);
@@ -44,7 +44,8 @@ it('turns more tightly from rest and brakes through a fast corner without sidewa
   expect(fast.y).toBeLessThan(10.3);expect(fast.x).toBeLessThan(10.55);
   expect(fast.turret).toBe(1);
   for(let i=0;i<30;i++)driveTank(fast,{x:1,y:0},.1,clear);
-  expect(fast.angle).toBeCloseTo(Math.PI/2);expect(fast.driveSpeed).toBeCloseTo(TANK_DRIVE.speed);
+  expect(fast.driveSpeed).toBe(0);
+  const parked={x:fast.x,y:fast.y},angle=fast.angle;driveTank(fast,{x:1,y:0},.1,clear);expect(fast.x).toBe(parked.x);expect(fast.y).toBe(parked.y);expect(fast.angle).not.toBe(angle);
 });
 it('gives the same trajectory at 10 Hz and 40 Hz', () => {
   const a = body(), b = body();
@@ -61,11 +62,11 @@ it('crosses completed three-wide bridge flooring and stops before unfinished wat
   world.logistics.bridges.push(bridge);
   const p = { ...body(), angle: Math.PI / 2 };
   const canDrive = (x: number, y: number) => canStand(world, [], x, y, 'tank', TANK.radius);
-  for (let i = 0; i < 45; i++) driveTank(p, { x: 1, y: 0 }, .1, canDrive);
+  for (let i = 0; i < 45; i++) driveTank(p, { x: 0, y: -1 }, .1, canDrive);
   expect(p.x).toBeGreaterThan(18.5);
   world.logistics.bridges = [];
   const stopped = { ...body(), angle: Math.PI / 2 };
-  for (let i = 0; i < 20; i++) driveTank(stopped, { x: 1, y: 0 }, .1, canDrive);
+  for (let i = 0; i < 20; i++) driveTank(stopped, { x: 0, y: -1 }, .1, canDrive);
   expect(stopped.x).toBeLessThan(12 - TANK.radius); expect(stopped.driveSpeed).toBe(0);
 });
 it('keeps recoil cosmetic, uses the accepted shot bearing and respects reduced motion', () => {
@@ -76,4 +77,11 @@ it('keeps recoil cosmetic, uses the accepted shot bearing and respects reduced m
   effects.reduced = true;
   expect(effects.tankRecoil('tank', 125)).toMatchObject({ x: -0, y: 0 });
   expect(effects.tankRecoil('tank', 300).barrel).toBe(0);
+});
+
+it.each([0,Math.PI/2,Math.PI,-Math.PI/2])('W drives along saved heading %s and S reverses without aiming the hull',angle=>{
+ const p={...body(),angle},start={...p};for(let i=0;i<15;i++)driveTank(p,{x:0,y:-1},.1,clear);
+ const forward=(p.x-start.x)*Math.sin(angle)-(p.y-start.y)*Math.cos(angle),sideways=(p.x-start.x)*Math.cos(angle)+(p.y-start.y)*Math.sin(angle);
+ expect(forward).toBeGreaterThan(2);expect(sideways).toBeCloseTo(0);expect(p.turret).toBe(1);
+ for(let i=0;i<30;i++)driveTank(p,{x:0,y:1},.1,clear);expect(p.driveSpeed).toBe(-TANK_DRIVE.reverse);expect(Math.cos(p.angle-angle)).toBeCloseTo(1);
 });

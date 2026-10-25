@@ -73,10 +73,10 @@ it('lures never require crossing fire and outer heat slows without lethal contac
 it('caps fields including incoming shells and freezes ammunition at launch without clearing it on a new drill', () => {
   const combat = createCombat(world());
   expect(combat.lob({ id: 'gun', x: 10, y: 12 }, 20, 12, null, 'INVALID')).toBeTruthy();
-  for (let i = 0; i < 8; i++) expect(combat.lob({ id: 'gun', x: 10, y: 12 }, 20, 12, null, 'GAS')).toBeNull();
+  for (let i = 0; i < 9; i++) expect(combat.lob({ id: 'gun', x: 10, y: 12 }, 20, 12, null, 'GAS')).toBeNull();
   expect(fieldCapacityError([], combat.snapshot().salvos, 'GAS')).toContain('limit');
-  combat.start([]); expect(combat.snapshot().salvos).toHaveLength(8);
-  combat.tick(2, []); expect(combat.snapshot().fields).toHaveLength(8);
+  combat.start([]); expect(combat.snapshot().salvos).toHaveLength(9);
+  combat.tick(2, []); expect(combat.snapshot().fields).toHaveLength(9);
   expect(combat.lob({ id: 'gun', x: 10, y: 12 }, 20, 12, null, 'GAS')).toContain('limit');
   expect(combat.lob({ id: 'gun', x: 10, y: 12 }, 20, 12, null, 'HE')).toBeNull();
   const fires = Array.from({ length: 4 }, (_, i) => makeField(20 + i, 'INCENDIARY', 10, 10, 0));

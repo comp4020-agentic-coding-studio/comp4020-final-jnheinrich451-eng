@@ -8,7 +8,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
-for(const method of ['key','button'])test(`direct airbase repair by ${method} keeps E for tanks`,async({browser})=>{
+for(const mobile of [false,true])test(`permanent ruins keep E for tanks and expose no repair action on ${mobile?'phone':'desktop'}`,async({browser})=>{
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-airbase-repair-'));let app=createApp({dataDir:dir,logSink:()=>{}}),context;await app.close();
  const db=new DatabaseSync(path.join(dir,'world.sqlite')),token=randomUUID();
  const w={...createWorld(),version:2,width:128,height:96,terrain:Array(128*96).fill(2),sites:[]};
@@ -27,29 +27,28 @@ for(const method of ['key','button'])test(`direct airbase repair by ${method} ke
  app=createApp({dataDir:dir,logSink:()=>{}});
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
-  context=await browser.newContext({viewport:{width:1440,height:900}});await context.addCookies([{name:'frontier',value:token,url}]);
+  context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080}});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   const state=()=>page.evaluate(async()=>(await(await fetch('/api/world')).json()));
-  await expect(page.locator('.service-rebuild')).toBeEnabled();
-  await page.locator('.service-close').click();await page.locator('#world-canvas').focus();await page.keyboard.press('e');
+  await expect(page.locator('#facility-service')).toBeHidden();
+  await page.locator('#world-canvas').focus();await page.keyboard.press('e');
   await expect.poll(async()=>(await state()).me.body).toBe('rover');
-  expect((await state()).logistics.groundSupplies).toBe(300);
   await page.keyboard.press('t');expect((await state()).logistics.jobs.near).toBeUndefined();
   await page.keyboard.press('e');await expect.poll(async()=>(await state()).me.body).toBe('robot');
-  await expect(page.locator('#aircraft-interact')).toHaveText('Rebuild airbase / 150 GND / T');
-  await expect(page.locator('#aircraft-interact')).toBeEnabled();
-  if(method==='key'){await page.locator('#world-canvas').focus();await page.keyboard.down('t');await page.keyboard.down('t');await page.keyboard.up('t');}
-  else await page.locator('#aircraft-interact').click();
-  await expect(page.locator('#logistics-dialog')).toBeHidden();
-  await expect(page.locator('#aircraft-interact')).toContainText('Rebuilding /');
-  await expect(page.locator('#aircraft-interact')).toBeDisabled();
-  await expect.poll(async()=>(await state()).airbases.find(b=>b.id==='near').destroyed,{timeout:12000}).toBe(false);
-  let s=await state();expect(s.logistics.groundSupplies).toBe(150);expect(s.airbases.find(b=>b.id==='far').destroyed).toBe(true);
-  await page.keyboard.press('Escape');await page.reload();await expect(page.locator('#connection')).toContainText('live');
-  const build=page.locator('#facility-service [data-kind="bomber"]');await expect(build).toBeEnabled();await build.click();
-  await expect.poll(async()=>(await state()).airbases.some(b=>b.aircraft.state==='delivering')).toBe(true);
-  s=await state();expect(s.logistics.groundSupplies).toBe(125);expect(errors).toEqual([]);
+  await page.locator('#world-canvas').focus();await page.keyboard.press('l');
+  await expect(page.locator('#logistics-dialog')).toBeVisible();
+  await expect(page.locator('#logistics-repair-help')).toContainText('cannot be repaired');
+  await expect(page.locator('#logistics-rebuild')).toHaveText('Locate ruin');
+  await page.locator('#logistics-repair-help').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'.local/permanent-ruins-'+(mobile?'phone':'desktop')+'.png'});
+  await page.locator('#logistics-rebuild').click();await expect(page.locator('#logistics-dialog')).toBeHidden();
+  await page.screenshot({path:'.local/permanent-ruins-map-'+(mobile?'phone':'desktop')+'.png'});
+  await page.locator('#world-canvas').focus();await page.keyboard.press('l');
+  await page.keyboard.press('Escape');await expect(page.locator('#logistics-dialog')).toBeHidden();
+  await page.setViewportSize(mobile?{width:844,height:390}:{width:1440,height:900});
+  await page.reload();await expect(page.locator('#connection')).toContainText('live');
+  const s=await state();expect(s.airbases.every(b=>b.destroyed)).toBe(true);expect(s.logistics.groundSupplies).toBe(300);expect(errors).toEqual([]);
  }finally{
   await context?.close();await app.close();
   if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-airbase-repair-'))throw Error('Unexpected test path');
