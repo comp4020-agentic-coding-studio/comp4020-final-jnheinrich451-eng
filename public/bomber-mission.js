@@ -153,6 +153,13 @@ export function tickMission(world,base,dt,release){
   if(['return','cruise'].includes(m.phase))target=mountainWaypoint(world,p,target);
   const desired=Math.atan2(target.x-p.x,-(target.y-p.y)),delta=angleDelta(p.angle,desired),turn=AIR.turnSpeed*AIR.minSpeed/p.speed;
   tickAircraft(world,base,{steer:Math.max(-1,Math.min(1,delta/(turn*step))),throttle:-1,automatic:true},step);
+  // Publish parking and release the mission reservation together, even when
+  // touchdown happens on the last substep. The server may free the pilot and
+  // checkpoint immediately after this call, before another tick can run.
+  if(p.state==='parked'){
+   m.phase=p.rearm>0?'service':'complete';
+   if(m.phase==='complete')break;
+  }
  }
  return true;
 }

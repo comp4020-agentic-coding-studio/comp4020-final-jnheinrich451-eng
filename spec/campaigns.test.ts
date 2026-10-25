@@ -822,9 +822,10 @@ it('returns a departed manual pilot to base, frees the saved seat and lets a tea
  await h.restart();await owner.request('/api/campaigns/enter',{id});state=(await owner.request(worldRoute(id))).data;const pose=state.airbases[0].aircraft.x;
  await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.x).toBe(pose);await h.connect(owner,id);
  await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.occupant,{timeout:18000}).toBeNull();
+ expect((await owner.request(worldRoute(id))).data.airbases[0].aircraft.mission.phase).toBe('complete');
  await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);expect((await friend.request(worldRoute(id))).data.me.body).toBe('robot');
  await expect.poll(async()=>(await owner.request(worldRoute(id))).data.airbases[0].aircraft.rearm,{timeout:10000}).toBe(0);
- expect((await owner.request(worldRoute(id,'aircraft/board'),{id:'manual-base'})).status).toBe(200);state=(await owner.request(worldRoute(id))).data;expect(state.airbases).toHaveLength(1);expect(state.me.body).toBe('aircraft');expect(state.combat.barrages).toHaveLength(0);
+ const boarding=await owner.request(worldRoute(id,'aircraft/board'),{id:'manual-base'});expect(boarding.status,JSON.stringify(boarding.data)).toBe(200);state=(await owner.request(worldRoute(id))).data;expect(state.airbases).toHaveLength(1);expect(state.me.body).toBe('aircraft');expect(state.combat.barrages).toHaveLength(0);
 }),35000);
 
 it('checkpoints an emergency return wreck and an offline pilot loss together',async()=>fixture(async h=>{

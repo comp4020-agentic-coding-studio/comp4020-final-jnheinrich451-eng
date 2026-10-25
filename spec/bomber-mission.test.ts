@@ -1,7 +1,7 @@
 import {recoverAircraft,unattendedAircraft,RECOVERY_GRACE} from '../public/bomber-mission.js';
 import {tickAntiAir} from '../public/anti-air.js';
 import {it,expect} from 'vitest';
-import {newAirbase,AIR,bombError,launchError} from '../public/aircraft.js';
+import {newAirbase,AIR,bombError,launchError,launchAircraft} from '../public/aircraft.js';
 import {strikePlan,validateMission,assignMission,tickMission,missionActive,missionError,abortMission} from '../public/bomber-mission.js';
 import {bombReleaseDuration,payloadProfile} from '../public/bomber-payloads.js';
 import {createCombat} from '../public/combat.js';
@@ -9,6 +9,18 @@ import {createWorld} from '../public/world.js';
 function fixture(){const b:any=newAirbase('base','owner',48,48),w:any={...createWorld(),width:128,height:96,terrain:Array(128*96).fill(2),airbases:[b],sites:[],cores:[],artillery:[],tanks:[],ships:[],rails:[]};return{b,w,p:b.aircraft};}
 function run(w:any,b:any,release:(p:any)=>any,until=()=>false){for(let t=0;t<260&&missionActive(b.aircraft)&&!until();t+=.05)tickMission(w,b,.05,release);}
 const release=(p:any)=>{p.bombCooldown=8;p.releaseRemaining=bombReleaseDuration(payloadProfile('HE'));return null;};
+it.each(['bomber','attack-jet','air-gunship'])('finishes %s recovery in the exact tick it parks, including after restoring',kind=>{
+ for(const dt of [.025,.1]){
+  const {w,b,p}=fixture();Object.assign(p,{kind,state:'flying',speed:6,leftBase:true});
+  recoverAircraft(b,'landing-boundary');
+  Object.assign(p,{state:'landing',remaining:dt,landingX:p.x,landingY:p.y});
+  let releases=0;tickMission(w,b,dt,()=>{releases++;return null;});
+  expect(p.state).toBe('parked');expect(p.mission.phase).toBe('complete');expect(missionActive(p)).toBe(false);expect(releases).toBe(0);
+  // No extra simulation tick should be needed before the next pilot boards.
+  const restored=JSON.parse(JSON.stringify(b));expect(launchAircraft(restored.aircraft)).toBeNull();
+  expect(restored.aircraft.state).toBe('takeoff');
+ }
+});
 it('flies a real two-row run, retains pilot independence and returns for service',()=>{
  const {w,b,p}=fixture(),plan=strikePlan(w,{x:85,y:40},1);expect(validateMission(w,b,plan)).toBeNull();assignMission(b,plan,'test-sortie','caller');let shots=0;
  run(w,b,plane=>{expect(bombError(w,plane)).toBeNull();expect(Math.hypot(plane.x-plan.release!.x,plane.y-plan.release!.y)).toBeLessThan(1);shots++;return release(plane);});
