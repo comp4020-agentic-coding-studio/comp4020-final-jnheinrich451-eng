@@ -83,8 +83,10 @@ test('a/b/d/e/f: late join, rendered propagation, real tab close/return and room
     expect((await outsider.request.get(base + route + '/events')).status()).toBe(403);
     const denied = await outsider.request.post(base + route + '/buildings', { data: { x: 32, y: 22 }, headers: { Origin: base } });
     expect(denied.status()).toBe(403);
+    // Each orbital sentry has a five-tile cross. Keep the second pod clear of
+    // both the first reservation and its lasting centre; adjacent 31:22 overlaps.
     const started = performance.now();
-    const second = (await post(owner, route + '/buildings', { x: 31, y: 22 })).building;
+    const second = (await post(owner, route + '/buildings', { x: 34, y: 22 })).building;
     // b: a peer's rendered HUD changes, as well as its received snapshot.
     await expect(peer.locator('#building-count')).toHaveText('3 FOUNDATIONS');
     await peer.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));

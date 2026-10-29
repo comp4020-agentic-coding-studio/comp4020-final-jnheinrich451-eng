@@ -93,6 +93,30 @@ part of this stage.
 
 ## Verification
 
+### Direct station launch control, 26 October 2026
+
+The launch-station interaction now sends its stored cargo directly. On foot, the
+existing bottom stripe reads **Send to orbit / amount SUP / E**; click it or press
+E. The recycler's nearby-station button performs the same action. Neither opens
+the full Field logistics dialog for a rocket launch. The shared logistics overview
+remains available through L or the supply balance for remote recycler orders and
+other management.
+
+The control shows empty cargo, full ORB storage, launch in progress and the rocket
+return countdown. It disables while disconnected, paused, unavailable or awaiting
+the request. Duplicate clicks share a pending guard. Server launch admission,
+five-second delivery, cargo preservation, return cycle and saved shipments are
+unchanged. Local launching keeps the camera on the battlefield to watch the rocket.
+
+Browser coverage exercises robot keyboard and phone launch, empty-to-loaded
+recycler delivery, full orbital storage, duplicate input, one shipment credit and
+reload during return. The existing recycler-driving check now uses the direct
+launch control instead of opening the dialog.
+
+Local validation passed: six desktop/phone browser cases, 33 logistics and supplied
+invariant tests, TypeScript, and scoped whitespace checks. Both ready-state
+screenshots were inspected. This UI change has not been deployed to Fly.
+
 - Domain and HTTP: spec/logistics.test.ts plus existing combat/persistence suites.
 - Campaign freeze/ownership: spec/campaigns.test.ts.
 - Driving: tests/browser/recycler-driving.spec.js (desktop E/WASD, phone buttons, collection, shipment, reload).

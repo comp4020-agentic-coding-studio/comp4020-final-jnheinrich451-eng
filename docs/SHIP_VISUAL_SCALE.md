@@ -1,5 +1,48 @@
 # Ship visual scale plan
 
+## Confirmation safety, 30 October 2026
+
+Dock confirmation now includes the exact displayed shore, orientation, berth and
+layout scale. If another player or enemy obstructs it before acceptance, the
+server returns 409 before charging instead of silently snapping to a different
+site. The player can review the updated preview and confirm again. Successful
+retries still return the existing dock, including after restart. The HTTP
+regression covers obstruction, no charge on rejection, malformed previews and
+once-only admission after a new preview. Legacy API callers without a preview
+retain their original admission behaviour; the current browser always sends one.
+
+## Coastal placement correction, 25 October 2026
+
+The old large-dock selector required a click exactly eight tiles offshore and
+seven entirely dry platform tiles. This made ordinary beach clicks fail and
+excluded stepped shorelines even with plenty of ocean space.
+
+New empty docks accept shore or nearby-water clicks. A bounded, deterministic
+search checks coastal anchors within 12 tiles of the click, preserving an exact
+valid offshore selection first. The 7 x 1 shore platform can span water gaps but
+must include clear land; its 7 x 12 offshore pier remains ocean-only. The full
+8 x 14 berth, carrier departure corridor and turning area are still validated.
+Inland waters, obstacles, occupied footprints and dock limits remain enforced.
+
+The browser shows the actual snapped platform, pier and reserved berth before
+confirmation, using the same placement function as the server. Its small preview
+cache clears on every received state. Saves retain canonical deployment geometry
+and the original click separately so retries, including after restart, return the
+same dock without another charge. Existing docks and terrain are not moved.
+The initial selector finds a nearby shoreline once, rather than repeating the
+neighbourhood search for every tile. Confirmed selections frame the complete dock
+and berth clear of the phone sheet. The catalogue specification column no longer
+changes tray height on hover, which could move the dock card out from under a click.
+
+Regression coverage includes beach and water clicks, stepped coasts in all four
+orientations, invalid and blocked sites, unchanged legacy geometry, actual HTTP
+admission, retry and restart. Desktop and phone naval checks use a shore click
+through the real deployment panel before building and restoring a carrier.
+Local checks passed: targeted dock/ship/support regressions, both supplied
+invariants, TypeScript, and browser checks at 1920 x 1080 and 390 x 844. Inspected
+both placement screenshots; localhost serves the current build. No deployment
+or Fly performance claim is made by these checks.
+
 ## Iowa silhouette, 24 October 2026
 
 Following the author's hull sketch and an overhead USS Iowa reference photo, the

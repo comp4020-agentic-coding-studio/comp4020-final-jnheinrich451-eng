@@ -33,7 +33,7 @@ for(const mobile of [false,true])test(`drive, park, reclaim and launch on ${mobi
     await expect.poll(async()=>(await state()).logistics.recyclers[0].speed).toBe(0);
     await expect.poll(async()=>(await state()).logistics.facilities[0].cargo,{timeout:15000}).toBe(188);
     await page.screenshot({path:`docs/previews/recycler-driving-${mobile?'mobile':'desktop'}.png`});
-    await page.locator('#recycler-uplink').click();await expect(page.locator('#logistics-dialog')).toBeVisible();await page.locator('#cargo-launch').click();
+    await expect(page.locator('#recycler-uplink')).toContainText('Send to orbit');await page.locator('#recycler-uplink').click();await expect(page.locator('#logistics-dialog')).not.toBeVisible();
     await expect.poll(async()=>(await state()).logistics.shipments,{timeout:7000}).toBe(1);
     await page.reload();await expect(page.locator('#recycler-controls')).toBeVisible();expect((await state()).me.recyclerId).toBe('r');
     await page.locator('#recycler-interact').click();await expect(page.locator('#recycler-controls')).not.toBeVisible();expect((await state()).me.body).toBe('robot');

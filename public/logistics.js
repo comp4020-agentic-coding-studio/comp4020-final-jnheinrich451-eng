@@ -5,6 +5,7 @@ import { dockRecords } from './shipyard.js';
 // All balance values for the first conquest economy live here. Server-owned;
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
+  groundReserve: 50, groundIncome: .4, multiplayerOrbitalDeduction: 100, multiplayerGroundDeduction: 15,
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
   rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
 export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, tank: 100, ship: 240,
@@ -29,9 +30,17 @@ export function emergencyTankError(world) {
   if (world.logistics.emergency > .001) return `Emergency HE tank ready in ${Math.ceil(world.logistics.emergency)}s.`;
   return null;
 }
-export function tickSupplies(state, dt) {
+export function supplyReserve(playerCount=1){
+  const players=Number.isFinite(playerCount)?Math.max(0,Math.floor(playerCount)):0,multiplayer=players>1;
+  return {players,orbital:Math.min(ECONOMY.capacity,players*ECONOMY.reserve-(multiplayer?ECONOMY.multiplayerOrbitalDeduction:0)),
+    ground:Math.min(ECONOMY.capacity,players*ECONOMY.groundReserve-(multiplayer?ECONOMY.multiplayerGroundDeduction:0))};
+}
+export function tickSupplies(state, dt, playerCount=1) {
+  if(!Number.isFinite(dt)||dt<=0)return;
+  const reserve=supplyReserve(playerCount);if(!reserve.players)return;
   state.time += dt;
-  if (state.supplies < ECONOMY.reserve) state.supplies = Math.min(ECONOMY.reserve, state.supplies + ECONOMY.income * dt);
+  if (state.supplies < reserve.orbital) state.supplies = Math.min(reserve.orbital, state.supplies + ECONOMY.income * dt);
+  if ((state.groundSupplies||0) < reserve.ground) state.groundSupplies = Math.min(reserve.ground, (state.groundSupplies||0) + ECONOMY.groundIncome * dt);
   state.emergency = Math.max(0, state.emergency - dt);
 }
 export function credit(state, amount, pool = 'supplies') {

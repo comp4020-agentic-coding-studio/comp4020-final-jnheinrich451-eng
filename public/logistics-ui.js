@@ -1,10 +1,37 @@
 import { dockRecords } from './shipyard.js';
 import { recoveryCores } from './survival.js';
-import { ECONOMY, COSTS, emergencyTankError, supportSources, salvageReceivers, readyFactory } from './logistics.js';
+import { ECONOMY, COSTS, emergencyTankError, supportSources, salvageReceivers, readyFactory, supplyReserve } from './logistics.js';
 import { airSize } from './helicopter.js';
 
 export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   const $=id=>document.getElementById(id), dialog=$('logistics-dialog');
+  let launching=false;
+  function launchStatus(stationId){
+    const {world,me,connected,paused}=state(),l=world?.logistics;
+    const station=l?.facilities.find(f=>f.id===stationId&&f.kind==='uplink');
+    const blocked=(label,reason)=>({disabled:true,label,reason});
+    if(!connected)return blocked('Send to orbit / Offline','Reconnect to send cargo.');
+    if(paused)return blocked('Send to orbit / Paused','Resume the battle to send cargo.');
+    if(!station||station.remaining>0||l.jobs?.[station.id])return blocked('Send to orbit / Unavailable','Choose a completed launch station.');
+    if(me?.life!=='active'||!['robot','recycler'].includes(me.body))return blocked('Send to orbit','Use your robot or recycler to send cargo.');
+    if(launching)return blocked('Sending to orbit…','Launch requested.');
+    if(station.launch>0)return blocked('Launching / '+Math.ceil(station.inFlight||0)+' SUP','Cargo is on its way to orbit.');
+    if(station.cooldown>0)return blocked('Rocket returning / '+Math.ceil(station.cooldown)+'s',Math.ceil(station.cargo||0)+' SUP stored; wait for the rocket to return.');
+    if(!station.cargo)return blocked('Send to orbit / No cargo','Park a loaded recycler beside this station to unload salvage.');
+    if(l.supplies>=ECONOMY.capacity)return blocked('Send to orbit / ORB full','Orbital storage is full. Cargo stays at the station.');
+    return {disabled:false,label:'Send to orbit / '+Math.ceil(station.cargo)+' SUP',reason:'Launch stored salvage. Supplies arrive when the rocket clears the atmosphere.'};
+  }
+  async function launch(stationId,overview=false){
+    const status=launchStatus(stationId);if(status.disabled)return;
+    const station=state().world.logistics.facilities.find(f=>f.id===stationId);
+    launching=true;update();
+    try{
+      await api('logistics/launch',{id:stationId});
+      if(overview){dialog.close();locate({x:station.x+1.5,y:station.y+1.5});}
+      notify('Cargo rocket launching. Supplies arrive when it clears the atmosphere.');
+    }catch(e){if(dialog.open)$('logistics-message').textContent=e.message;else notify(e.message);}
+    finally{launching=false;update();}
+  }
   const repairSites=()=>{
     const {world,canManage}=state();
     return [
@@ -32,16 +59,16 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   $('recycler-collect').onclick=()=>{const value=$('salvage-target').value,split=value.indexOf(':');return action('command',{id:$('recycler-select').value,action:value.slice(0,split)==='site'?'collect':value.slice(0,split)==='wreck'?'wreck':'recover',targetId:value.slice(split+1)});};
   $('recycler-stop').onclick=()=>action('command',{id:$('recycler-select').value,action:'stop'});
   $('recycler-deliver').onclick=()=>action('command',{id:$('recycler-select').value,action:'deliver',targetId:$('uplink-select').value});
-  $('cargo-launch').onclick=async()=>{const station=state().world.logistics.facilities.find(f=>f.id===$('uplink-select').value);try{await api('logistics/launch',{id:station?.id});dialog.close();locate({x:station.x+1.5,y:station.y+1.5});notify('Cargo rocket launching. Supplies arrive when it clears the atmosphere.');}catch(e){$('logistics-message').textContent=e.message;}};
+  $('cargo-launch').onclick=()=>launch($('uplink-select').value,true);
   const repairSelection=()=>{const value=$('logistics-repair').value,split=value.indexOf(':');return {kind:value.slice(0,split),id:value.slice(split+1)};};
   $('logistics-rebuild').onclick=()=>{const selection=repairSelection(),site=repairSites().find(s=>s.value===selection.kind+':'+selection.id);if(site){dialog.close();locate({x:site.cx,y:site.cy});}};
   $('logistics-cancel').onclick=()=>action('cancel',{id:$('logistics-order').value});
   $('recycler-locate').onclick=()=>{const r=state().world.logistics.recyclers.find(r=>r.id===$('recycler-select').value);if(r){dialog.close();locate(r);}};
   function update(){
     const {world,me,connected,buildings=[],canManage}=state(),l=world?.logistics;if(!l)return;
-    const rising=l.supplies<ECONOMY.reserve;$('supplies-button').textContent='GND '+Math.floor(l.groundSupplies||0)+' /\nORB '+Math.floor(l.supplies);
+    const reserve=world.supplyReserve||supplyReserve(1),rising=connected&&(l.supplies<reserve.orbital||(l.groundSupplies||0)<reserve.ground);$('supplies-button').textContent='GND '+Math.floor(l.groundSupplies||0)+' /\nORB '+Math.floor(l.supplies);
     $('supplies-button').setAttribute('aria-label',`Ground supplies ${Math.floor(l.groundSupplies||0)}, orbital supplies ${Math.floor(l.supplies)}${rising?', refilling':''}. Open logistics`);
-    $('logistics-balance').textContent=`Ground ${Math.floor(l.groundSupplies||0)} / ${ECONOMY.capacity}: local building and repairs. Orbital ${Math.floor(l.supplies)} / ${ECONOMY.capacity}: orbital delivery. Both pools shared by all teammates and cores. Orbital reserve +${ECONOMY.income}/s while running, up to ${ECONOMY.reserve}.`;
+    $('logistics-balance').textContent=`Ground ${Math.floor(l.groundSupplies||0)} / ${ECONOMY.capacity}: local building and repairs. Orbital ${Math.floor(l.supplies)} / ${ECONOMY.capacity}: orbital delivery. Shared by all teammates and cores. ${reserve.players} connected player${reserve.players===1?'':'s'}: ORB +${ECONOMY.income}/s up to ${reserve.orbital}; GND +${ECONOMY.groundIncome}/s up to ${reserve.ground}, while the map is running. Salvage can exceed these refill thresholds.`;
     const operating=connected&&me?.life==='active'&&['robot','recycler'].includes(me.body),allowed=operating&&me.body==='robot';
     for(const b of document.querySelectorAll('[data-logistics-deploy]'))b.disabled=!allowed||l.supplies<COSTS[b.dataset.logisticsDeploy];
     const reason=emergencyTankError(world);$('emergency-tank').disabled=!allowed||!!reason;
@@ -55,9 +82,8 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
     const objects=[...world.airbases,...world.ships,...world.artillery,...world.tanks,...l.facilities,...l.recyclers,...buildings];
     options('logistics-order',Object.entries(l.jobs).filter(([id,j])=>j.kind!=='repair'&&objects.some(o=>o.id===id&&canManage(o.owner))).map(([id,j])=>[id,`${j.kind} / ${Math.ceil(j.remaining)}s / cancel returns ${Math.floor(j.cost/2)}`]));
     for(const id of ['recycler-collect','recycler-stop','recycler-deliver','recycler-locate'])$(id).disabled=!allowed||!$('recycler-select').value||(id==='recycler-collect'&&!$('salvage-target').value)||(id==='recycler-deliver'&&!$('uplink-select').value);
-    const station=l.facilities.find(f=>f.id===$('uplink-select').value&&f.kind==='uplink');
-    $('cargo-launch').disabled=!operating||!station||station.remaining>0||station.cooldown>0||!station.cargo||l.supplies>=ECONOMY.capacity;
-    $('cargo-launch').textContent=station?.cooldown>0?'Rocket returns / '+Math.ceil(station.cooldown)+'s':'Launch cargo to orbit';
+    const status=launchStatus($('uplink-select').value);
+    $('cargo-launch').disabled=status.disabled;$('cargo-launch').textContent=status.label;$('cargo-launch').title=status.reason;
     $('logistics-rebuild').disabled=!repairs.length;
     $('logistics-rebuild').textContent='Locate ruin';
     $('logistics-repair-help').textContent='Destroyed facilities cannot be repaired and do not occupy a slot. Use Deploy (B) to build a new one. Damaged surviving vehicles still receive normal repairs.';
@@ -65,5 +91,5 @@ export function logisticsUI({ state, api, deploy, locate, stop, notify }) {
   }
   $('uplink-select').onchange=()=>update();
   $('logistics-repair').onchange=()=>update();
-  return {update,open};
+  return {update,open,launch,launchStatus};
 }

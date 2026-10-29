@@ -1,5 +1,15 @@
 # Frontier game design harness
 
+## 29 October 2026: assessment and gameplay planning
+
+The author confirmed COMP8020 and island pressure scaling of
+`1 + 0.7 * (connected players - 1)` (solo remains 1x). The
+[readiness and gameplay plan](docs/FINAL_PROJECT_READINESS_AND_GAMEPLAY_PLAN.md)
+records multiplayer validation, entry-page clarity, patrol/perception and island
+pressure, then a paired flying-enemy/AA-vehicle stage. Giant encounters, crate and
+orbital-shell presentation, and another planet remain later proposals. This
+planning checkpoint does not implement those mechanics or authorize a release.
+
 Version 0.25, 14 October 2026. This is the central guide for deciding what belongs
 in the game and what a playable stage must establish. It consolidates agreed
 direction; it does not authorize every future feature or implement new rules.
@@ -113,6 +123,12 @@ remain open; preserve existing recovery paths. The proposed
 first playable slice is an automatic HE sortie, reusing real flight and anti-air.
 
 ## 14 October shared economy implementation
+
+25 October update: both campaign pools now refill while the map runs, with
+thresholds based on distinct connected players. Solo: 250 ORB / 50 GND;
+multiplayer: `250 × players − 100` ORB / `50 × players − 15` GND. Rates are
+2 ORB/s and 0.4 GND/s; joining grants no immediate supplies and leaving never
+deducts an earned balance. See [Shared passive reserves](docs/SUPPORT_NETWORK_STAGE.md#25-october-shared-passive-reserves).
 
 The author prioritized economy and support before bomber automation, confirmed
 that all cores and teammates share one ground pool and a separate orbital pool,

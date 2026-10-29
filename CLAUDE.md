@@ -206,6 +206,9 @@ Details: `docs/CONSTRUCTION_LOGISTICS.md`, `docs/SUPPORT_NETWORK_STAGE.md`,
   airborne aircraft.
 - Factory orders reserve space, cost less, take time and cannot be operated until
   ready; destroying a workshop cancels pending orders with a half refund.
+- At a launch station, the E stripe and recycler station button send stored cargo
+  directly, with amount/launch/return status. Keep the full logistics overview for
+  management; launching locally must not open it or pan away from the rocket.
 - Robots entering their own completed docks or airbases get a non-modal GND
   workshop (60 s drone assembly). Paid automatic dock hull repairs checkpoint with
   their supply charge; pause or offline time never advances them.
@@ -522,6 +525,10 @@ Large naval scale is authorized and implemented locally: new docks save
 Use `naval-scale.js` for hull, berth and mount dimensions. Preserve legacy sizes
 and saved coordinates; do not enlarge old berths in place. See
 `docs/SHIP_VISUAL_SCALE.md` for artwork, stern loading and ocean validation.
+New empty-dock placement snaps shore/nearby-ocean clicks to a validated coastal
+site. The seven-tile shore platform may bridge uneven water edges but must touch
+clear land; the full pier, berth and departure water must remain clear ocean.
+Preview and server use the same search; keep the accepted click for retry safety.
 
 ## 14. Not authorized yet
 

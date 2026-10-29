@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 320" role="img" aria-labelledby="title desc">
+  <title id="title">Frontier wordmark concept</title>
+  <desc id="desc">Angular pale Frontier lettering with a four-point star inside the O, a solid leading F, and three tapered red, yellow and blue flight trails. Original vector study based on the author's sketch, on a transparent background.</desc>
+  <g fill="#e9eee5">
+    <path d="M44 87H76L86 99H56ZM54 111H78V131Z"/>
+    <path d="M86 110H198V139H120V169H180V197H120V253H86Z"/>
+    <g id="r" fill-rule="evenodd">
+      <path d="M218 132H284L314 155V184L287 204L323 253H286L252 206H246V253H218ZM246 157V182H272L286 173V165L275 157Z"/>
+    </g>
+    <path fill-rule="evenodd" d="M367 131H421L448 158V226L421 253H367L340 226V158ZM379 155L364 170V214L379 229H409L424 214V170L409 155Z"/>
+    <path d="M394 170L400 186L416 192L400 198L394 214L388 198L372 192L388 186Z"/>
+    <path d="M476 132H505L552 207V132H578V253H550L502 177V253H476Z"/>
+    <path d="M602 132H719V158H675V253H647V158H602Z"/>
+    <path d="M745 132H773V253H745Z"/>
+    <path d="M802 132H903V158H830V179H891V204H830V227H903V253H802Z"/>
+    <use href="#r" transform="translate(714 0)"/>
+  </g>
+  <g aria-hidden="true">
+    <path fill="#e73e49" d="M86 76L1247 56L1223 82L86 100Z"/>
+    <path fill="#eec45a" d="M206 94L1149 82L1127 97L206 108Z"/>
+    <path fill="#75bdec" d="M332 111L1058 104L1040 115L332 122Z"/>
+    <g stroke="#0b141c" stroke-width="3">
+      <path d="M111 132V251M238 135V250M485 135L561 251M813 135V250"/>
+    </g>
+  </g>
+</svg>

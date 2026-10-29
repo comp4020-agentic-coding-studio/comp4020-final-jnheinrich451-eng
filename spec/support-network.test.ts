@@ -94,7 +94,7 @@ it('admits global orbital placement and preserves migrated budgets across restar
   const r=await f.post('missiles',{x:90,y:60});expect(r.status).toBe(201);
   const job=(await f.state()).logistics.jobs[r.data.gun.id];expect(job.duration).toBe(CARGO_POD_DURATION);
   expect((await f.state()).logistics.supplies).toBe(303);expect((await f.post('artillery/control',{id:r.data.gun.id})).status).toBe(409);
-  await f.restart();expect((await f.state()).logistics).toMatchObject({version:2,groundSupplies:0,supplies:303});
+  await f.restart();const saved=(await f.state()).logistics;expect(saved).toMatchObject({version:2,supplies:303});expect(saved.groundSupplies).toBeCloseTo(ECONOMY.groundIncome*saved.time,8);
  }finally{await f.close();}
 });
 it('opens orbital cargo walls before revealing contents, with a one-second deployment phase',()=>{
@@ -131,12 +131,12 @@ it('serializes competing local purchases across teammates and refunds to ground 
  const f=await fixture((_db,_w,l)=>l.groundSupplies=7);try{
   await f.connect();await f.connect(1);
   const results=await Promise.all([f.post('buildings',{x:44,y:40,method:'factory',factoryId:'friendly'}),f.post('buildings',{x:46,y:40,method:'factory',factoryId:'friendly'},1)]);
-  expect(results.map(r=>r.status).sort()).toEqual([201,409]);const s=await f.state();expect(s.logistics).toMatchObject({groundSupplies:0,supplies:1200});
+  expect(results.map(r=>r.status).sort()).toEqual([201,409]);const s=await f.state();expect(s.logistics.supplies).toBe(1200);expect(s.logistics.groundSupplies).toBeCloseTo(ECONOMY.groundIncome*s.logistics.time,8);
   const i=results.findIndex(r=>r.status===201),id=results[i].data.building.id;
   expect(s.logistics.jobs[id]).toMatchObject({pool:'groundSupplies',cost:7,method:'factory'});expect(s.logistics.jobs[id].remaining).toBeGreaterThan(58);
-  expect((await f.state(1)).logistics.groundSupplies).toBe(0);
+  const peer=(await f.state(1)).logistics;expect(peer.groundSupplies).toBeCloseTo(ECONOMY.groundIncome*peer.time,8);
   expect((await f.post('logistics/cancel',{id},i)).status).toBe(200);
-  await f.restart();expect((await f.state()).logistics).toMatchObject({groundSupplies:3,supplies:1200});
+  await f.restart();const saved=(await f.state()).logistics;expect(saved.supplies).toBe(1200);expect(saved.groundSupplies).toBeCloseTo(3+ECONOMY.groundIncome*saved.time,8);
  }finally{await f.close();}
 });
 it('saves a rocket delivery and return cycle while permitting new cargo storage',async()=>{

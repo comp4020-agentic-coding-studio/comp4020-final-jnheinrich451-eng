@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-29",
+  "scope": "Local loopback disposable legacy world; two isolated Chrome contexts at desktop 1920x1080 and phone 390x844. Not Fly, named-room invitation or sustained-load evidence.",
+  "timings": [
+    {
+      "action": "desktop map move to phone rendered status",
+      "ms": 102
+    }
+  ],
+  "checks": [
+    "actual UI move",
+    "peer SSE and rendered order status",
+    "shared movement",
+    "stale peer rejection and retry",
+    "simultaneous requests yield one winner",
+    "unknown-world ship rejection",
+    "browser reconnect",
+    "server restart",
+    "saved retry receipt"
+  ]
+}

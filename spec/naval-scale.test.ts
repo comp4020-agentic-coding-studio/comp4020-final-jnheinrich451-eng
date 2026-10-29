@@ -21,7 +21,7 @@ it('reserves seven shore and 84 offshore cells, a large berth and departure wate
  expect(rects.map(r=>hullCells(r).length)).toEqual([7,84]);expect(hull(s,true)).toMatchObject({w:8,h:14});
  expect(hull(s)).toMatchObject({w:4,h:12});expect(canSail(w,s)).toBe(true);
  const shore=hullCells(rects[0]);w.terrain[shore[0].y*w.width+shore[0].x]=0;
- expect(shipyardSite({...w,ships:[],logistics:freshLogistics()},[],[],72,60,'pilot',2).error).toBeTruthy();
+ expect(shipyardSite({...w,ships:[],logistics:freshLogistics()},[],[],72,60,'pilot',2).error).toBeNull();
 });
 it.each(['gunship','transport','carrier','submarine'])('moves and remotely returns the large %s without crossing its pier',kind=>{
  const {w,s,yard}=fixture(kind);const before=s.x;

@@ -1,0 +1,11 @@
+{
+  "categories": [
+    "a",
+    "b",
+    "d",
+    "e",
+    "f"
+  ],
+  "propagationMs": 183,
+  "scope": "one local process, two isolated rooms; not Fly capacity evidence"
+}

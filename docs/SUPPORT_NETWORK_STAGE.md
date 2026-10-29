@@ -4,6 +4,32 @@
 missions. The player recovers alien material, chooses ground processing or orbital
 shipment, and spends the resulting shared budget on construction and recovery.
 
+## 25 October: shared passive reserves
+
+This update supersedes the original fixed orbital reserve and absence of ground
+income below. ORB refills at 2 per running second; GND refills at 0.4 per running
+second (one GND every 2.5 seconds). Income rates do not multiply with crew size.
+
+| Distinct connected players in this map | ORB refill threshold | GND refill threshold |
+| --- | --- | --- |
+| 1 | 250 | 50 |
+| 2 | 400 | 85 |
+| 3 | 650 | 135 |
+| 4 | 900 | 185 |
+
+For multiplayer, thresholds are `250 × players − 100` and `50 × players − 15`;
+the deduction applies once. A solo player keeps the full 250 / 50 thresholds.
+Each map counts its own connected pilot identities, including pilots awaiting
+deployment/recovery; extra tabs for the same pilot count once. Leaving a map
+lowers its thresholds but never removes supplies already earned. Joining changes
+future refill limits without awarding a lump sum. Both pools retain their 2,000
+storage capacity; salvage and shipments can exceed the passive thresholds.
+
+Refilling stops when nobody is connected, the campaign is paused, or its owner
+is absent and the simulation is frozen. Existing balances and fractional progress
+are preserved, with no reset or offline catch-up. Field logistics displays the
+server's connected-player count, both rates and both current thresholds.
+
 ## Rules for this stage
 
 - Two campaign-wide balances, shared by all teammates and cores. The existing

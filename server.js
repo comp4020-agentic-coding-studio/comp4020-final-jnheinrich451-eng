@@ -10,7 +10,7 @@ import { isAttackJet } from './public/attack-jet.js';
 import { assignBulwarkGuards, assignMobileLaserGuards } from './public/enemy-profiles.js';
 import { isCarrier, CARRIER, carrierReady, prepareCarrier, deckAircraft, deckLocked, syncCarrierDeck, tickCarrierService, ensureWing } from './public/carrier.js';
 import { requestHelicopterLanding, airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, newAircraftError, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
-import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, yardBuildError, yardRetireError, rememberWreck, tickDockRepair } from './public/shipyard.js';
+import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, matchesShipyardPreview, yardBuildError, yardRetireError, rememberWreck, tickDockRepair } from './public/shipyard.js';
 import { newRampGun } from './public/ramp-sentry.js';
 import { isTransport, carriedVehicles, transportVehicles, loadError, unloadPoint, driveOnError, shoreCargoError } from './public/transport.js';
 import { BRIDGE, BRIDGE_PROFILES, isBuilder, bridgeReady, bridgeDuration, bridgeCost, bridgeFromBuilder } from './public/bridge-geometry.js';
@@ -18,7 +18,7 @@ import { bridgeError, bridgeSupplyError } from './public/bridge.js';
 import { RECYCLER, recyclerStep, recyclerRouteStep, stopUtility, recyclerExit, parkedTask } from './public/recycler.js';
 import { seedSettlement } from './public/settlement.js';
 import { seedFronts, seedDenseFronts } from './public/seeded-fronts.js';
-import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
+import { ECONOMY, COSTS, LOGISTICS_SIZE, freshLogistics, migrateLogistics, LOCAL_KINDS, poolFor, poolLabel, supportSources, salvageReceivers, unloadSalvage, orbitalDuration, credit, readyFactory, facilityCenter, quote, emergencyTankError, tickSupplies, supplyReserve, collectSalvage, tickLaunch, facilityTargets, facilityDistance } from './public/logistics.js';
 import { constructionError } from './public/construction.js';
 import { launchCruise, recoverAircraft, unattendedAircraft, isCruising, missionActive, missionError, strikePlan, prepareMission, validateMission, assignMission, abortMission, tickMission } from './public/bomber-mission.js';
 import { validPayload } from './public/bomber-payloads.js';
@@ -498,7 +498,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   function tickLogistics(dt){
     const l=world.logistics,before=l.supplies+(l.groundSupplies||0),wasEmergency=l.emergency;
     const active=l.bridges.some(b=>!bridgeReady(b))||l.facilities.some(f=>f.remaining>0||f.launch>0||f.cooldown>0)||Object.keys(l.jobs).length>0||l.recyclers.some(r=>r.remaining>0||r.occupant||r.path?.length||r.task&&!r.blocked);
-    tickSupplies(l,dt);
+    tickSupplies(l,dt,streams.size);
     for(const f of l.facilities){if(!constructing(f.id))f.remaining=Math.max(0,f.remaining-dt);if(l.jobs[f.id])f.remaining=l.jobs[f.id].remaining;const before=l.shipments;if(!f.remaining&&!constructing(f.id))tickLaunch(l,f,dt);if(l.shipments>before)logisticsEvents.push({event:'supply.shipped',sourceId:f.id,kind:'system',count:l.shipments});}
     for(const [id,job]of Object.entries(l.jobs)){
       job.remaining=Math.max(0,job.remaining-dt);
@@ -562,7 +562,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   }
   function snapshot() {
     syncShipyards(world);
-    return { clientBuild, revision, logistics:world.logistics, room: options.roomView?.() || null, airbases:world.airbases, ships: world.ships, tanks: world.tanks, cores: world.cores, rails: world.rails, switches: world.switches, artillery: world.artillery, buildings: allBuildings(), combat: combat.snapshot(), players: [...people.values()].filter(p => streams.has(p.id)).map(playerView) };
+    return { clientBuild, revision, logistics:world.logistics, supplyReserve:supplyReserve(streams.size), room: options.roomView?.() || null, airbases:world.airbases, ships: world.ships, tanks: world.tanks, cores: world.cores, rails: world.rails, switches: world.switches, artillery: world.artillery, buildings: allBuildings(), combat: combat.snapshot(), players: [...people.values()].filter(p => streams.has(p.id)).map(playerView) };
   }
   const streamCounts = () => ({ connectedPlayers: streams.size, connections: [...streams.values()].reduce((n, set) => n + set.size, 0) });
   const streamBlocked = response => response.destroyed || response.writableEnded ||
@@ -839,10 +839,14 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/shipyards'){
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot to deploy a shipyard.'});
-            const previous=world.logistics.shipyards.find(y=>!y.dockDestroyed&&y.owner===player.id&&y.siteX===data.x&&y.siteY===data.y);
+            const previous=[data.x,data.y].every(Number.isInteger)&&world.logistics.shipyards.find(y=>!y.dockDestroyed&&y.owner===player.id&&((y.siteX===data.x&&y.siteY===data.y)||(y.requestX===data.x&&y.requestY===data.y)));
             if(previous)return json(res,200,{yard:previous,saved:true});
             const site=shipyardSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,2);
             const error=site.error;if(error)return json(res,409,{error});
+            // Older callers without a preview retain click-to-snap admission.
+            // Current clients must reconfirm if a unit changes the chosen site;
+            // never spend at a silently substituted shore or opposite berth.
+            if(data.preview!==undefined&&!matchesShipyardPreview(site.ship,data.preview))return json(res,409,{error:'The dock site changed or became blocked. Review the updated preview and confirm again.'});
             const yard=yardFromShip({...site.ship,id:randomUUID()});
             const previousYard=world.logistics.shipyards.find(y=>y.id===site.ship.replacesYardId);
             const survivor=world.ships.find(s=>s.id===site.ship.survivingShipId),linked=survivor&&{...survivor};

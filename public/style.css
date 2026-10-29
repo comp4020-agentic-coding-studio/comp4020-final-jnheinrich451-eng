@@ -187,7 +187,8 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stro
 .in-field label{display:flex;gap:8px;align-items:center;font-size:11px}
 .in-field select{min-height:40px;padding:0 8px}
 .in-field p{flex-basis:100%;margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
-.asset-spec{border-left:1px solid var(--rule);padding-left:14px;overflow:auto;font:10px/1.5 var(--mono);scrollbar-width:thin}
+/* Hovering a taller spec must not move the card away from the pointer. */
+.asset-spec{contain:size;border-left:1px solid var(--rule);padding-left:14px;overflow:auto;font:10px/1.5 var(--mono);scrollbar-width:thin}
 .asset-spec .unit-art{width:76px;height:76px;background-size:19px 19px,19px 19px,auto}
 .asset-spec .unit-art svg.i{width:52px;height:52px}
 .spec-title{margin:10px 0 8px}

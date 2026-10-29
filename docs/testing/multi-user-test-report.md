@@ -1,5 +1,73 @@
 # Multiplayer test report
 
+## Scoped release checks — 30 October 2026
+
+The release combines shared passive ORB/GND reserves, coastal dock placement,
+direct rocket launch controls and the earlier multiplayer checks. A new dock
+regression binds confirmation to the displayed geometry: an intervening unit
+must produce a rejection without spending, rather than a different dock site.
+
+Validation used an export of the staged files, excluding concurrent rocket/rail
+art and cinematic edits. TypeScript passed; all **908 tests in 115 spec files**
+passed. The evidence checker resolved all ten cited commits. Ten of eleven
+desktop/phone browser checks passed on the first staged run. The identity check
+reported a worker-level `TypeError: .for is not iterable` during core-deployment
+polling, without a stack; its unchanged focused rerun passed. Keep that transient
+failure in the record rather than treating the first run as fully successful.
+The full working-tree browser run before the dock confirmation correction had
+passed all eleven checks.
+
+Browser coverage includes separate account identities, named-room lifecycle and
+isolation, remote-order conflicts/reconnect/restart, full-size dock deployment,
+shared refill thresholds, direct rocket launch and full-ORB cargo protection.
+These are local disposable-save checks, not human playtesting or live capacity
+evidence. Release/deployment and authenticated Fly results are recorded separately
+after they actually occur. No existing user save was reset.
+
+The next menu design and original wordmark are recorded in
+[Entry visual design](../ENTRY_VISUAL_DESIGN.md); the new screen sequence is not
+installed by this release.
+
+## Remote controls and named-room recheck — 29 October 2026
+
+Fresh local checks used disposable saves and independent Chrome contexts. No
+player campaign was reset and no live gameplay or deployment was performed.
+
+- New `tests/browser/remote-multiplayer.spec.js` passed at 1920 x 1080 desktop and
+  390 x 844 touch phone together. An actual desktop map order reached the phone's
+  rendered ship-order status in **102 ms in one sample**. Both received movement.
+- A stale peer Stop was rejected (409), then a reviewed retry accepted (201).
+  Simultaneous same-revision orders had exactly one winner; replay returned 200
+  without another order. Browser reload and a real server restart retained the
+  winning order, actor and receipt. Unknown-world ship IDs returned 404.
+- The remote fixture uses the legacy shared world. Named-room behavior was checked
+  separately: `multiplayer-identity.spec.js` passed distinct identities, duplicate
+  tab counting, invitations, independent cores and movement.
+- `multiplayer-lifecycle.spec.js` passed late join, visible shared updates,
+  cross-room rejection/isolation, tab close/return and owner disconnect
+  freeze/resume. Its rendered propagation sample was **183 ms**.
+- The first lifecycle run correctly rejected its second delivery at 31:22 because
+  it overlapped the first cargo pod at 30:22. Waiting alone also remained invalid:
+  the new wall would cover the first completed sentry. The fixture now uses 34:22,
+  preserving clearance and all lifecycle assertions. No gameplay rule was relaxed.
+- Sixteen existing `naval-orders-http`, `remote-branches-http` and `remote-air`
+  tests passed. TypeScript, both supplied invariants and `check:evidence` passed.
+
+The two timing observations are **single local samples**, not p95 measurements,
+network benchmarks or sustained four-player capacity evidence. Fly `/` and
+`/readme/` responded HTTP 200 in a separate read-only check; authenticated
+multiplayer gameplay, slow connections, a live restart/redeploy and next-day
+persistence were not freshly verified on Fly. The complete spec suite was not
+rerun for this planning audit.
+
+Saved evidence: [remote results](evidence/2026-10-29/remote-multiplayer-2026-10-29.json),
+[remote desktop](evidence/2026-10-29/remote-desktop-shared-2026-10-29.png),
+[remote phone](evidence/2026-10-29/remote-phone-reconnected-2026-10-29.png),
+[named-room results](evidence/2026-10-29/lifecycle.json),
+[named-room desktop](evidence/2026-10-29/shared-room-desktop.png),
+[named-room phone](evidence/2026-10-29/late-join-return-phone.png).
+Earlier evidence below remains unchanged.
+
 Reviewed 19 October 2026 (Australia/Sydney). The supplied evidence is a Fly server
 log excerpt, not a recording of either browser. Original records are preserved
 below. **Server acceptance, stream delivery and visible browser updates are

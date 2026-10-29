@@ -1,9 +1,23 @@
 import { shipStopped } from './ship-motion.js';
+import { tileAt } from './world.js';
+import { LARGE_DOCK } from './naval-scale.js';
 import { isCarrier } from './carrier.js';
 import { operational, hullHealth, VEHICLE, SHIP_REPAIR_DELAY } from './vehicle.js';
 import { SHIP, shipSite, shipKind, dockComplete, canSail, hull, rectanglesOverlap, dockRects, hullCells, mooredDock, recallShipError } from './ship.js';
 
 export const SHIPYARD = Object.freeze({ max: 8, perOwner: 4, buildTime: 12, wrecks: 24 });
+// Bind a confirmation to every part of the displayed site, including which side
+// holds the berth. The server still derives and validates all geometry itself.
+export function shipyardPreview(ship){
+  if(!ship)return null;
+  return {siteX:ship.siteX,siteY:ship.siteY,dockX:ship.dock.x,dockY:ship.dock.y,dockAngle:ship.dock.angle,
+    berthX:ship.berthX,berthY:ship.berthY,dockScale:ship.dockScale??1};
+}
+export function matchesShipyardPreview(ship,preview){
+  const current=shipyardPreview(ship);
+  return !!current&&!!preview&&typeof preview==='object'&&!Array.isArray(preview)&&
+    Object.entries(current).every(([key,value])=>Number.isFinite(preview[key])&&preview[key]===value);
+}
 export function yardRetireError(world,yard,people=[]){
   if(!yard)return 'Select an empty dock first.';
   if((world.ships||[]).some(s=>(s.yardId||s.id)===yard.id)||world.logistics?.jobs?.[yard.id])return 'Retire its vessel and finish construction first.';
@@ -17,6 +31,7 @@ export function dockRecords(world) {
 export function yardFromShip(s) {
   return { id: s.yardId || s.id, owner: s.owner, dock: { ...s.dock }, dockStyle: s.dockStyle, dockScale:s.dockScale,
     berthX: s.berthX, berthY: s.berthY, angle: s.dock.angle, siteX: s.siteX, siteY: s.siteY,
+    requestX:s.requestX, requestY:s.requestY,
     elapsed: s.dockReady ? SHIP.duration : s.elapsed, dockReady: dockComplete(s), dockDestroyed: !!s.dockDestroyed };
 }
 export function linkYard(ship, yard) {
@@ -37,7 +52,7 @@ export function shipyardSite(world, buildings, occupants, x, y, owner,layoutVers
   if (yards.length >= SHIPYARD.max || yards.filter(y => y.owner === owner).length >= SHIPYARD.perOwner)
     return { error: 'Shipyard limit: four per scout, eight per campaign.', ship: null };
   const ruin=yardsAtRuinedSite(world,x,y,owner);
-  if(!ruin)return shipSite(world, buildings, occupants, x, y, owner, 'gunship', 'unfolding', null, true,null,layoutVersion);
+  if(!ruin)return layoutVersion===2?nearbyShipyardSite(world,buildings,occupants,x,y,owner):shipSite(world, buildings, occupants, x, y, owner, 'gunship', 'unfolding', null, true,null,layoutVersion);
   const survivor=(world.ships||[]).find(s=>!s.destroyed&&s.owner===owner&&(s.yardId||s.id)===ruin.id);
   // Hide only this abandoned deck during validation. The surviving hull still
   // blocks the new pier; only its own reserved berth may contain that hull.
@@ -46,6 +61,35 @@ export function shipyardSite(world, buildings, occupants, x, y, owner,layoutVers
   const site=shipSite(placement,buildings,people,x,y,owner,'gunship','unfolding',ruin,true,survivor?.id);
   if(!site.error)Object.assign(site.ship,{replacesYardId:ruin.id,survivingShipId:survivor?.id||null});
   return site;
+}
+// Keep saved/canonical site coordinates separate from the player's click. Search
+// is bounded, deterministic and shared by preview and authoritative admission.
+function nearbyShipyardSite(world,buildings,occupants,x,y,owner){
+  const fail=error=>({error,ship:null});
+  if(![x,y].every(Number.isInteger)||x<0||y<0||x>=world.width||y>=world.height)return fail('Select shore or nearby ocean for the dock.');
+  const check=(sx,sy)=>shipSite(world,buildings,occupants,sx,sy,owner,'gunship','unfolding',null,true,null,2);
+  const accepted=site=>{Object.assign(site.ship,{requestX:x,requestY:y});return site;};
+  const exact=check(x,y);if(!exact.error)return accepted(exact);
+  const candidates=[],seen=new Set(),radius=LARGE_DOCK.length,half=(LARGE_DOCK.width-1)/2;
+  for(let ay=Math.max(0,y-radius);ay<=Math.min(world.height-1,y+radius);ay++)for(let ax=Math.max(0,x-radius);ax<=Math.min(world.width-1,x+radius);ax++){
+    const distance=(ax-x)**2+(ay-y)**2;if(distance>radius**2)continue;
+    for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]){
+      let land=false,clear=true;
+      for(let across=-half;across<=half;across++){
+        const sx=ax-dy*across,sy=ay+dx*across;
+        if(sx<0||sy<0||sx>=world.width||sy>=world.height){clear=false;break;}
+        if(tileAt(world,sx,sy)!==0)land=true;
+        // The first offshore row must clear even on a zigzag coastline.
+        if(tileAt(world,sx+dx,sy+dy)!==0){clear=false;break;}
+      }
+      if(!clear||!land)continue;
+      const sx=ax+dx*LARGE_DOCK.siteDistance,sy=ay+dy*LARGE_DOCK.siteDistance,key=sx+':'+sy;
+      if(seen.has(key))continue;seen.add(key);candidates.push({x:sx,y:sy,distance});
+    }
+  }
+  candidates.sort((a,b)=>a.distance-b.distance||a.y-b.y||a.x-b.x);
+  for(const p of candidates){const site=check(p.x,p.y);if(!site.error)return accepted(site);}
+  return fail('No clear dock site nearby. Select shore or ocean within 12 tiles of land. The 7 x 1 platform must touch clear land; the 7 x 12 pier, side berth and departure route need open ocean.');
 }
 export const yardsAtRuinedSite=(world,x,y,owner)=>dockRecords(world).find(d=>d.dockDestroyed&&d.owner===owner&&d.dockStyle==='unfolding'&&d.siteX===x&&d.siteY===y);
 export function yardBuildError(world, yard, owner, kind, previous = null, people = []) {

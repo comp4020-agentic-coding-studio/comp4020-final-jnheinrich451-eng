@@ -31,6 +31,10 @@ mining chain is introduced. Ordinary firing, servicing and robot revival are fre
 
 ## Shared supplies
 
+**25 October update:** the current two-pool passive-income rules and multiplayer
+thresholds are recorded in [Shared passive reserves](SUPPORT_NETWORK_STAGE.md#25-october-shared-passive-reserves).
+They supersede the fixed reserve described in this original design section.
+
 One server-owned campaign stockpile starts at 1200 supplies. Old saves receive the
 same initial reserve once, preserving all existing equipment without retrospective
 charges. Joining, reconnecting, deploying a core and creating another identity do

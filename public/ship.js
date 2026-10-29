@@ -73,7 +73,8 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
   for(const distance of dockStyle==='unfolding'?[size.siteDistance]:[3,4,5])for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]) {
     const dock={x:x+.5+dx*distance,y:y+.5+dy*distance,angle:Math.atan2(-dx,dy)};
     if(original&&(Math.hypot(dock.x-original.dock.x,dock.y-original.dock.y)>.001||Math.abs(angleDelta(dock.angle,original.dock.angle))>.001))continue;
-    if(bridgeAt(world,dock.x,dock.y)||airbaseAt(world,dock.x,dock.y)||!canStand(world,buildings,dock.x,dock.y)||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
+    const unevenShore=dockStyle==='unfolding'&&dockScale===2;
+    if(bridgeAt(world,dock.x,dock.y)||airbaseAt(world,dock.x,dock.y)||(!canStand(world,buildings,dock.x,dock.y)&&!(unevenShore&&tileAt(world,dock.x,dock.y)===0))||dockAt(world,Math.floor(dock.x),Math.floor(dock.y))||railCorridor(world,Math.floor(dock.x),Math.floor(dock.y)))continue;
     if(occupants.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&Math.hypot(p.x-dock.x,p.y-dock.y)<.8))continue;
     let clear=true;for(let step=1;step<distance;step++)if(tileAt(world,x+dx*step,y+dy*step)!==0)clear=false;
     if(!clear)continue;
@@ -82,7 +83,10 @@ export function shipSite(world,buildings,occupants,x,y,owner,kind='gunship',dock
       Object.assign(ship,{dockStyle,siteX:x,siteY:y,...(dockScale===2?{dockScale:2,navalScale:2}:{})});
       const rects=dockRects(ship),cells=rects.flatMap(hullCells);
       if(cells.some(cell=>fieldHelicopterBlocks(world,cell.x+.5,cell.y+.5,.5)||cell.x<0||cell.y<0||cell.x>=world.width||cell.y>=world.height||bridgeAt(world,cell.x,cell.y)||dockAt(world,cell.x,cell.y)||railCorridor(world,cell.x,cell.y)||airbaseAt(world,cell.x,cell.y)||artilleryBlocks(world,cell.x,cell.y)))continue;
-      if(hullCells(rects[0]).some(cell=>tileAt(world,cell.x,cell.y)===0||!canStand(world,buildings,cell.x+.5,cell.y+.5)))continue;
+      // A large shore platform can bridge the water gaps of a stepped coast,
+      // but must touch clear land. The full offshore pier remains ocean-only.
+      const shore=hullCells(rects[0]),land=shore.filter(cell=>tileAt(world,cell.x,cell.y)!==0);
+      if(!land.length||(!unevenShore&&land.length!==shore.length)||land.some(cell=>!canStand(world,buildings,cell.x+.5,cell.y+.5))||shore.some(cell=>inlandWaterAt(world,cell.x,cell.y)))continue;
       if(hullCells(rects[1]).some(cell=>tileAt(world,cell.x,cell.y)!==0||inlandWaterAt(world,cell.x,cell.y)))continue;
       if(rects.some(r=>(world.ships||[]).some(s=>!s.destroyed&&(rectanglesOverlap(r,hull(s,s.elapsed<SHIP.duration))||rectanglesOverlap(r,hull(s,true))))||occupants.some(p=>p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&rectanglesOverlap(r,{x:p.x,y:p.y,w:.8,h:.8,angle:0}))))continue;
       // The ship arrives alongside the dock; either side is valid if clear.

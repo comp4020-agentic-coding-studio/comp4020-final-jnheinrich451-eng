@@ -1,7 +1,7 @@
 ﻿import {expect,it} from 'vitest';
 import {createApp} from '../server.js';
 import {createWorld} from '../public/world.js';
-import {freshLogistics} from '../public/logistics.js';
+import {freshLogistics,ECONOMY} from '../public/logistics.js';
 import {freshLife} from '../public/survival.js';
 import {newAirbase} from '../public/aircraft.js';
 import {shipSite,SHIP} from '../public/ship.js';
@@ -64,8 +64,8 @@ it('GND aircraft assembly is separate from free orbital delivery and exchanges w
 },20000);
 it('insufficient supplies do not remove an existing aircraft or its receipt',async()=>{
  const f=await fixture();try{
- await f.restart(db=>{const row:any=db.prepare('SELECT * FROM airbases').get(),b=JSON.parse(row.value);Object.assign(b.aircraft,{state:'parked',health:180,purchase:{id:'receipt',paid:100,pool:'supplies'}});db.prepare('UPDATE airbases SET value=? WHERE id=?').run(JSON.stringify(b),b.id);const l=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);l.groundSupplies=0;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));});await f.connect();
- expect((await f.post(order('airbase','base','attack-jet','receipt'))).status).toBe(409);const s=await f.state();expect(s.airbases[0].aircraft).toMatchObject({kind:'bomber',purchase:{id:'receipt'}});expect(s.logistics.groundSupplies).toBe(0);
+ await f.restart(db=>{const row:any=db.prepare('SELECT * FROM airbases').get(),b=JSON.parse(row.value);Object.assign(b.aircraft,{state:'parked',health:180,purchase:{id:'receipt',paid:100,pool:'supplies'}});db.prepare('UPDATE airbases SET value=? WHERE id=?').run(JSON.stringify(b),b.id);const l=JSON.parse((db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get() as any).value);l.groundSupplies=0;l.time=0;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));});await f.connect();
+ expect((await f.post(order('airbase','base','attack-jet','receipt'))).status).toBe(409);const s=await f.state();expect(s.airbases[0].aircraft).toMatchObject({kind:'bomber',purchase:{id:'receipt'}});expect(s.logistics.groundSupplies).toBeCloseTo(ECONOMY.groundIncome*s.logistics.time,8);
  }finally{await f.close();}
 });
 it('builds and exchanges an AC-130 through saved GND service orders and paid orbital delivery',async()=>{
@@ -142,7 +142,7 @@ function paidCarrier(db:DatabaseSync,{external=false,ground=0,paid=100,planePaid
  for(const [i,p]of [ship.aircraft,ship.wing.aircraft].entries())Object.assign(p,{id:'recycle-plane-'+i,state:i&&flight?'flying':'parked',health:180,occupant:i&&pilot?'a':null,owner:i&&foreign?'b':'a',kind:i?'attack-jet':'bomber',purchase:{id:'air-receipt-'+i,pool:i?'supplies':planePool,paid:i?100:planePaid}});
  if(external){const rowB:any=db.prepare('SELECT * FROM airbases LIMIT 1').get(),base=JSON.parse(rowB.value);base.aircraft=ship.aircraft;ship.aircraft={...ship.aircraft,id:'vacant-placeholder',state:'vacant',health:0};db.prepare('UPDATE airbases SET value=? WHERE id=?').run(JSON.stringify(base),base.id);}
  db.prepare('UPDATE ships SET value=? WHERE id=?').run(JSON.stringify(ship),ship.id);
- const rowL:any=db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get(),l=JSON.parse(rowL.value);l.groundSupplies=ground;l.supplies=1200;l.wrecks=[{id:'old',kind:'carrier',x:ship.x,y:ship.y,angle:ship.angle}];l.recovery={old:{id:'old',sourceId:'old',medium:'sea',x:ship.x,y:ship.y,amount:50}};db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));
+ const rowL:any=db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get(),l=JSON.parse(rowL.value);l.groundSupplies=ground;l.time=0;l.supplies=1200;l.wrecks=[{id:'old',kind:'carrier',x:ship.x,y:ship.y,angle:ship.angle}];l.recovery={old:{id:'old',sourceId:'old',medium:'sea',x:ship.x,y:ship.y,amount:50}};db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));
  if(fail)db.exec("CREATE TRIGGER reject_exchange BEFORE INSERT ON ships WHEN NEW.id != '"+ship.id+"' BEGIN SELECT RAISE(ABORT, 'exchange write failure'); END");
 }
 it('recycles both assigned parked aircraft into their original pools exactly once, including external storage',async()=>{
@@ -150,21 +150,21 @@ it('recycles both assigned parked aircraft into their original pools exactly onc
   await f.connect();expect((await f.post(order('dock','yard','carrier'))).status).toBe(201);
   await f.restart(db=>paidCarrier(db,{external:true}));await f.connect();const before=await f.state(),buy=order('dock','yard','gunship',before.ships[0].purchase.id);
   const results=await Promise.all([f.post(buy),f.post(buy)]);expect(results.map(r=>r.status).sort()).toEqual([200,201]);expect(results.find(r=>r.status===201)?.body).toMatchObject({due:0,recycledAircraft:2,refund:{groundSupplies:12.5,supplies:50}});
-  let s=await f.state();expect(s.ships).toHaveLength(1);expect(s.ships[0]).toMatchObject({kind:'gunship',purchase:{paid:0,aircraftRefund:{groundSupplies:12.5,supplies:50}}});expect(s.ships[0].purchase.recycledAircraft).toHaveLength(2);expect(s.ships[0].aircraft).toBeUndefined();expect(s.ships[0].wing).toBeUndefined();expect(s.airbases[0].aircraft.state).toBe('vacant');expect(s.airbases[0].aircraft.purchase).toBeUndefined();expect(s.logistics).toMatchObject({groundSupplies:12.5,supplies:1250});expect(s.logistics.recovery.old.amount).toBe(50);
-  await f.restart();await f.connect();expect((await f.post(buy)).body.replayed).toBe(true);s=await f.state();expect(s.logistics).toMatchObject({groundSupplies:12.5,supplies:1250});expect(s.airbases[0].aircraft.state).toBe('vacant');
+  let s=await f.state();expect(s.ships).toHaveLength(1);expect(s.ships[0]).toMatchObject({kind:'gunship',purchase:{paid:0,aircraftRefund:{groundSupplies:12.5,supplies:50}}});expect(s.ships[0].purchase.recycledAircraft).toHaveLength(2);expect(s.ships[0].aircraft).toBeUndefined();expect(s.ships[0].wing).toBeUndefined();expect(s.airbases[0].aircraft.state).toBe('vacant');expect(s.airbases[0].aircraft.purchase).toBeUndefined();expect(s.logistics.supplies).toBe(1250);expect(s.logistics.groundSupplies).toBeCloseTo(12.5+ECONOMY.groundIncome*s.logistics.time,8);expect(s.logistics.recovery.old.amount).toBe(50);
+  await f.restart();await f.connect();expect((await f.post(buy)).body.replayed).toBe(true);s=await f.state();expect(s.logistics.supplies).toBe(1250);expect(s.logistics.groundSupplies).toBeCloseTo(12.5+ECONOMY.groundIncome*s.logistics.time,8);expect(s.airbases[0].aircraft.state).toBe('vacant');
  }finally{await f.close();}
 });
 it('uses recycled GND to fund the new hull without counting ORB as GND',async()=>{
  const f=await fixture();try{
   await f.connect();await f.post(order('dock','yard','carrier'));await f.restart(db=>paidCarrier(db,{ground:45,paid:0,planePaid:40}));await f.connect();const s=await f.state();
-  const r=await f.post(order('dock','yard','gunship',s.ships[0].purchase.id));expect(r.status).toBe(201);expect(r.body).toMatchObject({due:60,refund:{groundSupplies:20,supplies:50}});expect((await f.state()).logistics).toMatchObject({groundSupplies:5,supplies:1250});
+  const r=await f.post(order('dock','yard','gunship',s.ships[0].purchase.id));expect(r.status).toBe(201);expect(r.body).toMatchObject({due:60,refund:{groundSupplies:20,supplies:50}});const l=(await f.state()).logistics;expect(l.supplies).toBe(1250);expect(l.groundSupplies).toBeCloseTo(5+ECONOMY.groundIncome*l.time,8);
  }finally{await f.close();}
 });
 for(const [label,options]of [['airborne',{flight:true}],['occupied',{pilot:true}],['foreign aircraft',{foreign:true}],['insufficient GND',{ground:0,paid:0,planePool:'supplies'}],['failed save',{external:true,fail:true}]] as const)it('rejected carrier recycling preserves aircraft and supplies: '+label,async()=>{
  const f=await fixture();try{
   await f.connect();await f.post(order('dock','yard','carrier'));await f.restart(db=>paidCarrier(db,options));await f.connect();const before=await f.state();
-  const r=await f.post(order('dock','yard','gunship',before.ships[0].purchase.id));expect(r.status).toBe(label==='failed save'?500:409);let s=await f.state();expect(s.ships[0].id).toBe(before.ships[0].id);expect(s.ships[0].kind).toBe('carrier');expect(s.ships[0].wing.aircraft.purchase.id).toBe('air-receipt-1');expect(s.logistics.groundSupplies).toBe(before.logistics.groundSupplies);expect(s.logistics.supplies).toBe(before.logistics.supplies);
-  if(label==='failed save'){expect(s.airbases[0].aircraft.state).toBe('parked');await f.restart();s=await f.state();expect(s.airbases[0].aircraft.state).toBe('parked');expect(s.ships[0].kind).toBe('carrier');expect(s.logistics.groundSupplies).toBe(before.logistics.groundSupplies);}
+  const r=await f.post(order('dock','yard','gunship',before.ships[0].purchase.id));expect(r.status).toBe(label==='failed save'?500:409);let s=await f.state();expect(s.ships[0].id).toBe(before.ships[0].id);expect(s.ships[0].kind).toBe('carrier');expect(s.ships[0].wing.aircraft.purchase.id).toBe('air-receipt-1');expect(s.logistics.groundSupplies).toBeCloseTo(before.logistics.groundSupplies+ECONOMY.groundIncome*(s.logistics.time-before.logistics.time),8);expect(s.logistics.supplies).toBe(before.logistics.supplies);
+  if(label==='failed save'){expect(s.airbases[0].aircraft.state).toBe('parked');await f.restart();s=await f.state();expect(s.airbases[0].aircraft.state).toBe('parked');expect(s.ships[0].kind).toBe('carrier');expect(s.logistics.groundSupplies).toBeCloseTo(before.logistics.groundSupplies+ECONOMY.groundIncome*(s.logistics.time-before.logistics.time),8);}
  }finally{await f.close();}
 });
 it('aircraft recycling uses half actual payment and never credits free, invalid or missing receipts',()=>{

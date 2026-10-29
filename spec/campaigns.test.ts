@@ -656,11 +656,14 @@ it('pauses solo simulation, resumes on joining and freezes only during owner rec
   const owner = await h.account('pause'), guest = h.client(), id = await h.open(owner);
   expect((await owner.request('/api/campaigns/pause', { id, paused: true })).data.room.soloPaused).toBe(true);
   const before = (await owner.request(worldRoute(id))).data.combat.time;
+  const pausedSupplies=(await owner.request(worldRoute(id))).data.logistics;
   await new Promise(r => setTimeout(r, 250)); expect((await owner.request(worldRoute(id))).data.combat.time).toBe(before);
+  expect((await owner.request(worldRoute(id))).data.logistics).toEqual(pausedSupplies);
   const code = (await owner.request('/api/campaigns/invite', { id })).data.code;
   const joined = await guest.request('/api/campaigns/join', { code }); expect(joined.status).toBe(200);
   expect(joined.data.room).toMatchObject({ paused: false, players: 2 }); expect(joined.data.room.notice).toContain('resumed');
   await h.connect(guest, id);
+  expect((await owner.request(worldRoute(id))).data.supplyReserve).toEqual({players:2,orbital:400,ground:85});
   expect((await guest.request('/api/campaigns/pause', { id, paused: true })).data.room.paused).toBe(false);
   // Close every owner response using an account logout: explicit revocation closes
   // the room immediately, unlike a transient transport interruption.
@@ -677,6 +680,7 @@ it('freezes for reconnect, resumes the same visit and closes after the 30-second
   const frozenState = (await owner.request(worldRoute(id))).data, time = frozenState.combat.time;
   await new Promise(r => setTimeout(r, 250)); const stayed = (await owner.request(worldRoute(id))).data; expect(stayed.combat.time).toBe(time);
   expect(stayed.logistics.time).toBe(frozenState.logistics.time); expect(stayed.logistics.supplies).toBe(frozenState.logistics.supplies);
+  expect(stayed.logistics.groundSupplies).toBe(frozenState.logistics.groundSupplies);
   const again = await h.connect(owner, id); expect((await owner.request(worldRoute(id))).data.room.state).toBe('open');
   again.abort(); await expect.poll(async () => (await owner.request(worldRoute(id))).data.room.state).toBe('reconnecting');
   const now = Date.now(); vi.spyOn(Date, 'now').mockImplementation(() => now + 31000);
@@ -845,6 +849,7 @@ it('saves shared orbital spending, successive impacts, pause and caller departur
  const a=(await owner.request(worldRoute(id))).data.me.id,b=(await friend.request(worldRoute(id))).data.me.id;
  await owner.request('/api/campaigns/leave',{});
  h.database(id,(db:DatabaseSync)=>{
+  const l=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='logistics-v1'").get()!.value as string);l.groundSupplies=1000;db.prepare("UPDATE meta SET value=? WHERE key='logistics-v1'").run(JSON.stringify(l));
   const w=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);w.terrain.fill(2);db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));
   for(const [pid,y] of [[a,10],[b,25]] as const){db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('orbital-core-'+pid,pid,10,y,99);db.prepare('UPDATE scouts SET x=15,y=? WHERE id=?').run(y,pid);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pid,JSON.stringify({...freshLife(),deployed:true}));}
   const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string),p:any=orbitalPlan(w,{x:64,y:48},1);
@@ -856,7 +861,7 @@ it('saves shared orbital spending, successive impacts, pause and caller departur
  const results=await Promise.all([owner.request(worldRoute(id,'orbital/strike'),order),friend.request(worldRoute(id,'orbital/strike'),{...order,orderId:'orbital-http-second'})]);
  expect(results.map(r=>r.status).sort()).toEqual([200,409]);const winner=results[0].status===200?owner:friend,accepted=results[0].status===200?order:{...order,orderId:'orbital-http-second'};
  expect((await winner.request(worldRoute(id,'orbital/strike'),accepted)).status).toBe(200);
- let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(1200-ORBITAL.cost);expect(state.logistics.groundSupplies).toBe(0);
+ let state=(await owner.request(worldRoute(id))).data;expect(state.logistics.supplies).toBe(1200-ORBITAL.cost);expect(state.logistics.groundSupplies).toBe(1000);
  await friend.request('/api/campaigns/leave',{});expect((await owner.request('/api/campaigns/pause',{id,paused:true})).status).toBe(200);const age=(await owner.request(worldRoute(id))).data.logistics.orbital.order.age;
  await new Promise(r=>setTimeout(r,150));expect((await owner.request(worldRoute(id))).data.logistics.orbital.order.age).toBe(age);expect((await owner.request(worldRoute(id,'orbital/strike'),{...order,sequence:2})).status).toBe(409);
  await owner.request('/api/campaigns/pause',{id,paused:false});
