@@ -1,0 +1,101 @@
+{
+  "startedAt": "2026-10-29T14:42:02.134Z",
+  "origin": "https://comp4020-final-jnheinrich451-eng.fly.dev",
+  "expectedBuild": "3080aed1b39996be",
+  "result": "failed",
+  "scope": "Continuation of the same automated Fly rehearsal. No new accounts, campaigns, resources or ships. Not human playtesting, inbox delivery, sustained capacity or machine-restart evidence.",
+  "priorAttempt": {
+    "status": "partial",
+    "observedPassed": [
+      "two isolated Demo accounts",
+      "invitation UI",
+      "outsider rejection",
+      "two legal cores",
+      "WASD propagation",
+      "large dock placement",
+      "earned GND",
+      "gunship assembly"
+    ],
+    "failure": "Remote button click timed out; browser cleanup hung. Root stopped only the old rehearsal node and its browser descendants. Original final report was not written."
+  },
+  "checks": [
+    {
+      "name": "Independent HTTP session recovered the same labelled test campaign",
+      "passed": true
+    },
+    {
+      "name": "Existing two cores and assembled gunship restored after old-session cleanup",
+      "passed": true,
+      "cores": 2
+    }
+  ],
+  "diagnostics": [
+    {
+      "label": "desktop-before-remote",
+      "dom": {
+        "connection": "Uplink live",
+        "remoteDisabled": false,
+        "remotePressed": "false",
+        "roomState": "open",
+        "dialogs": [],
+        "visibility": "visible"
+      },
+      "screenshot": ".local/live-release-recovery-2026-10-30-3e56b588-desktop-before-remote.png"
+    },
+    {
+      "label": "desktop-planner",
+      "dom": {
+        "connection": "Uplink live",
+        "remoteDisabled": false,
+        "remotePressed": "true",
+        "roomState": "open",
+        "dialogs": [],
+        "visibility": "visible"
+      },
+      "screenshot": ".local/live-release-recovery-2026-10-30-3e56b588-desktop-planner.png"
+    },
+    {
+      "label": "phone-before-remote",
+      "domError": "phone-before-remote DOM timed out after 5000ms",
+      "screenshotError": "page.screenshot: Timeout 6000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+    },
+    {
+      "label": "phone-remote-failure",
+      "error": "locator.click: Timeout 7000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#remote-mode')\u001b[22m\n\u001b[2m    - locator resolved to <button id=\"remote-mode\" aria-pressed=\"false\" aria-controls=\"remote-markers\" title=\"Choose artillery, a ship or an aircraft\">…</button>\u001b[22m\n"
+    },
+    {
+      "label": "phone-after-failure",
+      "dom": {
+        "connection": "Uplink live",
+        "remoteDisabled": false,
+        "remotePressed": "false",
+        "roomState": "open",
+        "dialogs": [],
+        "visibility": "visible"
+      },
+      "screenshotError": "page.screenshot: Timeout 6000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+    }
+  ],
+  "samples": [],
+  "pageErrors": [],
+  "cleanup": [
+    "Only the labelled test room closed.",
+    "Test account logged out.",
+    "Test account logged out.",
+    "Browser and request teardown bounded; evidence saved first."
+  ],
+  "phase": "bounded cleanup",
+  "updatedAt": "2026-10-29T14:42:33.324Z",
+  "campaignId": "2020e08b-12c8-4529-a078-1b686adefaee",
+  "shipId": "bc7bc4c7-562b-4ad7-ae84-20ab6d19695c",
+  "dockId": "50c87128-3be9-465b-864c-b23ec8fb2fe1",
+  "remoteUI": {
+    "desktop": true,
+    "phone": false
+  },
+  "failure": {
+    "phase": "authoritative move and stale-command handling",
+    "message": "HTTP 409 at /api/campaign-world/2020e08b-12c8-4529-a078-1b686adefaee/ships/order (body omitted)."
+  },
+  "finishedAt": "2026-10-29T14:42:33.370Z"
+}

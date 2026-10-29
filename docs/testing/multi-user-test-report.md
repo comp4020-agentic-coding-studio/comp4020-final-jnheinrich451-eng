@@ -1,5 +1,40 @@
 # Multiplayer test report
 
+## Fly rehearsal and catalogue work — 30 October 2026
+
+Commit `3f6268a` passed CI and deployed successfully (workflow run `40891523111`,
+build `3080aed1b39996be`). Two new Demo identities joined a new labelled test
+campaign. Live checks established distinct pilots, invitation-code entry,
+two-player reserves, outsider rejection, legal core/dock deployment, shared
+movement and a gunship purchased with normally regenerated GND.
+
+The first browser run stalled opening Remote and then hung during teardown. A
+fresh desktop opened Remote, but the phone also stalled before opening its panel.
+The API rejected a later ship order because the rehearsal robot had been defeated,
+not because of a route error. Independent real SSE connections, followed by normal
+core recovery, established ship movement, stale Stop rejection, reviewed retry and
+accepted-order persistence after closing/reopening this test campaign. Both test
+accounts logged out and the test room closed. Existing player saves were untouched.
+
+Investigation found unnecessary coastal searches in `updateCatalogue`: every
+snapshot refreshed all catalogue tabs even while hidden. At the saved phone
+position, the uncached search took approximately 45–50 ms locally. The catalogue
+now skips hidden work and refreshes only its visible tab. Opening it or changing
+tabs refreshes controls immediately; active dock placement still validates its
+preview. A browser call-count regression covers real snapshots, tab changes,
+Escape, reopening and active placement at desktop/phone sizes without a fragile
+elapsed-time assertion. This removes measured wasted work; the initial browser
+stall is not claimed fully explained by that measurement alone.
+
+These are automated live checks, not independent human playtesting, real-email
+inbox verification, sustained capacity or a live-machine restart test. Raw local
+production traces/credentials must never be published. The new menu remains the
+next presentation stage recorded in [Entry visual design](../ENTRY_VISUAL_DESIGN.md).
+
+Sanitized evidence: [live API/SSE checks](evidence/2026-10-30/live-api-rehearsal.json),
+[browser failure before the catalogue fix](evidence/2026-10-30/live-browser-rehearsal-before-fix.json),
+and [unchanged local identity-test reruns](evidence/2026-10-30/local-identity-recheck.json).
+
 ## Scoped release checks — 30 October 2026
 
 The release combines shared passive ORB/GND reserves, coastal dock placement,

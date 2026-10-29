@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-30",
+  "scope": "Exact exported Git index in .local/release-index-2026-10-30, disposable local accounts/campaign, unchanged multiplayer-identity.spec.js",
+  "initialFailure": "Worker-level TypeError: .for is not iterable, no stack, during first core deployment polling. Original trace had no browser pageError/uncaught event. Cause remains unconfirmed.",
+  "isolatedRerun": { "passed": 1, "failed": 0, "durationSeconds": 27.6 },
+  "diagnosticRepeats": { "passed": 3, "failed": 0, "testDurationsSeconds": [27.1, 26.5, 26.2], "uncaughtMonitorOutput": false },
+  "command": "node node_modules/@playwright/test/cli.js test --config .local/release-index-2026-10-30/.local/release-playwright.config.mjs multiplayer-identity.spec.js --output=.local/identity-diagnostic-2026-10-30 --trace=on --repeat-each=3",
+  "diagnosticPreload": ".local/identity-error-monitor.cjs via NODE_OPTIONS; observes uncaughtExceptionMonitor without swallowing errors",
+  "traces": ".local/identity-diagnostic-2026-10-30/",
+  "runtimeOrTrackedTestChanges": false,
+  "conclusion": "Four subsequent isolated executions passed. Deterministic missing-export or stable source-transform failure not reproduced. Do not describe the original transient as diagnosed or repaired."
+}

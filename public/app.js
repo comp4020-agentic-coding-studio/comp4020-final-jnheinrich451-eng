@@ -203,12 +203,14 @@ function showSpec(cardId) {
   $('asset-spec').replaceChildren(...(art ? [art] : []), title, list);
 }
 function updateCatalogue() {
-  if (!world || !me) return;
+  // Planning a large coastal dock is expensive. Hidden cards have no input or
+  // presentation work; opening the tray or switching tabs refreshes them.
+  if (!world || !me || $('deployment-tray').hidden) return;
   const orbitalBalance = world.logistics?.supplies || 0, groundBalance = world.logistics?.groundSupplies || 0;
   const allowed = connected && alive() && !me.deploying && !controlledGun() && me.body === 'robot';
   $('tray-supplies').textContent = 'ORB ' + Math.floor(orbitalBalance) + ' / GND ' + Math.floor(groundBalance);
   const point=mode==='build'?selected:{x:Math.floor(me.x),y:Math.floor(me.y)};
-  for (const asset of ASSETS) {
+  for (const asset of assetsIn(forceTab)) {
     if (asset.kind === 'orbitalStrike') continue;
     const card = $(asset.card), ground = $(asset.card + '-ground');
     if(asset.kind==='vessel'){const price=quote(asset.cost,true);card.querySelector('.asset-cost').textContent=price+' GND / 60s';card.disabled=!allowed||groundBalance<price;card.classList.toggle('short',groundBalance<price);card.title='Select an empty dock on the map.';card.setAttribute('aria-label',asset.name+' / '+price+' GND');continue;}

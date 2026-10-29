@@ -1,0 +1,85 @@
+{
+  "startedAt": "2026-10-29T14:50:45.025Z",
+  "scope": "API-only deployed rehearsal with real SSE connections. Continues only the two labelled test accounts and existing campaign. No browser or human usability claim, no restart/reset/new assets.",
+  "expectedBuild": "3080aed1b39996be",
+  "result": "passed",
+  "checks": [
+    "Both test pilots connected through real SSE without any renderer",
+    "Game-only world snapshot saved locally for rendering diagnosis",
+    "Owner used normal core recovery; no forced state changes",
+    "Accepted naval move produces physical movement in peer SSE snapshot",
+    "Stale Stop rejects with 409; reviewed Stop succeeds and reaches owner SSE",
+    "Same campaign reload preserves both cores, existing ship and accepted order"
+  ],
+  "observations": [
+    {
+      "label": "Owner",
+      "body": "robot",
+      "life": "disabled",
+      "recovery": 0,
+      "roomState": "open",
+      "paused": false,
+      "players": 2
+    },
+    {
+      "label": "Peer",
+      "body": "robot",
+      "life": "active",
+      "recovery": 0,
+      "roomState": "open",
+      "paused": false,
+      "players": 2
+    },
+    {
+      "label": "before-order",
+      "owner": {
+        "body": "robot",
+        "life": "active"
+      },
+      "ship": {
+        "kind": "gunship",
+        "occupant": null,
+        "assemblyRemaining": 0,
+        "orderId": null
+      },
+      "room": {
+        "state": "open",
+        "paused": false,
+        "players": 2
+      }
+    },
+    {
+      "label": "initial-order-result",
+      "status": 201,
+      "error": null
+    },
+    {
+      "label": "stale-stop",
+      "status": 409,
+      "error": "Ship orders changed. Review the current order and try again."
+    }
+  ],
+  "samples": [
+    {
+      "action": "API move to peer SSE movement",
+      "ms": 809
+    }
+  ],
+  "cleanup": [
+    "Only labelled test room closed.",
+    "Test account logged out.",
+    "Test account logged out."
+  ],
+  "phase": "bounded test-only cleanup",
+  "campaignId": "2020e08b-12c8-4529-a078-1b686adefaee",
+  "shipId": "bc7bc4c7-562b-4ad7-ae84-20ab6d19695c",
+  "plan": {
+    "target": {
+      "x": 142.5,
+      "y": 58.5
+    },
+    "kind": "move",
+    "waypoints": 2
+  },
+  "finishedAt": "2026-10-29T14:50:50.227Z"
+}
