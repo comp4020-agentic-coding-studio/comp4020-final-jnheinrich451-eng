@@ -168,7 +168,11 @@ it('rolls back a failed deletion and counts recovery archives toward the global 
     expect(db.prepare('SELECT COUNT(*) AS n FROM campaign_members WHERE campaign_id=?').get(id)!.n).toBe(1);
     db.exec('DROP TRIGGER reject_campaign_delete');
     const insert = db.prepare('INSERT INTO campaign_deleted VALUES (?,?,?)');
+    // One transaction: row-by-row commits can block this shared event loop past
+    // the server's keep-alive timeout, resetting the next request's socket.
+    db.exec('BEGIN');
     for (let i = 0; i < 999; i++) insert.run(randomUUID(), 'archive-fixture-owner', Date.now());
+    db.exec('COMMIT');
   });
   expect((await deletion(owner, id)).status).toBe(200);
   expect((await owner.request('/api/campaigns/create', { name: 'Storage full' })).status).toBe(503);
