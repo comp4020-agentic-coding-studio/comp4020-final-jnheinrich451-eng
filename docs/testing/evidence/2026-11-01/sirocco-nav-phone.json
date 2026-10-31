@@ -1,0 +1,33 @@
+{
+  "viewport": "390x844",
+  "template": "sirocco-v1",
+  "terrainUnmodified": true,
+  "terrainHash": "ab1e1f68146ed9d0f854c645a3f5727dbba1643e821e4f4b905f01a6c163a592",
+  "seededCompletedHulls": 2,
+  "surface": {
+    "x": 104.5,
+    "y": 173.91262328999994,
+    "speed": 1.348100000000001
+  },
+  "buried": {
+    "x": 104.5,
+    "y": 181.2196930162501,
+    "speed": 2.5,
+    "battery": 298.876
+  },
+  "surfaced": {
+    "x": 104.5,
+    "y": 190.18507095725
+  },
+  "sandWakeFills": 12608,
+  "remote": {
+    "status": 201,
+    "id": "6acdfb2c-66c9-4edf-b6c1-513ea4e5d176",
+    "phase": "moving",
+    "x": 392.5,
+    "y": 173.86301203999997
+  },
+  "peerObservedDepth": true,
+  "peerObservedOrder": true,
+  "browserErrors": []
+}

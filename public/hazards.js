@@ -1,6 +1,7 @@
 import { findPath } from './world.js';
 import { ARTILLERY_SHELLS } from './weapons.js';
 import { enemyProfile } from './enemy-profiles.js';
+import { isAirEnemy } from './target-domain.js';
 
 export const FIELD_LIMIT = 12, TYPE_LIMIT = 9, ENEMY_RADIUS = .38;
 export const FIELD_AREA_LIMIT = 512, TYPE_AREA_LIMIT = 256;
@@ -30,7 +31,7 @@ export function makeField(id, weapon, x, y, now) {
 }
 // Stable field order; fire takes priority and one death spends one cloud charge.
 export function contactField(fields, enemy) {
-  if (enemy.hp <= 0 || enemyProfile(enemy).hazardImmune) return null;
+  if (enemy.hp <= 0 || isAirEnemy(enemy) || enemyProfile(enemy).hazardImmune) return null;
   const fire = fields.find(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, enemy.x, enemy.y));
   if (fire) return fire;
   const gas = fields.find(f => f.weapon === 'GAS' && f.capacity > 0 && insideField(f, enemy.x, enemy.y));
@@ -39,11 +40,11 @@ export function contactField(fields, enemy) {
 }
 export const fireBlocked = fields => (x, y) => fields.some(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, x, y, ENEMY_RADIUS + .72));
 export function heatSpeed(fields, enemy) {
-  if (enemyProfile(enemy).hazardImmune) return 1;
+  if (isAirEnemy(enemy) || enemyProfile(enemy).hazardImmune) return 1;
   return fields.some(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, enemy.x, enemy.y, ENEMY_RADIUS + ARTILLERY_SHELLS.INCENDIARY.heatBand)) ? ARTILLERY_SHELLS.INCENDIARY.slow : 1;
 }
 export function lureRoute(world, buildings, enemy, fields, blocked, route = findPath) {
-  if (enemyProfile(enemy).hazardImmune) return null;
+  if (isAirEnemy(enemy) || enemyProfile(enemy).hazardImmune) return null;
   const clouds = fields.filter(f => f.weapon === 'GAS' && f.capacity > 0).flatMap(f => {
     if (!f.sectors) return [{ id: f.id, x: f.x, y: f.y }];
     return activeSectors(f).map(s => {

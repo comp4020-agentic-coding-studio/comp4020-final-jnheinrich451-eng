@@ -151,62 +151,58 @@ export function drawRailGun(c, gun, tile, elapsed, recoil = 0, selected = false,
   c.fillStyle = gun.operator ? '#9ee2d2' : '#526660'; c.fillRect(-4, 21, 8, 4);
   c.restore();
 }
-function macGear(c,x,y,r,phase,teeth=12){
-  c.save();c.translate(x,y);c.rotate(phase);
-  c.fillStyle='#526a68';c.strokeStyle='#b8c9b9';c.lineWidth=1.5;
-  c.beginPath();
-  for(let i=0;i<teeth*4;i++){
-    const a=i*Math.PI*2/(teeth*4),radius=i%4===1||i%4===2?r:r-2.8;
-    const px=Math.cos(a)*radius,py=Math.sin(a)*radius;
-    if(i)c.lineTo(px,py);else c.moveTo(px,py);
-  }
-  c.closePath();c.fill();c.stroke();
-  c.fillStyle='#203b40';c.beginPath();c.arc(0,0,r*.64,0,Math.PI*2);c.fill();c.stroke();
-  c.strokeStyle='#8ea9a3';c.lineWidth=2;
-  for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(3,0);c.lineTo(r*.6,0);c.stroke();}
-  c.fillStyle='#c1cbb4';c.beginPath();c.arc(0,0,2.5,0,Math.PI*2);c.fill();c.restore();
-}
+// Electromagnetic MAC after the author's sketch, breech to muzzle: finned radiator,
+// a rotating ring around the bore (its segments sweep side to side, not spin in
+// place), a long coil-wound accelerator fed by power cables, and cable rings set
+// square across the muzzle. Charge lights the coils from breech to muzzle.
 function drawMACMount(c,gun,elapsed,recoil,reduced){
   const left=Math.max(0,(gun.reload||0)-elapsed),charging=left>MAC.cooldown;
   const power=charging?Math.max(0,Math.min(1,1-(left-MAC.cooldown)/MAC.charge)):0;
   // Cosmetic clock stays continuous between server snapshots; reduced effects freeze it.
-  const rotation=reduced?0:performance.now()*.00055;
-  c.save();c.translate(0,recoil);
-  // Armoured cable loop and exposed drive gears sit outside the breech block.
-  c.lineCap='round';c.lineJoin='round';
-  c.beginPath();c.moveTo(27,10);c.bezierCurveTo(52,10,52,-8,46,-24);c.bezierCurveTo(55,-42,44,-57,25,-54);
-  c.strokeStyle='#183035';c.lineWidth=8;c.stroke();
-  c.strokeStyle='#85998b';c.lineWidth=4;c.stroke();
-  c.strokeStyle='#344f50';c.lineWidth=1.5;c.stroke();
-  for(const [x,y,a] of [[42,3,.6],[48,-9,0],[48,-34,-.3]]){
-    c.save();c.translate(x,y);c.rotate(a);c.fillStyle='#b2b9a0';c.fillRect(-4,-2,8,4);c.restore();
-  }
-  macGear(c,29,-45,16,rotation);
-  macGear(c,41,-22,10,-rotation*1.6,10);
-  // Twin parallel rails with inboard teeth, matching the author's second sketch.
+  const clock=reduced?0:performance.now()*.001,glow=a=>`rgba(156,240,238,${a})`;
+  c.save();c.translate(0,recoil);c.lineCap='round';c.lineJoin='round';
+  // Accelerator: long, gently tapered barrel with a dark bore between the rails.
+  const breech=-64,muzzle=-206;
+  c.fillStyle='#4f6866';c.strokeStyle='#b5c6b5';c.lineWidth=2;
+  c.beginPath();c.moveTo(-18,breech);c.lineTo(-14,muzzle);c.lineTo(14,muzzle);c.lineTo(18,breech);c.closePath();c.fill();c.stroke();
+  c.fillStyle='#1b3236';c.beginPath();c.moveTo(-4,breech);c.lineTo(-3,muzzle+2);c.lineTo(3,muzzle+2);c.lineTo(4,breech);c.closePath();c.fill();
+  // Coils: a wave wound along each side; charge lights them from the breech forward.
   for(const side of [-1,1]){
-    c.fillStyle='#607b79';c.strokeStyle='#b5c6b5';c.lineWidth=2;
-    c.beginPath();c.moveTo(side*8,-28);c.lineTo(side*9,-151);c.lineTo(side*20,-151);c.lineTo(side*22,-28);c.closePath();c.fill();c.stroke();
-    for(let y=-141;y<-38;y+=15){c.fillStyle='#233e43';c.fillRect(side<0?-14:8,y,6,7);}
-    c.fillStyle=charging?'#9cf0ee':'#527a7b';c.globalAlpha=charging?.35+.65*power:1;
-    c.fillRect(side<0?-18:14,-148,3,113);c.globalAlpha=1;
+    c.beginPath();
+    for(let y=breech-6;y>=muzzle+16;y-=2){const x=side*(10-(breech-y)*.018)+Math.sin((breech-y)*.52)*2.6;y===breech-6?c.moveTo(x,y):c.lineTo(x,y);}
+    c.strokeStyle='#22393c';c.lineWidth=3.2;c.stroke();c.strokeStyle='#a98f5c';c.lineWidth=1.6;c.stroke();
+    if(charging){
+      c.save();c.beginPath();c.rect(-20,breech-(breech-muzzle)*power,40,(breech-muzzle)*power);c.clip();
+      c.beginPath();for(let y=breech-6;y>=muzzle+16;y-=2){const x=side*(10-(breech-y)*.018)+Math.sin((breech-y)*.52)*2.6;y===breech-6?c.moveTo(x,y):c.lineTo(x,y);}
+      c.strokeStyle=glow(.45+.45*power);c.lineWidth=2.4;c.stroke();c.restore();
+    }
   }
-  // Two metal collars at the muzzle, retaining the original rail length and gap.
-  for(const y of [-149,-139]){
-    c.fillStyle='#718980';c.strokeStyle='#cad4bd';c.lineWidth=1.5;
-    c.beginPath();c.ellipse(0,y,23,4,0,0,Math.PI*2);c.fill();c.stroke();
-    c.fillStyle='#203c40';c.beginPath();c.ellipse(0,y-1,18,1.8,0,0,Math.PI*2);c.fill();
-    for(const side of [-1,1]){c.fillStyle='#d1d6bc';c.fillRect(side*20-1,y-1,2,3);}
+  // Power cables run outside the barrel from the ring housing to the muzzle rings.
+  for(const side of [-1,1]){
+    c.beginPath();c.moveTo(side*26,-52);c.quadraticCurveTo(side*24,-90,side*19,-120);c.lineTo(side*18,muzzle+14);
+    c.strokeStyle='#18292d';c.lineWidth=4.5;c.stroke();c.strokeStyle=charging?glow(.35+.5*power):'#6f8579';c.lineWidth=1.6;c.stroke();
   }
-  // Rectangular coupling block ahead of the radiator, with a recessed rotating ring.
-  c.fillStyle='#476260';c.strokeStyle='#b7c6b2';c.lineWidth=2;
-  c.fillRect(-27,-64,54,32);c.strokeRect(-27,-64,54,32);
-  c.fillStyle='#90a799';c.fillRect(-25,-62,50,3);
-  c.fillStyle='#263f42';c.fillRect(-23,-38,46,5);
-  c.fillStyle='#142f35';c.fillRect(-18,-57,36,16);
-  c.strokeStyle='#79968e';c.lineWidth=1;c.strokeRect(-18,-57,36,16);
-  c.save();c.translate(0,-49);c.scale(1,.48);macGear(c,0,0,15,-rotation,16);c.restore();
-  for(const x of [-22,22])for(const y of [-58,-42]){c.fillStyle='#c1cbb3';c.fillRect(x-1,y-1,2,2);}
+  // Cable rings square across the muzzle, with terminal blocks at each end.
+  for(const y of [muzzle+14,muzzle+6]){
+    c.fillStyle='#6d847b';c.strokeStyle='#cad4bd';c.lineWidth=1.4;c.fillRect(-20,y-2.5,40,5);c.strokeRect(-20,y-2.5,40,5);
+    c.fillStyle='#203c40';c.fillRect(-17,y-.6,34,1.2);
+    for(const side of [-1,1]){c.fillStyle='#d1d6bc';c.fillRect(side*20-2.5,y-3.5,5,7);}
+  }
+  c.fillStyle='#8fa595';c.fillRect(-14,muzzle-1,28,3);
+  // Rotating ring housing ahead of the radiator. The ring turns about the bore, so
+  // from above its segments sweep across the band and foreshorten at the edges.
+  c.fillStyle='#3d5654';c.strokeStyle='#b7c6b2';c.lineWidth=2;c.fillRect(-27,-66,54,32);c.strokeRect(-27,-66,54,32);
+  for(const side of [-1,1])for(let i=0;i<5;i++){c.fillStyle='#5c7470';c.fillRect(side>0?27:-31,-63+i*6,4,3.4);}
+  c.fillStyle='#142f35';c.fillRect(-23,-61,46,22);
+  const turn=clock*(charging?2.6+power*5:.7);
+  for(let i=0;i<14;i++){
+    const phi=turn+i*Math.PI*2/14,face=Math.cos(phi);if(face<=0)continue;
+    const x=Math.sin(phi)*22,w=Math.max(.8,face*5);
+    c.fillStyle=charging?glow(.25+.6*face*power):`rgba(178,192,170,${.35+.5*face})`;c.fillRect(x-w/2,-59,w,18);
+  }
+  c.fillStyle='#ffffff14';c.fillRect(-23,-61,46,5);c.fillStyle='#00000030';c.fillRect(-23,-44,46,5);
+  for(const x of [-24,24])for(const y of [-63,-37]){c.fillStyle='#c1cbb3';c.fillRect(x-1,y-1,2,2);}
+  // Radiator breech with cooling fins; the fins glow with charge and stay warm after.
   c.fillStyle='#536963';c.strokeStyle='#c0c8aa';c.lineWidth=2;
   c.beginPath();c.moveTo(-28,-35);c.lineTo(28,-35);c.lineTo(33,24);c.lineTo(24,35);c.lineTo(-24,35);c.lineTo(-33,24);c.closePath();c.fill();c.stroke();
   c.fillStyle='#263e42';c.fillRect(-23,-26,46,47);
@@ -216,7 +212,12 @@ function drawMACMount(c,gun,elapsed,recoil,reduced){
   }
   c.strokeStyle='#809b99';c.strokeRect(-25,-28,50,51);
   c.fillStyle=gun.operator?'#a6eddf':'#667c70';c.fillRect(-7,27,14,4);
-  if(charging&&!reduced){c.globalAlpha=power*.5;c.strokeStyle='#cbffff';c.lineWidth=1+power*2;c.beginPath();c.moveTo(-8,-40);c.lineTo(7,-57);c.lineTo(-7,-79);c.lineTo(7,-107);c.stroke();}
+  // Arcs crawl along the bore while charging.
+  if(charging&&!reduced){
+    c.globalAlpha=.35+power*.5;c.strokeStyle='#cbffff';c.lineWidth=1+power*1.6;c.beginPath();
+    const reach=breech-(breech-muzzle)*power;for(let y=breech-4,k=0;y>=reach;y-=11,k++){const x=(k%2?3:-3)*(1+Math.sin(clock*40+k)*.5);k?c.lineTo(x,y):c.moveTo(x,y);}
+    c.stroke();c.globalAlpha=1;
+  }
   c.restore();
 }
 export function drawSalvos(c, salvos, tile, elapsed, reduced) {

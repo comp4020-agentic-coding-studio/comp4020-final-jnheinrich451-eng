@@ -3,13 +3,14 @@ import { SHIPYARD } from './shipyard.js';
 import { mooredDock } from './ship.js';
 import { drawShip } from './ship-effects.js';
 import { largeHull, shipArtScale, shipDimensions } from './naval-scale.js';
+import { isSandSeaWorld, navalText } from './biome.js';
 export function drawWrecks(c,world,T,zoom){
   c.save();
   for(const w of world.logistics?.wrecks||[]){
     c.save();c.translate(w.x*T,w.y*T);c.rotate(w.angle);
     if(largeHull(w)){const scale=shipArtScale(w);c.scale(scale.x,scale.y);}
-    c.fillStyle='#0c252d80';c.beginPath();c.ellipse(0,0,T*1.2,T*2.2,0,0,Math.PI*2);c.fill();
-    c.fillStyle='#3a5358b0';c.strokeStyle='#84948780';c.lineWidth=1/zoom;
+    c.fillStyle=isSandSeaWorld(world)?'#62472780':'#0c252d80';c.beginPath();c.ellipse(0,0,T*1.2,T*2.2,0,0,Math.PI*2);c.fill();
+    c.fillStyle=isSandSeaWorld(world)?'#706248b0':'#3a5358b0';c.strokeStyle=isSandSeaWorld(world)?'#b99e7480':'#84948780';c.lineWidth=1/zoom;
     c.beginPath();c.moveTo(0,-1.8*T);c.lineTo(.8*T,-T);c.lineTo(.4*T,.2*T);c.lineTo(-.7*T,.1*T);c.lineTo(-.8*T,-T);c.closePath();c.fill();c.stroke();
     c.beginPath();c.moveTo(-.65*T,.5*T);c.lineTo(.7*T,.3*T);c.lineTo(.5*T,1.7*T);c.lineTo(-.6*T,1.5*T);c.closePath();c.fill();c.stroke();c.restore();
   }c.restore();
@@ -21,14 +22,14 @@ export function drawShipAssembly(c,world,ship,T,zoom,reduced,effects){
     const dock=mooredDock(world,ship);
     if(dock){c.save();c.translate(ship.x*T,ship.y*T);
       effects.workers(c,{cores:[{x:dock.x-1.5,y:dock.y-1.5,elapsed:4.5}]},ship,2,{time:2+(ship.repairTime||0),reveal:.5},reduced);
-      c.fillStyle='#a9e7cf';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('DOCK REPAIR',0,2.4*T+28/zoom);c.restore();}
+      c.fillStyle='#a9e7cf';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText(navalText(world,'DOCK REPAIR'),0,2.4*T+28/zoom);c.restore();}
   }
   if(!(ship.assemblyRemaining>0))return;
   const reveal=1-ship.assemblyRemaining/(ship.assemblyDuration||SHIPYARD.buildTime);
   c.save();c.translate(ship.x*T,ship.y*T);c.rotate(ship.angle);
   c.beginPath();c.rect(-size.width/2*T,(size.length/2-size.length*reveal)*T,size.width*T,size.length*T*reveal);c.clip();
   c.rotate(-ship.angle);c.translate(-ship.x*T,-ship.y*T);
-  drawShip(c,ship,T,false,zoom,0,true);c.restore();
+  drawShip(c,ship,T,false,zoom,0,true,undefined,world);c.restore();
   c.save();c.translate(ship.x*T,ship.y*T);
   c.strokeStyle='#b1dace';c.lineWidth=1/zoom;c.setLineDash([5/zoom,4/zoom]);c.save();c.rotate(ship.angle);c.strokeRect(-size.width/2*T,-size.length/2*T,size.width*T,size.length*T);c.restore();c.setLineDash([]);
   // Work from the dock, rather than treating these workers as simulated units.

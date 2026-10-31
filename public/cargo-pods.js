@@ -15,7 +15,7 @@ export function newRailDelivery(id,request,additions,rails){
 // A rectangular crate opens four walls, each the area of its payload floor.
 // Separate from damage hitboxes (an airbase's hangar is not its full runway).
 export function cargoSite(kind, x, y) {
-  const dimensions = { sentry:[1,1], recycler:[1,1], builder:[1,1], factory:[2,2], outpost:[2,2], uplink:[3,3], helipad:[3,3], missile:[4,4], artillery:[3,3], mac:[3,3], airbase:[6,10] };
+  const dimensions = { sentry:[1,1], 'aa-sentry':[1,1], recycler:[1,1], builder:[1,1], factory:[2,2], outpost:[2,2], uplink:[3,3], helipad:[3,3], missile:[4,4], artillery:[3,3], mac:[3,3], airbase:[6,10] };
   const size=dimensions[kind];if(!size)return null;
   return {x:x-(['artillery','mac'].includes(kind)?1:0),y:y-(['artillery','mac'].includes(kind)?1:0),w:size[0],h:size[1],...(['artillery','mac'].includes(kind)?{overRails:true}:{})};
 }

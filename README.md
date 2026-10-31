@@ -6,6 +6,28 @@ bases, operating military machines and fighting alien enemies. Designed for
 The larger goal is to defend a foothold, expand controlled territory, eliminate
 hostile forces and eventually secure the planet.
 
+## Start playing
+
+The 30 October opening-page update is implemented locally; it is not yet a
+deployment claim. Sign in with an Email or Demo account, then choose:
+
+- **New Game:** choose Caldera, Vesper or Sirocco, select it, name the campaign and enter.
+  Accounts can own three saves across all planets.
+- **Continue:** choose a planet and enter one of its saved campaigns. Members
+  can enter while the owner has the room open.
+- **Join:** paste the single-use code provided by your host. Play as guest goes
+  straight here and requires no registration.
+
+To invite a friend, enter your campaign and use **Room → Create invitation code**.
+Share that code with them; it expires after 30 minutes or when your room closes.
+Emailed, recipient-bound invitations are planned separately. Account verification
+and password-recovery links are different from room invitations.
+
+In the battlefield, place your support core to land your robot. **WASD**
+moves, the mouse aims, **B** opens deployment and **F1** shows controls. Entry-menu
+Back/Escape changes views; **Save and leave room** explicitly ends your visit.
+If you own the room, leaving also returns your teammates to their menus.
+
 ## The experience we are building
 
 Arrive quickly, deploy a robot and support core, then build the means to survive
@@ -126,13 +148,17 @@ with SMTP for real delivery or a private simulated Demo inbox. Actual Brevo inbo
 receipt still needs testing. Guests join by invitation and keep their contributions
 in the host's world; only accounts host. [The permission decision](docs/decisions/002-identity-and-permissions.md)
 explains server-enforced ownership, shared equipment and the guest lifetime.
-Multiple planets, cinematic introductions, final textures and ambient sounds are deferred.
+Three planets are available locally. [Sirocco](docs/SIROCCO_PLANET.md) adds firm
+desert, ship-navigable sand seas, oases, mesas and alien palms. Entry includes the
+planet-selection flight and optional campaign dive. Final textures and replacement
+sound recordings remain refinement work.
 
 The local [orbital expansion](docs/ORBITAL_EXPANSION_AND_POLISH.md) adds a heavy
 bomb, a seeded 15-second barrage, and three-shell cluster strikes. New cutting
 beams sweep up to 72 tiles over 18 seconds. All use the shared ORB pool and save
 accepted impact progress across restarts. The same roadmap records future
-presentation art, terrain variety and two additional planets.
+presentation art and terrain variety; the two additional planets are now available
+locally as Vesper and Sirocco.
 
 The local [helicopter and submarine refinement](docs/HELICOPTER_AND_SUBMARINE_REFINEMENT.md)
 now includes Remote helicopter movement, field landing and vehicle pickup/drop,

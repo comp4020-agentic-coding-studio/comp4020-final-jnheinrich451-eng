@@ -8,7 +8,7 @@ export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 20
   groundReserve: 50, groundIncome: .4, multiplayerOrbitalDeduction: 100, multiplayerGroundDeduction: 15,
   emergencyCooldown: 20, salvage: 180, cargo: 180, collectTime: 8, launchTime: 5,
   rocketCycle: 120, processRate: 30, factoryDiscount: .25, factoryTime: 60, maxFacilities: 12, maxRecyclers: 4, remainsValue: 8 });
-export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, tank: 100, ship: 240,
+export const COSTS = Object.freeze({ orbitalStrike: ORBITAL.cost, core: 120, sentry: 25, 'aa-sentry': 80, tank: 100, 'aa-tank': 120, ship: 240,
   submarine: 280, transport: 200, carrier:400, airbase: 300, helipad:160, helicopter:60, artillery: 180, mac:280, missile: 220, outpost: 80, factory: 150,
   uplink: 100, recycler: 60, builder: 80, aircraft: 100, dockRepair: 90, baseRepair: 150, shipyard: 120, rampRepair: 25 });
 export const LOGISTICS_SIZE = Object.freeze({ outpost: 2, factory: 2, uplink: 3, recycler: 1, builder: 1 });
@@ -21,7 +21,7 @@ export const readyFactory = f => ['factory','outpost'].includes(f.kind) && !f.de
 export const facilityCenter = f => ({ x: f.x + (LOGISTICS_SIZE[f.kind] || 1) / 2, y: f.y + (LOGISTICS_SIZE[f.kind] || 1) / 2 });
 export const quote = (kind, local = false) => Math.ceil(COSTS[kind] * (local ? ECONOMY.factoryDiscount : 1));
 export function usableExplosives(world) {
-  return (world.tanks || []).some(t => !t.destroyed) || (world.ships||[]).some(s=>s.cargo?.kind==='tank'&&!s.cargo.vehicle.destroyed) || (world.artillery || []).some(g => !g.remaining)
+  return (world.tanks || []).some(t => !t.destroyed && t.kind !== 'aa') || (world.ships||[]).some(s=>s.cargo?.kind==='tank'&&!s.cargo.vehicle.destroyed&&s.cargo.vehicle.kind!=='aa') || (world.artillery || []).some(g => !g.remaining)
     || (world.ships || []).some(s => !s.destroyed) || (world.airbases || []).some(b => b.aircraft && !['destroyed','vacant'].includes(b.aircraft.state));
 }
 export function emergencyTankError(world) {
@@ -61,13 +61,15 @@ export function collectSalvage(state, site, truck, dt) {
 // shared 64-pile budget is full, preserve the cargo in the nearest existing pile.
 export function addRemains(state, enemy, id) {
   if (!state || enemy.kind === 'swimmer') return;
-  const near=state.crates.find(c=>c.kind==='remains'&&Math.hypot(c.x-enemy.x,c.y-enemy.y)<2);
-  if(near){near.amount+=ECONOMY.remainsValue;near.enemyKind ||= enemy.kind || 'hunter';return;}
+  const giant=enemy.kind==='centipede',amount=giant?80:ECONOMY.remainsValue;
+  const near=!giant&&state.crates.find(c=>c.kind==='remains'&&Math.hypot(c.x-enemy.x,c.y-enemy.y)<2);
+  if(near){near.amount+=amount;near.enemyKind ||= enemy.kind || 'hunter';return;}
   if(state.crates.length>=64){
     const nearest=state.crates.reduce((best,c)=>Math.hypot(c.x-enemy.x,c.y-enemy.y)<Math.hypot(best.x-enemy.x,best.y-enemy.y)?c:best);
-    nearest.amount+=ECONOMY.remainsValue;return;
+    nearest.amount+=amount;return;
   }
-  state.crates.push({id,kind:'remains',enemyKind:enemy.kind||'hunter',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount:ECONOMY.remainsValue});
+  state.crates.push({id,kind:'remains',enemyKind:enemy.kind||'hunter',x:enemy.x,y:enemy.y,angle:enemy.angle||0,amount,
+    ...(giant&&enemy.body?.length?{body:enemy.body.slice(0,8).map(p=>({x:p.x,y:p.y,angle:p.angle}))}:{})});
 }
 export function tickLaunch(state, station, dt) {
   const active=station.launch>0||station.cooldown>0;
@@ -130,7 +132,7 @@ export function migrateLogistics(state) {
   if(state.version===1){state.groundSupplies=0;state.freeBomberUsed=false;for(const job of Object.values(state.jobs||{}))job.pool='supplies';state.version=2;}
   return state;
 }
-export const LOCAL_KINDS = ['helipad','airbase','ship','submarine','transport','carrier','artillery','mac','missile','factory','outpost','uplink','sentry','tank','recycler','builder','shipyard'];
+export const LOCAL_KINDS = ['helipad','airbase','ship','submarine','transport','carrier','artillery','mac','missile','factory','outpost','uplink','sentry','aa-sentry','tank','aa-tank','recycler','builder','shipyard'];
 export const poolFor = (kind, local=false) => local || ['dockRepair','baseRepair','rampRepair'].includes(kind) ? 'groundSupplies' : 'supplies';
 export const poolLabel = pool => pool==='groundSupplies'?'ground SUP':'orbital SUP';
 export function supportSources(world){return [

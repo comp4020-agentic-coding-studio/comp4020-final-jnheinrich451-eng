@@ -25,14 +25,15 @@ it('persists a heavy locked strike through restart, hits once, and lets a moving
   for (let i = 0; i < 15; i++) dodged.tick(.1, [], [runner]); expect(runner.health).toBe(100);
 });
 
-it('moves more slowly than hunters and prefers damageable infrastructure without granting hunters penetration', () => {
+it('moves more slowly than hunters and gives only designated siege heavies infrastructure priority', () => {
   const breaker = field(), hunter = field('hunter'), p = { ...robot(), x: 26.5 };
   for (let i = 0; i < 10; i++) { breaker.combat.tick(.1, [], [p]); hunter.combat.tick(.1, [], [p]); }
   expect(breaker.combat.snapshot().enemies[0].x).toBeLessThan(hunter.combat.snapshot().enemies[0].x);
   const unit = { ...newGroundEnemy('breaker', 1, { x: 10, y: 10 }) };
   const facility = { id: 'armor3', x: 15, y: 10, facility: { x: 15, y: 10, w: 2, h: 2, hp: { armor: 3 } } };
   const person = { id: 'robot', x: 11, y: 10 };
-  expect(landTarget(unit, [facility, person], 0)?.id).toBe('armor3');
+  expect(landTarget({ ...unit }, [facility, person], 0)?.id).toBe('robot');
+  expect(landTarget({ ...unit }, [facility, person], 0, () => true, true)?.id).toBe('armor3');
   expect(landTarget({ ...unit, kind: 'hunter' }, [facility, person], 0)?.id).toBe('robot');
   expect(landTarget({ ...unit, kind: 'hunter' }, [facility], 0)).toBeUndefined();
 });

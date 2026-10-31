@@ -1,5 +1,13 @@
 # Entry, planet selection and campaign ownership
 
+**30 October presentation update:** the local entry now has a planet-backed
+login and separate New Game, Continue and Join views, supporting Caldera and
+Vesper. Creation saves and then enters the new campaign; failed admission leaves
+the save available through Continue. See [Entry visual design](ENTRY_VISUAL_DESIGN.md)
+for current presentation and tests. The earlier one-card/CSS-preview description
+below is the original checkpoint; campaign ownership and admission remain governed
+by the existing services.
+
 9 October 2026. Optional accounts, orbital entry and campaign isolation are
 implemented locally. `/` and `/campaigns/` provide the one-planet selector and
 create/join/resume flow. The legacy shared world is retained at `/?legacy=1`.

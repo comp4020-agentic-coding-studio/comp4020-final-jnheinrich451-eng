@@ -29,6 +29,7 @@ export function seedSettlement(world, buildings, occupants) {
   const protectedObjects = [...occupants, ...buildings, ...(world.cores || []), ...(world.tanks || []), ...(world.artillery || []), ...(world.airbases || [])];
   for (const p of candidates) {
     const sites = KINDS.map((kind, i) => makeSite(kind, requiredIds[i], p.x + [0, 10, 5][i], p.y + [0, 0, 9][i]));
+    if (sites.some(s => (world.landingZones || []).some(z => Math.hypot(s.x - z.x, s.y - z.y) < z.radius + 30))) continue;
     if (sites.some(s => protectedObjects.some(o => Math.hypot(o.x - s.x - 1.5, o.y - s.y - 1.5) < 26)
       || (world.sites || []).some(o => Math.hypot(o.x - s.x, o.y - s.y) < 13)
       || (world.fronts || []).some(o => Math.hypot(o.x - s.x - 1.5, o.y - s.y - 1.5) < 7))) continue;

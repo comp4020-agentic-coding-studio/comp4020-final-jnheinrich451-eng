@@ -6,7 +6,7 @@ import { makeBarrageField, landBarrageSector, tickField, keepField } from '../pu
 import { insideField, contactField, fireBlocked, heatSpeed, lureRoute, fieldCapacityError, makeField } from '../public/hazards.js';
 
 const world = () => ({ ...createWorld(), width: 128, height: 96, terrain: Array(128 * 96).fill(2) });
-const gun = (ammo: string) => ({ id: 'battery', x: 64, y: 24, ammo, reload: 0, rotated: false });
+const gun = (ammo: string) => ({ id: 'battery', x: 64, y: 24, ammo, reload: 0, rotated: false, deploy: 1 });
 const target = { x: 24.5, y: 18.5 };
 const advance = (c: ReturnType<typeof createCombat>, seconds: number) => { for (let i = 0; i < Math.round(seconds * 10); i++) c.tick(.1, []); };
 const region = (ammo: string, rotated = false, id = 1) => {

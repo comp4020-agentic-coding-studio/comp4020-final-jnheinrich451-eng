@@ -5,6 +5,7 @@ import {mainMounts} from './ship-armament.js';
 import {shipStopped} from './ship-motion.js';
 import {remoteShipError,returnDockError} from './naval-orders.js';
 import {airfields,parkedRecord} from './air-traffic.js';
+import {navalText,submarineDepthLabel} from './biome.js';
 export function remoteNavalUI({state,api,notify,changed}){
  let id=null,mode='move',targets=[],hover=null,busy=false,generation=0,expected=null,orderId=null,rotated=false,actionRevision=0;
  const panel=document.createElement('section');panel.id='remote-naval';panel.className='panel';panel.hidden=true;
@@ -22,10 +23,12 @@ export function remoteNavalUI({state,api,notify,changed}){
   for(const action of ['dive','surface']){button(action).disabled=busy||!!error||!!depthError(s,action);button(action).title=depthError(s,action)||'';}
   button('ramp').hidden=isSubmarine(s)||!s?.ramp;button('launch').hidden=s?.kind!=='carrier';
   if(s?.kind==='carrier'){const plane=parkedRecord(world,airfields(world).find(b=>b.id===s.id))?.aircraft;button('launch').disabled=busy||!!error||!shipStopped(s)||plane?.state!=='parked'||!!plane?.occupant||plane?.kind==='air-gunship';button('launch').title=plane?.kind==='air-gunship'?'Aerial gunship currently needs a pilot':'Stop the carrier, then launch its unoccupied aircraft';}
-  const order=s?.remoteOrder,depth=isSubmarine(s)?' '+depthState(s)+' / '+Math.ceil(diveBattery(s))+'s submerged endurance / '+(submarineGroupsReady(s)+'/4 groups ready / '+submarineMagazineLabel(s))+'.':'',progress=depth+(order?` ${order.kind} / ${order.phase}${order.kind==='bombard'?' / '+order.fired+'/3 salvos':''}${order.reason?' / '+order.reason:''}.`:'');
+  const order=s?.remoteOrder,depth=isSubmarine(s)?' '+submarineDepthLabel(world,depthState(s))+' / '+Math.ceil(diveBattery(s))+'s submerged endurance / '+(submarineGroupsReady(s)+'/4 groups ready / '+submarineMagazineLabel(s))+'.':'',progress=depth+(order?` ${order.kind} / ${order.phase}${order.kind==='bombard'?' / '+order.fired+'/3 salvos':''}${order.reason?' / '+order.reason:''}.`:'');
   status.textContent=busy?'Sending order…':error||
    (mode==='strike'?'Click a missile area / R rotates / 12 to 80 tiles.':mode==='bombard'?`Click target ${targets.length+1}/${mainMounts(s).length}. Three salvos; ${SHIP.minRange}–${SHIP.range} tiles.`:
     mode==='shore'?'Click clear shore: sail there, stop and unfold the ramp.':'Click water: sail there and hold position.')+progress+' WASD moves your robot.';
+  status.textContent=navalText(world,status.textContent);
+  for(const b of panel.querySelectorAll('button')){b.textContent=navalText(world,b.textContent);b.title=navalText(world,b.title);}
  }
  function open(next){generation++;id=next;mode='move';targets=[];hover=null;busy=false;actionRevision=ship()?.remoteActionRevision||0;expected=ship()?.remoteOrder?.id||null;orderId=null;panel.hidden=false;document.querySelector('.battlefield').classList.add('remote-naval-planning');update();}
  function close(){generation++;id=null;panel.hidden=true;document.querySelector('.battlefield').classList.remove('remote-naval-planning');}
@@ -40,7 +43,7 @@ export function remoteNavalUI({state,api,notify,changed}){
    else await api('ships/order',{id,orderId,expectedOrderId:expected,action,...extra});
    notify(action==='bombard'?'Three-salvo bombardment assigned.':action==='launch'?'Aircraft launching to cruise. Select it in Remote to attack.':'Ship order accepted.');
    if(version===generation){close();changed();}
-  }catch(e){notify(e.message);if(version===generation){actionRevision=ship()?.remoteActionRevision||0;expected=ship()?.remoteOrder?.id||null;orderId=null;if(action==='bombard')targets=[];}}
+  }catch(e){notify(navalText(world,e.message));if(version===generation){actionRevision=ship()?.remoteActionRevision||0;expected=ship()?.remoteOrder?.id||null;orderId=null;if(action==='bombard')targets=[];}}
   finally{if(version===generation){busy=false;update();}}
  }
  async function pick(x,y){

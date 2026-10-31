@@ -24,16 +24,14 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await page.goto(base); await expect(page.locator('#identity')).toContainText('Demo account');
     await expect(page.locator('#create-panel')).toBeHidden();
     await expect(page.locator('#motion')).toHaveAttribute('aria-pressed', String(mobile));
-    expect(await page.locator('.planet-surface').first().evaluate(el => getComputedStyle(el).animationPlayState)).toBe(mobile ? 'paused' : 'running');
     if (!mobile) { await page.locator('#motion').click(); await expect(page.locator('#motion')).toHaveAttribute('aria-pressed', 'true'); }
-    await page.getByRole('button', { name: 'Select Caldera' }).focus(); await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: 'Caldera selected' })).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#new-game').click();
+    await page.locator('#select-planet').focus(); await page.keyboard.press('Enter');
     await expect(page.locator('#create-panel')).toBeVisible();
-    await page.locator('#create input[name=name]').fill('Operation First Light'); await page.locator('#create button').click();
-    await expect(page.locator('.campaign-card')).toContainText('Operation First Light');
+    await page.locator('#create input[name=name]').fill('Operation First Light');
     await page.screenshot({ path: info.outputPath('campaign-lobby.png'), fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.getByRole('button', { name: 'Open / resume' }).click(); await expect(page.locator('#connection')).toContainText('live');
+    await page.locator('#create button').click(); await expect(page.locator('#connection')).toContainText('live');
     const id = new URL(page.url()).searchParams.get('campaign');
     const state = () => owner.request.get(base + `/api/campaign-world/${id}/world`).then(r => r.json());
     expect((await state()).me.body).toBe('orbital');
@@ -70,7 +68,9 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await page.locator('#room-button').click(); await page.locator('#room-leave').click();
     await expect(page).toHaveURL(/\/campaigns\//); await expect(visitor).toHaveURL(/\/campaigns\//);
     await expect(page.locator('#create-panel')).toBeHidden();
-    await page.getByRole('button', { name: 'Open / resume' }).click(); await expect(page.locator('#connection')).toContainText('live');
+    await page.locator('#continue-game').click();
+    await page.locator('.campaign-card').filter({ hasText: 'Operation First Light' }).getByRole('button', { name: 'Enter Operation First Light', exact: true }).click(); await page.keyboard.press('Shift');
+    await expect(page.locator('#connection')).toContainText('live');
     expect((await state()).cores).toHaveLength(1); expect((await state()).me.body).toBe('robot');
     await page.screenshot({ path: info.outputPath('campaign-return.png') });
     expect(errors).toEqual([]);

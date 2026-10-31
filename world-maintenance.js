@@ -25,7 +25,7 @@ const worldTables = new Set([
   'cores', 'robot_states', 'rails', 'artillery', 'rail_switches',
 ]);
 const accountTables = new Set(['accounts', 'account_sessions', 'account_tokens', 'demo_inboxes', 'demo_messages', 'account_limits']);
-const campaignTables = new Set(['campaigns', 'campaign_members', 'campaign_invites', 'campaign_abandoned', 'campaign_limits']);
+const campaignTables = new Set(['campaigns', 'campaign_members', 'campaign_invites', 'campaign_abandoned', 'campaign_limits', 'campaign_deleted']);
 
 export async function resetWorld(dataDir) {
   const release = lockWorld(dataDir);

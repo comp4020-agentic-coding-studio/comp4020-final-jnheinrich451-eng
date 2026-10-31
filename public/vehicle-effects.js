@@ -1,9 +1,11 @@
 import { drawVehicleRuin } from './ruins.js';
 import { hullMaximum } from './vehicle.js';
 import { largeHull, shipDimensions, shipArtScale } from './naval-scale.js';
+import { sandSeaAt, isSandSeaWorld, navalText } from './biome.js';
 ﻿import { hullHealth, VEHICLE, vehicleKind } from './vehicle.js';
 const seen=new Map();
-export function drawVehicleState(c,v,T,zoom,now,reduced) {
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawVehicleState(c,v,T,zoom,now,reduced,world=null) {
  const kind=vehicleKind(v),health=hullHealth(v),max=hullMaximum(v),size=shipDimensions(v),r=kind==='ship'?(largeHull(v)?Math.hypot(size.width,size.length)/2+.4:2.7):.8;
  let memo=seen.get(v.id);if(!memo||memo.hurt!==(v.hurt||0)){memo={hurt:v.hurt||0,at:memo&&v.hurt>memo.hurt?now:-10000};seen.set(v.id,memo);}
  c.save();c.translate(v.x*T,v.y*T);
@@ -12,11 +14,11 @@ export function drawVehicleState(c,v,T,zoom,now,reduced) {
    c.rotate(v.angle||0);drawVehicleRuin(c,T,'tank');c.restore();
    c.save();c.fillStyle='#d1ac85';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText('TANK WRECK',v.x*T,(v.y+.7)*T);c.restore();return;
   }
-  c.rotate(v.angle||0);if(largeHull(v)){const scale=shipArtScale(v);c.scale(scale.x,scale.y);}c.fillStyle=kind==='ship'?'#193b42aa':'#262e28cc';c.strokeStyle='#78837c';c.lineWidth=2;
+  c.rotate(v.angle||0);if(largeHull(v)){const scale=shipArtScale(v);c.scale(scale.x,scale.y);}c.fillStyle=kind==='ship'?(isSandSeaWorld(world)?'#655236aa':'#193b42aa'):'#262e28cc';c.strokeStyle='#78837c';c.lineWidth=2;
   c.beginPath();c.moveTo(-T*(kind==='ship'?.8:.35),-T*(kind==='ship'?1.6:.4));c.lineTo(T*.6,-T*.35);c.lineTo(T*.45,T*(kind==='ship'?1.6:.4));c.lineTo(-T*.6,T*.3);c.closePath();c.fill();c.stroke();
   c.strokeStyle='#dc956f';c.beginPath();c.moveTo(-T*.3,-T*.3);c.lineTo(T*.3,T*.3);c.moveTo(T*.3,-T*.3);c.lineTo(-T*.3,T*.3);c.stroke();
-  if(kind==='ship'){c.strokeStyle='#a5cec655';c.beginPath();c.ellipse(0,0,1.2*T,2.2*T,0,0,Math.PI*2);c.stroke();}
-  c.restore();c.save();c.translate(v.x*T,v.y*T);c.fillStyle='#edbd93';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(kind==='ship'?'SUNK / RECOVERY SIGNAL':'TANK WRECK',0,r*T);c.restore();return;
+  if(kind==='ship'){c.strokeStyle=isSandSeaWorld(world)?'#dbb47655':'#a5cec655';c.beginPath();c.ellipse(0,0,1.2*T,2.2*T,0,0,Math.PI*2);c.stroke();}
+  c.restore();c.save();c.translate(v.x*T,v.y*T);c.fillStyle='#edbd93';c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';c.fillText(navalText(world,kind==='ship'?'SUNK / RECOVERY SIGNAL':'TANK WRECK'),0,r*T);c.restore();return;
  }
  const w=(kind==='ship'?70:36)/zoom,y=-r*T;
  c.fillStyle='#172923';c.fillRect(-w/2,y,w,5/zoom);c.fillStyle=health/max>.4?'#a6d9b7':'#f29267';c.fillRect(-w/2,y,w*Math.min(1,health/max),5/zoom);
@@ -25,12 +27,15 @@ export function drawVehicleState(c,v,T,zoom,now,reduced) {
  if(health/max<.4){c.fillStyle='#252e32aa';for(let i=0;i<(reduced?1:3);i++){const p=reduced?.5:(now/1700+i/3)%1;c.globalAlpha=(1-p)*.55;c.beginPath();c.arc(T*.25+p*10,-T*.4-p*35,6+p*12,0,Math.PI*2);c.fill();}}
  c.restore();
 }
-export function drawSwimmer(c,e,time,T,reduced,hit=0) {
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawSwimmer(c,e,time,T,reduced,hit=0,world=null) {
  c.save();c.translate(e.x*T,e.y*T);c.rotate(e.angle||0);
  const wave=reduced?0:Math.sin(time*8+e.id)*5;
- c.strokeStyle='#a3dcd277';c.lineWidth=2;c.beginPath();c.ellipse(0,9,23,11,0,0,Math.PI);c.stroke();
+ const sand=sandSeaAt(world,e.x,e.y);
+ c.strokeStyle=sand?'#e6be7077':'#a3dcd277';c.lineWidth=2;c.beginPath();c.ellipse(0,9,23,11,0,0,Math.PI);c.stroke();
+ if(sand){c.fillStyle='#b28a4755';for(const side of[-1,1]){c.beginPath();c.ellipse(side*14,18,11,6,side*.4,0,Math.PI*2);c.fill();}}
  c.fillStyle=hit?'#ffc7ae':e.burnUntil?'#614341':'#ae454e';
  c.beginPath();c.moveTo(0,-22);c.quadraticCurveTo(16,-16,13,7);c.lineTo(18+wave,24);c.lineTo(0,15);c.lineTo(-18-wave,24);c.lineTo(-13,7);c.quadraticCurveTo(-16,-16,0,-22);c.fill();
- c.fillStyle='#df7965';for(const side of [-1,1]){c.beginPath();c.moveTo(side*9,-9);c.lineTo(side*(26+wave),8);c.lineTo(side*8,6);c.fill();}
+ c.fillStyle=sand?'#cfaa69':'#df7965';for(const side of [-1,1]){c.beginPath();c.moveTo(side*9,-9);c.lineTo(side*(26+wave),8);c.lineTo(side*8,6);c.fill();}
  c.fillStyle='#ffde9b';c.fillRect(-7,-16,4,5);c.fillRect(3,-16,4,5);c.restore();
 }

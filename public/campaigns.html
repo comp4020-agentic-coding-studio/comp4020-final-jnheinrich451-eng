@@ -1,20 +1,27 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Campaigns · Frontier</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/campaigns.css"><script type="module" src="/campaigns.js"></script></head>
-<body><main class="lobby">
-  <header><a class="wordmark" href="/campaigns/">FRONTIER</a><nav><a href="/account/">Account</a><a href="/readme/">About</a></nav></header>
-  <p class="eyebrow">ORBITAL COMMAND / PLANET SELECTION</p><h1>Your next foothold.</h1>
-  <p id="identity">Connecting to command…</p><p class="message" id="message" role="status" aria-live="polite"></p>
-  <section id="active" hidden><h2>Current room</h2><p>Leaving your own room saves it and returns your teammates to the lobby.</p><a id="resume" class="button">Return to battlefield</a> <button id="leave">Leave room</button></section>
-  <section class="planet-section" aria-labelledby="planet-heading">
-    <div class="planet-heading"><div><p class="eyebrow">AVAILABLE WORLDS / 01</p><h2 id="planet-heading">Choose your destination</h2></div><button id="motion" class="quiet" aria-pressed="false">Pause rotation</button></div>
-    <div id="planet-list"></div>
-    <p class="fine">Choose a planet to create a saved campaign. Returning commanders can resume below; an invitation takes you to your friend's world.</p>
-  </section>
-  <section id="create-panel" hidden aria-labelledby="create-heading"><h2 id="create-heading">Establish a campaign</h2><p id="create-detail"></p><form id="create"><input type="hidden" name="template"><label>Campaign name<input name="name" required maxlength="48" placeholder="Operation First Light"></label><button>Create saved campaign</button></form><p class="fine">Play solo or invite teammates into the same save. Creating a save does not open a room; open it below when you are ready.</p></section>
-  <section id="register-panel" hidden><h2>Host your own world</h2><p>Email and Demo accounts can create campaigns and return to their progress. Guests can join a friend below.</p><a class="button" href="/login/">Sign in</a> <a href="/register/?mode=demo">Create a Demo account</a></section>
-  <div class="columns"><section><h2>Saved campaigns</h2><p>Your progress lives in each campaign. The owner must be playing for members to join.</p><div id="campaign-list"></div><button id="refresh">Refresh rooms</button></section>
-  <section><h2>Join a friend</h2><p>Enter the single-use code from your host. It works only while their room is open.</p><form id="join"><label>Invitation code<input name="code" autocomplete="off" spellcheck="false" maxlength="40" required placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX"></label><button>Join campaign</button></form><p class="fine">No account? You can join as a guest. Your contributions stay in the host's world, but your personal visit ends when you leave.</p></section></div>
-  <p class="fine">To invite someone, open your campaign, then choose <strong>Room → Create invitation code</strong> on the battlefield.</p>
-  <footer><a href="/?legacy=1">Legacy shared field test</a><p>This earlier shared world is preserved separately. Named campaigns do not copy its equipment.</p></footer>
-</main></body></html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#080e14"><title>Frontier · Orbital command</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/entry-scene.css"><link rel="stylesheet" href="/campaigns.css">
+<script type="module" src="/entry-scene.js"></script><script type="module" src="/campaigns.js"></script>
+</head>
+<body data-entry-view="menu" data-entry-planet="caldera-v1">
+<header class="entry-header"><a class="entry-brand" href="/campaigns/" aria-label="Frontier home"><img src="/frontier-wordmark.svg" alt="Frontier" width="330" height="80"></a><nav aria-label="Player"><span id="identity">Connecting…</span><a href="/account/">Account</a><a href="/readme/">About</a></nav></header>
+<main id="lobby" aria-busy="true">
+<div class="view-top"><button id="back" class="text-button" hidden>← Back</button><p id="view-label" class="eyebrow">ORBITAL COMMAND</p></div>
+<div class="status-area"><p id="message" role="status" aria-live="polite">Connecting to command…</p><a id="signin" href="/login/" hidden>Sign in again</a></div>
+<section id="active" hidden aria-label="Current room"><a id="resume" class="button">Return to battlefield</a><button id="leave" class="text-button">Save and leave room</button><p id="leave-help" class="fine"></p></section>
+<section id="menu-view" class="menu-view" hidden aria-labelledby="menu-heading"><p class="eyebrow">ESTABLISH / DEFEND / CONQUER</p><h1 id="menu-heading" tabindex="-1">Choose your frontier.</h1><div class="menu-actions">
+<button id="new-game"><span>New Game<small>Establish a foothold on a new world</small></span></button>
+<button id="continue-game"><span>Continue<small>Return to your saved campaigns</small></span></button>
+<button id="join-game"><span>Join<small>Answer a friend's invitation</small></span></button>
+</div></section>
+<div id="destination" hidden><div class="planet-title-anchor"><div class="planet-title"><p id="designation" class="eyebrow"></p><h1 id="planet-heading" tabindex="-1"></h1></div></div><button id="planet-prev" class="planet-arrow previous" aria-label="Previous planet">‹</button><button id="planet-next" class="planet-arrow next" aria-label="Next planet">›</button></div>
+<section id="new-view" hidden aria-label="New campaign"><aside class="planet-info"><p class="threat">● HOSTILE</p><p id="planet-description"></p><dl id="planet-facts"></dl><p class="fine lore-note">Frontier survey / fictional planetary data</p></aside><div class="establish"><button id="select-planet" class="primary" aria-pressed="false">Select Caldera</button><section id="create-panel" hidden aria-labelledby="create-heading"><h2 id="create-heading">Name your campaign</h2><p id="create-detail" class="fine"></p><form id="create"><input type="hidden" name="template"><label for="campaign-name" class="sr-only">Campaign name</label><input id="campaign-name" name="name" required maxlength="48" placeholder="Operation First Light" autocomplete="off"><button id="create-submit" class="primary">Create and enter</button></form><p id="create-room-help" class="fine" hidden>A room is already open. Save and leave it before creating another. <button id="create-room-continue" class="text-button" type="button">Open Continue &rarr;</button></p></section><p id="save-limit" class="fine"></p></div></section>
+<section id="continue-view" class="save-view" hidden aria-labelledby="saves-heading"><p class="eyebrow">PERSISTENT CAMPAIGNS</p><h2 id="saves-heading" tabindex="-1">Save slots</h2><p class="fine">Your worlds and joined campaigns. A member can enter while the owner is playing.</p><div id="campaign-list"></div><div class="save-actions"><button id="refresh" class="text-button">Refresh rooms</button><button id="empty-new" class="text-button">New Game ↗</button></div><p id="owned-count" class="fine"></p></section>
+<section id="join-view" class="join-view" hidden aria-labelledby="join-heading"><p class="eyebrow">COOPERATIVE OPERATIONS / UP TO FOUR PLAYERS</p><h1 id="join-heading" tabindex="-1">Join a frontier.</h1><p>Enter the invitation code from your host. Their room must be open.</p><form id="join"><label for="invitation-code">Invitation code</label><input id="invitation-code" name="code" autocomplete="off" spellcheck="false" maxlength="40" required placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX"><button id="join-submit" class="primary">Join room</button></form><p id="guest-help" class="fine" hidden>You're visiting as a guest. Your contributions stay in the host's world; your personal visit ends when you leave. <a href="/login/">Sign in</a> to host and keep campaign membership.</p><p class="fine">Single use · expires after 30 minutes or when the host closes the room.</p></section>
+<noscript><p>Enable JavaScript to connect to Frontier. Your saved campaigns remain on the server.</p><a href="/login/">Account access</a></noscript>
+</main>
+<p id="dive-skip" class="dive-skip" hidden><span class="dive-mouse">Click or press any key to skip</span><span class="dive-touch">Tap to skip</span></p>
+<footer class="entry-footer"><span class="eyebrow">FRONTIER / DEEP SPACE OPERATIONS</span><button id="motion" class="text-button" aria-pressed="false">Pause animation</button><a href="/?legacy=1">Legacy field test</a></footer>
+</body></html>

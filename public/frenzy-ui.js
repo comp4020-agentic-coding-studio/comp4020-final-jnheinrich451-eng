@@ -4,8 +4,9 @@ export function frenzyUI({api,notify}){
  function update(state,me,connected){
   if(typeof state.testEvents==='boolean')enabled=state.testEvents;
   const f=state.combat?.frenzy,active=f&&f.phase!=='complete';
-  button.hidden=!enabled||(state.room&&state.room.ownerPilot!==me?.id);
-  button.disabled=busy||!connected||!!active||!!state.room?.paused||me?.life!=='active'||!['robot','tank','rover'].includes(me?.body);
+  const conquered=state.combat?.conquest?.state==='conquered';
+  button.hidden=conquered||!enabled||(state.room&&state.room.ownerPilot!==me?.id);
+  button.disabled=conquered||busy||!connected||!!active||!!state.room?.paused||me?.life!=='active'||!['robot','tank','rover'].includes(me?.body);
   status.hidden=!active;if(!active)return;
   const seconds=Math.max(0,Math.ceil((f.until-state.combat.time)/1000));
   status.dataset.source=f.source||'test';

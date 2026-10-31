@@ -5,7 +5,7 @@ import { shipKind } from './public/ship.js';
 const compass=['north','north-east','east','south-east','south','south-west','west','north-west'];
 const direction=(x,y)=>!Number.isFinite(x)||!Number.isFinite(y)?'invalid':Math.hypot(x,y)<.001?'stop':compass[(Math.round(Math.atan2(x,-y)/(Math.PI/4))+8)%8];
 const bearing=a=>Number.isFinite(a)?compass[(Math.round(a/(Math.PI/4))%8+8)%8]:null;
-const names={MAC:'rail MAC',HE:'HE cannon',MAGNETIC:'magnetic cannon',APCR:'machine gun',NAVAL_APCR:'side guns',FLAME:'flamethrower',HEAVY_FLAME:'heavy flamethrower',LASER:'laser rifle',INCENDIARY:'incendiary',GAS:'gas',HEAVY:'heavy HE',BEAM:'beam',cannon:'autocannon',rockets:'rocket pods'};
+const names={MAC:'rail MAC',HE:'HE cannon',MAGNETIC:'magnetic cannon',AA35:'twin 35 mm guns',APCR:'machine gun',NAVAL_APCR:'side guns',FLAME:'flamethrower',HEAVY_FLAME:'heavy flamethrower',LASER:'laser rifle',INCENDIARY:'incendiary',GAS:'gas',HEAVY:'heavy HE',BEAM:'beam',cannon:'autocannon',rockets:'rocket pods'};
 const knownWeapon=w=>typeof w==='string'&&Object.hasOwn(names,w);
 const weaponName=w=>knownWeapon(w)?names[w]:'unknown weapon';
 const airType=p=>['bomber','attack-jet','helicopter','air-gunship'].includes(p?.kind)?p.kind:'bomber';
@@ -14,7 +14,7 @@ export function controlledUnit(world,player,bodyType){
  const ship=(world.ships||[]).find(s=>s.occupant===player.id),tank=(world.tanks||[]).find(t=>t.occupant===player.id);
  const truck=world.logistics?.recyclers?.find(r=>r.occupant===player.id),gun=(world.artillery||[]).find(g=>g.operator===player.id);
  const object=p||ship||tank||truck||gun||player;
- const unitType=p?airType(p):ship?shipKind(ship):tank?'tank':truck?truck.kind==='builder'?'bridge-builder':'recycler':gun?gun.kind==='missile'?'missile-launcher':gun.kind==='mac'?'rail-mac':'rail-cannon':bodyType==='rover'?'tank':bodyType;
+ const unitType=p?airType(p):ship?shipKind(ship):tank?tank.kind==='aa'?'aa-vehicle':'tank':truck?truck.kind==='builder'?'bridge-builder':'recycler':gun?gun.kind==='missile'?'missile-launcher':gun.kind==='mac'?'rail-mac':'rail-cannon':bodyType==='rover'?'tank':bodyType;
  return {object,unitType,unitId:object.id,bodyType,unitState:p?(p.mission&&!['complete','lost'].includes(p.mission.phase)?p.mission.phase:p.state):ship?.depth||player.life||'active',controlMode:gun?'remote':'direct'};
 }
 export const unitMetadata=({object,...metadata})=>metadata;
@@ -24,7 +24,7 @@ export function describeCommand(action,data,world,unit,equipment={}){
  const shot=(w,payload=false)=>{result.weapon=knownWeapon(w)?w:'unknown';return payload&&w==='HE'?'HE':weaponName(w);};
  if(action==='input'||action==='artillery/command'){
   if(![data.x,data.y].every(Number.isFinite))return {...result,direction:'invalid',command:'invalid movement input'};
-  if(['tank','recycler','bridge-builder'].includes(unit.unitType)){
+  if(['tank','aa-vehicle','recycler','bridge-builder'].includes(unit.unitType)){
    result.throttle=data.y<0?'forward':data.y>0?'reverse':'brake';result.rotation=data.x<0?'left':data.x>0?'right':'none';
    parts.push(result.throttle,result.rotation==='none'?'hold heading':'turn '+result.rotation);
   }else if(isShip||fixedWing){
@@ -34,6 +34,7 @@ export function describeCommand(action,data,world,unit,equipment={}){
   }else{result.direction=direction(data.x,data.y);parts.push(result.direction==='stop'?'stop movement':'move '+result.direction);}
   const target=data.target,aim=target&&Number.isFinite(target.x)&&Number.isFinite(target.y)?Math.atan2(target.x-obj.x,obj.y-target.y):data.aim;
   const aimDirection=bearing(aim);if(aimDirection){result.aimDirection=aimDirection;parts.push('aim '+aimDirection);}
+  if(unit.unitType==='aa-vehicle'&&typeof data.aaFire==='boolean'){result.weapon='AA35';parts.push(data.aaFire?'hold twin 35 mm trigger':'release twin 35 mm trigger');}
  }else if(action==='artillery/input'){
   if(![data.traverse,data.elevate].every(Number.isFinite))return {...result,command:'invalid cannon input'};
   result.rotation=data.traverse<0?'left':data.traverse>0?'right':'none';parts.push('traverse '+result.rotation,data.elevate<0?'lower barrel':data.elevate>0?'raise barrel':'hold elevation');

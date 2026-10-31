@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createApp } from '../server.js';
 import { DatabaseSync } from 'node:sqlite';
 import { createWorld } from '../public/world.js';
+import { batteryState, elevationForRange } from '../public/missile.js';
 
 it('preserves committed buildings across a database reopen and enforces ownership and concurrent placement', async () => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'frontier-spec-'));
@@ -52,6 +53,29 @@ it('preserves committed buildings across a database reopen and enforces ownershi
     expect(returned.logistics.supplies).toBe(winner.state.logistics.supplies-25);
     expect((await post('dismantle', winner.cookie, { id: building.id })).status).toBe(200);
   } finally { await app.close(); await rm(dataDir, { recursive: true, force: true }); }
+});
+
+it('loads an old missile battery stowed and at rest, without the rail cannon elevation', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'frontier-legacy-battery-'));
+  let app = createApp({ dataDir }); await app.close();
+  const legacy = { id: 'old-battery', kind: 'missile', owner: 'existing-player', x: 21, y: 13, ammo: 'GAS', rotated: true, reload: 4, target: { x: 60, y: 40 }, operator: null, lease: 0 };
+  const db = new DatabaseSync(path.join(dataDir, 'world.sqlite'));
+  db.prepare('INSERT INTO artillery VALUES (?,?)').run(legacy.id, JSON.stringify(legacy)); db.close();
+  try {
+    for (let reopen = 0; reopen < 2; reopen++) {
+      app = createApp({ dataDir });
+      await new Promise<void>(resolve => app.server.listen(0, '127.0.0.1', resolve));
+      const address = app.server.address(); if (!address || typeof address === 'string') throw new Error('Missing port');
+      const state = await (await fetch(`http://127.0.0.1:${address.port}/api/world`)).json(), gun = state.artillery[0];
+      expect(gun).toMatchObject({ ...legacy, target: null });
+      expect(gun.elevation).toBeUndefined();
+      expect(batteryState(gun, state.world)).toEqual({ angle: 0, elevation: elevationForRange(40), deploy: 0 });
+      await app.close();
+    }
+  } finally {
+    if (!path.resolve(dataDir).startsWith(path.resolve(tmpdir()) + path.sep + 'frontier-legacy-battery-')) throw new Error('Unexpected test directory');
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });
 
 it('adds elevation to a legacy cannon save without moving it or resetting carriage progress', async () => {

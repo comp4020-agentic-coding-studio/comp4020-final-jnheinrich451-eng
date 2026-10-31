@@ -5,7 +5,7 @@ import { CARRIER } from './carrier.js';
 // Every number below is read from the module that owns it, never copied here.
 import { COSTS, FACILITY_HP, ECONOMY, LOCAL_KINDS, quote } from './logistics.js';
 import { CONSTRUCTION, needsConstruction } from './construction.js';
-import { HE, APCR, HEAVY_FLAME, MAGNETIC, ARTILLERY_HE, RAIL_HE, MAC } from './weapons.js';
+import { HE, APCR, HEAVY_FLAME, MAGNETIC, ARTILLERY_HE, RAIL_HE, MAC, AA35 } from './weapons.js';
 import { MISSILE } from './missile.js';
 import { SHIP } from './ship.js';
 import { NAVAL_GUN } from './ship-armament.js';
@@ -14,6 +14,7 @@ import { AIR } from './aircraft.js';
 import { JET } from './attack-jet.js';
 import { CORE } from './core.js';
 import { SENTRY_TURRET } from './turret.js';
+import { AA_SENTRY } from './aa-sentry.js';
 
 export const TABS = Object.freeze([
   { id: 'ground', label: 'Ground' }, { id: 'rail', label: 'Rail' }, { id: 'strike', label: 'Orbital' },
@@ -31,6 +32,10 @@ export const ASSETS = Object.freeze([
     specs: [['Delivers', 'Robot · core sentry · flooring'], ['Support', `${CONSTRUCTION.radius} t construction radius`]], limit: `1 per scout · ${CORE.max} per world`, costNote: 'first landing free' },
   { code: 'G-03', tab: 'ground', card: 'tank-card', kind: 'tank', cost: 'tank', name: 'Tank drop pod', footprint: '5-cell cross',
     specs: [['Cannon', `HE ${HE.range} t or magnetic ${MAGNETIC.range} t`], ['Secondary', `APCR ${APCR.range} t or fuel ${HEAVY_FLAME.range} t`]], limit: 'No fixed cap / supplies and clear sites' },
+  { code:'G-04',tab:'ground',card:'aa-tank-card',kind:'aa-tank',cost:'aa-tank',name:'AA vehicle',footprint:'5-cell cross',
+    specs:[['Primary',`Hold LMB / alternating 35 mm / ${AA35.range} t`],['Secondary',`Ground machine gun / ${APCR.range} t`],['Aim','Separate AIR lead marker / cursor stays free'],['Drive','W/S and A/D / both guns fire while moving'],['Defense','Park unoccupied / automatic air + ground']],limit:'No fixed cap / supplies and clear sites' },
+  {code:'G-05',tab:'ground',card:'aa-sentry-card',kind:'aa-sentry',cost:'aa-sentry',hp:'sentry',name:'AA sentry',footprint:'1 × 1 mount / 5-cell orbital pod',
+    specs:[['Targets','Air only / ignores ground enemies'],['Weapons',`Twin 35 mm / ${AA_SENTRY.range} t`],['Fire','Alternating barrels / automatic tracking'],['Role','Fixed air cover for robots and ground vehicles']]},
   { code: 'R-01', tab: 'rail', card: 'rail-card', kind: 'rail', name: 'Rail track', footprint: '1 tile · corners · junctions',
     specs: [['Corridor', '3 tiles wide'], ['Lay', '1 or 5 tiles per order']] },
   { code: 'R-02', tab: 'rail', card: 'artillery-card', kind: 'artillery', cost: 'artillery', hp: 'artillery', name: 'Railway cannon', footprint: '3 × 3 on track',

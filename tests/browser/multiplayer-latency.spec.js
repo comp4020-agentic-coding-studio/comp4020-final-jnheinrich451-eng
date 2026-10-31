@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../../server.js';
+import { placementError } from '../../public/world.js';
+import { cargoCells, cargoSite } from '../../public/cargo-pods.js';
 
 test('two then four participants display shared construction and conquest promptly', async ({ browser }, info) => {
   test.setTimeout(60000);
@@ -58,7 +60,7 @@ test('two then four participants display shared construction and conquest prompt
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context);
       const code = (await post(owner, '/api/campaigns/invite', { id })).code;
       const peer = await context.newPage(); pages.push(peer); peer.on('pageerror', e => errors.push(e.message));
-      await peer.goto(base); await peer.locator('#join input').fill(code); await peer.locator('#join button').click();
+      await peer.goto(base); await peer.locator('#guest').click(); await peer.locator('#join input').fill(code); await peer.locator('#join button').click();
       await expect(peer.locator('#connection')).toContainText('live');
       await post(context, `/api/campaign-world/${id}/cores`, { x: [24, 48, 64][pages.length - 2], y: 18 });
       await expect.poll(async () => (await (await context.request.get(base + `/api/campaign-world/${id}/world`)).json()).me.deploying, { timeout: 8000 }).toBe(false);
@@ -86,7 +88,16 @@ test('two then four participants display shared construction and conquest prompt
       expect(ready.me.life).toBe('active');
       await post(owner, `/api/campaign-world/${id}/tanks/exit`, {});
       for (let i = 0; i < 5; i++) {
-        const built = await measure('place', () => post(owner, `/api/campaign-world/${id}/buildings`, { x: 30, y: 22 }), '#building-count', `${count + 1} FOUNDATIONS`);
+        // Orbital delivery remains in flight briefly after its foundation is
+        // dismantled. Use fresh clear ground for every sample rather than retrying
+        // the reserved pod tile. Choose outside the timed propagation interval.
+        const construction = await (await owner.request.get(base + `/api/campaign-world/${id}/world`)).json();
+        let buildPoint;
+        for (let y = 22; y < 30 && !buildPoint; y++) for (let x = 30; x < 38 && !buildPoint; x++) {
+          if (cargoCells(cargoSite('sentry', x, y)).every(cell => !placementError(construction.world, construction.buildings, construction.players, cell.x, cell.y))) buildPoint = { x, y };
+        }
+        expect(buildPoint).toBeTruthy();
+        const built = await measure('place', () => post(owner, `/api/campaign-world/${id}/buildings`, buildPoint), '#building-count', `${count + 1} FOUNDATIONS`);
         await measure('remove', () => post(owner, `/api/campaign-world/${id}/dismantle`, { id: built.building.id }), '#building-count', `${count} FOUNDATIONS`);
       }
       await post(owner, `/api/campaign-world/${id}/tanks/board`, { id: 'timing-tank' });

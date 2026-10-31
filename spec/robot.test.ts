@@ -32,7 +32,7 @@ it('rays stop at the nearest enemy, exact wall edge, friendly structure or world
   expect(raycast(world, [], origin, Math.SQRT1_2, Math.SQRT1_2, 32).distance).toBeCloseTo(Math.SQRT1_2);
 });
 
-it('laser damage is immediate, burns once over simulation time, then reacquires its target', () => {
+it('laser damage is immediate, burns once over simulation time, then resumes its route', () => {
   const combat = createCombat(field()); combat.start([]);
   const enemy = combat.snapshot().enemies[0], source = { id: 'robot', x: enemy.x, y: enemy.y + 2, turret: 0 };
   expect(combat.shoot(source, enemy.x, enemy.y, 'LASER')).toBeNull();
@@ -45,7 +45,7 @@ it('laser damage is immediate, burns once over simulation time, then reacquires 
   for (let i = 0; i < 24; i++) combat.tick(.1, []);
   survivor = combat.snapshot().enemies.find(e => e.id === enemy.id)!;
   expect(survivor.hp).toBeCloseTo(60 - LASER.damage - LASER.burnDps * LASER.burnDuration / 1000);
-  expect(survivor.behavior).toBe('attacking');
+  expect(survivor.behavior).toBe('returning');
   combat.tick(.2, []); expect(combat.snapshot().enemies.find(e => e.id === enemy.id)!.hp).toBeCloseTo(survivor.hp);
 });
 

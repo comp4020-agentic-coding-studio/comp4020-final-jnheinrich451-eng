@@ -44,10 +44,18 @@ stage doc win; see "Superseded behaviour" at the end.
 **Saves and migrations**
 - Save accepted construction before reporting success; checkpoint movement and
   explain its durability window. Existing worlds never regenerate on reload.
+- A confirmed save deletion is owner-only and requires a fully closed room.
+  Atomically remove its registry, membership and invitation access, freeing the
+  owner's slot. Private world files remain recovery archives; this is not disk
+  purging. Retain account data, other saves and the legacy world.
 - Never remap, move or regenerate existing records or player construction.
   Migrations back up populated saves first, then apply additive changes
   atomically. Never reset a campaign or the user's world for testing.
 - Never retroactively charge for owned equipment or silently erase legacy guests.
+- Four recommended landing clearings and denser cities are generated only for
+  new named campaigns. Persist their layout and objective membership once;
+  reopening an old campaign must not introduce these clearings or new cities.
+  Landing choices are shared recommendations, not exclusive seats or safe zones.
 
 **Server authority**
 - The server enforces placement, ownership, costs and outcomes; browser drawings
@@ -64,10 +72,50 @@ stage doc win; see "Superseded behaviour" at the end.
 - Conquest is permanent: no site-regeneration timers, recapture or refill of
   conquered sites. Facility loss never reverses conquest. Completion requires all
   saved member IDs; missing records never count as wins.
-- Accepted attacks (shells, strikes, warnings) are never dropped, duplicated or
-  rolled back across restart, pause or closure.
+- Confirmed planetary conquest stops all new enemy arrivals, including natural
+  raids, aquatic production and manual test contacts. Existing living/sleeping
+  survivors and committed attacks remain for cleanup. The saved objective roster
+  prevents empty or missing records from declaring victory.
+- Ordinary ground defenders patrol locally, acquire visible targets and
+  investigate last contact. Prefer players/occupied vehicles; only a bounded
+  heavy subgroup prioritizes nearby infrastructure. Preserve bounded sensing
+  and shared navigation work; raid dispatch is not live sight through cover.
+- Accepted attacks (shells, strikes, weapon warnings) are never dropped,
+  duplicated or rolled back across restart, pause or closure. Enemy-arrival
+  warnings revalidate their source, occupancy and terrain and may cancel when
+  invalid or when planetary conquest stops production.
 
 **Runtime budget and capacity**
+- Siege centipede: `docs/BROOD_CENTIPEDE.md`. Eight saved body parts share one
+  enemy identity/HP pool; blasts and penetrating MAC rounds damage it once per
+  projectile. Only living Blight Roots produce giants; root loss stops brood and
+  replacements while survivors remain. One per island/two globally includes
+  sleeping and pending giants. Brood shares existing island credit and the 24
+  active-plus-reserved cap. Preserve protected starting cores, warned attacks,
+  saved body geometry and the final-conquest spawn gate. Armor uses the existing
+  heavy-enemy rule until the separate armor redesign is agreed.
+- Mobile AA/skimmer: `docs/MOBILE_AA_AND_SKIMMER.md`. The AA uses tank movement
+  and fires while moving; no anchored mode. LMB AA35 soft-targeting changes the
+  turret solution, never the raw cursor; RMB remains ground APCR. Parked,
+  unoccupied AA prioritizes air and shares hull reload with manual control.
+  Held AA fire alternates barrels every 125 ms. Fresh sequenced input leases the
+  trigger; release, focus loss, expiry and disconnect stop it without a backlog.
+  Tracer dashes are bounded client effects of clipped, immutable shot paths.
+  The fixed twin-barrel AA sentry is air-only: no ground fallback or weapon-mode
+  conversion. It shares AA projectile capacity and waits for assembly before
+  firing. Deployment, reload, barrel order and paid-wreck recovery are saved.
+  Skimmers target robots and ground vehicles, never structures, ships or friendly
+  aircraft. Explicit air eligibility applies before collision/damage and ground
+  placement checks. Keep four skimmers maximum across live, sleeping and pending
+  arrivals, within the shared 24-unit budget. Preserve released shots on restart.
+- Ordinary city/roaming pressure uses geographic island budgets and the approved
+  `1 + 0.7 × (eligible connected players − 1)` rate, once per island. Ocean
+  separates budgets; bridges, inland water and mountains do not alter geography.
+  Empty islands accrue no backlog. Roaming requires a living same-island source
+  and a warned, revalidated approach; its fixed investigation is not live sight.
+  Admission shares the 24 active-plus-reserved cap across guards, pressure,
+  roaming, raids and aquatic enemies. Preserve survivors rather than deleting
+  them to force quota fairness. Numbers/evidence: `docs/ISLAND_PRESSURE_STAGE.md`.
 - New enemies and facilities need a tactical role and bounded runtime cost.
   Keep spawn cadence separate from living-population caps (shared 24 living
   enemies; at most four living mobile lenses). Evaluate simultaneous fronts
@@ -98,6 +146,32 @@ stage doc win; see "Superseded behaviour" at the end.
   log chat contents. See `docs/CHAT_EMOTES_AND_SOUND_PLAN.md`.
 
 **Presentation and assets**
+- Entry art is browser-only. Keep its sky phase and camera continuous through
+  Email/Demo mode changes and reloads; store cosmetic state only. Menu actions
+  use centered luminous text, transparent information panels and unboxed arrow
+  hover, while keyboard focus and input boundaries stay visible. Follow
+  `docs/ENTRY_VISUAL_DESIGN.md` for the shared sun-light direction and layouts.
+  On New Game and Continue the Cuculidae hovers over the destination globe
+  (`public/entry-ship.js`). Planet arrows play its warp jump: globes hold, swap
+  in one frame beneath the flash, and the world left stays behind the ship.
+  Entering a campaign plays the drop-pod dive, then the game fades in from black.
+  The pod releases only after the server admits the player, and a refusal pulls
+  the camera back. Any input skips it; Return, refresh and Join do not play it; a
+  hidden tab or stopped animation never holds up entry. Pause/reduced motion
+  settles directly. The dive shows daylit ground whatever the sun is doing. See
+  `docs/ENTRY_VISUAL_DESIGN.md`.
+  Keep entry movement display-paced; cache slow surface shading separately so
+  resource savings do not impose a low frame rate on zooms and planet exchanges.
+  A flight holds its first surface sample and never reshades a globe in the zoom.
+  Destination globes, titles and selection controls share document coordinates;
+  room/status notices and scrolling must move them together, including on phones
+  and while animation is paused. The distant sky remains independent.
+  Signed-in current-room Return / Save and leave controls belong on Continue;
+  New Game only explains an active-room creation block inside its creation form.
+  Guests retain room controls on Join because they have no Continue page.
+  Lobby status feedback floats without a box or layout space. Routine success
+  notices expire; errors remain readable. Save deletion uses an explicit named
+  confirmation with Cancel/Escape before the server request.
 - Weapon audio follows confirmed combat events, never input attempts. Baseline
   joins/reconnects silently, discard stale/muted history, and bound simultaneous
   browser voices. Music/effects have independent saved controls; hidden tabs stop
@@ -307,7 +381,10 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   Charge locks carriage and direction; cover stops the shot, friendlies stay
   immune, and kills retain salvage. Persist accepted charge/trajectory/hit IDs
   in named campaigns; releasing control must not cancel or duplicate discharge.
-  See `docs/RAIL_WEAPONS_POLISH.md` for provisional balance and controls.
+  See `docs/RAIL_WEAPONS_POLISH.md` for provisional balance and controls. MAC art
+  is electromagnetic: radiator, a ring whose segments sweep across the bore,
+  a coil-wound barrel fed by power cables, and cable rings square across the
+  muzzle (presentation only).
 - Rail cannon: single shared operator, released on death/disconnect; manual only.
   Bearing and elevation converge server-side on the higher arc and never snap to
   the cursor. Robot and vehicle wheel zoom share the full survey-scale range.
@@ -316,8 +393,13 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   damage radius, 2.2 t full-damage core, 420 centre / 60 edge damage; its profile is
   separate from naval HE. Accepted shells retain their launch profile. Blast size is
   independent of the cosmetic 8 t crater; heavy HE is never a personal weapon.
-- Missile battery: fixed 4×4, 12×18 area, 12 staggered missiles, 15–100 t range,
-  15 s reload after the last launch, two committed volleys max, immutable impacts.
+- Missile battery: fixed 4×4 site, 12×18 area, 12 staggered missiles, 15–200 t
+  range, 15 s reload after the last launch, two committed volleys max, immutable
+  impacts. Its launcher deploys for 2.5 s while operated, turns at 60°/s and
+  elevates at 15°/s (20–65° by range). Volleys strike the actual pose, never the
+  cursor: gold is desired, pale blue is actual. It stows 6 s after release unless
+  its own volley flies. Save pose, not aim; old saves load stowed and never take
+  the rail cannon's default elevation.
 - Fields: lethal contact, exact gas capacity, fire-first priority, friendly
   immunity, simulation-time expiry; gas has no timer. Active plus incoming fields
   share count caps and the area budget (216 tiles per barrage; 512 total / 256 per
@@ -463,6 +545,13 @@ Details: `docs/CONQUEST_STAGE.md`, `docs/MORTAR_OUTPOST.md`,
 - Local Test frenzy is owner-triggered and disabled on Fly/production.
 
 ## 11. World, map and interface
+
+- Sirocco: `docs/SIROCCO_PLANET.md`. Only new `sirocco-v1` campaigns use the
+  desert generator. Distinguish firm ground from naval-class loose sand; oasis
+  lakes remain inland water excluding ships. Keep existing hull, placement,
+  pressure, bridge, weapon and conquest rules. Sand skimming/burrowing, palms
+  and dunes are biome presentation; never allow ships across all land or
+  regenerate an existing planet. Preview masks must match the saved generator.
 
 Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
 `docs/UI_REFINEMENT.md`, `docs/ORBITAL_STRIKES.md`.

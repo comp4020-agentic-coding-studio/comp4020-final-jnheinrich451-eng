@@ -1,38 +1,73 @@
-import { targetBox } from './missile.js';
+import { targetBox, batteryState } from './missile.js';
+import { sandSeaAt } from './biome.js';
 
-export function drawBattery(c, gun, tile, selected = false, ghost = false, valid = true) {
+// Turreted missile launcher after the author's sketch, in 48px-tile units within the
+// 4 x 4 footprint: a base slab whose outriggers stretch out when deployed, a
+// turntable, hydraulic arms and a 12-tube box pod. From above the raised pod shows
+// its foreshortened top and, ahead of it, the tube face tilted toward the sky.
+export function drawBattery(c, gun, tile, selected = false, ghost = false, valid = true, reduced = false) {
+  const { angle, elevation, deploy } = batteryState(gun, null), d = deploy * deploy * (3 - 2 * deploy);
+  const shown = (elevation || 0) * d * Math.PI / 180, cos = Math.cos(shown), sin = Math.sin(shown);
   c.save(); c.translate(gun.x * tile, gun.y * tile); c.scale(tile / 48, tile / 48);
   c.globalAlpha = ghost ? .5 : 1;
-  // Twelve recessed launch cells, service spine and armored perimeter. All fit
-  // inside the same four-square foundation, including placement ghosts.
-  c.fillStyle = '#263c3d'; c.fillRect(3, 3, 186, 186);
-  c.strokeStyle = selected ? '#f5d48c' : '#91aaa0'; c.lineWidth = selected ? 3 : 2; c.strokeRect(5, 5, 182, 182);
-  c.fillStyle = '#526662'; c.fillRect(12, 12, 168, 168);
-  c.fillStyle = '#243a3c'; c.fillRect(14, 14, 17, 164); c.fillRect(161, 14, 17, 164);
-  for (let y = 20; y < 174; y += 9) {
-    c.fillStyle = '#81918a'; c.fillRect(17, y, 11, 2); c.fillRect(164, y, 11, 2);
+  // Base slab with an armoured rim; outriggers reach toward the corners when deployed.
+  c.fillStyle = '#263c3d'; c.fillRect(10, 10, 172, 172);
+  c.strokeStyle = selected ? '#f5d48c' : '#91aaa0'; c.lineWidth = selected ? 3 : 2; c.strokeRect(12, 12, 168, 168);
+  c.fillStyle = '#3f5452'; c.fillRect(22, 22, 148, 148);
+  c.save(); c.translate(96, 96);
+  for (let i = 0; i < 4; i++) {
+    c.save(); c.rotate(Math.PI / 4 + i * Math.PI / 2);
+    const reach = 58 + 62 * d;
+    c.fillStyle = '#2a3c3e'; c.fillRect(-9, 30, 18, reach - 30);
+    c.fillStyle = '#6d807a'; c.fillRect(-6, 32, 12, reach - 34);
+    c.fillStyle = '#d0b96e'; c.beginPath(); c.moveTo(-14, reach); c.lineTo(14, reach); c.lineTo(9, reach + 10); c.lineTo(-9, reach + 10); c.closePath(); c.fill();
+    c.restore();
   }
-  for (let row = 0; row < 4; row++) for (let col = 0; col < 3; col++) {
-    const x = 48 + col * 48, y = 27 + row * 44;
-    c.fillStyle = '#172c31'; c.fillRect(x - 17, y - 15, 34, 36);
-    c.strokeStyle = '#a0aaa0'; c.lineWidth = 1; c.strokeRect(x - 16, y - 14, 32, 34);
-    c.fillStyle = '#657a72'; c.fillRect(x - 13, y - 11, 26, 27);
-    c.strokeStyle = '#c2bf9c'; c.strokeRect(x - 11, y - 9, 22, 23);
-    c.fillStyle = '#20383b'; c.beginPath(); c.arc(x, y + 2, 9, 0, Math.PI * 2); c.fill();
-    c.fillStyle = gun.reload > 0 ? '#536760' : '#d9c899';
-    c.beginPath(); c.moveTo(x, y - 7); c.lineTo(x + 5, y + 1); c.lineTo(x + 5, y + 9); c.lineTo(x - 5, y + 9); c.lineTo(x - 5, y + 1); c.closePath(); c.fill();
-    c.fillStyle = '#b0b7a3'; c.fillRect(x - 18, y - 8, 3, 7); c.fillRect(x + 15, y - 8, 3, 7);
-    c.fillStyle = gun.reload > 0 ? '#bb8057' : '#a1c4a1'; c.fillRect(x - 4, y + 17, 8, 2);
+  // Turntable ring with bolts, turned to the launcher's bearing.
+  c.rotate(angle);
+  c.fillStyle = '#20383b'; c.beginPath(); c.arc(0, 0, 48, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#9aa797'; c.lineWidth = 2; c.stroke();
+  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; c.fillStyle = '#c1c7af'; c.fillRect(Math.cos(a) * 43 - 1.5, Math.sin(a) * 43 - 1.5, 3, 3); }
+  c.fillStyle = '#4a5f5e'; c.fillRect(-30, -12, 60, 44);
+  // Box pod: pivot at the rear trunnion; the front rises with elevation.
+  const W = 72, L = 116, H = 44, rear = 34, front = rear - L * cos, face = H * sin;
+  c.fillStyle = '#0d1a1d55'; c.fillRect(-W / 2 + 7, front - face + 9, W, rear - front + face);
+  // Hydraulic arms from the yoke to the pod's underside.
+  c.strokeStyle = '#7d8b85'; c.lineWidth = 5; c.lineCap = 'round';
+  for (const side of [-1, 1]) { c.beginPath(); c.moveTo(side * 26, 22); c.lineTo(side * 26, front + (rear - front) * .45); c.stroke(); }
+  // Tube face ahead of the top: twelve tubes, emptied by the current volley.
+  if (face > 1) {
+    c.fillStyle = '#2b3d40'; c.fillRect(-W / 2, front - face, W, face); c.strokeStyle = '#a7b3a3'; c.lineWidth = 1.5; c.strokeRect(-W / 2, front - face, W, face);
+    const spent = gun.reload > 0 ? 12 : 0;
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 4; col++) {
+      const i = row * 4 + col, x = -W / 2 + 9 + col * (W - 18) / 3, y = front - face + face * (row + .5) / 3;
+      c.fillStyle = i < spent ? '#0a1416' : '#d9c899'; c.beginPath(); c.ellipse(x, y, 7, Math.max(1, face / 7.5), 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#4f5f5c'; c.lineWidth = 1; c.stroke();
+    }
   }
-  for (const x of [8, 176]) for (const y of [8, 176]) {
-    c.fillStyle = '#d0b96e'; c.fillRect(x, y, 8, 8); c.fillStyle = '#344b49'; c.fillRect(x + 3, y + 3, 2, 2);
-  }
+  // Pod top: three tube runs along its length and a service hatch.
+  c.fillStyle = '#5e7470'; c.fillRect(-W / 2, front, W, rear - front); c.strokeStyle = '#b8c3ad'; c.lineWidth = 2; c.strokeRect(-W / 2, front, W, rear - front);
+  c.strokeStyle = '#3c4f4f'; c.lineWidth = 2;
+  for (const x of [-W / 6, W / 6]) { c.beginPath(); c.moveTo(x, front + 4); c.lineTo(x, rear - 4); c.stroke(); }
+  c.fillStyle = '#7f938c'; for (const x of [-W / 3, 0, W / 3]) c.fillRect(x - 5, front + (rear - front) * .35, 10, Math.max(3, (rear - front) * .3));
+  c.fillStyle = gun.reload > 0 ? '#bb8057' : '#a1c4a1'; c.fillRect(-8, rear - 7, 16, 3);
+  c.restore();
+  for (const x of [14, 170]) for (const y of [14, 170]) { c.fillStyle = '#d0b96e'; c.fillRect(x, y, 8, 8); c.fillStyle = '#344b49'; c.fillRect(x + 3, y + 3, 2, 2); }
   c.fillStyle = gun.operator ? '#a1e6d3' : '#d0b96e'; c.fillRect(89, 182, 14, 4);
   if (ghost) {
     c.globalAlpha = 1; c.fillStyle = valid ? '#e7d79418' : '#e646464f'; c.strokeStyle = valid ? '#f5d48c' : '#ff7777'; c.lineWidth = 3;
     c.fillRect(0, 0, 192, 192); c.strokeRect(0, 0, 192, 192);
     if (!valid) { c.beginPath(); c.moveTo(0, 0); c.lineTo(192, 192); c.moveTo(192, 0); c.lineTo(0, 192); c.stroke(); }
   }
+  c.restore();
+}
+// Pale-blue area and diamond: where the launcher actually points while it turns.
+export function drawActualBox(c, target, rotated, tile, zoom) {
+  const b = targetBox(target, rotated);
+  c.save(); c.strokeStyle = '#a8d8f0'; c.fillStyle = '#a8d8f00f'; c.lineWidth = 1.5 / zoom; c.setLineDash([6 / zoom, 5 / zoom]);
+  c.fillRect(b.x * tile, b.y * tile, b.width * tile, b.height * tile); c.strokeRect(b.x * tile, b.y * tile, b.width * tile, b.height * tile); c.setLineDash([]);
+  const x = target.x * tile, y = target.y * tile, r = 7 / zoom;
+  c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath(); c.stroke();
   c.restore();
 }
 export function drawTargetBox(c, target, rotated, tile, zoom, valid = true, weapon = 'HE') {
@@ -52,7 +87,8 @@ function position(b, m, t, index) {
   const altitude = t < .2 ? smooth(t / .2) * 8 : t < .78 ? 8 + Math.sin((t - .2) / .58 * Math.PI) : 8 * (1 - smooth((t - .78) / .22));
   return { x: originX + dx * cruise - dy / distance * sway + (m.originX===undefined?(index % 3 - 1) * .6 * (1 - cruise):0), y: originY + dy * cruise + dx / distance * sway, altitude };
 }
-export function drawBarrages(c, barrages = [], tile, elapsed, reduced, zoom) {
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawBarrages(c, barrages = [], tile, elapsed, reduced, zoom, world=null) {
   for (const b of barrages) {
     if(b.kind==='bomber')continue;
     const age = b.age + elapsed;
@@ -63,8 +99,9 @@ export function drawBarrages(c, barrages = [], tile, elapsed, reduced, zoom) {
       // behind as the submerged boat moves away; no live tracking marker.
       if(m.underwater&&age-m.launch<.8){
         const progress=(age-m.launch)/.8;c.save();c.globalAlpha*=reduced?.45:(1-progress)*.8;
-        c.strokeStyle='#d3f1e9';c.lineWidth=1.5/zoom;c.beginPath();c.ellipse(m.originX*tile,m.originY*tile,(reduced?.35:.15+progress*.65)*tile,(reduced?.22:.1+progress*.4)*tile,0,0,Math.PI*2);c.stroke();
-        if(!reduced)for(let i=0;i<3;i++){c.beginPath();c.arc((m.originX+Math.sin(i*2.1)*progress*.3)*tile,(m.originY-Math.cos(i*2.1)*progress*.3)*tile,.055*tile,0,Math.PI*2);c.stroke();}
+        const sand=sandSeaAt(world,m.originX,m.originY);
+        c.strokeStyle=sand?'#e7bd77':'#d3f1e9';c.lineWidth=1.5/zoom;c.beginPath();c.ellipse(m.originX*tile,m.originY*tile,(reduced?.35:.15+progress*.65)*tile,(reduced?.22:.1+progress*.4)*tile,0,0,Math.PI*2);c.stroke();
+        if(!reduced)for(let i=0;i<3;i++){c.beginPath();c.arc((m.originX+Math.sin(i*2.1)*progress*.3)*tile,(m.originY-Math.cos(i*2.1)*progress*.3)*tile,(sand?.12:.055)*tile,0,Math.PI*2);if(sand){c.fillStyle='#c9a16599';c.fill();}else c.stroke();}
         c.restore();
       }
       const p = position(b, m, t, index), px = p.x * tile, py = (p.y - p.altitude) * tile;

@@ -1,10 +1,128 @@
 # Fixed missile battery: HE, incendiary and gas
 
+## Extended range (31 October 2026)
+
+The author doubled the maximum range from 100 to 200 tiles, because the battery
+had fallen behind the bombers and ships added after it. The value is provisional
+until playtest. The 15-tile minimum, area, volley, damage, reload and motion speeds
+are unchanged.
+
+- Elevation still spans 20 to 65 degrees, now spread across 15 to 200 tiles.
+- Missiles keep their speed. Flight is `6 + distance / 25` seconds, so shots within
+  100 tiles land exactly as before and a 200-tile shot takes 14 seconds.
+- The whole area must stay in range, so its centre reaches about 190 tiles,
+  depending on bearing. A farther aim still clamps along the bearing.
+- Accepted volleys keep their saved impacts and flight. Saved launcher poses are
+  not remapped: a launcher saved raised reads a longer range from the same elevation
+  until it next turns, and the pale-blue area shows that truthfully.
+
+**Verification.** A volley aimed past the limit through the real UI on isolated saves
+clamped to 192.8 tiles at 1920x1080 and 189.2 at 390x844, with the far corner at
+200.0 both times. All 12 missiles impacted. The phone area was open ocean, so it left
+no craters, as intended; flight was 13.7 and 13.6 seconds.
+
+`missile.spec` had a marginal time budget: 5 seconds for the volley to age past 3,
+inside 55 seconds overall. It failed that way at the old range (1 of 4 alternating
+runs) as well as the new one (3 of 4), too few runs to compare rates. With 20 and
+100 seconds it passed 12 of 12, six at each size, each taking 55 to 60 seconds.
+
+Open: one run failed at 31.8 seconds with `TypeError: v is not a function`, in a pass
+where another test had just died on a V8 fatal check. No repository code calls a bare
+`v`, its trace was lost and it did not recur, so the cause is unknown. It may or may
+not relate to the 32.4-second phone failure below. No author playtest, Fly run or
+balance evidence exists yet.
+
+## Turreted launcher stage (31 October 2026)
+
+This stage replaces the buried silo presentation and the instant aim described
+below. The site stays fixed; only the launcher on it moves. All other sections
+remain correct for footprint, area, cadence, damage and fields. The motion
+numbers are provisional until the author's playtest.
+
+**Author direction.** When operated, the base stretches out and a launcher rises.
+It rotates like the cannon turrets, and its angle follows the aiming distance.
+The author chose a real turret with turn time, firing at the actual aim as the
+rail cannon does, at moderate speeds.
+
+| Motion | Value | Notes |
+|---|---|---|
+| Deploy | 2.5 s | Advances only while operated; firing is refused until complete |
+| Bearing | 60 deg/s | Shared `turnTurret`, shortest way round |
+| Elevation | 15 deg/s | Linear with range: 20 deg at 15 tiles, 65 deg at 200 tiles |
+| Stow | after 6 s, then 2.5 s | Waits while its own volley is in flight |
+
+**Combat loop.** Aim with the mouse or a tap as before. The launcher deploys, then
+turns and elevates toward that aim. A volley strikes where the launcher actually
+points, so firing early lands short of the cursor. The fire request updates the
+desired aim only; `batteryTarget` on the server decides the impact area. Preview
+and server share `missileAim`, so range and map clamping match.
+
+The gold rectangle is the desired area. The pale-blue dashed rectangle and diamond
+show the actual area while the two differ.
+
+| Status | Meaning |
+|---|---|
+| `Launcher deploying (n s)` | Still rising; fire is disabled |
+| `TURNING / FIRES AT BLUE AREA` | Fire is allowed and strikes the blue area |
+| `TURNING / HOLD FIRE` | The aim is valid but the current pose is not, so fire is disabled until the launcher turns |
+| `... VOLLEY READY` | On target within 2 deg of bearing and 1 deg of elevation |
+
+The bottom readout shows the live bearing and elevation. Reload, ammunition,
+committed volleys and field budgets are unchanged, and reload keeps counting
+whatever the launcher is doing. Each accepted missile saves a launch origin at the
+pod muzzle, so trails leave the tubes.
+
+**Saves.** `angle`, `elevation`, `deploy` and `idle` join the existing artillery
+JSON. Aim is not saved, as before: restart clears `target`, so the launcher holds
+its saved pose until someone operates it. Old battery rows need no migration. They
+load stowed, facing north at the pose for 40 tiles, and move only when operated.
+Server load no longer gives missile rows the rail cannon's default 75 deg
+elevation, which lies outside this launcher's range.
+
+Deploying, turning and stowing advance on the server tick, which runs only with a
+connected observer. Pose is therefore never advanced offline.
+
+**Presentation.** `drawBattery` stays pure overhead 2D: four outriggers extend from
+the corners, a turntable carries the bearing, and the 12-tube box pod is drawn with
+its top foreshortened by elevation and its tube face showing ahead of it. Tubes
+show empty during reload. Collision still comes from the 4 x 4 footprint.
+
+**Controls note.** Taking control keeps the existing default aim, 32 tiles east of
+the battery, so an unattended launcher swings toward that point after deploying.
+The orbital overview opens zoomed out, where the launcher is only a few pixels;
+zoom in to watch it deploy and turn.
+
+**Verification (31 October 2026, local only).**
+
+- Domain and persistence: `missile`, `missile-fields`, `persistence`, `logistics`
+  and `campaigns` specs passed (97 tests), and `pnpm typecheck` passed. New tests
+  cover deploy, turning, firing at the actual pose, stowing, distant clamping and
+  old rows loading stowed across two reopens.
+- Browser: `missile.spec.js`, `missile-fields.spec.js` and `remote-control.spec.js`
+  passed at 1920 x 1080 and 390 x 844. The first two were updated for crate delivery,
+  the Ground tab, deploy and READY waits, and the 512 x 384 map. `aim-helper.js` now
+  reads the saved world size instead of assuming 128 x 96.
+- Live screenshots at both sizes were inspected for deploying, turning and ready,
+  with no page errors.
+- Open: one phone run of `missile.spec.js` failed after 32.4 s and its log was
+  overwritten, so the cause is unknown. It did not recur: both later phone runs that
+  reached the test passed.
+- Open: Playwright workers often crash natively before a test starts (exit codes
+  3221225477 and 2147483651, some with a V8 `Check failed`). Those runs executed no
+  test code and were repeated.
+- Not covered: `laser-missiles.spec.js` stops at the removed "Locate laser tower"
+  button before its battery steps. Those steps still expect the old exact box and
+  need a READY wait when the spec is revived. A domain test covers the clamped aim.
+- Not covered: `rail.spec.js`, `shells.spec.js` and `cannon-controls.spec.js` fail
+  at core landing or `artillery/control`, before any aim step. Rail cannon code was
+  not changed in this stage.
+- Not measured: author playtest, Fly behaviour and sustained combat load.
+
 ## Play the missile battery
 
 Ground forces > **Missile battery** opens a 4-by-4 placement preview. The selected
-tile is the top-left corner. Confirm deployment to enter its orbital targeting
-view, or use **Operate cannon / missile battery** for an existing battery.
+tile is the top-left corner. Orbital cargo arrives in a crate; once it unfolds,
+press **Remote (F)** and select the battery to enter its targeting view.
 Aim with the mouse or tap; **R / Rotate area** swaps 12-by-18 and 18-by-12.
 **LMB, Space or Launch 12** commits the volley. Escape returns to the parked body.
 A robot guards while operating, using the existing facility handoff behavior.
@@ -135,10 +253,10 @@ multiplayer testing and newly discovered defects remain ongoing work.
 | Property | Current setting |
 | --- | --- |
 | Structure | Fixed 4-by-4 battery, manually operated |
-| Range | 15 to 100 tiles, compared with cannon maximum 60 |
+| Range | 15 to 200 tiles (100 until the extended-range record above) |
 | Volley | 12 missiles, staggered about 0.25 seconds apart |
 | Target footprint | 12 by 18 tiles; preview the complete rectangle |
-| Flight | Approximately 6 to 10 simulation seconds, varying with distance |
+| Flight | 6 to 14 simulation seconds, varying with distance |
 | Reload | 15 seconds after the last missile launches |
 | Controls | Orbital overview; mouse/tap positions rectangle; LMB/Space/Launch 12 commits one volley; 1/2/3 selects HE/Fire/Gas |
 | Orientation | R or a touch Rotate button swaps the rectangle's long axis |

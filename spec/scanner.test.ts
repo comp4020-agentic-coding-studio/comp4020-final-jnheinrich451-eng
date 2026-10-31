@@ -3,6 +3,7 @@ import { SCANNER, tickSensor, sensorContacts, sweptPulse, detectionFor } from '.
 import { ALERT, tickSites } from '../public/conquest.js';
 import { createWorld } from '../public/world.js';
 import { createCombat } from '../public/combat.js';
+import { LAND_AI } from '../public/land-ai.js';
 
 function setup() {
   const site: any = { id: 'crown', x: 30, y: 30, state: 'hostile', hp: 420, maxHp: 420, guardsRemaining: 3, nextCall: 0, alarmUntil: 0 };
@@ -92,7 +93,8 @@ it('defenders investigate the report outside local sensing, then give up a dista
   player.x = 70; player.y = 70;
   for (let i = 0; i < 200; i++) combat.tick(.1, [], [player]);
   const returned = combat.snapshot().enemies[0]; expect(returned.targetId).toBeNull(); expect(returned.hp).toBe(17);
-  expect(Math.hypot(returned.x - 37, returned.y - 36)).toBeLessThan(2);
+  expect(Math.hypot(returned.x - 37, returned.y - 36)).toBeLessThanOrEqual(LAND_AI.patrolRadius + 1);
+  expect(['patrolling', 'guarding']).toContain(returned.behavior);
 });
 
 it('reserves global population for simultaneous sites and cancels unsafe warned arrivals', () => {

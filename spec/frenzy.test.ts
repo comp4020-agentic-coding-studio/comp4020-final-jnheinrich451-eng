@@ -44,12 +44,12 @@ it('uses only a finite reserved arrival and restores the same warning and pursui
  expect(combat.start([])).toContain('frenzy');
  const after=createCombat(structuredClone(world),structuredClone(combat.checkpoint()));after.tick(.1,[],[p]);expect(after.snapshot().enemies).toHaveLength(count);
 });
-it('removes home distance only for the assigned surge and preserves survivors on resolution',()=>{
+it('investigates a surge dispatch beyond home without acquiring an unseen player and preserves survivors',()=>{
  const world:any={...createWorld(),width:80,height:60,terrain:Array(4800).fill(2),sites:[],cores:[],tanks:[]};
  const saved=createCombat(world).checkpoint(),unit={...enemies()[0],path:[],reroute:0,angle:0};
  saved.enemies=[unit];saved.serial=1;saved.frenzy=event([unit]);
  const combat=createCombat(world,saved),p=player('a',60.5);
- combat.tick(.1,[],[p]);expect(combat.snapshot().enemies[0].targetId).toBe('a');expect(combat.snapshot().enemies[0].x).toBeGreaterThan(20.5);
+ combat.tick(.1,[],[p]);expect(combat.snapshot().enemies[0].targetId).toBeUndefined();expect(combat.snapshot().enemies[0].behavior).toBe('investigating');expect(combat.snapshot().enemies[0].lastContact).toBeUndefined();expect(combat.snapshot().enemies[0].x).toBeGreaterThan(20.5);
  const end=structuredClone(combat.checkpoint());end.frenzy.until=end.now+100;
  const resumed=createCombat(world,end);resumed.tick(.1,[],[p]);expect(resumed.snapshot().frenzy!.phase).toBe('cooldown');expect(resumed.snapshot().enemies[0].targetId).toBeNull();expect(resumed.snapshot().enemies[0].hp).toBe(60);
  expect(resumed.startFrenzy(p,[],[p])).toContain('Wait');
@@ -61,6 +61,20 @@ it('backs off a confirmed unreachable target and resolves once when ground recov
  tickFrenzy(f,{},units,[],[],200,()=>null,(e:any)=>logs.push(e));expect(f.phase).toBe('cooldown');expect(f.outcome).toBe('no_ground_targets');
  tickFrenzy(f,{},units,[],[],300,()=>null,(e:any)=>logs.push(e));expect(logs).toHaveLength(1);expect(units).toHaveLength(20);
  expect(units.every(e=>e.frenzyRecoveryUntil===f.until)).toBe(true);
+});
+
+it('freezes a legacy manual dispatch point instead of following unseen live order coordinates',()=>{
+ const world:any={...createWorld(),width:80,height:60,terrain:Array(4800).fill(2),sites:[],cores:[],tanks:[]};
+ const saved=createCombat(world).checkpoint(),unit={...enemies()[0],path:[],reroute:0,angle:0};
+ saved.enemies=[unit];saved.serial=1;saved.frenzy=event([unit]);
+ const combat=createCombat(world,saved),p=player('a',60.5);
+ combat.tick(.1,[],[p]);expect(combat.checkpoint().frenzy.origin).toEqual({x:60.5,y:20.5});
+ p.x=70.5;p.y=40.5;
+ for(let n=0;n<20;n++)combat.tick(.1,[],[p]);
+ const state=combat.checkpoint();expect(state.frenzy.orders[1]).toMatchObject({x:p.x,y:p.y});
+ expect(state.frenzy.origin).toEqual({x:60.5,y:20.5});expect(state.enemies[0].lastContact).toBeUndefined();
+ expect(state.enemies[0].path.at(-1)).toEqual({x:60.5,y:20.5});
+ expect(createCombat(structuredClone(world),structuredClone(state)).checkpoint().frenzy.origin).toEqual(state.frenzy.origin);
 });
 
 it('reserves missing heavy roles before borrowing nearby hunters without transforming survivors',()=>{

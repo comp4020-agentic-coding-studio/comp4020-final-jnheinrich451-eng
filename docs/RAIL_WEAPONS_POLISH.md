@@ -100,3 +100,31 @@ and freezes with Reduced effects, without network or saved-state changes.
 Local review covers ready, charging and cooling renders, horizontal rotation,
 continuous animation and a stationary Reduced effects render, plus typecheck
 and the required readiness checks.
+
+## Electromagnetic MAC appearance, 25 October 2026
+
+From the author's labelled sketch (radiator, rotating ring, tube, accelerator,
+cable rings), `drawMACMount` was redrawn, breech to muzzle:
+- the finned radiator breech: fins glow cyan with charge and warm orange while
+  cooling;
+- a ring housing whose ring turns about the bore. From above its segments sweep
+  from side to side and foreshorten at the edges, instead of a gear spinning in
+  place. It turns faster while charging. A toothed collar is drawn on the housing
+  sides;
+- a longer, gently tapered accelerator: the muzzle is now 206 px from the pivot
+  (was 151). Wave coils are wound along both sides and light from the breech
+  forward as charge builds, with arcs crawling in the bore;
+- power cables down both sides from the housing to the muzzle;
+- two cable rings set square across the muzzle, with terminal blocks.
+
+The side drive gears and the side cable loop were removed. Charge, cooldown, range,
+damage, the trace origin, saves and controls are unchanged. The ring clock is
+cosmetic and frozen under reduced effects.
+
+Local validation:
+- State study (`.local/check-mac-art-v2.mjs`): ready, charging and cooling, with a
+  charging close-up.
+- `.local/check-mac.mjs` (the `mac.spec.js` helper: build, operate, charge, fire)
+  passes at desktop and phone sizes. The Playwright runner was not used because
+  another session's suite held port 8082.
+- Not committed, deployed or playtested by the author.

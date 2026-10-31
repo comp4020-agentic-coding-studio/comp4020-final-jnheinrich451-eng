@@ -6,7 +6,7 @@ import path from 'node:path';
 
 for (const mobile of [false, true]) test(`first landing and saved robot controls on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }, info) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'frontier-entry-browser-'));
-  const app = createApp({ dataDir });
+  const app = createApp({ dataDir, logSink: () => {} });
   let context;
   try {
     await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
@@ -19,6 +19,7 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     await expect(page.locator('#connection')).toContainText('live');
     await expect(page.locator('.battlefield')).toHaveClass(/in-orbit/);
     await expect(page.locator('#site-panel')).toBeVisible();
+    await expect(page.locator('#landing-zone-row')).toBeHidden();
     await expect(page.locator('#place-building')).toBeEnabled();
     await expect(page.locator('#fire-button')).toBeHidden();
     // Orbit shows landing steps and a measured site readout instead of ground controls.
@@ -29,6 +30,11 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     if (!mobile) await expect(page.locator('#state-banner')).toHaveText('ORBIT · NO GROUND BODY');
     expect((await state()).me.body).toBe('orbital');
     await page.keyboard.press('Escape');
+    await expect(page.locator('#site-panel')).toBeHidden();
+    expect((await state()).me.body).toBe('orbital');
+    expect((await state()).cores).toHaveLength(0);
+    // Escape closes one window; Recenter restores orbital site selection.
+    await page.locator('#center').click();
     await expect(page.locator('#site-panel')).toBeVisible();
     await page.reload();
     await expect(page.locator('#place-building')).toBeEnabled();
@@ -59,5 +65,9 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     expect((await state()).cores).toHaveLength(1);
     await page.screenshot({ path: info.outputPath('landed-robot.png') });
     expect(errors).toEqual([]);
-  } finally { await context?.close(); await app.close(); await rm(dataDir, { recursive: true, force: true }); }
+  } finally {
+    await context?.close(); await app.close();
+    if (!path.resolve(dataDir).startsWith(path.resolve(tmpdir()) + path.sep + 'frontier-entry-browser-')) throw Error('Unexpected fixture directory');
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });

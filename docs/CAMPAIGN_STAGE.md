@@ -1,5 +1,37 @@
 # Next stage: owned campaigns and saved return
 
+## 30 October 2026: owner save deletion
+
+Continue now provides Delete for owned saves. Select Delete to reveal the world
+name and the effect on every participant, then choose Delete save or Cancel.
+Escape cancels and returns focus to the original button. Joined campaigns have
+no Delete action. A loaded, paused, reconnecting or still-saving campaign cannot
+be deleted: first use Save and leave, then wait for closure. Nothing silently
+closes an active multiplayer room.
+
+`POST /api/campaigns/delete` requires the owning account, the existing origin and
+credential checks, and `{ id, confirm: true }`. Closed-state admission and the
+registry transaction have no asynchronous gap. A deletion record and removal of
+campaign, membership, invitation and abandoned-pilot rows commit together.
+The deleted world disappears for all members, cannot be reopened or joined, and
+no longer occupies one of the owner's three save slots. Retrying an accepted
+deletion is safe for that owner; no other account gains access through the retry.
+
+Private world databases and backups remain on disk as recovery archives. This
+stage frees gameplay slots, not disk space; there is no player restore or purge
+command. The server-wide 1,000-campaign storage bound includes archived deletions,
+so repeated creation/deletion cannot bypass it. Accounts, identity rate limits,
+other campaigns and the legacy world stay intact. Tests use disposable data;
+no existing player save is deleted during implementation.
+
+Validation: `pnpm check` passed typechecking and 932 tests across 119 files,
+including five deletion integration cases. They exercise authorization, explicit
+confirmation, stale credentials, reconnect/saving states, enter/delete races,
+transaction rollback, slot reuse, restart, archive retention and legacy-reset
+compatibility. Thirteen entry/save-management browser cases passed, including
+phone confirmation/cancellation and failure recovery. Evidence and whitespace
+checks passed. Localhost serves the updated build; no Fly deployment was made.
+
 9 October 2026. **Campaign foundation implemented locally; later stages remain
 planned.** The implementation record below supersedes the earlier proposed
 architecture where specified. Author answers remain intact. This follows

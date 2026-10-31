@@ -21,6 +21,7 @@ export function seedAquaticHive(world,buildings=[],occupants=[]){
  const candidates=[];for(let y=91;y<=126;y++)for(let x=294;x<=339;x++)if(world.waterKinds?.[y*world.width+x]===3)candidates.push({x,y});
  candidates.sort((a,b)=>distance(a,{x:331,y:112})-distance(b,{x:331,y:112}));
  for(const p of candidates){
+  if((world.landingZones||[]).some(z=>Math.hypot(p.x-z.x,p.y-z.y)<z.radius+30))continue;
   const c=center(p);if(assets.some(a=>a&&distance(a,c)<24)||(world.sites||[]).some(s=>distance(center(s),c)<14))continue;
   let clear=true;for(let y=p.y-2;y<p.y+5;y++)for(let x=p.x-2;x<p.x+5;x++)if(waterTileAt(world,x,y)!==0||bridgeAt(world,x,y))clear=false;
   if(!clear||!(world.rails||[]).every(r=>distance(r,c)>8))continue;
@@ -45,7 +46,7 @@ function spawnPoint(world,site,enemies,targets){
 }
 // Fields reserve their complete area while warning/in flight. No hidden or
 // post-restart catch-up damage; simulation time alone advances every deadline.
-export function tickAquatic(world,enemies,sleeping,targets,clouds,shots,now,dt,nextId,capacity,admitField,emit=()=>{}){
+export function tickAquatic(world,enemies,sleeping,targets,clouds,shots,now,dt,nextId,capacity,admitField,emit=()=>{},spawnContext=point=>null){
  let changed=clouds.length>0||shots.some(s=>s.weapon==='BILE');
  const addField=(sourceId,p,radius,activeAt,duration,kind)=>{
   if(clouds.length>=AQUATIC.maxFields||!admitField(Math.PI*radius*radius))return null;
@@ -69,9 +70,10 @@ export function tickAquatic(world,enemies,sleeping,targets,clouds,shots,now,dt,n
   site.awake=true;
   if(now>=a.nextSpawn){
    const all=enemies.concat(sleeping),count=all.filter(e=>e.hp>0&&e.siteId===site.id).length;
-   if(count<AQUATIC.max&&enemies.filter(e=>e.hp>0&&e.kind==='swimmer').length<SWIMMER.max&&capacity()>0){
-    const p=spawnPoint(world,site,all,targets);if(p){enemies.push({id:nextId(),...p,kind:'swimmer',variant:'bile-spitter',hp:AQUATIC.spitterHp,maxHp:AQUATIC.spitterHp,siteId:site.id,homeX:p.x,homeY:p.y,angle:0,path:[],reroute:0,behavior:'guarding',emergedAt:now});a.sequence++;emit({event:'reinforcement.changed',kind:'system',sourceId:site.id,cause:'aquatic_spawn',count:1});}
-   }a.nextSpawn=now+AQUATIC.spawnEvery;
+   const admitted=capacity(c)>0;
+   if(count<AQUATIC.max&&enemies.filter(e=>e.hp>0&&e.kind==='swimmer').length<SWIMMER.max&&admitted){
+    const p=spawnPoint(world,site,all,targets);if(p){const pressureIsland=spawnContext(c);enemies.push({id:nextId(),...p,...(pressureIsland?{pressureIsland}:{}),kind:'swimmer',variant:'bile-spitter',hp:AQUATIC.spitterHp,maxHp:AQUATIC.spitterHp,siteId:site.id,homeX:p.x,homeY:p.y,angle:0,path:[],reroute:0,behavior:'guarding',emergedAt:now});a.sequence++;emit({event:'reinforcement.changed',kind:'system',sourceId:site.id,cause:'aquatic_spawn',count:1});}
+   }a.nextSpawn=now+(admitted?AQUATIC.spawnEvery:2000);
   }
   if(now>=a.nextVent&&targets.some(t=>t.range(c)<AQUATIC.ventRadius+2)){
    const f=addField(site.id,c,AQUATIC.ventRadius,now+AQUATIC.ventWarning,AQUATIC.ventDuration,'vent');

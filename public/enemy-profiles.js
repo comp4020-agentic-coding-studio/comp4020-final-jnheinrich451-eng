@@ -1,7 +1,12 @@
 import { SURVIVAL } from './survival.js';
+import { canWeaponTarget } from './target-domain.js';
 
 // Role tuning only: no new global armor/damage formula. Legacy crawlers are hunters.
 export const ENEMY_ROLES = Object.freeze({
+  centipede: Object.freeze({ name:'Siege centipede', hp:2400, speed:.5, penetration:3, damage:120,
+    reach:1.8, radius:1.4, windup:2200, cooldown:3500, hazardImmune:true }),
+  skimmer: Object.freeze({ name:'Skimmer', hp:180, speed:3.5, penetration:2, damage:20,
+    reach:8, radius:1.2, windup:1200, cooldown:4000, hazardImmune:true }),
   'twin-lens': Object.freeze({ name:'Twin lens', hp:140, speed:1.4, penetration:0, damage:0, reach:0, radius:0, windup:0, cooldown:0 }),
   'heavy-lens': Object.freeze({ name:'Heavy lens', hp:320, speed:.55, penetration:0, damage:0, reach:0, radius:0, windup:0, cooldown:0 }),
   hunter: Object.freeze({ name: 'Hunter', hp: 60, speed: 2.6, penetration: 2,
@@ -13,10 +18,11 @@ export const ENEMY_ROLES = Object.freeze({
     damage: 75, reach: 1.4, radius: 1.1, windup: 1800, cooldown: 2800, hazardImmune: true }),
 });
 export const enemyProfile = enemy => ENEMY_ROLES[enemy.kind] || ENEMY_ROLES.hunter;
-export const heavyEnemy = enemy => ['breaker', 'bulwark'].includes(enemy.kind);
-export const canDamageEnemy = (enemy, weapon) => enemy.kind !== 'bulwark' || ['HE', 'MAGNETIC', 'MAC'].includes(weapon);
+export const heavyEnemy = enemy => ['breaker', 'bulwark', 'centipede'].includes(enemy.kind);
+export const canDamageEnemy = (enemy, weapon) => canWeaponTarget(enemy, weapon) &&
+  (!['bulwark', 'centipede'].includes(enemy.kind) || ['HE', 'MAGNETIC', 'MAC'].includes(weapon));
 export function newGroundEnemy(kind, id, point) {
-  const role = Object.hasOwn(ENEMY_ROLES, kind) ? kind : 'hunter', profile = ENEMY_ROLES[role];
+  const role = kind !== 'skimmer' && Object.hasOwn(ENEMY_ROLES, kind) ? kind : 'hunter', profile = ENEMY_ROLES[role];
   return { id, kind: role, ...point, hp: profile.hp, maxHp: profile.hp, angle: 0, path: [], reroute: 0 };
 }
 

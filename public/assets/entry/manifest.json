@@ -1,0 +1,15 @@
+{
+  "title": "Cuculidae top view",
+  "author": "Project author's concept art, supplied 31 October 2026",
+  "license": "Used with the project author's permission for this game; not separately licensed",
+  "source": "Local concept sheet assets/concept/cuculidae-sheet.png (ignored, 1536 x 1024)",
+  "sourceSha256": "143def18ab3753ae768971c2b9454ad9ad2f54e59c2e47ed7729ac217d54797e",
+  "export": "Top view only, cut from sheet rows 418-613 as the largest connected opaque shape, which drops the side view's fin tip and labels; crop origin 41,420; 255-colour palette.",
+  "files": [
+    {
+      "file": "cuculidae-top.png",
+      "sha256": "efb9ca2d1e1506cde5bde0415bb3bf58086e556d23bc513af64a31b9eeb77fed",
+      "modified": true
+    }
+  ]
+}

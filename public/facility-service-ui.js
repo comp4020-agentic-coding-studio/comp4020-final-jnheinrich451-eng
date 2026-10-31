@@ -1,6 +1,7 @@
 import { hullHealth, hullMaximum } from './vehicle.js';
 import { isHelipad } from './helicopter.js';
 import { returnDockError } from './naval-orders.js';
+import { navalText } from './biome.js';
 import { SERVICE_KINDS, serviceName, serviceState, serviceQuote, serviceVersion, serviceError, nearbyService, carrierServiceAircraft, carrierRecycleQuote } from './facility-service.js';
 
 const refundLabel=refund=>[['groundSupplies','GND'],['supplies','ORB']].filter(([pool])=>refund[pool]>0).map(([pool,label])=>'+'+Number(refund[pool].toFixed(2))+' '+label).join(' / ')||'0 SUP';
@@ -17,8 +18,8 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
     const {world}=state(),v=serviceState(world,current.type,current.id).vehicle;
     if(returnDockError(world,v))return;
     busy=true;update();
-    try{await api('ships/order',{id:v.id,action:'dock',orderId:crypto.randomUUID(),expectedOrderId:v.remoteOrder?.id||null});notify('Ship returning to its home dock.');}
-    catch(e){notify(e.message);}finally{busy=false;update();}
+    try{await api('ships/order',{id:v.id,action:'dock',orderId:crypto.randomUUID(),expectedOrderId:v.remoteOrder?.id||null});notify(navalText(world,'Ship returning to its home dock.'));}
+    catch(e){notify(navalText(world,e.message));}finally{busy=false;update();}
   };
   let current=null,entered=null,dismissed=null,busy=false,signature='';
   const key=s=>s?`${s.type}:${s.id}`:null;
@@ -38,14 +39,14 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
     const {facility,vehicle}=serviceState(world,current.type,current.id);
     if(!facility){close();return;}
     const air=current.type==='airbase', assembling=air?vehicle?.state==='delivering':vehicle?.assemblyRemaining>0;
-    panel.querySelector('h2').textContent=air?(isHelipad(facility)?'Helipad workshop':'Airbase workshop'):'Dock workshop';
+    panel.querySelector('h2').textContent=air?(isHelipad(facility)?'Helipad workshop':'Airbase workshop'):navalText(world,'Dock workshop');
     const ruined=air?facility.destroyed:facility.dockDestroyed;
     recall.hidden=air||ruined||!vehicle||vehicle.destroyed||vehicle.kind==='submarine';
     if(!recall.hidden){
       const returning=vehicle.remoteOrder?.kind==='dock'&&vehicle.remoteOrder.phase==='moving';
       recall.disabled=busy||returning||!!returnDockError(world,vehicle);
-      recall.textContent=returning?'Ship returning to dock...':'Return ship to dock';
-      recall.title=returnDockError(world,vehicle)||vehicle.remoteOrder?.reason||'Sail home and align at this berth';
+      recall.textContent=navalText(world,returning?'Ship returning to dock...':'Return ship to dock');
+      recall.title=navalText(world,returnDockError(world,vehicle)||vehicle.remoteOrder?.reason||'Sail home and align at this berth');
     }
     rebuild.hidden=true;
     panel.querySelector('.service-choices').hidden=ruined;
@@ -57,7 +58,7 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
     }
     panel.querySelector('.service-status').textContent=(vehicle?serviceName(vehicle.kind)+(assembling?' / assembling '+Math.ceil(air?vehicle.remaining:vehicle.assemblyRemaining)+'s':vehicle.destroyed?' / lost':air?' / assigned':` / active / ${Math.ceil(hullHealth(vehicle))}/${hullMaximum(vehicle)} HP`):'Empty slot')+' · '+Math.floor(world.logistics.groundSupplies)+' GND available';
     panel.querySelector('.service-help').textContent='60s drone assembly. Exchange: 80% of recorded GND payment; no cash refund. '+(vehicle&&!vehicle.purchase?'This older vehicle has no purchase receipt, so no trade-in credit.':'ORB purchases and free vehicles give no GND credit.');
-    panel.querySelector('.service-manage').textContent=air?'Aircraft / recall (H)':'Dock controls';
+    panel.querySelector('.service-manage').textContent=air?'Aircraft / recall (H)':navalText(world,'Dock controls');
     const next=current.type+(isHelipad(facility)?':heli':'');
     if(signature!==next){
       const choices=panel.querySelector('.service-choices');choices.replaceChildren();
@@ -75,17 +76,19 @@ export function facilityServiceUI({state,api,notify,manage,airSupport,stop}) {
       if(recycle.aircraft.length){const note=document.createElement('small');note.textContent=`Recycle ${recycle.aircraft.length} aircraft / ${refundLabel(recycle.refund)}`;button.append(note);button.title+=' Aircraft recycled automatically: '+refundLabel(recycle.refund)+'.';}
       button.disabled=busy||!!reason||world.logistics.groundSupplies+recycle.refund.groundSupplies+1e-8<price.due;
       button.setAttribute('aria-label',button.textContent);
+      if(!air)button.title=navalText(world,button.title);
     }
     const reason=serviceError(world,current.type,current.id,me.id,(isHelipad(facility)?'helicopter':SERVICE_KINDS[current.type][0]),players);
     if(reason)panel.querySelector('.service-help').textContent=reason;
     else if(!air&&carrierServiceAircraft(world,vehicle).length)panel.querySelector('.service-help').textContent='Another carrier keeps its aircraft. Other ship types automatically recycle the assigned parked aircraft for 50% of their actual payment, returned to GND or ORB. Free aircraft and missing receipts return 0 SUP. No confirmation; 60s ship assembly.';
+    if(!air)panel.querySelector('.service-help').textContent=navalText(world,panel.querySelector('.service-help').textContent);
   }
   async function order(kind){
     if(busy||!current)return;
     const {world}=state(),selection={...current},vehicle=serviceState(world,current.type,current.id).vehicle;
     busy=true;update();
     try{const result=await api('facilities/vehicle',{...selection,kind,expected:serviceVersion(vehicle),orderId:crypto.randomUUID()});notify('Vehicle assembly started / 60s.'+(result.recycledAircraft?` Recycled ${result.recycledAircraft} aircraft / ${refundLabel(result.refund)}.`:''));}
-    catch(e){notify(e.message);}finally{busy=false;update();}
+    catch(e){notify(selection.type==='dock'?navalText(world,e.message):e.message);}finally{busy=false;update();}
   }
   return {update,open,close,active:()=>!panel.hidden};
 }

@@ -1,4 +1,6 @@
 ﻿import { drawLensCrawler } from './mobile-laser-effects.js';
+import { aaEffectBorn, aaTracerDashes } from './aa-tracer-effects.js';
+import { sandSeaAt } from './biome.js';
 // Client-only presentation: the server sends outcomes, never individual particles.
 const TAU = Math.PI * 2;
 function random(seed) { let n = seed | 0; return () => { n = Math.imul(n ^ n >>> 15, 1 | n); n ^= n + Math.imul(n ^ n >>> 7, 61 | n); return ((n ^ n >>> 14) >>> 0) / 4294967296; }; }
@@ -106,10 +108,11 @@ export class CombatEffects {
     const current = new Set();
     for (const event of [...(state.shots || []), ...(state.impacts || [])]) {
       current.add(event.id); if (this.seen.has(event.id)) continue; this.seen.add(event.id);
-      const age = Math.max(0, (state.time - event.at) / 1000), born = clock - age * 1000;
+      const age = Math.max(0, (state.time - event.at) / 1000);
+      const born = event.weapon === 'AA35' ? aaEffectBorn(event.at, state.time, clock) : clock - age * 1000;
       // Combat snapshots are batched at 10 Hz. Preserve a brief muzzle flash even
       // when the first snapshot arrives after that very short visual would expire.
-      if (event.owner !== undefined) { if (age < .25) this.muzzles.push({ ...event, born: clock - Math.min(age, .025) * 1000 }); continue; }
+      if (event.owner !== undefined) { if (age < .25) this.muzzles.push({ ...event, born: event.weapon === 'AA35' ? born : clock - Math.min(age, .025) * 1000 }); continue; }
       if (age >= 1.6) continue;
       for (const hit of event.hits) if (!hit.blocked) this.hits.set(hit.id, { born, killed: hit.killed });
       if (event.weapon !== 'HE' && !event.minorBlast) { if (age < .35) this.bulletHits.push({ ...event, born }); continue; }
@@ -130,6 +133,7 @@ export class CombatEffects {
     for (const [id, hit] of this.hits) if (clock - hit.born > 400) this.hits.delete(id);
   }
   recoil(id, clock, weapon = 'HE') { const shot = this.muzzles.findLast(s => s.owner === id && (s.weapon || 'HE') === weapon); return shot ? Math.max(0, 1 - (clock - shot.born) / 250) * (weapon === 'HE' ? 6 : 2) : 0; }
+  aaRecoil(id,clock){return [0,1].map(barrel=>{const shot=this.muzzles.findLast(s=>s.owner===id&&s.mount==='aa-35mm'&&s.barrel===barrel&&s.born<=clock);return shot?Math.max(0,1-(clock-shot.born)/110)*3:0;});}
   tankRecoil(id, clock) {
     const shot = this.muzzles.findLast(s => s.owner === id && ['HE', 'MAGNETIC'].includes(s.weapon));
     if (!shot) return { x: 0, y: 0, barrel: 0 };
@@ -138,7 +142,7 @@ export class CombatEffects {
     const kick = this.reduced ? 0 : Math.sin(Math.min(1, age) * Math.PI) * strength * .35;
     return { x: -Math.sin(shot.angle) * kick, y: Math.cos(shot.angle) * kick, barrel };
   }
-  hit(id, clock) { const hit = this.hits.get(id); return hit ? Math.max(0, 1 - (clock - hit.born) / 250) : 0; }
+  hit(id, clock) { const hit = this.hits.get(id); return hit && hit.born <= clock ? Math.max(0, 1 - (clock - hit.born) / 250) : 0; }
   offset(clock, camera, zoom) {
     if (this.reduced || !this.shakeEnabled) return { x: 0, y: 0 };
     let amplitude = 0;
@@ -163,10 +167,23 @@ export class CombatEffects {
       c.scale(collapse, collapse); c.drawImage(image, -size / 2, -size / 2, size, size); c.restore();
     }
   }
-  draw(c, clock) {
+  draw(c, clock, world=null) {
     for (const shot of this.muzzles) {
-      const age = (clock - shot.born) / 1000; if (age > .16) continue;
+      const age = (clock - shot.born) / 1000; if (age < 0 || age > .16) continue;
+      if(shot.mount==='aa-tracer'){
+        c.save();c.strokeStyle='#ffe8ad';c.lineWidth=1.5;
+        for(const dash of aaTracerDashes(shot,age,this.reduced)){
+          c.globalAlpha=dash.alpha;c.beginPath();c.moveTo(dash.x*this.tile,dash.y*this.tile);
+          c.lineTo(dash.endX*this.tile,dash.endY*this.tile);c.stroke();
+        }
+        c.restore();continue;
+      }
       c.save(); c.translate(shot.x * this.tile, shot.y * this.tile); c.rotate(shot.angle);
+      if(shot.weapon==='AA35'){
+        c.globalAlpha=Math.max(0,1-age/.13)*(this.reduced?.45:1);c.fillStyle='#fff3be';
+        c.beginPath();c.moveTo(-2,-41);c.lineTo(-4,-47);c.lineTo(0,-57);c.lineTo(4,-47);c.lineTo(2,-41);c.fill();c.restore();
+        continue;
+      }
       if (shot.mount === 'artillery') { c.translate(0, -(78 * (.3 + .7 * Math.cos((shot.elevation ?? 75) * Math.PI / 180))) + 40); c.scale(1.3, 1.3); }
       if (shot.weapon === 'LASER' || shot.weapon === 'MAGNETIC' || shot.weapon === 'MAC') {
         const distance = Math.hypot(shot.endX - shot.x, shot.endY - shot.y) * this.tile;
@@ -189,6 +206,7 @@ export class CombatEffects {
     }
     for (const hit of this.bulletHits) {
       const age = (clock - hit.born) / 1000;
+      if(age<0)continue;
       c.save(); c.translate(hit.x * this.tile, hit.y * this.tile); c.globalAlpha = Math.max(0, 1 - age / .35);
       for (let i = 0; i < (this.reduced ? 2 : 5); i++) {
         const a = hit.id + i * 2.4, radius = 2 + age * (18 + i * 9);
@@ -198,7 +216,7 @@ export class CombatEffects {
       c.restore();
     }
     for (const b of this.bursts) {
-      const age = Math.max(0, (clock - b.born) / 1000), fade = Math.max(0, 1 - age / 1.6), water = b.surface === 0;
+      const age = Math.max(0, (clock - b.born) / 1000), fade = Math.max(0, 1 - age / 1.6), water = b.surface === 0 && !sandSeaAt(world,b.x,b.y);
       c.save(); c.translate(b.x * this.tile, b.y * this.tile);
       if (b.minorBlast) c.scale(.65, .65);
       if (age < .28) {

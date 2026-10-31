@@ -31,11 +31,16 @@ it('rechecks warning locations and never spawns on a player who moved into the m
  expect(resumed.snapshot().enemies.every((e:any)=>Math.hypot(e.x-p.x,e.y-p.y)>=8)).toBe(true);
 });
 it('replenishes hostile compounds up to six, replaces losses, and permanently stops when conquered',()=>{
- const w=world(),p=player('a',35.5,45.5);w.sites=[{...makeSite('modifier','nest',50,40),guardsRemaining:0}];
+ // A mortar isolates ordinary compound admission. Blight Roots now also own
+ // the separately bounded giant/brood producer, covered by centipede specs.
+ const w=world(),p=player('a',35.5,45.5);w.sites=[{...makeSite('mortar','nest',50,40),guardsRemaining:0}];
  const c=createCombat(w,null,null,'pressure');for(let i=0;i<1000;i++)c.tick(.1,[],[],[p]);
- let s=c.checkpoint();expect(s.enemies.length).toBe(6);expect(s.director.groups.nest.wave).toBe(3);
+ // Faster replenishment can meet a defender moving into a warned tile; arrival
+ // revalidation may cancel one body and require another wave to fill the cap.
+ let s=c.checkpoint();expect(s.enemies.length).toBe(6);expect(s.director.groups.nest.wave).toBeGreaterThanOrEqual(3);
+ const waves=s.director.groups.nest.wave;
  s.enemies[0].hp=0;const resumed=createCombat(w,s);for(let i=0;i<380;i++)resumed.tick(.1,[],[],[p]);
- s=resumed.checkpoint();expect(s.enemies.length).toBe(6);expect(s.director.groups.nest.wave).toBe(4);
+ s=resumed.checkpoint();expect(s.enemies.length).toBe(6);expect(s.director.groups.nest.wave).toBeGreaterThan(waves);
  s.sites[0].state='conquered';s.enemies=[];s.director.nextRaid=1e9;
  const cleared=createCombat(w,s);for(let i=0;i<1000;i++)cleared.tick(.1,[],[],[p]);
  expect(cleared.snapshot().enemies).toHaveLength(0);expect(cleared.snapshot().sites[0].state).toBe('conquered');

@@ -8,6 +8,7 @@ import { controlledUnit, describeCommand } from './action-narration.js';
 import {isAirGunship,GUNSHIP_GUNS} from './public/air-gunship.js';
 import { isAttackJet } from './public/attack-jet.js';
 import { assignBulwarkGuards, assignMobileLaserGuards } from './public/enemy-profiles.js';
+import { enemyOccupants } from './public/centipede.js';
 import { isCarrier, CARRIER, carrierReady, prepareCarrier, deckAircraft, deckLocked, syncCarrierDeck, tickCarrierService, ensureWing } from './public/carrier.js';
 import { requestHelicopterLanding, airRecords, airfields, liveAircraft, fleetCount, fleetCapacity, operationalAirbase, runwayAvailable, parkedRecord, newAircraftError, flightBase, freeAirbase, reserveLanding, deliveryError } from './public/air-traffic.js';
 import { SHIPYARD, dockRecords, yardFromShip, linkYard, syncShipyards, shipyardSite, matchesShipyardPreview, yardBuildError, yardRetireError, rememberWreck, tickDockRepair } from './public/shipyard.js';
@@ -58,6 +59,8 @@ import { createCombat } from './public/combat.js';
 import { turnTurret } from './public/turret.js';
 import { CORE, corePlacementError, coreSentries, coreExit, coreCells } from './public/core.js';
 import { loadout } from './public/weapons.js';
+import { isAA, aaAimSolution } from './public/aa-vehicle.js';
+import { isGroundEnemy } from './public/target-domain.js';
 import { recoveryCores, freshLife, lifeRecord, beginRecovery, tickLife, hurtRobot } from './public/survival.js';
 import { RAIL, railSegment, railError, carriageError, moveCarriage, driveCarriage, tickCarriage, artilleryFireError, artillerySolution, isMAC } from './public/rail.js';
 import { artilleryBlocks } from './public/footprints.js';
@@ -65,9 +68,10 @@ import { ARTILLERY_HE, ARTILLERY_SHELLS, MAC } from './public/weapons.js';
 import { expandWorld } from './public/expansion.js';
 import { expandPlanet, remapFloors } from './public/planet-world.js';
 import { createPlanet } from './public/planet-templates.js';
+import { prepareLandingZones, seedFrontierCities } from './public/frontier-layout.js';
 import { switchAt, switchLocked, switchConnectionError } from './public/switches.js';
 import { isCurve, joinedShape, curveBounds, insideBounds } from './public/track.js';
-import { MISSILE, missileAim, isMissile, missilePlacementError, missileFireError, tickBattery } from './public/missile.js';
+import { MISSILE, isMissile, missilePlacementError, missileFireError, tickBattery, batteryState, batteryTarget } from './public/missile.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, 'public');
@@ -115,7 +119,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     CREATE TABLE IF NOT EXISTS rails (x INTEGER NOT NULL, y INTEGER NOT NULL, shape TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY(x,y));
     CREATE TABLE IF NOT EXISTS artillery (id TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS rail_switches (x INTEGER NOT NULL, y INTEGER NOT NULL, route TEXT NOT NULL CHECK(route IN ('curve','straight')), PRIMARY KEY(x,y));`);
-  if (!db.prepare('SELECT value FROM meta WHERE key=?').get('world')) db.prepare('INSERT INTO meta VALUES (?,?)').run('world', JSON.stringify(options.planetTemplate&&options.planetTemplate!=='caldera-v1'?createPlanet(options.planetTemplate):createWorld()));
+  if (!db.prepare('SELECT value FROM meta WHERE key=?').get('world')) {
+    // Starting reserves and the denser layout belong only to newly created
+    // campaigns. Never reshape a saved world or retrofit new hostile cities.
+    const initial = options.campaign ? prepareLandingZones(createPlanet(options.planetTemplate || 'caldera-v1'))
+      : options.planetTemplate && options.planetTemplate !== 'caldera-v1' ? createPlanet(options.planetTemplate) : createWorld();
+    db.prepare('INSERT INTO meta VALUES (?,?)').run('world', JSON.stringify(initial));
+  }
   const oldWorldText = db.prepare('SELECT value FROM meta WHERE key=?').get('world').value;
   const oldWorld = JSON.parse(oldWorldText), world = expandPlanet(expandWorld(oldWorld));
   if (world !== oldWorld) {
@@ -142,8 +152,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   world.cores = db.prepare('SELECT * FROM cores ORDER BY rowid').all();
   world.rails = db.prepare('SELECT * FROM rails ORDER BY y,x').all();
   world.switches = db.prepare('SELECT * FROM rail_switches ORDER BY y,x').all();
-  world.artillery = db.prepare('SELECT value FROM artillery ORDER BY rowid').all().map(row => ({ elevation: RAIL.defaultElevation, ...JSON.parse(row.value), target: null, operator: null, lease: 0, input: null, inputTime: 0 }));
+  world.artillery = db.prepare('SELECT value FROM artillery ORDER BY rowid').all().map(row => JSON.parse(row.value)).map(saved => ({ ...(isMissile(saved) ? {} : { elevation: RAIL.defaultElevation }), ...saved, target: null, operator: null, lease: 0, input: null, inputTime: 0 }));
   world.tanks = db.prepare('SELECT value FROM tanks ORDER BY rowid').all().map(row => ({health:VEHICLE.tank,hurt:0,...JSON.parse(row.value)}));
+  for(const tank of world.tanks)if(isAA(tank)){tank.aaAim=null;tank.aaGround=false;}
   const writeTank = db.prepare('INSERT INTO tanks VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value');
   const saveTank = tank => writeTank.run(tank.id, JSON.stringify(Object.fromEntries(Object.entries(tank).filter(([key])=>!['damageDirty','timerDirty'].includes(key)))));
   world.ships = db.prepare('SELECT value FROM ships ORDER BY rowid').all().map(row => ({health:VEHICLE.ship,hurt:0,...JSON.parse(row.value),speed:0,driveSpeed:0,throttle:0,rudder:0,turnRate:0,launchRemaining:0,repairing:false}));
@@ -210,15 +221,15 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     const l=world.logistics, factory=data.method==='factory', local=factory||yardBuild;
     if(data.method!==undefined&&!['orbital','factory'].includes(data.method))return 'Choose orbital or factory construction.';
     const podSite=!local?cargoSite(kind,object.x-(['recycler','builder'].includes(kind)?.5:0),object.y-(['recycler','builder'].includes(kind)?.5:0)):null;
-    const podError=cargoPlacementError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],podSite);
+    const podError=cargoPlacementError(world,allBuildings(),[...groundPeople(),...groundEnemies()],podSite);
     if(podError)return podError;
     let workshop;
     if(factory){
       if(!LOCAL_KINDS.includes(kind))return 'This deployment uses orbital delivery.';
       workshop=supportSources(world).find(f=>f.id===data.factoryId);
       if(!workshop)return 'Choose a completed friendly factory.';
-      const siteX=kind==='tank'?object.podX:['recycler','builder'].includes(kind)?object.x-.5:object.x;
-      const siteY=kind==='tank'?object.podY:['recycler','builder'].includes(kind)?object.y-.5:object.y;
+      const siteX=['tank','aa-tank'].includes(kind)?object.podX:['recycler','builder'].includes(kind)?object.x-.5:object.x;
+      const siteY=['tank','aa-tank'].includes(kind)?object.podY:['recycler','builder'].includes(kind)?object.y-.5:object.y;
       const support=constructionError({...world,cores:workshop.kind==='core'?[workshop]:[],logistics:{facilities:workshop.kind==='core'?[]:[workshop]}},['submarine','transport','carrier'].includes(kind)?'ship':kind,siteX,siteY,object);
       if(support)return support;
     }
@@ -241,7 +252,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(kind==='core'){l.deployments[object.owner]=true;claimStartingCore(l,object);}
       if(factory)l.jobs[object.id]={remaining:ECONOMY.factoryTime,duration:ECONOMY.factoryTime,method:'factory',factoryId:workshop.id,kind,cost:price,pool,droneBay:{x:Math.floor(object.dock?.x??object.x),y:Math.floor(object.dock?.y??object.y)}};
       else if(yardBuild){if(kind==='aircraft')Object.assign(object.aircraft,{remaining:ECONOMY.factoryTime,assemblyDuration:ECONOMY.factoryTime,deliveryMethod:'factory'});else {object.assemblyRemaining=ECONOMY.factoryTime;object.assemblyDuration=ECONOMY.factoryTime;}}
-      else if(['helipad','airbase','artillery','mac','missile','sentry'].includes(kind)){const duration=orbitalDuration(kind);l.jobs[object.id]={remaining:duration,duration,method:'orbital',kind,cost:price,pool};}
+      else if(['helipad','airbase','artillery','mac','missile','sentry','aa-sentry'].includes(kind)){const duration=orbitalDuration(kind);l.jobs[object.id]={remaining:duration,duration,method:'orbital',kind,cost:price,pool};}
       if(['factory','uplink','outpost','recycler','builder'].includes(kind)){if(factory)object.remaining=ECONOMY.factoryTime;else object.remaining=object.deliveryDuration=orbitalDuration(kind);}
       write();saveLogistics();db.exec('COMMIT');
     }catch(error){db.exec('ROLLBACK');world.logistics=previous;savedShips.clear();savedAirbases.clear();savedGuns.clear();throw error;}
@@ -260,6 +271,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     world.sites = seedConquest(world, buildings, [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])]);
   }
   const combat = createCombat(world, savedCombat, () => audit.context(), options.campaign ? campaignId : null);
+  const groundEnemies = () => enemyOccupants(combat.snapshot().enemies.filter(isGroundEnemy));
   function flushCombatEvents() {
     for (const { event, ...details } of combat.drainEvents()) audit.emit(event, { ...details, campaignId, saved: !!options.campaign });
   }
@@ -353,14 +365,20 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   if (options.campaign && !db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-seeded-fronts-' + randomUUID() + '.sqlite'));
-    const planned = seedFronts(world, buildings,
-      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], randomUUID());
+    const existingLayout = world.frontierLayout?.version === 1 && db.prepare("SELECT value FROM meta WHERE key='frontier-layout-v1'").get();
+    const planned = existingLayout ? { sites: [], manifest: JSON.parse(existingLayout.value) }
+      : (world.frontierLayout?.version === 1 ? seedFrontierCities : seedFronts)(world, buildings,
+        [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], randomUUID());
     world.sites.push(...planned.sites);
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('combat-checkpoint-v1', JSON.stringify(combat.checkpoint()));
       // The marker and complete membership manifest commit with the actual sites.
       db.prepare('INSERT INTO meta VALUES (?,?)').run('seeded-fronts-v1', JSON.stringify(planned.manifest));
+      if (world.frontierLayout?.version === 1) {
+        db.prepare('INSERT OR IGNORE INTO meta VALUES (?,?)').run('frontier-layout-v1', JSON.stringify(planned.manifest));
+        db.prepare('INSERT OR IGNORE INTO meta VALUES (?,?)').run('seeded-fronts-v2', JSON.stringify({ version: 2, seed: planned.manifest.seed, supersededBy: 'frontier-layout-v1', groups: [], skipped: [] }));
+      }
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     audit.emit('campaign.migrated', { campaignId, cause: 'seeded_fronts_added_with_backup', count: planned.sites.length, saved: true });
@@ -369,8 +387,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
     db.prepare('VACUUM INTO ?').run(path.join(directory, 'before-dense-fronts-' + randomUUID() + '.sqlite'));
     const seed = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get().value).seed;
-    const planned = seedDenseFronts(world, buildings,
-      [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], seed);
+    const planned = world.frontierLayout?.version === 1
+      ? { sites: [], manifest: { version: 2, seed, supersededBy: 'frontier-layout-v1', groups: [], skipped: [] } }
+      : seedDenseFronts(world, buildings, [...db.prepare('SELECT x,y FROM scouts').all(), ...(savedCombat?.enemies || [])], seed);
     world.sites.push(...planned.sites);
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -429,7 +448,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   const controlledBy = id => world.artillery.find(g => g.operator === id);
   const canManage = (owner, pilot) => owner === pilot || !!options.canManage?.(owner, pilot);
   const releaseGun = id => { const gun = controlledBy(id); if (gun) { gun.operator = null; gun.lease = 0; gun.input = null; gun.inputTime = 0; } };
-  const allBuildings = () => [...buildings, ...coreSentries(world.cores)].map(b => ({ ...b, weapon: equipment.get('sentry:' + b.id)?.weapon || 'APCR' }));
+  const allBuildings = () => [...buildings, ...coreSentries(world.cores)].map(b => {
+    const loadout=equipment.get('sentry:'+b.id);
+    return {...b,...(loadout?.kind==='aa'?{kind:'aa-sentry',weapon:'AA35'}:{weapon:loadout?.weapon||'APCR'})};
+  });
   const incomingCore = id => world.cores.find(c => c.owner === id && c.elapsed < CORE.duration);
   const pendingDeletes=[], pendingLives=new Map(), logisticsEvents=[];
   function dropCargo(x,y,amount){
@@ -551,7 +573,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   const playerBody = p => boardedAircraft(p.id) ? 'aircraft' : boardedShip(p.id) ? 'ship' : boardedTank(p.id) ? 'rover' : boardedRecycler(p.id) ? 'recycler' : (p.deployed || world.cores.some(c => c.owner === p.id)) ? 'robot' : 'orbital';
   const groundPeople = () => [...people.values()].filter(p => playerBody(p) !== 'orbital');
   const landingPeople = () => groundPeople().map(p=>({...p,body:playerBody(p)}));
-  const landingWorld = () => ({...world,buildings:allBuildings(),players:landingPeople(),combat:combat.snapshot()});
+  const landingWorld = () => ({...world,buildings:allBuildings(),players:landingPeople(),combat:{...combat.snapshot(),enemies:groundEnemies()}});
   const isGuarding = p => playerBody(p) === 'robot' && p.life === 'active' && !incomingCore(p.id) && streams.has(p.id) && (controlledBy(p.id)?.lease || 0) > 0;
   const playerView = p => ({ id: p.id, name: p.name, x: p.x, y: p.y, vx: p.vx || 0, vy: p.vy || 0, angle: p.angle, aim: p.aim, turret: p.turret, body: playerBody(p), utilityKind: boardedRecycler(p.id)?.kind || 'recycler', recyclerId: boardedRecycler(p.id)?.id || null, aircraftId: boardedAircraft(p.id)?.id || null, shipId: boardedShip(p.id)?.id || null, vehicleId: boardedTank(p.id)?.id || null, tankWeapon: equipped(p).weapon || 'HE', tankSecondary: equipped(p).secondary || 'APCR', deploying: !!incomingCore(p.id), guarding: isGuarding(p), ...lifeRecord(p) });
   function persist(person, changedTank = boardedTank(person.id), changedShip = boardedShip(person.id), changedBase = pilotedBase(person.id)) {
@@ -719,7 +741,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           req.on('close', () => {
             if (closed) return;
             streams.get(player.id)?.delete(res);
-            if (!streams.get(player.id)?.size) { streams.delete(player.id); const vessel=boardedShip(player.id);if(vessel)stopShip(vessel);combat.cancelCharge(player.id); releaseGun(player.id); player.path = []; player.inputUntil = 0; persist(player); }
+            if (!streams.get(player.id)?.size) { streams.delete(player.id); const vessel=boardedShip(player.id);if(vessel)stopShip(vessel);const tank=boardedTank(player.id);if(isAA(tank)){tank.aaAim=null;tank.aaGround=false;}combat.cancelCharge(player.id); releaseGun(player.id); player.path = []; player.inputUntil = 0;player.aimPoint=null;player.aaFire=false;player.aaFireUntil=0;player.aaFireSequence=-1; persist(player); }
             if (!options.campaign && !streams.has(player.id)) audit.emit('participant.disconnected', { ...connectionContext, cause: 'event_stream_closed', ...streamCounts() });
             broadcast();
           });
@@ -777,7 +799,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if (incomingCore(player.id) && !['/api/cores', '/api/charge/cancel'].includes(url.pathname)) return json(res, 409, { error: 'Deployment in progress. Controls unlock when the robot exits.' });
           if (url.pathname === '/api/revive') {
             if (!streams.has(player.id)) return json(res, 409, { error: 'Connect to the battlefield before requesting recovery.' });
-            const error = beginRecovery(player, world, allBuildings(), [...groundPeople(), ...combat.snapshot().enemies], data.coreId);
+            const error = beginRecovery(player, world, allBuildings(), [...groundPeople(), ...groundEnemies()], data.coreId);
             if (error) return json(res, 409, { error });
             persist(player); broadcast(); return json(res, 200, { me: playerView(player), saved: true });
           }
@@ -801,11 +823,12 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (!streams.has(player.id) || playerBody(player)!=='robot' || incomingCore(player.id) || controlledBy(player.id)) return json(res,409,{error:'Return to your active robot to request a replacement.'});
             const naval = data.kind==='ship', list = naval ? world.ships : world.tanks, old = list.find(v=>v.id===data.id && v.owner===player.id);
             if (!['tank','ship'].includes(data.kind) || !old) return json(res,404,{error:'Choose your own destroyed vehicle.'});
+            if(isAA(old)&&data.emergency===true)return json(res,400,{error:'Emergency recovery supplies a standard HE tank, not an AA vehicle.'});
             if(old.replacedBy){const built=list.find(v=>v.id===old.replacedBy);return json(res,200,{saved:true,vehicle:built||old});}
             if (!old.destroyed) return json(res,200,{saved:true,vehicle:old});
             if(naval&&(liveAircraft(old.aircraft)||liveAircraft(old.wing?.aircraft)))return json(res,409,{error:'A surviving aircraft uses this carrier record. Build a new ship at an intact dock; recall the aircraft separately.'});
             if (old.replacement>.001) return json(res,409,{error:'Replacement cargo is still preparing.'});
-            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople().map(p=>({...p,body:playerBody(p)})),...combat.snapshot().enemies];
+            const filtered={...world,[naval?'ships':'tanks']:list.filter(v=>v.id!==old.id)}, occupants=[...groundPeople().map(p=>({...p,body:playerBody(p)})),...groundEnemies()];
             let next,error;
             if (naval) {
               const yard=dockRecords(world).find(y=>y.id===(data.yardId||old.yardId||old.id));
@@ -818,9 +841,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             if(error)return json(res,409,{error:'Original delivery site blocked: '+error});
             Object.assign(next,{id:randomUUID(),elapsed:0,health:naval?hullMaximum(next):VEHICLE.tank,hurt:0,destroyed:false,replacement:0,occupant:null,speed:0,reload:0});
+            if(isAA(next)){next.aaAim=null;next.aaGround=false;next.aaGuard=null;}
             if(naval&&next.dockDestroyed)return json(res,409,{error:'Deploy a new dock before building another ship.'});
             if(naval){if(isCarrier(next))prepareCarrier(next);else{delete next.aircraft;delete next.wing;}next.repairDelay=0;next.repairing=false;next.repairTime=0;next.rampGun=newRampGun(next);resetDepth(next);next.launchRemaining=0;delete next.siloReloads;delete next.nextSiloGroup;next.mainReloads={fore:0,raised:0,aft:0};next.nextMainMount='fore';next.ramp=null;next.target=null;next.aftTurret=next.turret;next.raisedTurret=next.turret;next.portTurret=-Math.PI/2;next.starboardTurret=Math.PI/2;delete next.secondarySequence;for(const key of ['portForeTurret','portAftTurret','starboardForeTurret','starboardAftTurret'])delete next[key];}
-            const payment=purchase(naval?(shipKind(next)==='gunship'?'ship':shipKind(next)):'tank',{method:'orbital',emergency:data.emergency},next,()=>{const tombstone={...old,replacedBy:next.id};if(naval){rememberWreck(world,old);saveShip(tombstone);saveShip(next);}else{saveTank(tombstone);saveTank(next);}},naval);if(payment)return json(res,409,{error:payment});old.replacedBy=next.id;list.push(next);broadcast();return json(res,200,{saved:true,vehicle:next});
+            const payment=purchase(naval?(shipKind(next)==='gunship'?'ship':shipKind(next)):isAA(next)?'aa-tank':'tank',{method:'orbital',emergency:data.emergency},next,()=>{const tombstone={...old,replacedBy:next.id};if(naval){rememberWreck(world,old);saveShip(tombstone);saveShip(next);}else{saveTank(tombstone);saveTank(next);}},naval);if(payment)return json(res,409,{error:payment});old.replacedBy=next.id;list.push(next);broadcast();return json(res,200,{saved:true,vehicle:next});
           }
           if(url.pathname==='/api/ships/recall') {
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot before recalling a naval deployment.'});
@@ -841,7 +865,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!streams.has(player.id)||playerBody(player)!=='robot'||incomingCore(player.id)||controlledBy(player.id))return json(res,409,{error:'Return to your active robot to deploy a shipyard.'});
             const previous=[data.x,data.y].every(Number.isInteger)&&world.logistics.shipyards.find(y=>!y.dockDestroyed&&y.owner===player.id&&((y.siteX===data.x&&y.siteY===data.y)||(y.requestX===data.x&&y.requestY===data.y)));
             if(previous)return json(res,200,{yard:previous,saved:true});
-            const site=shipyardSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,2);
+            const site=shipyardSite(world,allBuildings(),[...groundPeople(),...groundEnemies()],data.x,data.y,player.id,2);
             const error=site.error;if(error)return json(res,409,{error});
             // Older callers without a preview retain click-to-snap admission.
             // Current clients must reconfirm if a unit changes the chosen site;
@@ -884,7 +908,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(!facility||facility.owner!==player.id)return json(res,409,{error:'Choose your own facility.'});
             if(vehicle?.purchase?.orderId===data.orderId&&vehicle.purchase.kind===data.kind)return json(res,200,{saved:true,replayed:true});
             if(data.expected!==serviceVersion(vehicle))return json(res,409,{error:'The vehicle changed. Review the updated order before buying.'});
-            const error=serviceError(world,data.type,data.id,player.id,data.kind,[...groundPeople().map(p=>({...p,body:playerBody(p)})),...combat.snapshot().enemies]);
+            const error=serviceError(world,data.type,data.id,player.id,data.kind,[...groundPeople().map(p=>({...p,body:playerBody(p)})),...groundEnemies()]);
             if(error)return json(res,409,{error});
             const trade=serviceQuote(data.kind,vehicle);
             const recycling=data.type==='dock'?carrierRecycleQuote(world,vehicle,data.kind):{aircraft:[],refund:{groundSupplies:0,supplies:0}};
@@ -939,13 +963,13 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
               const yard=dockRecords(world).find(y=>y.id===data.yardId);
               const resident=world.ships.find(s=>!s.destroyed&&s.owner===player.id&&(s.yardId||s.id)===data.yardId);
               if(resident&&!resident.destroyed&&shipKind(resident)===kind)return json(res,200,{ship:resident,saved:true});
-              const error=yardBuildError(world,yard,player.id,kind,null,[...groundPeople(),...combat.snapshot().enemies]);if(error)return json(res,409,{error});
+              const error=yardBuildError(world,yard,player.id,kind,null,[...groundPeople(),...groundEnemies()]);if(error)return json(res,409,{error});
               const vessel={id:randomUUID(),kind,owner:player.id,x:yard.berthX,y:yard.berthY,angle:yard.dock.angle,turret:yard.dock.angle,elapsed:0,assemblyRemaining:SHIPYARD.buildTime,health:VEHICLE.ship,hurt:0,ammo:'HE',reload:0,occupant:null};
               linkYard(vessel,yard);if(isCarrier(vessel)){vessel.health=CARRIER.health;prepareCarrier(vessel);}resetDepth(vessel);vessel.rampGun=newRampGun(vessel);
               const payment=purchase(kind==='gunship'?'ship':kind,{method:'orbital'},vessel,()=>saveShip(vessel),true);if(payment)return json(res,409,{error:payment});world.ships.push(vessel);broadcast();return json(res,201,{ship:vessel,saved:true});
             }
             if(old&&(old.siteX??old.berthX-.5)===data.x&&(old.siteY??old.berthY-.5)===data.y)return json(res,200,{ship:old,saved:true});
-            const site=shipSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,kind,data.dockStyle||'legacy');
+            const site=shipSite(world,allBuildings(),[...groundPeople(),...groundEnemies()],data.x,data.y,player.id,kind,data.dockStyle||'legacy');
             const supportError=site.error;
             if(supportError)return json(res,409,{error:supportError});
             const vessel={...site.ship,id:randomUUID(),health:kind==='carrier'?CARRIER.health:VEHICLE.ship,hurt:0};prepareCarrier(vessel);resetDepth(vessel);vessel.rampGun=newRampGun(vessel);const yard=yardFromShip(vessel);linkYard(vessel,yard);const payment=purchase(kind==='gunship'?'ship':kind,data,vessel,()=>{world.logistics.shipyards.push(yard);saveShip(vessel);});if(payment)return json(res,409,{error:payment});world.ships.push(vessel);broadcast();return json(res,201,{ship:vessel,saved:true});
@@ -976,7 +1000,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(typeof data.orderId!=='string'||!/^[a-zA-Z0-9-]{8,64}$/.test(data.orderId))return json(res,400,{error:'A naval order identifier is required.'});
             if(vessel.remoteReceipts?.includes(data.orderId))return json(res,200,{saved:true,order:vessel.remoteOrder});
             if((vessel.remoteOrder?.id||null)!==data.expectedOrderId)return json(res,409,{error:'Ship orders changed. Review the current order and try again.'});
-            const plan=planNavalOrder(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],vessel,data);if(plan.error)return json(res,409,{error:plan.error});
+            const plan=planNavalOrder(world,allBuildings(),[...groundPeople(),...groundEnemies()],vessel,data);if(plan.error)return json(res,409,{error:plan.error});
             const previous=structuredClone(vessel);
             stopShip(vessel);vessel.target=null;
             if(isSubmarine(vessel)&&data.action==='dock')requestDepth(vessel,'surface');
@@ -997,7 +1021,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             // Identical retries are durable no-ops, including after reconnect/restart.
             if(data.action==='load'&&ship.cargo?.vehicle.id===data.vehicleId)return json(res,200,{saved:true});
             if(data.action==='unload'&&!ship.cargo&&ship.lastUnloaded===data.vehicleId)return json(res,200,{saved:true});
-            const occupants=[...groundPeople(),...combat.snapshot().enemies].filter(p=>p.id!==player.id);
+            const occupants=[...groundPeople(),...groundEnemies()].filter(p=>p.id!==player.id);
             const cargo=data.action==='load'?transportVehicles(world).find(c=>c.vehicle.id===data.vehicleId):ship.cargo;
             if(!cargo||cargo.vehicle.id!==data.vehicleId)return json(res,409,{error:'That vehicle is not available for this transfer.'});
             if(data.action==='load'&&!canManage(cargo.vehicle.owner,player.id))return json(res,403,{error:'Only load vehicles you can manage.'});
@@ -1020,7 +1044,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(typeof data.deployed!=='boolean')return json(res,400,{error:'Choose deploy or retract.'});
             if(data.deployed&&!ship.ramp){
               if(!shipStopped(ship))return json(res,409,{error:'Select Stop and wait for the hull and rudder to settle before deploying the ramp.'});
-              const point=shoreRampSite(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],ship);
+              const point=shoreRampSite(world,allBuildings(),[...groundPeople(),...groundEnemies()],ship);
               if(!point)return json(res,409,{error:'No clear shore within two tiles of the hull. Sail closer to an open beach.'});
               ship.ramp={...point,shipX:ship.x,shipY:ship.y,shipAngle:ship.angle};
             }else if(!data.deployed)ship.ramp=null;
@@ -1036,7 +1060,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if(url.pathname==='/api/ships/exit') {
             if(!ship)return json(res,200,{saved:true});
-            if(!surfaced(ship))return json(res,409,{error:'Surface fully before disembarking.'});const dock=boardingPoint(world,ship,allBuildings(),null,[...groundPeople(),...combat.snapshot().enemies]);
+            if(!surfaced(ship))return json(res,409,{error:'Surface fully before disembarking.'});const dock=boardingPoint(world,ship,allBuildings(),null,[...groundPeople(),...groundEnemies()]);
             if(!dock)return json(res,409,{error:mooredDock(world,ship)?'Dock exits are blocked. Clear a tile on the dock before disembarking.':'Stop and align alongside the dock berth, or deploy the shore ramp near clear land.'});
             ship.occupant=null;stopShip(ship);Object.assign(player,{x:dock.x,y:dock.y,inputUntil:0,path:[],vx:0,vy:0});persist(player,null,ship);broadcast();return json(res,200,{saved:true});
           }
@@ -1073,7 +1097,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             if(url.pathname==='/api/logistics/exit'){
               const truck=boardedRecycler(player.id);if(!truck)return json(res,409,{error:'You are not driving a recycler.'});
-              const point=recyclerExit(world,allBuildings(),truck,[...groundPeople(),...combat.snapshot().enemies]);if(!point)return json(res,409,{error:'No clear exit. Drive to open ground first.'});
+              const point=recyclerExit(world,allBuildings(),truck,[...groundPeople(),...groundEnemies()]);if(!point)return json(res,409,{error:'No clear exit. Drive to open ground first.'});
               truck.occupant=null;stopUtility(truck);truck.task=null;truck.collecting=0;truck.idle=0;Object.assign(player,point,{inputUntil:0,path:[],dirty:true});checkpoint();broadcast();return json(res,200,{saved:true});
             }
             if(url.pathname==='/api/logistics/bridge'){
@@ -1086,7 +1110,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
               const same=l.bridges.find(b=>b.builderId===truck.id&&((equals(b.from,data.from)&&equals(b.to,data.to))||(equals(b.from,data.to)&&equals(b.to,data.from))));
               if(same)return (same.profile||'standard')===profile?json(res,200,{saved:true,bridge:same}):json(res,409,{error:'That crossing already uses a different bridge type.'});
               if(l.bridges.some(b=>b.builderId===truck.id&&!bridgeReady(b)))return json(res,409,{error:'Finish the current bridge first.'});
-              const error=bridgeError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],truck,data.from,data.to,profile);if(error)return json(res,409,{error});
+              const error=bridgeError(world,allBuildings(),[...groundPeople(),...groundEnemies()],truck,data.from,data.to,profile);if(error)return json(res,409,{error});
               const price=bridgeCost({from:data.from,to:data.to,profile}),fundingError=bridgeSupplyError(world,price);if(fundingError)return json(res,409,{error:fundingError});
               const ends=bridgeFromBuilder(truck,data.from,data.to);
               const bridge={id:randomUUID(),owner:player.id,builderId:truck.id,from:{...ends.from},to:{...ends.to},profile,width:spec.width,cableTime:spec.cableTime,rowTime:spec.rowTime,elapsed:0,cost:price};
@@ -1101,7 +1125,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
               if(!['recycler','builder'].includes(kind)&&l.facilities.length>=ECONOMY.maxFacilities)return json(res,409,{error:'Twelve construction facilities per room.'});
               if(![data.x,data.y].every(Number.isInteger))return json(res,400,{error:'Choose a tile.'});
               for(let y=data.y;y<data.y+size;y++)for(let x=data.x;x<data.x+size;x++){
-                const error=placementError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies,...l.recyclers],x,y);
+                const error=placementError(world,allBuildings(),[...groundPeople(),...groundEnemies(),...l.recyclers],x,y);
                 if(error)return json(res,409,{error});
               }
               const object={id:randomUUID(),owner:player.id,kind,x:data.x,y:data.y,remaining:8,cargo:0,launch:0};
@@ -1174,7 +1198,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(data.kind==='helicopter'&&data.facilityKind!=='helipad')return json(res,400,{error:'Helicopters require a helipad.'});
             if(data.facilityKind==='helipad'&&data.empty!==true)return json(res,400,{error:'Deploy an empty helipad, then order a helicopter.'});
             const old=world.airbases.find(b=>!b.destroyed&&b.owner===player.id&&b.x===data.x&&b.y===data.y);if(old)return json(res,200,{saved:true,airbase:old});
-            const error=airbaseError(world,allBuildings(),[...groundPeople(),...combat.snapshot().enemies],data.x,data.y,player.id,data.facilityKind);if(error)return json(res,409,{error});
+            const error=airbaseError(world,allBuildings(),[...groundPeople(),...groundEnemies()],data.x,data.y,player.id,data.facilityKind);if(error)return json(res,409,{error});
             const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber',data.facilityKind);if(data.empty===true)Object.assign(base.aircraft,{state:'vacant',health:0});else if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');if(data.empty!==true&&fleetCount(world)>=fleetCapacity(world)+1)return json(res,409,{error:'Restore fleet capacity or deploy an empty airbase first.'});const payment=purchase(isHelipad(base)?'helipad':'airbase',data,base,()=>saveAirbase(base));if(payment)return json(res,409,{error:payment});world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
           }
           if(url.pathname==='/api/aircraft/deliver'){
@@ -1277,7 +1301,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }
             const gate=plane.fieldLanding?fieldExitPoint(landingWorld(),plane):destination.carrier?boardingPoint(world,destination.carrier,allBuildings()):airbaseGate(destination);
             if(!gate)return json(res,409,{error:plane.fieldLanding?'No clear ground exit. Wait for nearby units to move or take off.':'Carrier helm occupied. Wait for a free helm or a clear dock exit.'});
-            if(!canStand(world,allBuildings(),gate.x,gate.y)||[...groundPeople(),...combat.snapshot().enemies].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&!boardedAircraft(p.id)&&Math.hypot(p.x-gate.x,p.y-gate.y)<.8))return json(res,409,{error:'Keep the boarding apron clear before disembarking.'});
+            if(!canStand(world,allBuildings(),gate.x,gate.y)||[...groundPeople(),...groundEnemies()].some(p=>p.id!==player.id&&p.life!=='disabled'&&(p.hp===undefined||p.hp>0)&&!boardedAircraft(p.id)&&Math.hypot(p.x-gate.x,p.y-gate.y)<.8))return json(res,409,{error:'Keep the boarding apron clear before disembarking.'});
             // Keep the occupied seat until persist has atomically saved both records.
             Object.assign(player,{...gate,angle:0,inputUntil:0,path:[]});
             db.exec('BEGIN IMMEDIATE');try{plane.occupant=null;saveAirbase(base);save.run(player.x,player.y,player.angle,player.id);saveLife.run(player.id,JSON.stringify(lifeRecord(player)));db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');savedAirbases.delete(base.id);plane.occupant=player.id;throw e;}
@@ -1285,15 +1309,19 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           if (url.pathname === '/api/tanks') {
             if (!streams.has(player.id) || incomingCore(player.id) || controlledBy(player.id) || playerBody(player) !== 'robot') return json(res, 409, { error: 'Deploy your core and return to your active robot before calling a tank.' });
+            if(data.kind!==undefined&&!['tank','aa'].includes(data.kind))return json(res,400,{error:'Choose a tank or AA vehicle.'});
+            const aa=data.kind==='aa';
+            if(aa&&data.emergency===true)return json(res,400,{error:'Emergency recovery supplies a standard HE tank, not an AA vehicle.'});
             const prior=tankRecords(world).find(({tank:t})=>!t.destroyed&&t.owner===player.id&&t.podX===data.x&&t.podY===data.y);
+            if(!data.emergency&&prior&&isAA(prior.tank)!==aa)return json(res,409,{error:'A different vehicle already uses this drop site. Choose a new drop site.'});
             if(!data.emergency&&prior?.carrier)return json(res,409,{error:'The tank from this drop site is being transported. Choose a new drop site.'});
             const old = data.emergency ? emergencyTankWreck(world,player.id) : prior?.tank;
             if (old && !data.emergency && old.podX === data.x && old.podY === data.y) return json(res, 200, { tank: old, saved: true });
             const tankWorld = data.emergency && old?.destroyed ? {...world,tanks:world.tanks.filter(t=>t!==old)} : world;
-            const error = tankPlacementError(tankWorld, allBuildings(), [...groundPeople(), ...combat.snapshot().enemies], data.x, data.y, player.id);
+            const error = tankPlacementError(tankWorld, allBuildings(), [...groundPeople(), ...groundEnemies()], data.x, data.y, player.id);
             if (error) return json(res, 409, { error });
-            const tank = { health:VEHICLE.tank,hurt:0,id: randomUUID(), owner: player.id, podX: data.x, podY: data.y, elapsed: 0, x: data.x + .5, y: data.y + .5, angle: Math.PI / 2, turret: Math.PI / 2, occupant: null, weapon: 'HE', secondary: 'APCR' };
-            const payment=purchase('tank',data,tank,()=>saveTank(tank));if(payment)return json(res,409,{error:payment});world.tanks.push(tank); broadcast(); return json(res, 201, { tank, saved: true });
+            const tank = { health:VEHICLE.tank,hurt:0,id: randomUUID(), owner: player.id, podX: data.x, podY: data.y, elapsed: 0, x: data.x + .5, y: data.y + .5, angle: Math.PI / 2, turret: Math.PI / 2, occupant: null, ...(aa?{kind:'aa'}:{}), weapon: aa?'AA35':'HE', secondary: 'APCR' };
+            const payment=purchase(aa?'aa-tank':'tank',data,tank,()=>saveTank(tank));if(payment)return json(res,409,{error:payment});world.tanks.push(tank); broadcast(); return json(res, 201, { tank, saved: true });
           }
           if (url.pathname === '/api/tanks/board') {
             const tank = world.tanks.find(t => t.id === data.id);
@@ -1303,24 +1331,25 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (Math.hypot(player.x - tank.x, player.y - tank.y) > TANK.boardRange) return json(res, 409, { error: 'Move within 1.8 tiles of the tank to board.' });
             combat.cancelCharge(tank.id);if(tank.guard)tank.guard.targetId=null;
             tank.occupant = player.id;
-            Object.assign(player, { x: tank.x, y: tank.y, angle: tank.angle, turret: tank.turret, aim: tank.turret, inputUntil: 0, path: [], driveSpeed: 0 });
+            if(isAA(tank)){tank.aaGround=false;tank.aaAim=null;}
+            Object.assign(player, { x: tank.x, y: tank.y, angle: tank.angle, turret: tank.turret, aim: tank.turret, aimPoint:null, aaFire:false,aaFireUntil:0,inputUntil: 0, path: [], driveSpeed: 0 });
             combat.cancelCharge(player.id); persist(player, tank); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname === '/api/tanks/exit') {
             if (!vehicle) return json(res, 200, { saved: true });
-            const occupants = groundPeople().filter(p => p.id !== player.id).concat(combat.snapshot().enemies.filter(e => e.hp > 0));
+            const occupants = groundPeople().filter(p => p.id !== player.id).concat(groundEnemies().filter(e => e.hp > 0));
             const offsets = [[1.1,0],[-1.1,0],[0,1.1],[0,-1.1],[1.1,1.1],[-1.1,1.1],[1.1,-1.1],[-1.1,-1.1]];
             const exitBuildings = allBuildings();
             const clearPassage = p => Array.from({length:16},(_,i)=>(i+1)/16).every(t => canStand(world,exitBuildings,vehicle.x+(p.x-vehicle.x)*t,vehicle.y+(p.y-vehicle.y)*t,vehicle.id));
             const point = offsets.map(([dx,dy]) => ({x:vehicle.x+dx,y:vehicle.y+dy})).find(p => canStand(world,exitBuildings,p.x,p.y) && clearPassage(p) && !occupants.some(o => o.life !== 'disabled' && Math.hypot(o.x-p.x,o.y-p.y)<.8));
             if (!point) return json(res, 409, { error: 'No clear exit beside the tank. Move to open ground first.' });
             vehicle.occupant = null; combat.cancelCharge(player.id);
-            Object.assign(player, point, { inputUntil:0,path:[],vx:0,vy:0,driveSpeed:0 }); persist(player, vehicle); broadcast(); return json(res, 200, { saved: true });
+            Object.assign(player, point, { aimPoint:null,aaFire:false,aaFireUntil:0,inputUntil:0,path:[],vx:0,vy:0,driveSpeed:0 }); persist(player, vehicle); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname.startsWith('/api/rail') || url.pathname.startsWith('/api/artillery') || url.pathname === '/api/missiles') {
             if (!streams.has(player.id) || incomingCore(player.id)) return json(res, 409, { error: 'Connect with an active body before using the railway.' });
             if (controlledBy(player.id) && ['/api/rails', '/api/rails/remove', '/api/artillery', '/api/missiles'].includes(url.pathname)) return json(res, 409, { error: 'Release the facility before building or removing rails.' });
-            const occupants = [...groundPeople(), ...combat.snapshot().enemies];
+            const occupants = [...groundPeople(), ...groundEnemies()];
             if (url.pathname === '/api/rails/switch') {
               const rail = world.rails.find(r => r.x === data.x && r.y === data.y && isCurve(r));
               if (!rail) return json(res, 404, { error: 'Select an existing broad curve.' });
@@ -1402,14 +1431,18 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
                 if (typeof data.rotated !== 'boolean') return json(res, 400, { error: 'Choose a target-area orientation.' });
                 gun.rotated = data.rotated;
               } else if (url.pathname === '/api/artillery/fire') {
-                // Fire carries the exact displayed point, avoiding a race with the aim heartbeat.
-                const target = data.target || gun.target, rotated = data.rotated ?? gun.rotated;
+                // The cursor point only updates the desired aim; the launcher keeps turning
+                // toward it, and the volley goes where the launcher actually points now.
+                const rotated = data.rotated ?? gun.rotated;
                 if (typeof rotated !== 'boolean') return json(res, 400, { error: 'Choose a target-area orientation.' });
-                const error = missileFireError(gun, world, target, rotated, combat.snapshot().barrages, combat.snapshot().fields, combat.snapshot().salvos);
+                if (data.target && [data.target.x, data.target.y].every(Number.isFinite)) gun.target = { x: data.target.x, y: data.target.y };
+                Object.assign(gun, batteryState(gun, world));
+                const target = batteryTarget(gun, world, rotated), snapshot = combat.snapshot();
+                const error = missileFireError(gun, world, target, rotated, snapshot.barrages, snapshot.fields, snapshot.salvos);
                 if (error) return json(res, 409, { error });
-                gun.target = missileAim(gun, world, target, rotated); gun.rotated = rotated;
+                gun.rotated = rotated;
                 gun.reload = MISSILE.reload + (MISSILE.count - 1) * MISSILE.interval;
-                saveGun(gun); combat.barrage(gun, gun.target, rotated);
+                saveGun(gun); combat.barrage(gun, target, rotated);
               } else if (url.pathname === '/api/artillery/ammo' && ['HE', 'INCENDIARY', 'GAS'].includes(data.ammo)) gun.ammo = data.ammo;
               else return json(res, 409, { error: 'Fixed battery: choose HE, Fire or Gas, aim an area, rotate it or fire.' });
               saveGun(gun); broadcast(); return json(res, 200, { ok: true, saved: true });
@@ -1453,7 +1486,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             // A retry after a lost acknowledgement returns the existing core.
             const existing = world.cores.find(c => c.owner === player.id);
             if (existing && existing.x === data.x && existing.y === data.y) return json(res, 200, { core: existing, saved: true });
-            const occupants = [...groundPeople(), ...combat.snapshot().enemies];
+            const occupants = [...groundPeople(), ...groundEnemies()];
             const error = corePlacementError(world, allBuildings(), occupants, data.x, data.y, player.id);
             if (error) return json(res, 409, { error });
             const core = { id: randomUUID(), owner: player.id, x: data.x, y: data.y, elapsed: 0 };
@@ -1471,7 +1504,12 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if (!streams.has(player.id)) return json(res, 409, { error: 'Connect to the battlefield before starting combat.' });
             const choices = equipped(player), weapons = loadout(playerBody(player), choices.weapon, choices.secondary), weapon = data.weapon ?? weapons.primary;
             if (url.pathname === '/api/fire' && ![weapons.primary, weapons.secondary].includes(weapon)) return json(res, 409, { error: 'That weapon is not equipped on this body.' });
-            const error = url.pathname === '/api/fire' ? combat.shoot(player, data.x, data.y, weapon, allBuildings()) : combat.start(allBuildings(), data.frontId ?? 'landing');
+            if(url.pathname==='/api/fire'&&weapon==='AA35'&&!isAA(vehicle))return json(res,409,{error:'Board an AA vehicle to use its twin 35 mm guns.'});
+            if(isAA(vehicle)&&url.pathname==='/api/fire'&&[data.x,data.y].every(Number.isFinite)){
+              player.aimPoint={x:data.x,y:data.y};vehicle.aaGround=weapon==='APCR';
+            }
+            const source=isAA(vehicle)?{...player,x:vehicle.x,y:vehicle.y,turret:vehicle.turret,kind:'aa',vehicleId:vehicle.id,aaTargetId:vehicle.aaAim?.targetId,aaDomain:vehicle.aaAim?.domain}:player;
+            const error = url.pathname === '/api/fire' ? combat.shoot(source, data.x, data.y, weapon, allBuildings()) : combat.start(allBuildings(), data.frontId ?? 'landing');
             if (error) return json(res, 409, { error });
             if (url.pathname === '/api/fire') player.aim = Math.atan2(data.y - player.y, data.x - player.x) + Math.PI / 2;
             combatDirty = true; return json(res, 200, { ok: true });
@@ -1479,6 +1517,15 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if (url.pathname === '/api/input') {
             if (![data.x, data.y].every(n => Number.isFinite(n) && Math.abs(n) <= 1)) return json(res, 400, { error: 'Invalid movement.' });
             if (data.aim !== undefined && (!Number.isFinite(data.aim) || Math.abs(data.aim) > Math.PI * 2)) return json(res, 400, { error: 'Invalid aim.' });
+            if(isAA(vehicle)&&data.target!==undefined&&(!data.target||![data.target.x,data.target.y].every(Number.isFinite)))return json(res,400,{error:'Invalid AA aim point.'});
+            if(isAA(vehicle)&&data.aaGround!==undefined&&typeof data.aaGround!=='boolean')return json(res,400,{error:'Invalid AA aiming mode.'});
+            if(data.aaFire!==undefined){
+              if(typeof data.aaFire!=='boolean'||!Number.isSafeInteger(data.aaFireSequence)||data.aaFireSequence<0)return json(res,400,{error:'Invalid AA trigger input.'});
+              if(data.aaFire&&(!isAA(vehicle)||!streams.has(player.id)))return json(res,409,{error:'Board a connected AA vehicle to hold its trigger.'});
+              // Ignore an older packet entirely: it must not restore firing or
+              // rewind the cursor after a newer release has already arrived.
+              if(data.aaFireSequence<=(player.aaFireSequence??-1)){audit.bind({reason:'stale_aa_input'});return json(res,200,{ok:true});}
+            }
             if (data.throttle !== undefined && (!Number.isInteger(data.throttle) || data.throttle < -1 || data.throttle > 4)) return json(res,400,{error:'Choose Reverse, Stop or a forward throttle step.'});
             if (data.throttle !== undefined && (!ship || !streams.has(player.id) || data.shipId !== ship.id)) return json(res,409,{error:'This helm is no longer under your control.'});
             if (ship && data.throttle !== undefined) {
@@ -1486,6 +1533,15 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
               ship.throttle = data.throttle; player.aimDirty = true;
             }
             if (data.aim !== undefined && data.aim !== player.aim) { player.aim = data.aim; player.aimDirty = true; }
+            if(data.aaFire!==undefined){
+              player.aaFireSequence=data.aaFireSequence;player.aaFire=data.aaFire;
+              player.aaFireUntil=data.aaFire?Date.now()+400:0;
+            }else if(isAA(vehicle)){player.aaFire=false;player.aaFireUntil=0;}
+            if(isAA(vehicle)){
+              if(data.target)player.aimPoint={x:data.target.x,y:data.target.y};
+              else if(data.aim!==undefined)player.aimPoint=null;
+              vehicle.aaGround=data.aaGround===true;
+            }
             if(ship && data.target && [data.target.x,data.target.y].every(Number.isFinite) && data.target.x>=0 && data.target.y>=0 && data.target.x<world.width && data.target.y<world.height)ship.target={x:data.target.x,y:data.target.y};
             else if(ship && data.aim!==undefined)ship.target=null;
             if(isHelicopter(plane)&&data.target&&[data.target.x,data.target.y].every(Number.isFinite))plane.target={x:Math.max(0,Math.min(world.width-.001,data.target.x)),y:Math.max(0,Math.min(world.height-.001,data.target.y))};
@@ -1506,7 +1562,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if (url.pathname === '/api/tank-weapon') {
             if (playerBody(player) !== 'rover' || controlledBy(player.id)) return json(res, 409, { error: 'Return to your tank to change its cannon.' });
             const secondary = data.slot === 'secondary';
-            if (!(secondary ? ['APCR', 'HEAVY_FLAME'] : ['HE', 'MAGNETIC']).includes(data.weapon)) return json(res, 400, { error: 'Choose a valid tank weapon.' });
+            const choices=isAA(vehicle)?(secondary?['APCR']:['AA35']):(secondary?['APCR','HEAVY_FLAME']:['HE','MAGNETIC']);
+            if (!choices.includes(data.weapon)) return json(res, 400, { error: isAA(vehicle)?'AA vehicles use twin 35 mm guns and a machine gun.':'Choose a valid tank weapon.' });
             if (!secondary) combat.cancelCharge(player.id);
             if (vehicle) { vehicle[secondary ? 'secondary' : 'weapon'] = data.weapon; saveTank(vehicle); }
             else equip('player:' + player.id, { ...equipped(player), [secondary ? 'secondary' : 'weapon']: data.weapon }); broadcast(); return json(res, 200, { saved: true });
@@ -1514,28 +1571,40 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           if (url.pathname === '/api/sentry-mode') {
             const sentry = allBuildings().find(b => b.id === data.id);
             if (!sentry || !canManage(sentry.owner, player.id)) return json(res, 403, { error: 'Only the sentry owner can change its mode.' });
+            if(sentry.kind==='aa-sentry')return json(res,409,{error:'AA sentries use fixed twin 35 mm guns against airborne enemies only.'});
             if (!['APCR', 'HEAVY_FLAME'].includes(data.weapon)) return json(res, 400, { error: 'Choose machine gun or flamethrower.' });
             equip('sentry:' + sentry.id, { weapon: data.weapon }); broadcast(); return json(res, 200, { saved: true });
           }
           if (url.pathname === '/api/buildings') {
+            const kind=data.kind??'sentry';
+            if(!['sentry','aa-sentry'].includes(kind))return json(res,400,{error:'Choose a gun sentry or AA sentry.'});
             const error = placementError(world, allBuildings(), groundPeople().filter(p => streams.has(p.id) || p.id === player.id), data.x, data.y)
-              || (combat.snapshot().enemies.some(e => Math.abs(e.x - data.x - .5) < .75 && Math.abs(e.y - data.y - .5) < .75) ? 'An enemy is too close to this site.' : null);
+              || (groundEnemies().some(e => Math.abs(e.x - data.x - .5) < .75 && Math.abs(e.y - data.y - .5) < .75) ? 'An enemy is too close to this site.' : null);
             if (error) return json(res, 409, { error });
-            const building = { id: randomUUID(), x: data.x, y: data.y, owner: player.id, created: new Date().toISOString() };
-            const payment=purchase('sentry',data,building,()=>db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run(building.id,building.x,building.y,building.owner,building.created));
+            const aa=kind==='aa-sentry',loadout={kind:'aa',weapon:'AA35'};
+            const building = { id: randomUUID(), x: data.x, y: data.y, owner: player.id, created: new Date().toISOString(),...(aa?{kind,weapon:'AA35'}:{}) };
+            // Keep the legacy building table. The fixed AA equipment is saved
+            // in the same transaction as its hull, payment and construction job.
+            const payment=purchase(kind,data,building,()=>{
+              db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run(building.id,building.x,building.y,building.owner,building.created);
+              if(aa)db.prepare('INSERT INTO equipment VALUES (?,?)').run('sentry:'+building.id,JSON.stringify(loadout));
+            });
             if(payment)return json(res,409,{error:payment});
+            if(aa)equipment.set('sentry:'+building.id,loadout);
             buildings.push(building); broadcast();
             return json(res, 201, { building, saved: true });
           }
           if (url.pathname === '/api/dismantle') {
             const building = buildings.find(b => b.id === data.id);
             if (!building || !canManage(building.owner, player.id)) return json(res, 403, { error: 'Only the scout who placed this foundation can remove it.' });
+            const previous=structuredClone(world.logistics);
             db.exec('BEGIN');
             try {
               db.prepare('DELETE FROM buildings WHERE id=?').run(building.id);
               db.prepare('DELETE FROM equipment WHERE id=?').run('sentry:' + building.id);
+              delete world.logistics.jobs[building.id];delete world.logistics.durability['sentry:'+building.id];saveLogistics();
               db.exec('COMMIT');
-            } catch (error) { db.exec('ROLLBACK'); throw error; }
+            } catch (error) { db.exec('ROLLBACK');world.logistics=previous;throw error; }
             equipment.delete('sentry:' + building.id); buildings = buildings.filter(b => b.id !== building.id);
             broadcast();
             return json(res, 200, { saved: true });
@@ -1665,7 +1734,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
           }
           const gate=plane.fieldLanding?(fieldExitPoint(flightWorld,plane)||{x:plane.x+2,y:plane.y}):airbaseGate(destination),positions=[];
           for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++)positions.push({x:gate.x+x,y:gate.y+y});
-          const point=positions.sort((a,b)=>Math.hypot(a.x-gate.x,a.y-gate.y)-Math.hypot(b.x-gate.x,b.y-gate.y)).find(q=>canStand(world,obstacles,q.x,q.y)&&![...groundPeople(),...combat.snapshot().enemies].some(o=>o.id!==id&&o.life!=='disabled'&&(o.hp===undefined||o.hp>0)&&Math.hypot(o.x-q.x,o.y-q.y)<.8));
+          const point=positions.sort((a,b)=>Math.hypot(a.x-gate.x,a.y-gate.y)-Math.hypot(b.x-gate.x,b.y-gate.y)).find(q=>canStand(world,obstacles,q.x,q.y)&&![...groundPeople(),...groundEnemies()].some(o=>o.id!==id&&o.life!=='disabled'&&(o.hp===undefined||o.hp>0)&&Math.hypot(o.x-q.x,o.y-q.y)<.8));
           Object.assign(person,point||gate,{deployed:true,inputUntil:0,path:[],vx:0,vy:0});
           if(!point){person.shield=0;hurtRobot(person,Math.max(1,person.health));person.lostVehicle='aircraft';}
           plane.occupant=null;checkpoint([person]);
@@ -1675,11 +1744,11 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     }
     if(streams.size)for(const s of world.ships){
       const beforeFired=s.remoteOrder?.fired;
-      if(tickNavalOrder(world,obstacles,[...groundPeople(),...combat.snapshot().enemies],s,dt,(v,targets,ammo)=>{v.ammo=ammo;return combat.navalSalvo(v,targets[0],'salvo',targets);}))changed=true;
+      if(tickNavalOrder(world,obstacles,[...groundPeople(),...groundEnemies()],s,dt,(v,targets,ammo)=>{v.ammo=ammo;return combat.navalSalvo(v,targets[0],'salvo',targets);}))changed=true;
       if(beforeFired!==s.remoteOrder?.fired)checkpoint();
-      if(automaticNavalDefence(world,s,combat.snapshot().enemies,dt,(v,target)=>combat.navalSecondary(v,target,obstacles)))changed=true;
+      if(automaticNavalDefence(world,s,groundEnemies(),dt,(v,target)=>combat.navalSecondary(v,target,obstacles)))changed=true;
     }
-    const recoveryOccupants = [...groundPeople(), ...combat.snapshot().enemies];
+    const controlSnapshot=combat.snapshot(),recoveryOccupants = [...groundPeople(), ...controlSnapshot.enemies.filter(isGroundEnemy)];
     for (const p of people.values()) {
       if (p.vx || p.vy) changed = true;
       p.vx = 0; p.vy = 0;
@@ -1704,7 +1773,14 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(truck){Object.assign(p,{x:truck.x,y:truck.y,angle:truck.angle,turret:truck.angle,vx:truck.vx||0,vy:truck.vy||0,dirty:true});continue;}
       const vehicle = boardedTank(p.id);
       const robot = playerBody(p) === 'robot';
-      const turret = turnTurret(p.turret, p.aim, dt, loadout(playerBody(p)).turnSpeed);
+      let turretAim=p.aim;
+      if(isAA(vehicle)&&p.aimPoint){
+        const solution=aaAimSolution(world,obstacles,vehicle,controlSnapshot.enemies,p.aimPoint.x,p.aimPoint.y,controlSnapshot.time);
+        if(vehicle.aaAim?.targetId!==solution.targetId||vehicle.aaAim?.x!==solution.x||vehicle.aaAim?.y!==solution.y)changed=true;
+        vehicle.aaAim=solution;
+        turretAim=Math.atan2(solution.x-vehicle.x,vehicle.y-solution.y);
+      }
+      const turret = turnTurret(p.turret, turretAim, dt, loadout(playerBody(p),vehicle?.weapon,vehicle?.secondary).turnSpeed);
       if (Math.abs(turret - p.turret) > 1e-8) { p.turret = turret; changed = true; }
       if (robot && p.angle !== p.turret) { p.angle = p.turret; p.dirty = true; changed = true; }
       if (vehicle && vehicle.turret !== p.turret) { vehicle.turret = p.turret; p.dirty = true; }
@@ -1743,7 +1819,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       const v=boardedTank(p.id)||boardedRecycler(p.id);if(!v)continue;
       const cargo={kind:boardedTank(p.id)?'tank':'utility',vehicle:v};
       if(!canManage(v.owner,p.id))continue;
-      const occupants=[...groundPeople().map(o=>({...o,body:playerBody(o)})),...combat.snapshot().enemies].filter(o=>o.id!==p.id);
+      const occupants=[...groundPeople().map(o=>({...o,body:playerBody(o)})),...groundEnemies()].filter(o=>o.id!==p.id);
       const ship=world.ships.find(s=>!constructing(s.id)&&!driveOnError(world,obstacles,occupants,s,cargo,p.id,p.input));
       if(ship){combat.cancelCharge(p.id);transferVehicle(ship,cargo,p,null,true);changed=true;}
     }
@@ -1752,7 +1828,9 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     const robots = [...people.values()].filter(p => streams.has(p.id) && playerBody(p) === 'robot' && !incomingCore(p.id));
     for (const robot of robots) robot.guarding = isGuarding(robot);
     const beforeSiteHp = world.sites.map(s => s.hp).join(',');
-    if (streams.size && combat.tick(dt, obstacles, robots, groundPeople().filter(p => streams.has(p.id)).map(p => ({ ...p, body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
+    if (streams.size && combat.tick(dt, obstacles, robots, groundPeople().filter(p => streams.has(p.id)).map(p => ({ ...p,
+      aaFire:p.aaFire===true&&p.aaFireUntil>now&&p.inputUntil>now,
+      body: playerBody(p), tankWeapon: equipped(p).weapon || 'HE', deploying: !!incomingCore(p.id), operating: !!controlledBy(p.id) })))) changed = true;
 
     for(const target of facilityTargets(world,buildings))void target; // Register newly placed facilities before the next tick.
     const lost=facilityTargets(world,buildings,true).filter(f=>!f.protected&&f.hp.health<=0);
@@ -1797,15 +1875,17 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     // Persist damage and recovery transitions before broadcasting; reconnecting
     // or restarting must not revive a disabled body or restore lost health.
     for (const p of people.values()) if (p.lifeDirty) persist(p);
+    // Batteries stay raised while their own volley is in flight; computed once per tick.
+    let volleyOwners=null;const inFlight=id=>(volleyOwners ||= new Set(combat.snapshot().barrages.map(b=>b.owner))).has(id);
     for (const gun of world.artillery) {
       if(constructing(gun.id))continue;
       if (gun.operator && (!streams.has(gun.operator) || people.get(gun.operator)?.life !== 'active')) { gun.operator = null; gun.lease = 0; changed = true; }
       if (streams.size && !isMissile(gun) && gun.operator && gun.input?.mode === 'pointer' && gun.inputTime > 0 && gun.lease > 0) {
-        const error = !gun.move && (gun.input.x || gun.input.y) ? driveCarriage(gun, gun.input.x, gun.input.y, world, obstacles, groundPeople().filter(p => streams.has(p.id)).concat(combat.snapshot().enemies)) : null;
+        const error = !gun.move && (gun.input.x || gun.input.y) ? driveCarriage(gun, gun.input.x, gun.input.y, world, obstacles, groundPeople().filter(p => streams.has(p.id)).concat(groundEnemies())) : null;
         if ((gun.driveBlocked || null) !== error) { gun.driveBlocked = error; changed = true; }
         if (gun.move) { saveGun(gun); changed = true; }
       }
-      if (streams.size && (isMissile(gun) ? tickBattery(gun, dt) : tickCarriage(gun, dt))) { saveGun(gun); changed = true; }
+      if (streams.size && (isMissile(gun) ? tickBattery(gun, dt, world, !gun.operator&&(gun.deploy??0)>0&&inFlight(gun.id)) : tickCarriage(gun, dt))) { saveGun(gun); changed = true; }
     }
     // Batch dock health and its supply charge into the same saved transaction.
     if(streams.size)dockRepairElapsed+=dt;
@@ -1891,6 +1971,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
   function stopInputs(pilot = null) {
     for (const p of people.values()) if (!pilot || p.id === pilot) {
       p.input = { x: 0, y: 0 }; p.inputUntil = 0; p.path = []; p.vx = 0; p.vy = 0; p.driveSpeed = 0; combat.cancelCharge(p.id);
+      p.aimPoint=null;p.aaFire=false;p.aaFireUntil=0;const tank=boardedTank(p.id);if(isAA(tank)){tank.aaAim=null;tank.aaGround=false;}
       const vessel=boardedShip(p.id);if(vessel)stopShip(vessel);
       const utility=boardedRecycler(p.id);if(utility)stopUtility(utility);
       const gun = controlledBy(p.id); if (gun) { gun.input = null; gun.inputTime = 0; }

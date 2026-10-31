@@ -1,11 +1,11 @@
 import { expect, it } from 'vitest';
 import { createWorld, canStand } from '../public/world.js';
-import { MISSILE, missileAim, missilePlacementError, missileTargetError, missileFireError, targetBox, makeBarrage, tickBattery } from '../public/missile.js';
+import { MISSILE, missileAim, missilePlacementError, missileTargetError, missileFireError, targetBox, makeBarrage, tickBattery, batteryPose, batteryState, batteryTarget, batteryAligned } from '../public/missile.js';
 import { gunCells, artilleryBlocks } from '../public/footprints.js';
 import { railError } from '../public/rail.js';
 import { createCombat } from '../public/combat.js';
-const field = () => ({ ...createWorld(), width: 128, height: 96, terrain: Array(128 * 96).fill(2), artillery: [] as any[], rails: [] as any[] });
-const battery = () => ({ id: 'battery', owner: 'a', kind: 'missile', x: 60, y: 20, reload: 0, rotated: false, target: { x: 90, y: 50 }, operator: null as string | null, lease: 0 });
+const field = (width = 128, height = 96) => ({ ...createWorld(), width, height, terrain: Array(width * height).fill(2), artillery: [] as any[], rails: [] as any[] });
+const battery = (): any => ({ id: 'battery', owner: 'a', kind: 'missile', x: 60, y: 20, reload: 0, rotated: false, target: { x: 90, y: 50 }, operator: null as string | null, lease: 0, deploy: 1 });
 
 it('reserves exactly 4x4, including the far edge, and rejects rails, units, rocks and duplicate batteries', () => {
   const world = field(), gun = battery();
@@ -25,9 +25,21 @@ it('validates the entire 12x18 target rectangle, including rotated corners and n
   expect(targetBox(gun.target, true)).toEqual({ x: 81, y: 44, width: 18, height: 12 });
   expect(missileTargetError(gun, world, gun.target)).toBeNull();
   expect(missileTargetError(gun, world, { x: 122, y: 50 }, true)).toBeNull();
-  expect(missileTargetError(gun, world, { x: 70, y: 22 })).toContain('15 and 100');
+  expect(missileTargetError(gun, world, { x: 70, y: 22 })).toContain('15 and 200');
   expect(missileTargetError(gun, world, { x: NaN, y: 50 })).toContain('Choose');
   expect(missileTargetError({ ...gun, x: 0, y: 0 }, world, { x: 95, y: 20 })).toBeNull();
+});
+
+it('reaches 200 tiles at one missile speed, so a longer shot takes longer to land', () => {
+  const world = field(512, 384), gun = { ...battery(), x: 8, y: 180 }, center = { x: 10, y: 182 };
+  const far = (aim: any) => Math.max(...[aim.x - 6, aim.x + 6].flatMap(x => [aim.y - 9, aim.y + 9].map(y => Math.hypot(x - center.x, y - center.y))));
+  const within = { x: center.x + 150, y: center.y };
+  expect(missileAim(gun, world, within)).toEqual(within);
+  const clamped = missileAim(gun, world, { x: 500, y: center.y });
+  expect(far(clamped)).toBeCloseTo(200);expect(clamped.y).toBeCloseTo(center.y);
+  expect(missileTargetError(gun, world, clamped)).toBeNull();
+  const flight = (range: number) => makeBarrage(gun, { x: center.x + range, y: center.y }, false, 1).missiles[0].flight;
+  expect(flight(50)).toBeCloseTo(8);expect(flight(100)).toBeCloseTo(10);expect(flight(200)).toBeCloseTo(14);
 });
 
 it('commits twelve repeatable distributed impact assignments with a 2.75s launch sequence', () => {
@@ -74,4 +86,45 @@ it('applies HE damage to monsters while preserving friendly construction and ter
   combat=createCombat(world,checkpoint);
   for (let i = 0; i < 130; i++) combat.tick(.1, []);
   expect(combat.snapshot().kills).toBe(1); expect(JSON.stringify(world)).toBe(saved);
+});
+
+it('deploys when operated, turns toward the aim, fires at its actual pose and stows when idle', () => {
+  const world = field(), gun = battery();delete gun.deploy;
+  // A battery with no saved pose starts stowed; a known target sets its bearing.
+  expect(batteryState(gun, world)).toMatchObject({ deploy: 0, angle: batteryPose(gun, world, gun.target).angle });
+  Object.assign(gun, { operator: 'a', lease: 99, angle: 0, elevation: MISSILE.minElevation });
+  expect(missileFireError(gun, world)).toContain('deploying');
+  tickBattery(gun, MISSILE.deploy / 2, world);expect(gun.deploy).toBeCloseTo(.5);expect(gun.angle).toBe(0);
+  tickBattery(gun, MISSILE.deploy / 2, world);expect(gun.deploy).toBe(1);
+  // Turning starts once raised, at 60 deg/s and 15 deg/s of elevation.
+  const goal = batteryPose(gun, world, gun.target), before = Math.abs(goal.angle - gun.angle), lift = goal.elevation - gun.elevation;
+  tickBattery(gun, .5, world);expect(Math.abs(goal.angle - gun.angle)).toBeCloseTo(Math.max(0, before - MISSILE.turnSpeed * .5));
+  expect(goal.elevation - gun.elevation).toBeCloseTo(Math.max(0, lift - MISSILE.elevationSpeed * .5));
+  // Firing now strikes where the launcher points, not under the cursor.
+  const actual = batteryTarget(gun, world);expect(batteryAligned(gun, world)).toBe(false);
+  expect(Math.hypot(actual.x - missileAim(gun, world, gun.target, false).x, actual.y - missileAim(gun, world, gun.target, false).y)).toBeGreaterThan(1);
+  const volley = makeBarrage(gun, actual, false, 7), center = { x: gun.x + 2, y: gun.y + 2 };
+  expect(Math.hypot(volley.missiles[0].originX - center.x, volley.missiles[0].originY - center.y)).toBeGreaterThan(.3);
+  for (let i = 0; i < 80; i++) tickBattery(gun, .1, world);
+  expect(batteryAligned(gun, world)).toBe(true);
+  const saved = JSON.parse(JSON.stringify(gun));expect(batteryState(saved, world)).toMatchObject({ angle: gun.angle, elevation: gun.elevation, deploy: 1 });
+  // Released: stays raised for the quiet period or while its volley flies, then stows.
+  gun.operator = null;tickBattery(gun, MISSILE.stow - .1, world);expect(gun.deploy).toBe(1);
+  tickBattery(gun, 1, world, true);expect(gun.deploy).toBe(1);
+  tickBattery(gun, MISSILE.stow, world);tickBattery(gun, MISSILE.deploy / 2, world);expect(gun.deploy).toBeCloseTo(.5);
+  for (let i = 0; i < 40; i++) tickBattery(gun, .1, world);expect(gun.deploy).toBe(0);
+});
+
+it('turns an old-format battery onto a distant aim clamped to range, then fires there', () => {
+  const world = field(512, 384), gun: any = { id: 'old', owner: 'a', kind: 'missile', x: 8, y: 74, ammo: 'HE', rotated: false, reload: 0, target: { x: 300, y: 15 }, operator: 'a', lease: 99 };
+  const clamped = missileAim(gun, world, gun.target, false), center = { x: gun.x + 2, y: gun.y + 2 };
+  expect(Math.hypot(gun.target.x - center.x, gun.target.y - center.y)).toBeGreaterThan(MISSILE.range);
+  expect(Math.hypot(clamped.x - center.x, clamped.y - center.y)).toBeLessThanOrEqual(MISSILE.range);
+  expect(missileFireError(gun, world)).toContain('deploying');
+  Object.assign(gun, { angle: 0, elevation: MISSILE.minElevation });
+  for (let i = 0; i < 120; i++) tickBattery(gun, .1, world);
+  expect(batteryAligned(gun, world)).toBe(true);
+  const actual = batteryTarget(gun, world);
+  expect(Math.hypot(actual.x - clamped.x, actual.y - clamped.y)).toBeLessThan(.01);
+  expect(missileFireError(gun, world)).toBeNull();
 });

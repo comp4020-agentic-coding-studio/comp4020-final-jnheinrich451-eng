@@ -95,10 +95,12 @@ unboxed rotating Caldera behind login, a brief glitch into New Game / Continue /
 Join, different planet-camera compositions for each branch, a striped Frontier
 SVG mark, and the Assignment 1 starfield/light reference. It separates current
 code-based invitations from account email verification and records acceptance
-checks. This is the design for the stage after multiplayer release validation;
-the new presentation is not implemented by this record.
+checks. The opening presentation is now implemented locally using the existing
+account/campaign services, with desktop and phone browser checks. Visual review
+and an uncoached human entry/join rehearsal remain outstanding. Recipient-bound
+email invitations have an approved design but are a separate functional stage.
 
-Refine the opening page around Continue campaign, Host and Join. Explain the
+Refine the opening page around New Game, Continue and Join. Explain the
 solo/co-op objective, Demo/email account choice, guest entry and the first useful
 action. Keep invitations quick; no mandatory cinematic before joining. Show
 loading/reconnect progress and useful failures. Preserve existing save ownership.
@@ -108,9 +110,32 @@ one strong illustration and clear hierarchy. Judge it by whether an unfamiliar
 player can start and rejoin without coaching, at both viewports. Refresh README
 entry instructions and stale implemented/future claims alongside this stage.
 
+Control follow-up observed during the 30 October AI browser checks: when the
+Planet overview button has keyboard focus, Enter is captured by the global chat
+shortcut instead of activating that button. Mouse click and touch navigation
+pass. Resolve keyboard button activation versus chat input in a separate control
+polish pass; the AI change does not modify that handler.
+
 ## Stage 2: patrols, detection and island pressure
 
-Current baseline, from `public/land-ai.js`, `public/encounter-director.js`,
+30 October direction: the author requests sustained, player-focused resistance
+in hostile cities and sparse roaming groups on cleared land, with weak local
+facility attraction. After all hostile facilities are destroyed, new spawns stop
+and only existing survivors remain. The [updated enemy design](ENEMY_DESIGN_DISCUSSION.md)
+records this decision and splits the work into behavior/ending, pressure budgets,
+then denser new-world city layouts. The first behavior/ending slice is now
+implemented locally: bounded seeded patrols, line-of-sight detection, last-contact
+investigation, player-focused priorities with a limited siege role, and a saved
+planetary spawn gate with a gold CONQUERED ribbon. Existing saved sites stay in
+place. The subsequent author request brought forward four starting clearings and
+denser new-campaign cities, now implemented for both planets. Existing campaigns
+are not regenerated. Shared island pressure and sparse roaming arrivals are now
+implemented locally; see [the pressure stage](ISLAND_PRESSURE_STAGE.md) for rates,
+admission rules and verification. Recipient-bound email invitations remain a
+separate account task. The paired flying-enemy/AA-vehicle stage is now implemented
+locally; see [Mobile AA and skimmer](MOBILE_AA_AND_SKIMMER.md).
+
+Pre-implementation baseline (29 October), from `public/land-ai.js`, `public/encounter-director.js`,
 `public/combat.js`, `public/vesper-world.js` and `public/aquatic-hive.js`:
 
 - Ordinary ground enemies already acquire nearby targets, pursue, remember a
@@ -126,11 +151,11 @@ Current baseline, from `public/land-ai.js`, `public/encounter-director.js`,
   aquatic hive. It does not need an independent copy of the AI. New behaviors
   must be tested against its rivers, mountains and ocean restrictions.
 
-First add short seeded patrols to an existing ground enemy, with readable states:
-patrol -> detect -> pursue -> investigate last position -> return. If we describe
-enemies as seeing the player, implement actual visibility tests and define what
-blocks sight. Reuse bounded navigation and update sensing on a modest cadence;
-do not run a full route search for every enemy every frame. A distinct trooper
+The implemented first slice adds short seeded patrols to existing ground enemies:
+patrol -> detect -> pursue -> investigate last position -> return. Solid terrain
+and structures block sight; the same ray geometry is used on Caldera and Vesper.
+Full acquisition runs at a 250 ms cadence, with bounded candidates and shared
+incremental navigation. A distinct trooper
 type can follow if it has a role the existing roster cannot serve.
 
 The author's confirmed **aggregate island arrival-rate multiplier** is:
@@ -181,25 +206,28 @@ where existing target plumbing groups them with facilities. Decide whether the
 first version also attacks friendly aircraft; avoid silently adding dogfighting.
 Submerged submarines should not become visible targets by accident.
 
-The proposed AA vehicle has two clear states:
+**31 October implementation:** the author replaced the anchored-mode proposal
+with a mobile XM246-inspired tracked AA. LMB uses twin 35 mm guns against air or
+ground; RMB retains the tank machine gun. The cursor remains free, with a separate
+soft-target/lead solution and real turret traverse. Stationary, unoccupied AAs
+prioritize air defense and share reloads across manual takeover. The robot laser
+is the basic air counter. The first skimmer attacks robots and ground vehicles;
+friendly aircraft and naval targets remain outside this stage. See
+[Mobile AA and skimmer](MOBILE_AA_AND_SKIMMER.md) for limits and local checks.
+Balance and sustained live-server capacity still need playtesting.
 
-- **Mobile ground mode:** horizontal heavy machine gun, movement and ground fire.
-- **Deployed AA mode:** stops and anchors, raises its weapon, locks aerial targets.
-  Unoccupied deployed vehicles provide automatic air defense. Redeploy to move.
-
-Persist mode, transition/lock and reload state. Share visible target/lock feedback.
-Reject movement while deployed and avoid double firing when a human boards an
-automatic unit. Air target selection, lead, range and rate need one playable
-balance pass, not realistic-calibre simulation. Provide a usable counter and
-escape response when aerial threats first appear. Keep them inside a measured
-population/projectile budget.
+The subsequent [AA sentry and co-op stage](AA_SENTRY_AND_COOP.md) adds the author's
+air-only fixed twin-35 mm sentry and records the automated named-room combat
+rehearsal. It does not add a ground fallback. Keep its local browser/load evidence
+separate from independent human playtests and deployed Fly results.
 
 ## Later stages
 
-1. **Giant encounter:** one distinctive telegraphed attack pattern, weak point or
-   interrupt opportunity. Existing Bulwarks and the regenerating aquatic hive
-   already fill durable-enemy roles. A larger health bar alone is not enough;
-   preserve solo viability and reward coordinated positioning.
+1. **Giant encounter:** the first [siege centipede](BROOD_CENTIPEDE.md) is now
+   implemented locally: a long hittable body, facility-priority warned strike,
+   Root-linked emergence and bounded land-unit offspring. Destroying its Root
+   interrupts future production. Author balance refinement and deployed checks
+   remain; preserve solo viability and reward coordinated positioning.
 2. **Crate and orbital-shell presentation:** refine silhouettes, unfolding,
    launch/impact distinction and effects without changing saved collision or
    authoritative hit geometry. This cosmetic branch can run alongside validation.

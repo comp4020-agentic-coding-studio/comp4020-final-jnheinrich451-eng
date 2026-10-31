@@ -6,22 +6,24 @@ import {BATTLESHIP_LAYOUTS,drawBattleshipBody,drawBattleshipFunnels,drawIowaTurr
 import {TRANSPORT_LAYOUTS,drawTransportBody,drawTripleTurret,drawOpenMount} from './transport-art.js';
 import {drawFordCarrier} from './carrier-art.js';
 import {OHIO_LAYOUTS,drawOhioSubmarine} from './submarine-art.js';
+import {submarineDepthLabel} from './biome.js';
 
 // Large-hull art uses the same saved dimensions and mount positions as navigation.
 // All surface effects are analytic and bounded, with no simulation particles.
-export function drawCapitalShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0){
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawCapitalShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0,world=null){
  const d=shipDimensions(s),half=d.width/2,bow=-d.length/2,stern=d.length/2,scale=shipArtScale(s),gunScale=navalWeaponScale(s);
  const sub=s.kind==='submarine',carrier=s.kind==='carrier',transport=s.kind==='transport';
  const state=sub?depthState(s):null,remaining=s.depthRemaining||0,depth=state==='submerged'?1:state==='diving'?1-remaining/DIVE.transition:state==='surfacing'?remaining/DIVE.transition:0;
  const polygon=(points,fill,stroke)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x*T,y*T):c.moveTo(x*T,y*T));c.closePath();c.fillStyle=fill;c.fill();if(stroke){c.strokeStyle=stroke;c.stroke();}};
  const rect=(x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(x*T,y*T,w*T,h*T);};
  c.save();c.translate(s.x*T,s.y*T);c.rotate(s.angle);
- if(depth<.5)drawShipWater(c,s,T,time,reduced,d.width,d.length);
+ if(depth<.5)drawShipWater(c,s,T,time,reduced,d.width,d.length,world);
  c.globalAlpha=1-depth*.65;c.lineWidth=.045*T;
  const edge=mine?'#d9c28c':'#a1c1b7';
  if(sub){
   drawOhioSubmarine(c,s,T,OHIO_LAYOUTS.large,edge,time,reduced);
-  drawDiveBubbles(c,s,T,time,reduced,d.width,d.length);
+  drawDiveBubbles(c,s,T,time,reduced,d.width,d.length,world);
  }else if(carrier)drawFordCarrier(c,T,d.width,d.length,edge);
  else if(transport)drawTransportBody(c,T,TRANSPORT_LAYOUTS.large,edge,undefined,s.cargo);
  else drawBattleshipBody(c,T,BATTLESHIP_LAYOUTS.large,edge);
@@ -48,6 +50,6 @@ export function drawCapitalShip(c,s,T,mine,zoom,time,reduced,recoil=()=>0){
  c.restore();
  c.save();c.font=`bold ${10/zoom}px monospace`;c.textAlign='center';
  const names={gunship:'COASTAL GUNSHIP',transport:'ARMORED TRANSPORT',carrier:'AIRCRAFT CARRIER',submarine:'MISSILE SUBMARINE'};
- const label=(mine?'YOU / ':'')+(names[s.kind]||names.gunship)+(sub?' / '+state.toUpperCase()+(depth>0?' / '+Math.ceil(diveBattery(s))+'s':''):carrier?' / '+Math.floor(s.deckSupplies||0)+' GND':s.cargo?' / LOADED':'');
+ const label=(mine?'YOU / ':'')+(names[s.kind]||names.gunship)+(sub?' / '+submarineDepthLabel(world,state).toUpperCase()+(depth>0?' / '+Math.ceil(diveBattery(s))+'s':''):carrier?' / '+Math.floor(s.deckSupplies||0)+' GND':s.cargo?' / LOADED':'');
  const y=(s.y+Math.hypot(d.width,d.length)/2+.5)*T,w=c.measureText(label).width;c.fillStyle='#193934dd';c.fillRect(s.x*T-w/2-4,y,w+8,16/zoom);c.fillStyle='#e5d8ac';c.fillText(label,s.x*T,y+11/zoom);c.restore();
 }

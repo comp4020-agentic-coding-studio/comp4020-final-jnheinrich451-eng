@@ -1,9 +1,10 @@
 import { ECONOMY } from './logistics.js';
 import { waterTileAt } from './world.js';
 import { shipStopped } from './ship-motion.js';
+import { isSandSeaWorld } from './biome.js';
 
 export const RECOVERY = Object.freeze({reach:2,rate:20,settle:.5});
-export const recoveryType = kind => ['submarine','transport','carrier','gunship'].includes(kind)?'ship':kind==='shipyard'?'dock':kind==='helipad'?'airbase':kind==='builder'?'recycler':kind==='mac'?'artillery':kind;
+export const recoveryType = kind => ['submarine','transport','carrier','gunship'].includes(kind)?'ship':kind==='shipyard'?'dock':kind==='helipad'?'airbase':kind==='builder'?'recycler':kind==='mac'?'artillery':kind==='aa-tank'?'tank':kind==='aa-sentry'?'sentry':kind;
 export const recoveryKey = (kind,id) => recoveryType(kind)+':'+id;
 
 export function recordPayment(state,kind,asset,receipt){
@@ -68,9 +69,9 @@ export function drawRecoveryLabels(c,world,T,zoom,medium=null){
   const groups=new Map();
   for(const w of Object.values(world.logistics?.recovery||{}))if(w.amount>0&&(!medium||w.medium===medium)){const key=w.medium+':'+Math.round(w.x*4)+':'+Math.round(w.y*4),group=groups.get(key);if(group)group.amount+=w.amount;else groups.set(key,{...w});}
   for(const w of groups.values()){
-    const text=(w.medium==='sea'?'SEA WRECK / ':'SALVAGE / ')+Math.ceil(w.amount),width=c.measureText(text).width;
+    const text=(w.medium==='sea'?(isSandSeaWorld(world)?'SAND WRECK / ':'SEA WRECK / '):'SALVAGE / ')+Math.ceil(w.amount),width=c.measureText(text).width;
     c.fillStyle='#152c31db';c.fillRect(w.x*T-width/2-3,(w.y+.9)*T-11/zoom,width+6,14/zoom);
-    c.fillStyle=w.medium==='sea'?'#9ddbdc':'#dfbd7a';c.fillText(text,w.x*T,(w.y+.9)*T);
+    c.fillStyle=w.medium==='sea'&&!isSandSeaWorld(world)?'#9ddbdc':'#dfbd7a';c.fillText(text,w.x*T,(w.y+.9)*T);
   }
   c.restore();
 }

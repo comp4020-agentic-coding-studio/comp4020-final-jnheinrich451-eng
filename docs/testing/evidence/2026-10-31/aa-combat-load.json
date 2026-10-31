@@ -1,0 +1,2306 @@
+{
+  "measuredAt": "2026-10-31T09:10:51.911Z",
+  "node": "v26.5.1",
+  "cpu": "Intel(R) Core(TM) i9-14900K",
+  "gcEnabled": true,
+  "elapsedMs": 60593.496,
+  "dtSeconds": 0.1,
+  "scope": "Local synthetic sustained combat, not Fly capacity or human balance testing. Each generated Caldera/Vesper fixture has 20 ground enemies, four normally moving/attacking mantas, eight ready AA sentries and one occupied firing AA vehicle per player. Enemies have boosted HP; players, vehicles and sentry HP are replenished before ticks to preserve load. Player aim/traverse maintenance is synthetic and excluded from combatTick timings. No server, HTTP, SSE, browser rendering, database or disk persistence is included. Snapshot creation/JSON run every tick; checkpoint creation/JSON run every five ticks and are measured separately. Checkpoint creation itself includes its existing internal JSON copy.",
+  "counting": "Muzzle observations include trailing warmup events, use the existing bounded 64-event snapshot history and may undercount heavy simultaneous effects; activity summaries count accepted rounds but have an at-most-one-tick sentry boundary offset. Bile observations include the trailing warmup flight. CPU totals cover the measured loop including maintenance, assertions and serialization; memory samples are every five simulation seconds. Post-GC deltas include retained timing arrays and do not establish leak freedom. Existing enemy/projectile caps are asserted every tick; stationary AA numbers are an authored stress fixture, not a newly imposed gameplay cap.",
+  "rows": [
+    {
+      "template": "caldera-v1",
+      "players": 1,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:15079"
+      ],
+      "generatedHostileFacilities": 181,
+      "aaSentries": 8,
+      "mobileAA": 1,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 159.362,
+      "wallMs": 8220.875,
+      "processCpuMs": {
+        "user": 6406,
+        "system": 2313
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 2.604,
+        "p95Ms": 4.933,
+        "maxMs": 7.736
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 1.147,
+        "p95Ms": 1.717,
+        "maxMs": 3.553
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.544,
+        "p95Ms": 0.896,
+        "maxMs": 1.792
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.974,
+        "p95Ms": 1.447,
+        "maxMs": 3.037
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.185,
+        "p95Ms": 0.298,
+        "maxMs": 0.991
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 14,
+        "groundAttacks": 12,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 158510,
+        "checkpointBytes": 140555
+      },
+      "observedAAMuzzleEvents": {
+        "bench-sentry-3": 1442,
+        "bench-sentry-4": 1442,
+        "bench-sentry-5": 1442,
+        "bench-sentry-6": 1442,
+        "bench-sentry-7": 1442,
+        "bench-pilot-0": 1441,
+        "bench-sentry-0": 1441,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440
+      },
+      "observedBileShots": 138,
+      "memory": {
+        "beforeMiB": {
+          "rss": 166.574,
+          "heapUsed": 9.447
+        },
+        "endBeforeGCMiB": {
+          "rss": 227.258,
+          "heapUsed": 37.084
+        },
+        "endAfterGCMiB": {
+          "rss": 215.898,
+          "heapUsed": 9.958
+        },
+        "sampledPeakRSSMiB": 247.852,
+        "retainedHeapDeltaMiB": 0.51,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 167.402,
+            "heapUsedMiB": 12.696
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 170.52,
+            "heapUsedMiB": 17.146
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 173.699,
+            "heapUsedMiB": 24.965
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 209.508,
+            "heapUsedMiB": 32.114
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 210.871,
+            "heapUsedMiB": 44.03
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 211.984,
+            "heapUsedMiB": 56.686
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 212.996,
+            "heapUsedMiB": 32.559
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 213.934,
+            "heapUsedMiB": 45.222
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 215.867,
+            "heapUsedMiB": 59.921
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 218.828,
+            "heapUsedMiB": 34.474
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 218.59,
+            "heapUsedMiB": 49.481
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 219.66,
+            "heapUsedMiB": 57.041
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 222.945,
+            "heapUsedMiB": 39.545
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 222.188,
+            "heapUsedMiB": 43.393
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 209.57,
+            "heapUsedMiB": 37.48
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 210.418,
+            "heapUsedMiB": 45.772
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 211.293,
+            "heapUsedMiB": 26.733
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 212.191,
+            "heapUsedMiB": 35.564
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 211.906,
+            "heapUsedMiB": 47.316
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 213.539,
+            "heapUsedMiB": 21.481
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 213.41,
+            "heapUsedMiB": 32.2
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 213.918,
+            "heapUsedMiB": 48.054
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 214.063,
+            "heapUsedMiB": 21.368
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 214.742,
+            "heapUsedMiB": 35.068
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 215.234,
+            "heapUsedMiB": 39.711
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 217.547,
+            "heapUsedMiB": 49.448
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 217.281,
+            "heapUsedMiB": 52.931
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 217.434,
+            "heapUsedMiB": 35.889
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 218.348,
+            "heapUsedMiB": 39.753
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 217.551,
+            "heapUsedMiB": 53.949
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 219.422,
+            "heapUsedMiB": 60.921
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 220.191,
+            "heapUsedMiB": 40.227
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 229.199,
+            "heapUsedMiB": 46.301
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 247.852,
+            "heapUsedMiB": 53.398
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 230.438,
+            "heapUsedMiB": 59.568
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 223.762,
+            "heapUsedMiB": 66.776
+          }
+        ]
+      }
+    },
+    {
+      "template": "caldera-v1",
+      "players": 2,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:15079"
+      ],
+      "generatedHostileFacilities": 181,
+      "aaSentries": 8,
+      "mobileAA": 2,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 143.559,
+      "wallMs": 8592.793,
+      "processCpuMs": {
+        "user": 6641,
+        "system": 1719
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 2.745,
+        "p95Ms": 5.409,
+        "maxMs": 9.443
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 1.169,
+        "p95Ms": 1.714,
+        "maxMs": 3.058
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.573,
+        "p95Ms": 0.919,
+        "maxMs": 1.617
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.995,
+        "p95Ms": 1.492,
+        "maxMs": 2.109
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.194,
+        "p95Ms": 0.336,
+        "maxMs": 0.86
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 16,
+        "groundAttacks": 12,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 164355,
+        "checkpointBytes": 144990
+      },
+      "observedAAMuzzleEvents": {
+        "bench-pilot-0": 1441,
+        "bench-pilot-1": 1441,
+        "bench-sentry-0": 1409,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441,
+        "bench-sentry-3": 1441,
+        "bench-sentry-4": 1441,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1409,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440,
+        "bench-aa-1": 1440
+      },
+      "observedBileShots": 138,
+      "memory": {
+        "beforeMiB": {
+          "rss": 213.445,
+          "heapUsed": 10.211
+        },
+        "endBeforeGCMiB": {
+          "rss": 220.016,
+          "heapUsed": 19.393
+        },
+        "endAfterGCMiB": {
+          "rss": 219.109,
+          "heapUsed": 11.418
+        },
+        "sampledPeakRSSMiB": 241.926,
+        "retainedHeapDeltaMiB": 1.207,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 214.594,
+            "heapUsedMiB": 13.474
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 215.805,
+            "heapUsedMiB": 24.794
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 217.582,
+            "heapUsedMiB": 46.904
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 218.875,
+            "heapUsedMiB": 38.427
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 218.418,
+            "heapUsedMiB": 18.66
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 221.84,
+            "heapUsedMiB": 33.496
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 222.324,
+            "heapUsedMiB": 42.854
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 220.039,
+            "heapUsedMiB": 25.989
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 220.918,
+            "heapUsedMiB": 45.184
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 221.613,
+            "heapUsedMiB": 26.925
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 222.082,
+            "heapUsedMiB": 44.842
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 215.047,
+            "heapUsedMiB": 58.936
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 216.191,
+            "heapUsedMiB": 42.531
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 217.742,
+            "heapUsedMiB": 55.951
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 218.805,
+            "heapUsedMiB": 43.693
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 220.32,
+            "heapUsedMiB": 58.679
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 221.25,
+            "heapUsedMiB": 46.572
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 222.664,
+            "heapUsedMiB": 61.526
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 223.625,
+            "heapUsedMiB": 46.907
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 224.875,
+            "heapUsedMiB": 65.555
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 227.406,
+            "heapUsedMiB": 51.385
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 226.141,
+            "heapUsedMiB": 37.561
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 227.332,
+            "heapUsedMiB": 54.078
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 228.461,
+            "heapUsedMiB": 38.575
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 229.668,
+            "heapUsedMiB": 56.787
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 230.699,
+            "heapUsedMiB": 41.337
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 231.766,
+            "heapUsedMiB": 54.502
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 232.984,
+            "heapUsedMiB": 67.415
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 236.168,
+            "heapUsedMiB": 77.349
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 237.238,
+            "heapUsedMiB": 56.901
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 238.125,
+            "heapUsedMiB": 67.102
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 239.102,
+            "heapUsedMiB": 52.63
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 240.551,
+            "heapUsedMiB": 66.569
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 241.43,
+            "heapUsedMiB": 79.82
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 240.082,
+            "heapUsedMiB": 54.861
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 241.926,
+            "heapUsedMiB": 72.346
+          }
+        ]
+      }
+    },
+    {
+      "template": "caldera-v1",
+      "players": 4,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:15079"
+      ],
+      "generatedHostileFacilities": 181,
+      "aaSentries": 8,
+      "mobileAA": 4,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 149.296,
+      "wallMs": 8477.29,
+      "processCpuMs": {
+        "user": 6969,
+        "system": 1656
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 2.683,
+        "p95Ms": 5.18,
+        "maxMs": 9.902
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 1.17,
+        "p95Ms": 1.727,
+        "maxMs": 3.02
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.563,
+        "p95Ms": 0.87,
+        "maxMs": 1.412
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.954,
+        "p95Ms": 1.414,
+        "maxMs": 2.007
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.211,
+        "p95Ms": 0.365,
+        "maxMs": 0.944
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 22,
+        "groundAttacks": 13,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 175022,
+        "checkpointBytes": 155253
+      },
+      "observedAAMuzzleEvents": {
+        "bench-sentry-4": 1441,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441,
+        "bench-pilot-0": 1362,
+        "bench-pilot-1": 1440,
+        "bench-pilot-2": 1440,
+        "bench-pilot-3": 1440,
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1362,
+        "bench-aa-1": 1440,
+        "bench-aa-2": 1440,
+        "bench-aa-3": 1440
+      },
+      "observedBileShots": 140,
+      "memory": {
+        "beforeMiB": {
+          "rss": 221.02,
+          "heapUsed": 10.708
+        },
+        "endBeforeGCMiB": {
+          "rss": 244.652,
+          "heapUsed": 70.556
+        },
+        "endAfterGCMiB": {
+          "rss": 228.535,
+          "heapUsed": 12.038
+        },
+        "sampledPeakRSSMiB": 247.754,
+        "retainedHeapDeltaMiB": 1.33,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 220.809,
+            "heapUsedMiB": 14.367
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 222.902,
+            "heapUsedMiB": 27.775
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 223.145,
+            "heapUsedMiB": 26.513
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 224.289,
+            "heapUsedMiB": 23.885
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 225.887,
+            "heapUsedMiB": 52.669
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 227.633,
+            "heapUsedMiB": 49.068
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 228.098,
+            "heapUsedMiB": 45.979
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 228.977,
+            "heapUsedMiB": 41.803
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 230.098,
+            "heapUsedMiB": 41.713
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 231.711,
+            "heapUsedMiB": 36.669
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 233.441,
+            "heapUsedMiB": 36.579
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 235.035,
+            "heapUsedMiB": 64.266
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 235.965,
+            "heapUsedMiB": 63.886
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 237.52,
+            "heapUsedMiB": 54.286
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 237.664,
+            "heapUsedMiB": 44.529
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 240.129,
+            "heapUsedMiB": 68.668
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 240.344,
+            "heapUsedMiB": 59.786
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 241.941,
+            "heapUsedMiB": 49.628
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 242.723,
+            "heapUsedMiB": 46.145
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 244.184,
+            "heapUsedMiB": 75.349
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 245.504,
+            "heapUsedMiB": 63.204
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 246.613,
+            "heapUsedMiB": 53.847
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 247.754,
+            "heapUsedMiB": 81.585
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 213.656,
+            "heapUsedMiB": 27.846
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 217.336,
+            "heapUsedMiB": 23.706
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 218.004,
+            "heapUsedMiB": 23.715
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 219.313,
+            "heapUsedMiB": 49.279
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 220.32,
+            "heapUsedMiB": 39.95
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 221.609,
+            "heapUsedMiB": 32.595
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 228.867,
+            "heapUsedMiB": 30.818
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 243.254,
+            "heapUsedMiB": 57.975
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 225.398,
+            "heapUsedMiB": 56.53
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 239.359,
+            "heapUsedMiB": 51.765
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 240.324,
+            "heapUsedMiB": 48.742
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 241.422,
+            "heapUsedMiB": 46.06
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 243.191,
+            "heapUsedMiB": 41.021
+          }
+        ]
+      }
+    },
+    {
+      "template": "caldera-v1",
+      "players": 2,
+      "arrangement": "two separate islands",
+      "playerIslands": [
+        "island:15079",
+        "island:125164"
+      ],
+      "generatedHostileFacilities": 181,
+      "aaSentries": 8,
+      "mobileAA": 2,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 141.48,
+      "wallMs": 8769.437,
+      "processCpuMs": {
+        "user": 6797,
+        "system": 1703
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 2.844,
+        "p95Ms": 4.62,
+        "maxMs": 8.895
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 1.181,
+        "p95Ms": 1.788,
+        "maxMs": 3.011
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.564,
+        "p95Ms": 0.915,
+        "maxMs": 2.266
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 1,
+        "p95Ms": 1.426,
+        "maxMs": 4.709
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.202,
+        "p95Ms": 0.365,
+        "maxMs": 1.986
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 16,
+        "groundAttacks": 9,
+        "bileShots": 2,
+        "pendingArrivals": 0,
+        "snapshotBytes": 162172,
+        "checkpointBytes": 143540
+      },
+      "observedAAMuzzleEvents": {
+        "bench-pilot-0": 1441,
+        "bench-pilot-1": 1441,
+        "bench-sentry-0": 1441,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441,
+        "bench-sentry-3": 1441,
+        "bench-sentry-4": 1423,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1422,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440,
+        "bench-aa-1": 1440
+      },
+      "observedBileShots": 76,
+      "memory": {
+        "beforeMiB": {
+          "rss": 214.133,
+          "heapUsed": 10.547
+        },
+        "endBeforeGCMiB": {
+          "rss": 222.07,
+          "heapUsed": 20.529
+        },
+        "endAfterGCMiB": {
+          "rss": 221.219,
+          "heapUsed": 11.738
+        },
+        "sampledPeakRSSMiB": 247.559,
+        "retainedHeapDeltaMiB": 1.191,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 215.172,
+            "heapUsedMiB": 14.023
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 215.887,
+            "heapUsedMiB": 35.817
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 219.113,
+            "heapUsedMiB": 18.224
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 217.457,
+            "heapUsedMiB": 38.897
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 220.457,
+            "heapUsedMiB": 51.872
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 227.637,
+            "heapUsedMiB": 31.26
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 228.695,
+            "heapUsedMiB": 38.557
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 229.008,
+            "heapUsedMiB": 46.447
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 229.613,
+            "heapUsedMiB": 56.033
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 229.918,
+            "heapUsedMiB": 30.576
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 230.367,
+            "heapUsedMiB": 40.703
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 230.68,
+            "heapUsedMiB": 47.979
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 231.734,
+            "heapUsedMiB": 60.747
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 232.043,
+            "heapUsedMiB": 35.118
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 223.965,
+            "heapUsedMiB": 50.444
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 224.82,
+            "heapUsedMiB": 56.696
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 226.164,
+            "heapUsedMiB": 32.922
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 226.328,
+            "heapUsedMiB": 42.189
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 226.797,
+            "heapUsedMiB": 54.229
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 227.566,
+            "heapUsedMiB": 61.516
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 228.535,
+            "heapUsedMiB": 37.782
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 229.004,
+            "heapUsedMiB": 49.523
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 229.316,
+            "heapUsedMiB": 58.208
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 229.004,
+            "heapUsedMiB": 70.017
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 230.215,
+            "heapUsedMiB": 42.919
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 231.035,
+            "heapUsedMiB": 51.807
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 232.113,
+            "heapUsedMiB": 60.299
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 232.984,
+            "heapUsedMiB": 74.834
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 234.332,
+            "heapUsedMiB": 48.542
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 237.102,
+            "heapUsedMiB": 61.878
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 238.109,
+            "heapUsedMiB": 69.729
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 247.559,
+            "heapUsedMiB": 49.456
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 238.82,
+            "heapUsedMiB": 56.8
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 240.148,
+            "heapUsedMiB": 68.44
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 240.34,
+            "heapUsedMiB": 77.036
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 241.125,
+            "heapUsedMiB": 51.473
+          }
+        ]
+      }
+    },
+    {
+      "template": "vesper-v1",
+      "players": 1,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:104074"
+      ],
+      "generatedHostileFacilities": 140,
+      "aaSentries": 8,
+      "mobileAA": 1,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 151.075,
+      "wallMs": 5171.613,
+      "processCpuMs": {
+        "user": 4079,
+        "system": 1297
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 1.437,
+        "p95Ms": 2.397,
+        "maxMs": 3.648
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 0.829,
+        "p95Ms": 1.296,
+        "maxMs": 4.185
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.404,
+        "p95Ms": 0.699,
+        "maxMs": 1.449
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.688,
+        "p95Ms": 1.157,
+        "maxMs": 1.461
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.131,
+        "p95Ms": 0.215,
+        "maxMs": 0.795
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 14,
+        "groundAttacks": 10,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 127813,
+        "checkpointBytes": 108707
+      },
+      "observedAAMuzzleEvents": {
+        "bench-sentry-3": 1442,
+        "bench-sentry-4": 1442,
+        "bench-sentry-5": 1442,
+        "bench-sentry-6": 1442,
+        "bench-sentry-7": 1442,
+        "bench-pilot-0": 1441,
+        "bench-sentry-0": 1441,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440
+      },
+      "observedBileShots": 138,
+      "memory": {
+        "beforeMiB": {
+          "rss": 226.539,
+          "heapUsed": 13.745
+        },
+        "endBeforeGCMiB": {
+          "rss": 243.168,
+          "heapUsed": 29.963
+        },
+        "endAfterGCMiB": {
+          "rss": 243.18,
+          "heapUsed": 14.733
+        },
+        "sampledPeakRSSMiB": 259.266,
+        "retainedHeapDeltaMiB": 0.988,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 226.492,
+            "heapUsedMiB": 16.69
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 227.289,
+            "heapUsedMiB": 23.407
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 227.289,
+            "heapUsedMiB": 25.763
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 229.07,
+            "heapUsedMiB": 24.677
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 233.477,
+            "heapUsedMiB": 27.943
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 233.477,
+            "heapUsedMiB": 27.638
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 233.477,
+            "heapUsedMiB": 27.045
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 233.477,
+            "heapUsedMiB": 24.51
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 233.57,
+            "heapUsedMiB": 21.728
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 233.57,
+            "heapUsedMiB": 20.63
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 233.582,
+            "heapUsedMiB": 18.538
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 233.645,
+            "heapUsedMiB": 46.476
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 45.157
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 43.565
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 41.465
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 37.903
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 36.848
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 33.702
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 233.707,
+            "heapUsedMiB": 30.882
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 26.385
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 25.033
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 53.486
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 50.359
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 47.257
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 43.681
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 40.633
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 237.785,
+            "heapUsedMiB": 37.519
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 237.793,
+            "heapUsedMiB": 33.215
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 237.793,
+            "heapUsedMiB": 28.908
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 237.793,
+            "heapUsedMiB": 56.512
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 237.793,
+            "heapUsedMiB": 53.17
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 237.793,
+            "heapUsedMiB": 48.344
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 236.316,
+            "heapUsedMiB": 44.232
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 259.266,
+            "heapUsedMiB": 41.631
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 227.793,
+            "heapUsedMiB": 39.388
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 233.383,
+            "heapUsedMiB": 36.282
+          }
+        ]
+      }
+    },
+    {
+      "template": "vesper-v1",
+      "players": 2,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:104074"
+      ],
+      "generatedHostileFacilities": 140,
+      "aaSentries": 8,
+      "mobileAA": 2,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 144.089,
+      "wallMs": 5897.284,
+      "processCpuMs": {
+        "user": 4906,
+        "system": 844
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 1.666,
+        "p95Ms": 2.682,
+        "maxMs": 5.853
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 0.934,
+        "p95Ms": 1.45,
+        "maxMs": 2.744
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.449,
+        "p95Ms": 0.73,
+        "maxMs": 1.879
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.754,
+        "p95Ms": 1.176,
+        "maxMs": 1.773
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.164,
+        "p95Ms": 0.365,
+        "maxMs": 1.133
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 16,
+        "groundAttacks": 11,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 132684,
+        "checkpointBytes": 112282
+      },
+      "observedAAMuzzleEvents": {
+        "bench-pilot-0": 1441,
+        "bench-pilot-1": 1441,
+        "bench-sentry-0": 1409,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441,
+        "bench-sentry-3": 1441,
+        "bench-sentry-4": 1441,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1409,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440,
+        "bench-aa-1": 1440
+      },
+      "observedBileShots": 138,
+      "memory": {
+        "beforeMiB": {
+          "rss": 236.043,
+          "heapUsed": 13.536
+        },
+        "endBeforeGCMiB": {
+          "rss": 239.152,
+          "heapUsed": 54.978
+        },
+        "endAfterGCMiB": {
+          "rss": 235.113,
+          "heapUsed": 14.138
+        },
+        "sampledPeakRSSMiB": 243.773,
+        "retainedHeapDeltaMiB": 0.602,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 226.605,
+            "heapUsedMiB": 17.708
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 229.391,
+            "heapUsedMiB": 15.028
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 229.07,
+            "heapUsedMiB": 24.95
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 229.105,
+            "heapUsedMiB": 28.601
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 233.328,
+            "heapUsedMiB": 37.071
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 226.371,
+            "heapUsedMiB": 41.918
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 226.988,
+            "heapUsedMiB": 46.407
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 228.027,
+            "heapUsedMiB": 46.653
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 228.184,
+            "heapUsedMiB": 46.714
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 228.203,
+            "heapUsedMiB": 46.931
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 228.203,
+            "heapUsedMiB": 46.498
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 229.234,
+            "heapUsedMiB": 44.045
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 229.238,
+            "heapUsedMiB": 44.097
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 230.391,
+            "heapUsedMiB": 43.544
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 230.391,
+            "heapUsedMiB": 43.318
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 41.124
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 41.245
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 40.812
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 40.353
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 37.854
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 37.147
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 34.539
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 230.395,
+            "heapUsedMiB": 33.18
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 242.691,
+            "heapUsedMiB": 31.285
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 242.691,
+            "heapUsedMiB": 28.332
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 242.695,
+            "heapUsedMiB": 58.588
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 242.695,
+            "heapUsedMiB": 54.397
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 242.699,
+            "heapUsedMiB": 51.879
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 242.699,
+            "heapUsedMiB": 47.909
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 242.699,
+            "heapUsedMiB": 45.331
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 242.699,
+            "heapUsedMiB": 42.602
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 242.828,
+            "heapUsedMiB": 40.873
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 243.086,
+            "heapUsedMiB": 36.56
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 243.215,
+            "heapUsedMiB": 34.214
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 243.773,
+            "heapUsedMiB": 64.101
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 243.773,
+            "heapUsedMiB": 61.382
+          }
+        ]
+      }
+    },
+    {
+      "template": "vesper-v1",
+      "players": 4,
+      "arrangement": "one shared front and island",
+      "playerIslands": [
+        "island:104074"
+      ],
+      "generatedHostileFacilities": 140,
+      "aaSentries": 8,
+      "mobileAA": 4,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 136.764,
+      "wallMs": 6291.62,
+      "processCpuMs": {
+        "user": 4562,
+        "system": 1453
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 1.757,
+        "p95Ms": 2.759,
+        "maxMs": 5.535
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 1.005,
+        "p95Ms": 1.575,
+        "maxMs": 2.664
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.48,
+        "p95Ms": 0.768,
+        "maxMs": 2.081
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.808,
+        "p95Ms": 1.218,
+        "maxMs": 2.147
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.172,
+        "p95Ms": 0.304,
+        "maxMs": 1.252
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 22,
+        "groundAttacks": 13,
+        "bileShots": 1,
+        "pendingArrivals": 0,
+        "snapshotBytes": 141881,
+        "checkpointBytes": 120833
+      },
+      "observedAAMuzzleEvents": {
+        "bench-sentry-4": 1441,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441,
+        "bench-pilot-0": 1362,
+        "bench-pilot-1": 1440,
+        "bench-pilot-2": 1440,
+        "bench-pilot-3": 1440,
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1362,
+        "bench-aa-1": 1440,
+        "bench-aa-2": 1440,
+        "bench-aa-3": 1440
+      },
+      "observedBileShots": 140,
+      "memory": {
+        "beforeMiB": {
+          "rss": 234.523,
+          "heapUsed": 13.926
+        },
+        "endBeforeGCMiB": {
+          "rss": 252.855,
+          "heapUsed": 61.649
+        },
+        "endAfterGCMiB": {
+          "rss": 237.207,
+          "heapUsed": 14.902
+        },
+        "sampledPeakRSSMiB": 252.398,
+        "retainedHeapDeltaMiB": 0.976,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 234.523,
+            "heapUsedMiB": 17.224
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 236.25,
+            "heapUsedMiB": 34.885
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 236.781,
+            "heapUsedMiB": 42.233
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 237.32,
+            "heapUsedMiB": 46.185
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 237.719,
+            "heapUsedMiB": 49.209
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 238.809,
+            "heapUsedMiB": 20.648
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 238.945,
+            "heapUsedMiB": 28.557
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 240.313,
+            "heapUsedMiB": 31.279
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 240.313,
+            "heapUsedMiB": 33.46
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 240.313,
+            "heapUsedMiB": 37.867
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 240.723,
+            "heapUsedMiB": 41.198
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 240.996,
+            "heapUsedMiB": 42.228
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 242.941,
+            "heapUsedMiB": 46.088
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 242.941,
+            "heapUsedMiB": 48.219
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 243.352,
+            "heapUsedMiB": 51.596
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 243.621,
+            "heapUsedMiB": 52.856
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 244.305,
+            "heapUsedMiB": 57.723
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 244.441,
+            "heapUsedMiB": 59.987
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 245.258,
+            "heapUsedMiB": 62.25
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 245.719,
+            "heapUsedMiB": 63.997
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 245.855,
+            "heapUsedMiB": 33.372
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 246.266,
+            "heapUsedMiB": 34.902
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 246.68,
+            "heapUsedMiB": 37.188
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 247.09,
+            "heapUsedMiB": 39.806
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 247.773,
+            "heapUsedMiB": 41.559
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 248.184,
+            "heapUsedMiB": 43.956
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 248.594,
+            "heapUsedMiB": 45.851
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 249.141,
+            "heapUsedMiB": 48.611
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 249.414,
+            "heapUsedMiB": 49.425
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 249.688,
+            "heapUsedMiB": 51.871
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 249.961,
+            "heapUsedMiB": 53.474
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 250.645,
+            "heapUsedMiB": 56.203
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 250.777,
+            "heapUsedMiB": 56.996
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 251.051,
+            "heapUsedMiB": 58.974
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 251.594,
+            "heapUsedMiB": 60.593
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 252.398,
+            "heapUsedMiB": 63.199
+          }
+        ]
+      }
+    },
+    {
+      "template": "vesper-v1",
+      "players": 2,
+      "arrangement": "two separate islands",
+      "playerIslands": [
+        "island:104074",
+        "island:14609"
+      ],
+      "generatedHostileFacilities": 140,
+      "aaSentries": 8,
+      "mobileAA": 2,
+      "simulatedSeconds": 180,
+      "warmupSeconds": 10,
+      "generationMs": 136.109,
+      "wallMs": 5521.05,
+      "processCpuMs": {
+        "user": 4657,
+        "system": 984
+      },
+      "combatTick": {
+        "samples": 1800,
+        "meanMs": 1.559,
+        "p95Ms": 2.56,
+        "maxMs": 5.171
+      },
+      "snapshotBuild": {
+        "samples": 1800,
+        "meanMs": 0.874,
+        "p95Ms": 1.362,
+        "maxMs": 4.017
+      },
+      "snapshotJSON": {
+        "samples": 1800,
+        "meanMs": 0.416,
+        "p95Ms": 0.694,
+        "maxMs": 1.971
+      },
+      "checkpointBuild": {
+        "samples": 360,
+        "meanMs": 0.74,
+        "p95Ms": 1.129,
+        "maxMs": 1.694
+      },
+      "checkpointJSON": {
+        "samples": 360,
+        "meanMs": 0.147,
+        "p95Ms": 0.235,
+        "maxMs": 0.842
+      },
+      "minima": {
+        "enemies": 24,
+        "flyers": 4
+      },
+      "maxima": {
+        "enemies": 24,
+        "flyers": 4,
+        "projectiles": 16,
+        "groundAttacks": 13,
+        "bileShots": 2,
+        "pendingArrivals": 0,
+        "snapshotBytes": 133193,
+        "checkpointBytes": 113086
+      },
+      "observedAAMuzzleEvents": {
+        "bench-pilot-0": 1441,
+        "bench-pilot-1": 1441,
+        "bench-sentry-0": 1441,
+        "bench-sentry-1": 1441,
+        "bench-sentry-2": 1441,
+        "bench-sentry-3": 1441,
+        "bench-sentry-4": 1441,
+        "bench-sentry-5": 1441,
+        "bench-sentry-6": 1441,
+        "bench-sentry-7": 1441
+      },
+      "automaticActivitySummaryRounds": {
+        "bench-sentry-0": 1440,
+        "bench-sentry-1": 1440,
+        "bench-sentry-2": 1440,
+        "bench-sentry-3": 1440,
+        "bench-sentry-4": 1440,
+        "bench-sentry-5": 1440,
+        "bench-sentry-6": 1440,
+        "bench-sentry-7": 1440,
+        "bench-aa-0": 1440,
+        "bench-aa-1": 1440
+      },
+      "observedBileShots": 139,
+      "memory": {
+        "beforeMiB": {
+          "rss": 224.352,
+          "heapUsed": 13.772
+        },
+        "endBeforeGCMiB": {
+          "rss": 224.055,
+          "heapUsed": 45.187
+        },
+        "endAfterGCMiB": {
+          "rss": 220.965,
+          "heapUsed": 14.929
+        },
+        "sampledPeakRSSMiB": 253.441,
+        "retainedHeapDeltaMiB": 1.157,
+        "samples": [
+          {
+            "simulationSeconds": 0.1,
+            "rssMiB": 224.352,
+            "heapUsedMiB": 17.752
+          },
+          {
+            "simulationSeconds": 5.1,
+            "rssMiB": 225.066,
+            "heapUsedMiB": 37.366
+          },
+          {
+            "simulationSeconds": 10.1,
+            "rssMiB": 238.426,
+            "heapUsedMiB": 39.053
+          },
+          {
+            "simulationSeconds": 15.1,
+            "rssMiB": 238.426,
+            "heapUsedMiB": 40.228
+          },
+          {
+            "simulationSeconds": 20.1,
+            "rssMiB": 238.477,
+            "heapUsedMiB": 40.92
+          },
+          {
+            "simulationSeconds": 25.1,
+            "rssMiB": 238.477,
+            "heapUsedMiB": 41.832
+          },
+          {
+            "simulationSeconds": 30.1,
+            "rssMiB": 238.477,
+            "heapUsedMiB": 42.379
+          },
+          {
+            "simulationSeconds": 35.1,
+            "rssMiB": 238.477,
+            "heapUsedMiB": 41.192
+          },
+          {
+            "simulationSeconds": 40.1,
+            "rssMiB": 238.5,
+            "heapUsedMiB": 40.401
+          },
+          {
+            "simulationSeconds": 45.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 41.087
+          },
+          {
+            "simulationSeconds": 50.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 40.735
+          },
+          {
+            "simulationSeconds": 55.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 39.892
+          },
+          {
+            "simulationSeconds": 60.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 39.488
+          },
+          {
+            "simulationSeconds": 65.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 37.52
+          },
+          {
+            "simulationSeconds": 70.1,
+            "rssMiB": 238.504,
+            "heapUsedMiB": 37.891
+          },
+          {
+            "simulationSeconds": 75.1,
+            "rssMiB": 238.512,
+            "heapUsedMiB": 37.427
+          },
+          {
+            "simulationSeconds": 80.1,
+            "rssMiB": 238.512,
+            "heapUsedMiB": 37.975
+          },
+          {
+            "simulationSeconds": 85.1,
+            "rssMiB": 238.512,
+            "heapUsedMiB": 37.01
+          },
+          {
+            "simulationSeconds": 90.1,
+            "rssMiB": 238.566,
+            "heapUsedMiB": 36.448
+          },
+          {
+            "simulationSeconds": 95.1,
+            "rssMiB": 238.891,
+            "heapUsedMiB": 35.943
+          },
+          {
+            "simulationSeconds": 100.1,
+            "rssMiB": 238.891,
+            "heapUsedMiB": 36.138
+          },
+          {
+            "simulationSeconds": 105.1,
+            "rssMiB": 238.891,
+            "heapUsedMiB": 32.922
+          },
+          {
+            "simulationSeconds": 110.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 33.202
+          },
+          {
+            "simulationSeconds": 115.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 31.856
+          },
+          {
+            "simulationSeconds": 120.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 30.127
+          },
+          {
+            "simulationSeconds": 125.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 31.436
+          },
+          {
+            "simulationSeconds": 130.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 29.476
+          },
+          {
+            "simulationSeconds": 135.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 27.51
+          },
+          {
+            "simulationSeconds": 140.1,
+            "rssMiB": 238.953,
+            "heapUsedMiB": 58.82
+          },
+          {
+            "simulationSeconds": 145.1,
+            "rssMiB": 238.957,
+            "heapUsedMiB": 56.388
+          },
+          {
+            "simulationSeconds": 150.1,
+            "rssMiB": 238.957,
+            "heapUsedMiB": 55.518
+          },
+          {
+            "simulationSeconds": 155.1,
+            "rssMiB": 238.957,
+            "heapUsedMiB": 53.495
+          },
+          {
+            "simulationSeconds": 160.1,
+            "rssMiB": 239.086,
+            "heapUsedMiB": 52.783
+          },
+          {
+            "simulationSeconds": 165.1,
+            "rssMiB": 243.047,
+            "heapUsedMiB": 51.818
+          },
+          {
+            "simulationSeconds": 170.1,
+            "rssMiB": 253.441,
+            "heapUsedMiB": 49.884
+          },
+          {
+            "simulationSeconds": 175.1,
+            "rssMiB": 223.539,
+            "heapUsedMiB": 50.259
+          }
+        ]
+      }
+    }
+  ]
+}

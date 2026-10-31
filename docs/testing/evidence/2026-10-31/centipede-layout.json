@@ -1,0 +1,2873 @@
+{
+  "measuredAt": "2026-10-31T09:41:44.095Z",
+  "scope": "Six disposable generated Caldera/Vesper layouts, unchanged terrain and hostile facilities. Geometry probes isolate one Root eligibility clock at a time with empty population. Natural probes use ordinary director/guards and a non-targetable synthetic presence contact for up to120 simulation seconds; no player weapon clearing, Fly, rendering or human balance claims.",
+  "rows": [
+    {
+      "template": "caldera-v1",
+      "seed": "centipede-layout-a",
+      "hostileFacilities": 185,
+      "roots": 47,
+      "eligibleRoots": 47,
+      "clearCorridors": 47,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 149.5,
+            "y": 88.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:3144",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 110.5,
+            "y": 41.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-0-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 389.5,
+            "y": 62.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-1-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 416.5,
+            "y": 51.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-2-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 320.5,
+            "y": 267.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-3-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 410.5,
+            "y": 177.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-4-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 341.5,
+            "y": 288.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-5-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 409.5,
+            "y": 300.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-6-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 433.5,
+            "y": 278.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-7-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 369.5,
+            "y": 309.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-8-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 432.5,
+            "y": 208.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-9-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 134.5,
+            "y": 291.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-10-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 96.5,
+            "y": 311.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-11-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 55.5,
+            "y": 312.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-12-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 293.5,
+            "y": 237.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-13-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 339.5,
+            "y": 326.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-14-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 173.5,
+            "y": 82.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-15-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 245.5,
+            "y": 281.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-16-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 335.5,
+            "y": 168.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-17-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 451.5,
+            "y": 242.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-18-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 91.5,
+            "y": 208.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-19-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 356.5,
+            "y": 190.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-20-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 45.5,
+            "y": 238.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-21-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 385.5,
+            "y": 162.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-22-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 192.5,
+            "y": 47.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-23-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 278.5,
+            "y": 94.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-24-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 317.5,
+            "y": 218.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-25-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 383.5,
+            "y": 198.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-26-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 434.5,
+            "y": 75.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-27-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 463.5,
+            "y": 264.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-28-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 243.5,
+            "y": 41.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-29-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 61.5,
+            "y": 198.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-30-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 233.5,
+            "y": 250.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-31-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 167.5,
+            "y": 108.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-32-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 381.5,
+            "y": 333.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-33-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 290.5,
+            "y": 281.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-34-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 267.5,
+            "y": 118.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-35-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 311.5,
+            "y": 178.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-36-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 140.5,
+            "y": 243.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-37-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 228.5,
+            "y": 137.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-38-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 273.5,
+            "y": 58.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-39-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 199.5,
+            "y": 136.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-40-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 440.5,
+            "y": 304.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-41-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 236.5,
+            "y": 312.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-42-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 422.5,
+            "y": 250.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-43-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 123.5,
+            "y": 218.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-44-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 407.5,
+            "y": 216.5
+          },
+          "samples": 22
+        }
+      ]
+    },
+    {
+      "template": "caldera-v1",
+      "seed": "centipede-layout-b",
+      "hostileFacilities": 182,
+      "roots": 47,
+      "eligibleRoots": 47,
+      "clearCorridors": 47,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 149.5,
+            "y": 88.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:3144",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 110.5,
+            "y": 41.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-0-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 231.5,
+            "y": 297.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-1-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 285.5,
+            "y": 240.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-2-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 411.5,
+            "y": 203.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-3-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 38.5,
+            "y": 244.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-4-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 357.5,
+            "y": 200.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-5-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 377.5,
+            "y": 299.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-6-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 408.5,
+            "y": 284.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-7-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 77.5,
+            "y": 212.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-8-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 417.5,
+            "y": 239.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-9-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 414.5,
+            "y": 40.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-10-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 318.5,
+            "y": 238.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-11-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 299.5,
+            "y": 284.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-12-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 417.5,
+            "y": 72.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-13-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 207.5,
+            "y": 45.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-14-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 93.5,
+            "y": 310.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-15-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 182.5,
+            "y": 63.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-16-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 379.5,
+            "y": 162.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-17-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 450.5,
+            "y": 226.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-18-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 435.5,
+            "y": 267.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-19-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 335.5,
+            "y": 288.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-20-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 296.5,
+            "y": 100.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-21-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 121.5,
+            "y": 204.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-22-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 318.5,
+            "y": 266.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-23-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 276.5,
+            "y": 59.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-24-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 357.5,
+            "y": 320.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-25-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 313.5,
+            "y": 197.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-26-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 461.5,
+            "y": 263.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-27-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 174.5,
+            "y": 90.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-28-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 191.5,
+            "y": 129.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-29-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 341.5,
+            "y": 179.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-30-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 133.5,
+            "y": 292.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-31-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 236.5,
+            "y": 150.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-32-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 242.5,
+            "y": 263.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-33-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 410.5,
+            "y": 176.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-34-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 51.5,
+            "y": 299.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-35-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 390.5,
+            "y": 65.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-36-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 239.5,
+            "y": 34.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-37-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 145.5,
+            "y": 255.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-38-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 385.5,
+            "y": 188.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-39-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 439.5,
+            "y": 196.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-40-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 402.5,
+            "y": 315.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-41-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 164.5,
+            "y": 118.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-42-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 134.5,
+            "y": 231.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-43-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 443.5,
+            "y": 292.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-44-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 271.5,
+            "y": 119.5
+          },
+          "samples": 22
+        }
+      ]
+    },
+    {
+      "template": "caldera-v1",
+      "seed": "centipede-layout-c",
+      "hostileFacilities": 183,
+      "roots": 49,
+      "eligibleRoots": 49,
+      "clearCorridors": 49,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 149.5,
+            "y": 88.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:3144",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 110.5,
+            "y": 41.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-0-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 374.5,
+            "y": 339.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-1-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 427.5,
+            "y": 52.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-2-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 307.5,
+            "y": 274.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-3-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 39.5,
+            "y": 245.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-4-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 419.5,
+            "y": 209.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-5-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 465.5,
+            "y": 260.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-6-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 89.5,
+            "y": 213.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-7-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 365.5,
+            "y": 191.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-8-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 440.5,
+            "y": 226.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-9-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 422.5,
+            "y": 310.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-10-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 338.5,
+            "y": 201.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-11-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 186.5,
+            "y": 124.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-12-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 72.5,
+            "y": 317.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-13-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 241.5,
+            "y": 275.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-14-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 126.5,
+            "y": 221.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-15-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 235.5,
+            "y": 41.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-16-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 363.5,
+            "y": 303.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-17-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 147.5,
+            "y": 274.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-18-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 421.5,
+            "y": 183.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-19-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 395.5,
+            "y": 191.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-20-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 384.5,
+            "y": 167.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-21-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 427.5,
+            "y": 78.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-22-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 434.5,
+            "y": 267.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-23-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 176.5,
+            "y": 57.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-24-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 227.5,
+            "y": 137.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-25-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 303.5,
+            "y": 227.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-26-2",
+          "island": "island:17821",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 397.5,
+            "y": 50.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-27-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 264.5,
+            "y": 47.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-28-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 171.5,
+            "y": 95.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-29-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 333.5,
+            "y": 321.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-30-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 390.5,
+            "y": 303.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-31-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 103.5,
+            "y": 315.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-32-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 338.5,
+            "y": 294.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-33-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 312.5,
+            "y": 173.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-34-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 206.5,
+            "y": 44.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-35-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 349.5,
+            "y": 161.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-36-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 140.5,
+            "y": 243.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-37-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 275.5,
+            "y": 275.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-38-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 277.5,
+            "y": 87.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-39-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 63.5,
+            "y": 209.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-40-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 236.5,
+            "y": 304.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-41-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 299.5,
+            "y": 108.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-42-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 128.5,
+            "y": 300.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-43-2",
+          "island": "island:96866",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 43.5,
+            "y": 286.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-44-2",
+          "island": "island:125164",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 227.5,
+            "y": 252.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-45-2",
+          "island": "island:78209",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 312.5,
+            "y": 200.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-46-2",
+          "island": "island:15079",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 271.5,
+            "y": 118.5
+          },
+          "samples": 22
+        }
+      ]
+    },
+    {
+      "template": "vesper-v1",
+      "seed": "centipede-layout-a",
+      "hostileFacilities": 135,
+      "roots": 35,
+      "eligibleRoots": 35,
+      "clearCorridors": 35,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 117.5,
+            "y": 72.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 96.5,
+            "y": 27.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-0-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 345.5,
+            "y": 107.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-1-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 223.5,
+            "y": 77.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-2-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 369.5,
+            "y": 64.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-3-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 213.5,
+            "y": 213.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-4-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 157.5,
+            "y": 92.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-5-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 309.5,
+            "y": 136.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-6-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 223.5,
+            "y": 244.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-7-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 68.5,
+            "y": 280.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-8-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 213.5,
+            "y": 306.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-9-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 372.5,
+            "y": 240.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-10-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 341.5,
+            "y": 36.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-11-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 252.5,
+            "y": 254.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-12-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 398.5,
+            "y": 88.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-13-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 243.5,
+            "y": 220.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-14-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 290.5,
+            "y": 33.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-15-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 455.5,
+            "y": 227.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-16-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 432.5,
+            "y": 321.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-17-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 102.5,
+            "y": 294.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-18-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 369.5,
+            "y": 123.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-19-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 197.5,
+            "y": 332.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-20-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 253.5,
+            "y": 315.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-21-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 261.5,
+            "y": 281.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-22-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 463.5,
+            "y": 276.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-23-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 151.5,
+            "y": 60.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-24-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 319.5,
+            "y": 83.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-25-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 119.5,
+            "y": 320.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-26-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 75.5,
+            "y": 135.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-27-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 173.5,
+            "y": 213.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-28-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 392.5,
+            "y": 214.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-29-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 243.5,
+            "y": 53.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-30-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 385.5,
+            "y": 310.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-31-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 437.5,
+            "y": 203.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-a-32-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 113.5,
+            "y": 126.5
+          },
+          "samples": 22
+        }
+      ]
+    },
+    {
+      "template": "vesper-v1",
+      "seed": "centipede-layout-b",
+      "hostileFacilities": 142,
+      "roots": 37,
+      "eligibleRoots": 37,
+      "clearCorridors": 37,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 117.5,
+            "y": 72.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 96.5,
+            "y": 27.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-0-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 391.5,
+            "y": 333.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-1-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 401.5,
+            "y": 89.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-2-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 327.5,
+            "y": 52.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-3-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 369.5,
+            "y": 63.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-4-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 255.5,
+            "y": 232.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-5-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 441.5,
+            "y": 330.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-6-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 123.5,
+            "y": 323.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-7-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 115.5,
+            "y": 291.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-8-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 275.5,
+            "y": 288.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-9-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 197.5,
+            "y": 332.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-10-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 182.5,
+            "y": 214.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-11-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 82.5,
+            "y": 312.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-12-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 390.5,
+            "y": 204.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-13-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 221.5,
+            "y": 226.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-14-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 451.5,
+            "y": 214.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-15-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 445.5,
+            "y": 303.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-16-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 173.5,
+            "y": 311.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-17-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 69.5,
+            "y": 273.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-18-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 99.5,
+            "y": 269.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-19-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 471.5,
+            "y": 276.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-20-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 247.5,
+            "y": 318.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-21-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 234.5,
+            "y": 250.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-22-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 217.5,
+            "y": 309.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-23-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 348.5,
+            "y": 108.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-24-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 243.5,
+            "y": 53.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-25-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 373.5,
+            "y": 224.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-26-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 150.5,
+            "y": 62.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-27-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 365.5,
+            "y": 292.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-28-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 150.5,
+            "y": 208.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-29-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 223.5,
+            "y": 76.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-30-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 299.5,
+            "y": 140.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-31-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 297.5,
+            "y": 34.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-32-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 271.5,
+            "y": 35.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-33-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 87.5,
+            "y": 236.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-b-34-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 78.5,
+            "y": 123.5
+          },
+          "samples": 22
+        }
+      ]
+    },
+    {
+      "template": "vesper-v1",
+      "seed": "centipede-layout-c",
+      "hostileFacilities": 140,
+      "roots": 38,
+      "eligibleRoots": 38,
+      "clearCorridors": 38,
+      "outcomes": [
+        {
+          "rootId": "caldera-modifier-01",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 117.5,
+            "y": 72.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "caldera-settlement-01-modifier",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 96.5,
+            "y": 27.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-0-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 279.5,
+            "y": 36.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-1-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 97.5,
+            "y": 298.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-2-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 369.5,
+            "y": 63.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-3-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 258.5,
+            "y": 304.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-4-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 383.5,
+            "y": 215.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-5-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 152.5,
+            "y": 75.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-6-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 390.5,
+            "y": 89.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-7-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 71.5,
+            "y": 285.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-8-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 350.5,
+            "y": 120.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-9-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 97.5,
+            "y": 266.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-10-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 223.5,
+            "y": 212.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-11-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 344.5,
+            "y": 38.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-12-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 261.5,
+            "y": 249.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-13-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 174.5,
+            "y": 327.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-14-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 218.5,
+            "y": 310.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-15-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 443.5,
+            "y": 200.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-16-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 126.5,
+            "y": 293.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-17-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 135.5,
+            "y": 212.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-18-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 273.5,
+            "y": 281.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-19-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 432.5,
+            "y": 336.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-20-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 75.5,
+            "y": 128.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-21-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 465.5,
+            "y": 273.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-22-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 383.5,
+            "y": 305.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-23-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 216.5,
+            "y": 89.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-24-2",
+          "island": "island:11848",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 110.5,
+            "y": 129.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-25-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 361.5,
+            "y": 287.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-26-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 453.5,
+            "y": 300.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-27-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 129.5,
+            "y": 321.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-28-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 393.5,
+            "y": 336.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-29-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 455.5,
+            "y": 226.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-30-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 228.5,
+            "y": 269.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-31-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 182.5,
+            "y": 213.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-32-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 307.5,
+            "y": 140.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-33-2",
+          "island": "island:96140",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 367.5,
+            "y": 240.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-34-2",
+          "island": "island:14609",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 315.5,
+            "y": 39.5
+          },
+          "samples": 22
+        },
+        {
+          "rootId": "city-v1-centipede-layout-c-35-2",
+          "island": "island:104074",
+          "eligibleContact": true,
+          "warning": true,
+          "head": {
+            "x": 235.5,
+            "y": 238.5
+          },
+          "samples": 22
+        }
+      ]
+    }
+  ],
+  "natural": [
+    {
+      "template": "caldera-v1",
+      "rootId": "caldera-modifier-01",
+      "firstWarningSeconds": 67.1,
+      "firstBirthSeconds": 77.1,
+      "simulatedSeconds": 77.1,
+      "maxLive": 24,
+      "maxReserved": 14,
+      "maxCombined": 24,
+      "wallMs": 1684
+    },
+    {
+      "template": "vesper-v1",
+      "rootId": "caldera-modifier-01",
+      "firstWarningSeconds": 60.1,
+      "firstBirthSeconds": 70.1,
+      "simulatedSeconds": 70.1,
+      "maxLive": 13,
+      "maxReserved": 7,
+      "maxCombined": 13,
+      "wallMs": 867
+    }
+  ]
+}

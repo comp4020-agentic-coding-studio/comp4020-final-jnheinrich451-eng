@@ -91,11 +91,17 @@ it('a bullet hit inside territory sends nearby defenders toward the victim inste
     siteId: mortar.id, homeX: p.x - 8, homeY: p.y + dy, path: [], reroute: 0, behavior: 'guarding' }));
   const combat = createCombat(world, saved);
   combat.shoot({ id: 'distant', x: p.x - 20, y: p.y, turret: Math.PI / 2 }, p.x - 8, p.y, 'APCR');
-  for (let i = 0; i < 15; i++) combat.tick(.1, []);
+  let struck: any;
+  for (let i = 0; i < 15; i++) {
+    combat.tick(.1, []);
+    struck ||= combat.snapshot().impacts.flatMap(impact => impact.hits).find(hit => hit.id === 1);
+  }
   const enemies = combat.snapshot().enemies;
   expect(enemies.find(e => e.id === 1)!.hp).toBe(42);
   expect(enemies.find(e => e.id === 2)!.y).toBeLessThan(p.y + 4);
-  expect(world.sites[0].defenseReport).toMatchObject({ x: p.x - 8, y: p.y });
+  // Patrols can move before the bullet arrives; the report belongs to its actual hit.
+  expect(struck).toBeTruthy();expect(Math.abs(struck.x-(p.x-20))).toBeGreaterThan(8);
+  expect(world.sites[0].defenseReport).toMatchObject({ x: struck.x, y: struck.y });
   expect(enemies.every(e => !e.targetId)).toBe(true);
 });
 

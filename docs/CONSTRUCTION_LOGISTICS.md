@@ -127,3 +127,34 @@ screenshots were inspected. This UI change has not been deployed to Fly.
 The Windows browser runner can remain alive in teardown after reporting successful
 scenarios; report scenario results separately from runner exit status. No local
 save reset or live deployment is required for these isolated fixtures.
+
+## Overhead cargo rocket and launch effect, 25 October 2026
+
+The author asked for a more realistic uplink rocket, seen from above, and a launch
+that follows a curve with a tail flame and vanishes near the camera.
+`public/logistics-effects.js` now draws:
+- **The pad:** a circular launch mount with a flame trench and scorch mark, and a
+  lattice gantry whose swing arm reaches the parked rocket.
+- **The parked rocket, nose-on:** shadow, four fins, a stage-band ring and a lit
+  nose cone.
+- **Launch (`drawUplinkFlights`, after aircraft so it passes over units):** a
+  liftoff smoke ring, then a curved ground track (straight up, then pitching over
+  on a per-site bearing). The rocket morphs from nose-on to a side-on capsule,
+  with its band as a stripe and fins at the tail. A flickering exhaust plume and
+  smoke puffs trail along the track. The rocket grows as it climbs toward the
+  camera and fades out over the last 28% of the 5 s launch.
+- **Return:** the booster descends from high and large onto the pad during the
+  existing last 8 s of the cycle, with a landing-burn glow, a dust ring and legs.
+
+Everything derives from the saved `launch`/`cooldown` countdowns plus snapshot
+interpolation. Delivery, credit, timers and admission are unchanged. Reduced
+effects keep the motion and scale but drop the flicker, puffs and drift.
+
+Local validation:
+- Eight-state study (`.local/check-uplink-art.mjs`).
+- Live check (`.local/check-uplink-live.mjs`): a real `/api/logistics/launch`
+  returned 200, with frames for parked, liftoff, climb and fade, and no page
+  errors at desktop or phone sizes.
+- `logistics.spec.js` timed out at both sizes before its first screenshot, in
+  the factory and airbase placement steps, so it never reached the launch. Its
+  saved previews still date from 14 October.

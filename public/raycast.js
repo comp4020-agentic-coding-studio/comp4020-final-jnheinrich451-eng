@@ -2,6 +2,7 @@ import { logisticsAt, hangarBlocks, hostileAt } from './footprints.js';
 import { tileAt } from './world.js';
 import { coreBlocks } from './core.js';
 import { artilleryBlocks } from './footprints.js';
+import { enemyHitCircles } from './centipede.js';
 
 // Exact tile-boundary traversal plus nearest ray/circle hit. Friendly structures
 // can stop a shot without receiving damage. Walkable floor is transparent.
@@ -27,11 +28,13 @@ export function raycast(world, buildings, origin, dx, dy, range, enemies = [], r
   }
   for (const e of enemies) {
     if (e.hp <= 0) continue;
-    const ex = e.x - origin.x, ey = e.y - origin.y, along = ex * dx + ey * dy;
-    const discriminant = radius * radius - (ex * ex + ey * ey - along * along);
-    if (discriminant < 0 || along + Math.sqrt(discriminant) < 0) continue;
-    const hit = Math.max(0, along - Math.sqrt(discriminant));
-    if (hit < distance - 1e-8) { distance = hit; enemy = e; blocked = false; }
+    for (const part of enemyHitCircles(e, radius)) {
+      const ex = part.x - origin.x, ey = part.y - origin.y, along = ex * dx + ey * dy;
+      const discriminant = part.radius * part.radius - (ex * ex + ey * ey - along * along);
+      if (discriminant < 0 || along + Math.sqrt(discriminant) < 0) continue;
+      const hit = Math.max(0, along - Math.sqrt(discriminant));
+      if (hit < distance - 1e-8) { distance = hit; enemy = e; blocked = false; }
+    }
   }
   return { x: origin.x + dx * distance, y: origin.y + dy * distance, distance, enemy, blocked };
 }

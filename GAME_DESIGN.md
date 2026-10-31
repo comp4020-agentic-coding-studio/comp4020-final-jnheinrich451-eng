@@ -1,5 +1,100 @@
 # Frontier game design harness
 
+## 1 November 2026: Sirocco desert planet
+
+The author approved the third playable world with distinct firm desert and
+navigable sand seas. [Sirocco](docs/SIROCCO_PLANET.md) adds four starting plateaus,
+defended oases, cosmetic dunes, alien palms, impassable mesas and a heavy-bridge
+strait. Ships skim the loose sand, sandports retain dock rules, and submarines
+burrow using the existing depth/endurance controls. The shared enemy AI, pressure
+budgets and permanent ending apply. Only new Sirocco campaigns use this generator;
+existing planets and saved construction are unchanged. This is a local stage,
+not a deployment or hosted-capacity claim.
+
+## 31 October 2026: first siege centipede
+
+The author approved a first playable giant before wider balance refinement.
+The [siege centipede](docs/BROOD_CENTIPEDE.md) is a slow eight-part ground enemy
+with one hittable body/HP pool, facility priority and existing heavy protection.
+Only living Blight Roots produce it, with warned arrivals, limited replacements
+and bounded land-unit offspring sharing island/global budgets. Destroying its
+Root stops production but leaves survivors to fight. Protected starting cores
+and final conquest remain intact. Universal armor/penetration changes and
+burrowing are not part of this local stage.
+
+## 31 October 2026: mobile AA and first flying enemy
+
+The new tracked AA fires twin 35 mm guns with LMB and the tank machine gun with
+RMB while moving. Cursor aim stays free; a separate turret solution can lead a
+nearby flyer. Parked, unoccupied AAs prioritize air defense. The skimmer attacks
+robots and ground vehicles with a warned strike, never actual facilities, ships
+or friendly aircraft. Air and ground hits have explicit eligibility, and the
+robot laser remains a fallback. City production shares the existing island and
+global budgets, with four skimmers at most including pending and sleeping units.
+The [mobile AA stage](docs/MOBILE_AA_AND_SKIMMER.md) records implementation,
+controls and verification. This supersedes the earlier anchored AA proposal.
+The author's follow-up now adds continuous held fire with alternating barrels,
+one 20-damage round per 125 ms, and short sequential tracer flashes. The nominal
+damage rate is unchanged; decorative flashes create no extra damaging bullets.
+The skimmer's art now follows the author's manta sketch: two broad wings, thin
+tentacle tails, three bloodshot eyes and three veined bile sacs in red, yellow
+and purple. Its three cosmetic droplets converge on the existing single warned
+ground impact. The author's next revision adds a stationary twin-35 mm AA sentry
+with strictly airborne targets, no ground fallback. It costs 80 ORB / 20 GND,
+has 140 HP and covers 26 tiles. The [sentry and co-op stage](docs/AA_SENTRY_AND_COOP.md)
+records its validation and the scope of the multiplayer rehearsal. No air-to-air
+combat or aerial attacks on facilities are added.
+
+## 30 October 2026: shared island pressure and sparse roaming
+
+Hostile compounds now share a bounded replenishment allowance per occupied
+island, scaled once by `1 + 0.7 × (eligible players − 1)`. Destroying nearby
+facilities reduces production. Cleared land receives occasional warned hunter
+groups from a surviving same-island source; enemies investigate a fixed location
+and use ordinary perception. All arrival paths share the existing 24 active plus
+reserved cap, and final planetary conquest stops every new arrival. Saved worlds
+keep their geometry and progress. Numbers, capacity limits and local evidence are
+in the [island pressure stage](docs/ISLAND_PRESSURE_STAGE.md).
+
+## 30 October 2026: save management and floating lobby feedback
+
+Continue lets an owner delete a closed save after confirming its name, freeing
+one of the three owned slots. Active rooms must be saved and left first; joined
+worlds cannot be deleted by members. Private files remain recovery archives,
+with no player restore command. Lobby notices float without a box or layout
+space. Details are in [campaign save management](docs/CAMPAIGN_STAGE.md) and
+[entry presentation](docs/ENTRY_VISUAL_DESIGN.md).
+
+## 30 October 2026: four footholds and denser new campaigns
+
+New Caldera and Vesper campaigns now offer four shared starting clearings. Players
+can preview a clearing in orbital core placement or find it in Planet overview,
+then explicitly confirm their own landing. Nearby custom placement stays legal;
+the clearings are not exclusive player slots or permanently safe territory.
+New hostile compounds fill more of the remaining usable land, with separated
+production/defense clusters and open routes around structures. Water, mountain
+chains and saved worlds keep their geometry. This layout is saved once for new
+campaigns; existing campaigns are not rebuilt. The shared active-enemy cap and
+spawn cadence remain unchanged. Details and checks are recorded in the
+[enemy design plan](docs/ENEMY_DESIGN_DISCUSSION.md).
+
+## 30 October 2026: sustained hostile resistance and survivor cleanup
+
+The author wants strong player-focused resistance in alien cities, sustained
+production from surviving hostile facilities, and sparse roaming pressure on
+cleared ground while the planet remains contested. Nearby friendly facilities
+have weaker attraction; defeat stays recoverable and heavier equipment should
+make assaults more effective. Once all hostile facilities are destroyed, stop
+new enemy spawns and leave existing survivors to clear. Permanent conquest stays
+intact. The [enemy design direction](docs/ENEMY_DESIGN_DISCUSSION.md) records a
+behavior, pressure and city-layout sequence, with the shared population budget
+and approved island multiplayer scaling. The first behavior/ending stage is now
+implemented locally: seeded patrols, visibility-based pursuit and investigation,
+player-focused priorities with limited local siege, and the planetary spawn gate.
+A gold striped CONQUERED ribbon marks the permanent result and counts surviving
+enemies until all threats are cleared. New pressure rates, sparse roaming arrivals
+and denser city layouts remain later stages; this checkpoint is not a deployment.
+
 ## 29 October 2026: assessment and gameplay planning
 
 The author confirmed COMP8020 and island pressure scaling of
@@ -261,7 +356,8 @@ flowchart LR
 ```
 
 This diagram records the overall direction; the first alert-station loop is now
-implemented locally, while full planetary victory remains future work. There
+implemented locally. The 30 October stage adds planetary victory and stops new
+spawns after all required hostile facilities are destroyed. There
 is no automatic return from conquered to hostile: no recapture, regeneration
 timer or recurring obligation to hold the same objective. Enemy attacks on
 facilities are a separate combat rule. Before implementing it, decide:

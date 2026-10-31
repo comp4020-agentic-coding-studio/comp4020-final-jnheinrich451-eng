@@ -10,6 +10,7 @@ import { createApp } from '../server.js';
 import { createCombat } from '../public/combat.js';
 import { newAirbase } from '../public/aircraft.js';
 import { resetWorld } from '../world-maintenance.js';
+import { seedFronts, seedDenseFronts } from '../public/seeded-fronts.js';
 
 const password = 'a unique campaign password 123!';
 const worldRoute = (id: string, action = 'world') => `/api/campaign-world/${id}/${action}`;
@@ -119,15 +120,27 @@ it('backs up the Bulwark roster upgrade once without refilling guards or replaci
 it('adds denser fronts once to a seven-compound save while preserving conquered sites, guards, construction and supplies', async () => fixture(async h => {
   const owner = await h.account('denseowner'), id = await h.open(owner);
   const initial = (await owner.request(worldRoute(id))).data;
-  const newSite = initial.combat.sites.find((s: any) => s.id.startsWith('front-v2-'));
-  expect(newSite).toBeTruthy(); await owner.request('/api/campaigns/leave', {});
-  let kept: any, economy: any, marker: any;
+  await owner.request('/api/campaigns/leave', {});
+  const backupsBefore = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-dense-fronts-'));
+  let kept: any, economy: any, marker: any, newSite: any;
   h.database(id, (db: DatabaseSync) => {
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
-    saved.sites = saved.sites.filter((s: any) => !s.id.startsWith('front-v2-'));
+    // Rehearse the old seven-compound migration explicitly. Fresh campaigns now
+    // use the separate four-foothold layout and must never be densified on reopen.
+    const oldWorld = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);
+    delete oldWorld.frontierLayout; delete oldWorld.landingZones;
+    db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(oldWorld));
+    db.prepare("DELETE FROM meta WHERE key='frontier-layout-v1'").run();
+    saved.sites = saved.sites.filter((s: any) => !s.encounter);
+    const first = seedFronts({ ...oldWorld, sites: saved.sites }, [], [], 'legacy-density-fixture');
+    expect(first.manifest.groups).toHaveLength(7); saved.sites.push(...first.sites);
+    db.prepare("UPDATE meta SET value=? WHERE key='seeded-fronts-v1'").run(JSON.stringify(first.manifest));
+    newSite = seedDenseFronts({ ...oldWorld, sites: saved.sites }, [], [], first.manifest.seed).sites[0];
+    expect(newSite).toBeTruthy();
     const groups = saved.sites.filter((s: any) => s.encounter);
     Object.assign(groups[0], { hp: 0, state: 'conquered', conqueredAt: 20, guardsRemaining: 0, guardRoster: [], pending: null });
     groups[1].hp = 52; kept = structuredClone(saved.sites);
+    saved.planetConquest = { version: 1, requiredIds: saved.sites.map((s: any) => s.id), announced: false };
     db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
     db.prepare("DELETE FROM meta WHERE key='seeded-fronts-v2'").run();
     db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run('dense-kept', newSite.x, newSite.y, initial.me.id, 'saved');
@@ -147,7 +160,7 @@ it('adds denser fronts once to a seven-compound save while preserving conquered 
   expect((await owner.request(worldRoute(id))).data.combat.sites).toEqual(added.combat.sites);
   h.database(id, (db: DatabaseSync) => expect(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v2'").get()!.value).toBe(marker));
   const backups = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-dense-fronts-'));
-  expect(backups).toHaveLength(2);
+  expect(backups).toHaveLength(backupsBefore.length + 1);
   expect(backups.some(file => {
     const db = new DatabaseSync(path.join(h.dir, 'campaigns', id, 'backups', file), { readOnly: true });
     try { return JSON.stringify(JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string).sites) === JSON.stringify(kept); }
@@ -169,12 +182,18 @@ it('backs up seeded additions atomically, shares one layout, and retains partial
   const layout = (sites: any[]) => sites.map(s => ({ id: s.id, x: s.x, y: s.y, kind: s.kind, encounter: s.encounter }));
   expect(layout((await friend.request(worldRoute(id))).data.combat.sites)).toEqual(layout(initial.combat.sites));
   await owner.request('/api/campaigns/leave', {});
+  const backupsBefore = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-seeded-fronts-'));
   let preserved: any, marker: any, seeded: any;
   h.database(id, (db: DatabaseSync) => {
+    const oldWorld = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='world'").get()!.value as string);
+    delete oldWorld.frontierLayout; delete oldWorld.landingZones;
+    db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(oldWorld));
+    db.prepare("DELETE FROM meta WHERE key='frontier-layout-v1'").run();
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
     saved.sites = saved.sites.filter((s: any) => !s.encounter);
     Object.assign(saved.sites[0], { hp: 0, state: 'conquered', conqueredAt: 22, pending: null });
     saved.sites[1].hp = 87; preserved = structuredClone(saved.sites);
+    saved.planetConquest = { version: 1, requiredIds: saved.sites.map((s: any) => s.id), announced: false };
     db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
     db.prepare("DELETE FROM meta WHERE key='seeded-fronts-v1'").run();
     db.prepare('INSERT INTO buildings VALUES (?,?,?,?,?)').run('seed-kept', 230, 94, initial.me.id, 'saved');
@@ -189,6 +208,7 @@ it('backs up seeded additions atomically, shares one layout, and retains partial
   expect(migrated.buildings.some((b: any) => b.id === 'seed-kept')).toBe(true);
   expect(migrated.logistics).toMatchObject({ supplies: 450, groundSupplies: 125, salvage: { [preserved[0].id]: 0 } });
   const added = migrated.combat.sites.filter((s: any) => s.encounter);
+  expect(added.length).toBeGreaterThan(0);
   expect(added.every((s: any) => Math.hypot(s.x + 1.5 - 230, s.y + 1.5 - 94) >= 40)).toBe(true);
   await owner.request('/api/campaigns/leave', {});
   h.database(id, (db: DatabaseSync) => {
@@ -203,7 +223,7 @@ it('backs up seeded additions atomically, shares one layout, and retains partial
   expect((await owner.request(worldRoute(id))).data.combat.sites.filter((s: any) => s.encounter)).toEqual(seeded);
   h.database(id, (db: DatabaseSync) => expect(db.prepare("SELECT value FROM meta WHERE key='seeded-fronts-v1'").get()!.value).toBe(marker));
   const backups = (await readdir(path.join(h.dir, 'campaigns', id, 'backups'))).filter(n => n.startsWith('before-seeded-fronts-'));
-  expect(backups).toHaveLength(2);
+  expect(backups).toHaveLength(backupsBefore.length + 1);
   // At least the migration rehearsal backup contains the exact pre-addition state.
   expect(backups.some(file => {
     const db = new DatabaseSync(path.join(h.dir, 'campaigns', id, 'backups', file), { readOnly: true });
@@ -224,6 +244,9 @@ it('restricts the local frenzy to the owner and saves the shared warning through
   db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('frenzy-core',pilot,30,30,99);
   db.prepare('UPDATE scouts SET x=40.5,y=40.5 WHERE id=?').run(pilot);db.prepare('INSERT OR REPLACE INTO robot_states VALUES (?,?)').run(pilot,JSON.stringify({...freshLife(),deployed:true}));
   const saved=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);for(const s of saved.sites)Object.assign(s,{hp:0,state:'conquered',pending:null});saved.enemies=[];
+  // Keep one distant objective hostile: a fully conquered planet now forbids
+  // test spawns too. This fixture exercises owner access and saved warnings.
+  Object.assign(saved.sites[0],{state:'hostile',hp:420,x:w.width-20,y:w.height-20,guardsRemaining:0,awake:false,nextCall:1e9});
   db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
  });
  await owner.request('/api/campaigns/enter',{id});await h.connect(owner,id);await friend.request('/api/campaigns/enter',{id});await h.connect(friend,id);
@@ -547,6 +570,9 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s 
   let oldSite: any;
   h.database(id, (db: DatabaseSync) => {
     const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get()!.value as string);
+    // This fixture predates dense cities. Keeping randomly seeded future-city
+    // structures could occupy every legal migration candidate for a legacy site.
+    saved.sites = saved.sites.filter((s: any) => !s.encounter?.id?.startsWith('city-v'));
     saved.sites = saved.sites.filter((s: any) => s.kind !== kind || s.settlement || s.encounter);
     // Rehearse older migrations against a save from before the later fog stage.
     if (kind !== 'anti-air') {
@@ -588,7 +614,7 @@ it.each(['mortar', 'modifier', 'contaminator', 'laser', 'anti-air'])('adds a %s 
 it('lists available planets and rejects unknown templates without creating a save', async () => fixture(async h => {
   const owner = await h.account('planet');
   const catalogue = (await owner.request('/api/campaigns/list')).data;
-  expect(catalogue.planets.map((p: any) => p.id)).toEqual(['caldera-v1','vesper-v1']);
+  expect(catalogue.planets.map((p: any) => p.id)).toEqual(['caldera-v1','vesper-v1','sirocco-v1']);
   for (const template of ['unavailable', null, { id: 'caldera-v1' }]) {
     expect((await owner.request('/api/campaigns/create', { name: 'Invalid', template })).status).toBe(400);
   }

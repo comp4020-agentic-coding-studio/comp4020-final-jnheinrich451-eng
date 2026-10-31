@@ -1,5 +1,82 @@
 # Multiplayer test report
 
+## Siege centipede — local co-op, 31 October 2026
+
+Final `pnpm check` passed TypeScript and **1,090 tests in 137 files**, including
+body hits, penetrating-shot restart, source lifecycle and shared admission checks.
+
+`tests/browser/centipede.spec.js` passed twice with distinct authenticated
+desktop and emulated phone identities in a disposable named campaign. The
+fixture stages flat terrain, Blight Root readiness and a friendly sentry; the
+10-second warning, birth, segmented movement, facility-priority strike and
+damage use production logic and normal unit stats. The final run compared
+**78 matching body, HP and facility-health snapshots**, observed eight body
+parts, and reported zero browser errors. A paused checkpoint preserved exact
+body/HP/root state, then a real local server restart preserved creature identity
+and permitted both players to re-enter.
+
+The independent layout probe found full-body emergence corridors at **253/253
+Roots across six generated Caldera/Vesper layouts**. Two ordinary director/guard
+simulations produced giants at 77.1 and 70.1 seconds without deleting existing
+enemies, while active-plus-reserved counts stayed within 24. These used a
+synthetic non-targetable presence contact and establish sampled geometry and
+availability, not player survival, human balance or Fly capacity.
+
+Evidence: [co-op observations](evidence/2026-10-31/centipede-coop.json),
+[layout probe](evidence/2026-10-31/centipede-layout.json),
+[Root warning](evidence/2026-10-31/centipede-root-warning-desktop.png),
+[desktop siege](evidence/2026-10-31/centipede-siege-desktop.png),
+[phone siege](evidence/2026-10-31/centipede-siege-phone.png), and the
+[feature contract](../BROOD_CENTIPEDE.md). No user campaign was reset; no Fly
+release or live giant-combat result is claimed.
+
+## AA sentry and local co-op combat — 31 October 2026
+
+The fixed twin-barrel AA sentry is implemented locally with strict air-only
+targeting and damage. `pnpm check` passed TypeScript and all **1,049 tests in 131
+files**. A separate automated two-player combat test and the existing pressure
+and multiplayer lifecycle browser cases passed. Existing player saves were not
+modified; all test campaigns used disposable data.
+
+In `tests/browser/aa-coop.spec.js`, distinct authenticated desktop and emulated
+touch-phone players shared one named campaign. The desktop deployed G-05 through
+the catalogue while the phone player moved and fired mobile AA. The final run
+recorded **89 matching shared snapshots**, **19 observed air-only sentry shot
+IDs**, shared enemy health/remains and zero browser errors. Two ground contacts
+still had their full 60 HP before manual fire. Four distinct manta warnings and
+seven bile projectiles were observed with normal combat stats. The test stages
+initial terrain/contacts, so it does not measure natural encounter frequency.
+
+Same-island pressure recorded **1.7x for two players**. Closing a tab during
+held fire stopped further player shots; returning did not replay input. Owner
+departure paused the campaign, and local server restart/re-entry preserved the
+AA sentry's identity and fixed weapon. Build click to the peer snapshot measured
+**179 ms once**, not a latency guarantee. Screenshots/animation intervals come
+from local Chrome, not a physical phone or independent human playtest.
+
+An isolated synthetic load probe covered Caldera/Vesper with 1/2/4 players on
+the same island and two on separate islands, each for 180 simulation seconds.
+It sustained 24 enemies (four mantas), eight AA sentries and 1–4 firing AA
+vehicles using boosted enemy HP and replenished defenders. Combat tick p95 was
+**2.397–5.409 ms**, the worst tick **9.902 ms**, and active projectiles peaked at
+**22/64**. Snapshot/checkpoint serialization was measured separately. HTTP/SSE,
+rendering, database and disk persistence were excluded. Sampled process RSS
+reached **259.266 MiB** on the local i9-14900K; this does not establish capacity
+or memory headroom on Fly's 256 MB deployment.
+
+The live app still lacks the mobile-AA, skimmer and AA-sentry modules (404 on
+read-only checks). No new-feature Fly result or release is claimed. Initial
+browser fixture issues involved invitation readiness, remains lookup and an
+extra Escape opening the Room menu; these were corrected in the test. A menu
+teardown stall observed while preparing a disposable save remains outside this
+combat result; preparation now uses a temporary real SSE connection.
+
+Evidence: [co-op observations](evidence/2026-10-31/aa-coop.json),
+[load measurements](evidence/2026-10-31/aa-combat-load.json),
+[desktop combat](evidence/2026-10-31/aa-coop-desktop.png),
+[phone combat](evidence/2026-10-31/aa-coop-phone.png), and the
+[feature contract and reproduction notes](../AA_SENTRY_AND_COOP.md).
+
 ## Fly rehearsal and catalogue work — 30 October 2026
 
 Commit `3f6268a` passed CI and deployed successfully (workflow run `40891523111`,

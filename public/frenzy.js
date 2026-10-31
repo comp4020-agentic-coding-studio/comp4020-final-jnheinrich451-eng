@@ -2,6 +2,7 @@ import { mobileLaser } from './mobile-laser.js';
 import { canStand } from './world.js';
 import { targetDistance } from './land-ai.js';
 import { enemyProfile, heavyEnemy } from './enemy-profiles.js';
+import { isGroundEnemy } from './target-domain.js';
 
 export const FRENZY=Object.freeze({warning:5000,duration:60000,cooldown:30000,roster:12,facilityCap:3,assignment:5000,pulse:1000});
 export const frenzyActive=f=>!!f&&['warning','surge'].includes(f.phase);
@@ -10,7 +11,7 @@ export const frenzyActive=f=>!!f&&['warning','surge'].includes(f.phase);
 // Reuse nearby survivors unchanged; reserve missing roles before filling Hunters.
 export const FRENZY_ROSTER=Object.freeze(['bulwark','breaker','twin-lens','heavy-lens','bulwark','breaker','hunter','hunter','hunter','hunter','hunter','hunter']);
 export function planFrenzy(world,buildings,people,enemies,caller,now,id,capacity,options={}){
- const available=enemies.filter(e=>e.hp>0&&e.kind!=='swimmer'&&Math.hypot(e.x-caller.x,e.y-caller.y)<=32)
+ const available=enemies.filter(e=>e.hp>0&&isGroundEnemy(e)&&e.kind!=='swimmer'&&Math.hypot(e.x-caller.x,e.y-caller.y)<=32)
   .sort((a,b)=>Math.hypot(a.x-caller.x,a.y-caller.y)-Math.hypot(b.x-caller.x,b.y-caller.y));
  const members=[],points=[],arrivals=[];
  for(const kind of (options.roster||FRENZY_ROSTER)){
@@ -30,7 +31,7 @@ export function planFrenzy(world,buildings,people,enemies,caller,now,id,capacity
   if(clear)points.push({...point,kind:arrivals[points.length]});
  }
  if(!members.length&&!points.length)return null;
- return {id,phase:'warning',until:now+FRENZY.warning,members,points,orders:{},nextPulse:0,outcome:null};
+ return {id,origin:{x:caller.x,y:caller.y},phase:'warning',until:now+FRENZY.warning,members,points,orders:{},nextPulse:0,outcome:null};
 }
 const priority=t=>({core:8,outpost:7,factory:6,airbase:5,uplink:5,artillery:4,missile:4}[t.facility?.kind]||1);
 
@@ -62,7 +63,7 @@ export function tickFrenzy(f,world,enemies,combatants,facilities,now,spawn,emit,
  if(now>=f.until){finish('signal_ended');return;}
  // All-core-loss recovery must not be trapped inside this same test event.
  if(!(f.source==='natural'&&contacts.length)&&!combatants.length&&!facilities.some(t=>['core','outpost'].includes(t.facility.kind))){finish('no_ground_targets');return;}
- const ground=alive.filter(e=>e.kind!=='swimmer'&&!mobileLaser(e));
+ const ground=alive.filter(e=>isGroundEnemy(e)&&e.kind!=='swimmer'&&!mobileLaser(e));
  const targets=new Map([...combatants,...facilities].map(t=>[t.id,t]));
  for(const[id,order]of Object.entries(f.orders))if(!targets.has(order.targetId)||!ground.some(e=>String(e.id)===id))delete f.orders[id];
  if(now<f.nextPulse)return;f.nextPulse=now+FRENZY.pulse;

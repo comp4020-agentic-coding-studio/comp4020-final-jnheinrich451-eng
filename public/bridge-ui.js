@@ -1,6 +1,7 @@
 import { BRIDGE_PROFILES, isBuilder, bridgeCost, bridgeDuration, bridgeReady, bridgeFromBuilder } from './bridge-geometry.js';
 import { bridgeError, bridgeSupplyError } from './bridge.js';
 import { bridgeFacing, planBridgeAhead } from './bridge-plan.js';
+import { isSandSeaWorld,navalText } from './biome.js';
 
 export function bridgeUI({state,api,stop,notify,frame}){
   const $=id=>document.getElementById(id),panel=$('bridge-planner');let choosing='from',busy=false,cache=null;
@@ -24,13 +25,14 @@ export function bridgeUI({state,api,stop,notify,frame}){
   function update(){
     if(!active())return;if(!isBuilder(state().truck)){panel.hidden=true;return;}
     const p=preview(),spec=BRIDGE_PROFILES[profile()];$('bridge-title').textContent=`${spec.label.toUpperCase()} BRIDGE / ${spec.width} WIDE`;
-    $('bridge-message').textContent=p.error||`${p.price} ground SUP / ${bridgeDuration(p).toFixed(1)}s / Two cables, then 1 x ${spec.width} deck sections. Opens when complete.`;
+    $('bridge-message').textContent=navalText(state().world,p.error)||`${p.price} ground SUP / ${bridgeDuration(p).toFixed(1)}s / Two cables, then 1 x ${spec.width} deck sections. Opens when complete.`;
     const l=state().world.logistics;$('bridge-budget').textContent=`Shared GND: ${Math.floor(l.groundSupplies||0)} / ORB: ${Math.floor(l.supplies||0)}. Bridges use shared GND, not ORB or carrier stores.`;
     $('bridge-confirm').disabled=busy||!!p.error;
     for(const bank of ['from','to'])$('bridge-pick-'+bank).setAttribute('aria-pressed',String(choosing===bank));
     $('bridge-coordinates').hidden=automatic();$('bridge-direction-label').hidden=!automatic();
     $('bridge-route').textContent=p.from&&p.to?`Build from (${p.from.x}, ${p.from.y}) to (${p.to.x}, ${p.to.y})`:'';
     $('bridge-pick-hint').textContent=(automatic()?'Face the water; choose a direction or tap that way on the map.':'Pick bank '+(choosing==='from'?'A':'B')+' on clear land. Either bank can be first.')+` ${spec.width}-tile-wide anchors and approaches; up to ${spec.maxSpan} deck rows. Works over sea, rivers and lakes. Ships pass beneath completed ocean spans only.`;
+    if(isSandSeaWorld(state().world))$('bridge-pick-hint').textContent=(automatic()?'Face the gap; choose a direction or tap that way on the map.':'Pick each bank on firm desert. Either bank can be first.')+` ${spec.width}-tile-wide anchors and approaches; up to ${spec.maxSpan} deck rows. Bridges cross sand seas and oasis lakes. Ships skim beneath completed sand-sea spans; oasis water excludes ships.`;
   }
   function open(){
     const {truck}=state();if(!isBuilder(truck))return;stop();

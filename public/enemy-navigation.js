@@ -17,18 +17,18 @@ function pop(heap) {
 export function createEnemyNavigator(world) {
   const jobs=new Map();let buildings=[],blocked=()=>false,remaining=0,time=0,walk=new Map(),expanded=0;
   const id=(x,y)=>y*world.width+x;
-  function pass(x,y,ignoreHazards=false){
+  function pass(x,y,ignoreHazards=false,radius=.21){
     if(x<0||y<0||x>=world.width||y>=world.height)return false;
-    const key=id(x,y)*2+Number(ignoreHazards);if(!walk.has(key))walk.set(key,canStand(world,buildings,x+.5,y+.5)&&(ignoreHazards||!blocked(x+.5,y+.5)));return walk.get(key);
+    const key=radius+':'+(id(x,y)*2+Number(ignoreHazards));if(!walk.has(key))walk.set(key,canStand(world,buildings,x+.5,y+.5,null,radius)&&(ignoreHazards||!blocked(x+.5,y+.5)));return walk.get(key);
   }
   function begin(list,avoid,now){
     buildings=list;blocked=avoid;remaining=NAVIGATION.perTick;expanded=0;time=now;walk=new Map();
     for(const[key,job]of jobs)if(now-job.used>5000)jobs.delete(key);
   }
-  function route(key,start,points,ignoreHazards=false){
-    const origin=cell(start),goals=points.map(cell).filter(p=>pass(p.x,p.y,ignoreHazards));
+  function route(key,start,points,ignoreHazards=false,radius=.21){
+    const origin=cell(start),goals=points.map(cell).filter(p=>pass(p.x,p.y,ignoreHazards,radius));
     if(!goals.length){jobs.delete(key);return {status:'blocked',path:[]};}
-    const signature=Number(ignoreHazards)+':'+goals.map(p=>id(p.x,p.y)).sort((a,b)=>a-b).join(',');
+    const signature=radius+':'+Number(ignoreHazards)+':'+goals.map(p=>id(p.x,p.y)).sort((a,b)=>a-b).join(',');
     let job=jobs.get(key);
     if(!job||job.signature!==signature||job.start!==id(origin.x,origin.y)){
       if(jobs.size>=NAVIGATION.jobs&&!jobs.has(key))jobs.delete(jobs.keys().next().value);
@@ -45,7 +45,7 @@ export function createEnemyNavigator(world) {
       }
       job.closed.add(current.id);
       for(const[dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){
-        const x=current.x+dx,y=current.y+dy,next=id(x,y);if(!pass(x,y,ignoreHazards)||job.closed.has(next))continue;
+        const x=current.x+dx,y=current.y+dy,next=id(x,y);if(!pass(x,y,ignoreHazards,radius)||job.closed.has(next))continue;
         const g=current.g+1;if((job.records.get(next)?.g??Infinity)<=g)continue;
         if(job.records.size>=NAVIGATION.nodes){jobs.delete(key);return {status:'limited',path:[]};}
         const record={x,y,id:next,g,f:g+metric({x,y},goals),parent:current.id};job.records.set(next,record);push(job.heap,record);

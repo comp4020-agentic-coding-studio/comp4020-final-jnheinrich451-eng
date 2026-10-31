@@ -1,0 +1,35 @@
+{
+  "scope": "Automated local two-browser named-campaign combat rehearsal; staged initial terrain/contacts, normal unit HP/damage. Not human playtesting, natural spawn cadence or Fly capacity evidence.",
+  "pressureMultiplier": 1.7,
+  "buildClickToPeerSnapshotMs": 179,
+  "matchingSharedSnapshots": 89,
+  "sentryShotIds": 19,
+  "allObservedSentryShotsAirOnly": true,
+  "groundHpBeforeManualFire": [
+    60,
+    60
+  ],
+  "observedBileWarnings": 4,
+  "observedBileProjectiles": 7,
+  "rafScope": "Desktop then emulated phone requestAnimationFrame intervals in one local Chrome process, including loading and screenshot work; not physical-phone FPS or Fly server timings.",
+  "rafIntervals": [
+    {
+      "samples": 654,
+      "medianMs": 13.799999999999272,
+      "p95Ms": 27.800000000000182,
+      "maxMs": 562.5
+    },
+    {
+      "samples": 434,
+      "medianMs": 17.199999999999818,
+      "p95Ms": 41.600000000000364,
+      "maxMs": 458.3000000000002
+    }
+  ],
+  "heldFireDisconnectAndReturn": "passed",
+  "pauseRestartAndReturn": "passed",
+  "browserErrors": [],
+  "loggedEnemyLaunches": 7,
+  "loggedDisconnects": 2,
+  "validatedAt": "2026-10-31T09:12:52.210Z"
+}

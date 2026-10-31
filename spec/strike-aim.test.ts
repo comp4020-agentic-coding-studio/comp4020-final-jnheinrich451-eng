@@ -7,7 +7,7 @@ import { createWorld } from '../public/world.js';
 it('clamps both launchers along the cursor bearing with every rotated corner within range', () => {
   const world = { width: 400, height: 400 }, gun = { x: 98, y: 98 }, sub = { x: 100, y: 100 };
   for (const rotated of [false, true]) for (const target of [{ x: 390, y: 100 }, { x: 300, y: 320 }, { x: -200, y: 100 }]) {
-    for (const [aim, error, box, origin, range] of [[missileAim, missileTargetError, targetBox, gun, 100], [submarineAim, submarineTargetError, submarineBox, sub, 80]] as const) {
+    for (const [aim, error, box, origin, range] of [[missileAim, missileTargetError, targetBox, gun, 200], [submarineAim, submarineTargetError, submarineBox, sub, 80]] as const) {
       const actual = aim(origin, world, target, rotated)!;
       expect(error(origin, world, target, rotated)).toBeNull();
       expect((actual.x - 100) * (target.y - 100) - (actual.y - 100) * (target.x - 100)).toBeCloseTo(0);

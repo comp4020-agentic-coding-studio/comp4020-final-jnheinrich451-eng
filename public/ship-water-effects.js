@@ -2,6 +2,7 @@
 // a short per-ship trail of recent poses (at most TRAIL.points, a few seconds) gives
 // the wake its real course through turns; everything else is analytic.
 import { depthState, DIVE } from './submarine-depth.js';
+import { isSandSeaWorld } from './biome.js';
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TRAIL=Object.freeze({spacing:.3,points:24,life:7000,reset:3,boil:3000,shed:1800});
 // Classic Kelvin half-angle of a ship's divergent wave arms.
@@ -16,9 +17,11 @@ function entry(s,time){
 }
 const motion=s=>clamp(Math.abs(s.driveSpeed??s.speed??0)/(s.kind==='carrier'?1.8:2.5));
 
-export function drawShipWater(c,s,T,time,reduced,width=2,length=4){
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawShipWater(c,s,T,time,reduced,width=2,length=4,world=null){
  if(s.destroyed)return;
  const power=motion(s);
+ if(isSandSeaWorld(world)){drawSandWake(c,s,T,time,reduced,width,length,power);return;}
  // Previews and art studies pass no clock; they get the analytic marks only.
  if(time>0)drawWake(c,s,T,time,reduced,width,length,power);
  if(power<.02)return;
@@ -39,6 +42,26 @@ export function drawShipWater(c,s,T,time,reduced,width=2,length=4){
   c.beginPath();c.ellipse(x*T,y*T,spread*T,(.16+p*.26)*T,side*.2,0,Math.PI*2);c.fill();
   c.globalAlpha=(1-p)*(.35+.45*power);c.strokeStyle='#eff6e8';c.lineWidth=T*.025;
   c.beginPath();c.moveTo((x-spread*.65)*T,(y-.04)*T);c.quadraticCurveTo(x*T,(y+.09)*T,(x+spread*.5)*T,(y-.08)*T);c.stroke();
+ }
+ c.restore();
+}
+
+// Sand-skimming is fictional naval technology. A cast shadow and two amber
+// pressure cushions separate the hull from the loose surface. Dust is analytic,
+// limited to sixteen plumes per hull and never enters the simulation or save.
+function drawSandWake(c,s,T,time,reduced,width,length,power){
+ const reverse=(s.driveSpeed||0)<0,dir=reverse?-1:1,phase=reduced?0:time*.00035;
+ c.save();c.fillStyle='#352719';c.globalAlpha=.28;
+ c.beginPath();c.ellipse(width*.1*T,.15*T,width*.47*T,length*.51*T,0,0,Math.PI*2);c.fill();
+ c.lineWidth=.055*T;c.strokeStyle='#f1cf85';c.globalAlpha=.24+.14*power;
+ for(const side of[-1,1]){c.beginPath();c.moveTo(side*width*.37*T,-length*.33*T);c.lineTo(side*width*.37*T,length*.36*T);c.stroke();}
+ if(power>.02){
+  for(const side of[-1,1])for(let i=0;i<(reduced?3:8);i++){
+   const p=(phase+i/8+(side>0?.04:0))%1,spread=(.15+p*.65)*Math.max(.7,width*.35);
+   const x=side*(width*.28+p*.45),y=dir*(length*.39+p*(1+power*3));
+   c.globalAlpha=(1-p)*(.16+power*.23);c.fillStyle=i%2?'#b48646':'#e0bc7b';
+   c.beginPath();c.ellipse(x*T,y*T,spread*T,(.2+p*.8)*T,side*.4,0,Math.PI*2);c.fill();
+  }
  }
  c.restore();
 }
@@ -93,7 +116,8 @@ function drawWake(c,s,T,time,reduced,width,length,power){
 // Dive and surfacing water from the saved depth countdown: deck vent spray and a
 // boil of rising bubbles while diving, then a fading boil over the submerged hull;
 // a building froth and foam ring while surfacing, then water shedding off the hull.
-export function drawDiveBubbles(c,s,T,time,reduced,width=2,length=4){
+/** @param {object|null} [world] Saved world used only for biome presentation. */
+export function drawDiveBubbles(c,s,T,time,reduced,width=2,length=4,world=null){
  const state=depthState(s),t=entry(s,time);
  if(t.depth!==state){t.previous=t.depth;t.depth=state;t.changed=time;}
  const since=time-t.changed,k=1-clamp((s.depthRemaining||0)/DIVE.transition);
@@ -102,6 +126,18 @@ export function drawDiveBubbles(c,s,T,time,reduced,width=2,length=4){
  const strength=mode==='dive'?1-k*.3:mode==='surface'?.45+.55*k:mode==='boil'?.7*(1-since/TRAIL.boil):.6*(1-since/TRAIL.shed);
  const seed=[...String(s.id)].reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7),rand=n=>{const v=Math.sin(n*12.9898+seed*.0137)*43758.5453;return v-Math.floor(v);};
  const spread=mode==='boil'?1.35:1;
+ if(isSandSeaWorld(world)){
+  // The same authoritative depth transition drives sinking sand and dust vents.
+  // No blue bubbles or wake rings are used on the dry naval surface.
+  c.save();
+  for(let j=0;j<(reduced?5:14);j++){
+   const phase=reduced?.4:(time/1600+rand(j+80))%1;
+   const side=j%2?1:-1,x=side*width*(.25+phase*.2),y=(rand(j+40)-.5)*length;
+   c.globalAlpha=strength*(1-phase)*.34;c.fillStyle=j%3?'#cba061':'#e6c785';
+   c.beginPath();c.ellipse(x*T,y*T,(.12+phase*.5)*T,(.2+phase*.8)*T,side*.3,0,Math.PI*2);c.fill();
+  }
+  c.restore();return;
+ }
  c.save();c.globalAlpha=1;c.lineCap='round';
  // Ballast vents blow white spray along the deck as the dive begins.
  if(mode==='dive'&&k<.4)for(let j=0;j<6;j++){

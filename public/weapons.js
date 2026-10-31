@@ -2,12 +2,13 @@
 export const HEAVY_SHELL_LIMIT = 12;
 export const HE = Object.freeze({ label: 'Cannon', radius: 2.1, lethalRadius: .65, damage: 75, edgeDamage: 12, range: 14, speed: 12, cooldown: 650 });
 export const APCR = Object.freeze({ label: 'Machine gun', radius: 0, damage: 18, speed: 28, cooldown: 120, range: 14 });
+export const AA35 = Object.freeze({ label: 'Twin 35 mm', radius: 0, damage: 20, speed: 70, cooldown: 125, range: 26, burst: 1 });
 export const NAVAL_APCR = Object.freeze({label:'Side gun',radius:0,damage:10,speed:36,cooldown:180,range:8});
 export const FLAME = Object.freeze({ label: 'Fuel jet', radius: 0, range: 5, speed: 10, cooldown: 100, width: .16 });
 export const HEAVY_FLAME = Object.freeze({ ...FLAME, label: 'Heavy fuel jet', range: 8, speed: 14, width: .2 });
 export const LASER = Object.freeze({ label: 'Laser rifle', radius: 0, range: 32, damage: 24, cooldown: 300, burnDps: 10, burnDuration: 2400 });
 export const MAGNETIC = Object.freeze({ label: 'Magnetic cannon', radius: 0, range: 24, speed: 120, damage: 180, charge: 1000, cooldown: 2500 });
-export const WEAPONS = Object.freeze({ HE, APCR, NAVAL_APCR, FLAME, HEAVY_FLAME, LASER, MAGNETIC });
+export const WEAPONS = Object.freeze({ HE, APCR, AA35, NAVAL_APCR, FLAME, HEAVY_FLAME, LASER, MAGNETIC });
 export const ARTILLERY_HE = Object.freeze({ label: 'Heavy HE', radius: 3, lethalRadius: 1.1, damage: 140, edgeDamage: 20, minRange: 6, range: 180, cooldown: 6000, craterSize: 8 });
 // Rail-only weapon; deliberately absent from the personal WEAPONS allowlist.
 export const MAC = Object.freeze({label:'Rail MAC',range:180,minRange:6,damage:900,charge:2.5,cooldown:10,speed:240,penetration:3});
@@ -21,7 +22,7 @@ export const RAIL_HE = Object.freeze({...ARTILLERY_HE,radius:6,lethalRadius:2.2,
 export const RAIL_SHELLS = Object.freeze({...ARTILLERY_SHELLS,HE:RAIL_HE});
 const ROVER = Object.freeze({ primary: 'HE', secondary: 'APCR', turnSpeed: Math.PI });
 const ROBOT = Object.freeze({ primary: 'FLAME', secondary: 'LASER', turnSpeed: Math.PI * 3 });
-export const loadout = (body, tankWeapon = 'HE', tankSecondary = 'APCR') => body === 'robot' ? ROBOT : { ...ROVER, primary: tankWeapon === 'MAGNETIC' ? 'MAGNETIC' : 'HE', secondary: tankSecondary === 'HEAVY_FLAME' ? 'HEAVY_FLAME' : 'APCR' };
+export const loadout = (body, tankWeapon = 'HE', tankSecondary = 'APCR') => body === 'robot' ? ROBOT : tankWeapon === 'AA35' ? { primary: 'AA35', secondary: 'APCR', turnSpeed: Math.PI * 1.6 } : { ...ROVER, primary: tankWeapon === 'MAGNETIC' ? 'MAGNETIC' : 'HE', secondary: tankSecondary === 'HEAVY_FLAME' ? 'HEAVY_FLAME' : 'APCR' };
 export function relativeMovement(angle, vx, vy) {
   return { forward: vx * Math.sin(angle) - vy * Math.cos(angle), right: vx * Math.cos(angle) + vy * Math.sin(angle) };
 }

@@ -21,7 +21,7 @@ export function planetUI({ state, stop, visit }) {
       const nx = (x + .5 - mid) / radius, ny = (mid - y - .5) / radius, i = (y * n + x) * 4;
       const p = surfacePoint(nx, ny, world.width, world.height, lon, lat);
       if (!p) { bytes[i + 3] = 0; continue; }
-      const index = Math.floor(p.y) * world.width + Math.floor(p.x),kind=floors.has(index)?4:world.terrain[index],hex=terrainColor(world,Math.floor(p.x),Math.floor(p.y),kind),color=world.template==='vesper-v1'?[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)):palette[kind]||palette[0];
+      const index = Math.floor(p.y) * world.width + Math.floor(p.x),kind=floors.has(index)?4:world.terrain[index],hex=terrainColor(world,Math.floor(p.x),Math.floor(p.y),kind),color=['vesper-v1','sirocco-v1'].includes(world.template)?[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)):palette[kind]||palette[0];
       const z = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)), light = .38 + .62 * Math.max(0, -.3 * nx + .4 * ny + .85 * z);
       for (let k = 0; k < 3; k++) bytes[i + k] = Math.min(255, color[k] * light + (1 - z) ** 4 * [9, 30, 46][k]);
       bytes[i + 3] = 255;
@@ -40,6 +40,12 @@ export function planetUI({ state, stop, visit }) {
     };
     // Same surveyed objectives as the tactical map; never reveal hidden enemies.
     for (const s of sites || []) dot(s, s.state === 'conquered' ? '#79caff' : '#ff707c', 4);
+    for(const [i,zone] of (world.landingZones||[]).entries()){
+      const p=projectPoint(zone.x+1.5,zone.y+1.5,world.width,world.height,lon,lat);if(p.z<=.025)continue;
+      const x=c+p.x*r,y=c-p.y*r;
+      ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.strokeStyle='#a7e9c6';ctx.lineWidth=2;ctx.stroke();
+      ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#d3ffe8';ctx.fillText(String(i+1),x,y);
+    }
     for (const b of [...(world.cores || []), ...(world.airbases || []), ...(world.logistics?.shipyards || []), ...(world.logistics?.facilities || [])]) if (!b.destroyed && !b.dockDestroyed) dot(b.dock || b, '#79caff', 3.5);
     for (const p of players || []) if (p.body !== 'orbital') dot(p, '#fff2b5', 3);
     if (me) dot(me, '#ffe19a', 6);
@@ -51,14 +57,20 @@ export function planetUI({ state, stop, visit }) {
   function open() {
     const { world, me } = state(); if (!world) return;
     stop(); $('planet-title').textContent = world.name || 'Caldera';
-    $('planet-regions').replaceChildren(new Option('Current position', ''), ...world.regions.map(p => new Option(p.label, p.id)));
+    const zoneOptions=document.createElement('optgroup');zoneOptions.label='Starting areas';
+    for(const [i,zone]of(world.landingZones||[]).entries())zoneOptions.append(new Option(`${i+1} / ${zone.label}`,'landing:'+zone.id));
+    $('planet-regions').replaceChildren(new Option('Current position', ''),...(zoneOptions.children.length?[zoneOptions]:[]), ...(world.regions||[]).map(p => new Option(p.label, p.id)));
+    $('planet-landing-legend').hidden=!(world.landingZones?.length);
     $('planet-fronts').replaceChildren(new Option('Choose a surveyed compound', ''), ...settlements(state().sites).map(g => new Option(`${g.name} / ${g.cleared}/${g.requiredIds.length}${g.state === 'conquered' ? ' secured' : ''}`, g.id)));
     dialog.showModal(); center(me || world.spawn); canvas.focus();
   }
   function go(point) { dialog.close(); visit(point); }
   $('planet-open').onclick = open;
   $('planet-close').onclick = () => dialog.close();
-  $('planet-regions').onchange = () => center(state().world.regions.find(p => p.id === $('planet-regions').value) || state().me || state().world.spawn);
+  $('planet-regions').onchange = () => {
+    const {world,me}=state(),value=$('planet-regions').value;
+    center(value.startsWith('landing:')?world.landingZones?.find(p=>p.id===value.slice(8))||me||world.spawn:(world.regions||[]).find(p=>p.id===value)||me||world.spawn);
+  };
   $('planet-fronts').onchange = () => { const group = settlements(state().sites).find(g => g.id === $('planet-fronts').value); if (group) center(group); };
   $('planet-visit').onclick = () => go(selected || surfacePoint(0, 0, state().world.width, state().world.height, lon, lat));
   for (const b of dialog.querySelectorAll('[data-planet-turn]')) b.onclick = () => { const [dx, dy] = b.dataset.planetTurn.split(',').map(Number); rotate(dx, dy); };

@@ -14,9 +14,10 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
   const json = (res, status, data) => { audit.result(status, data); res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
   const lifecycle = (event, room, cause) => audit.emit(event, { campaignId: room.record.id, sourceId: room.ownerPilot, kind: 'system', cause, ...roomCounts(room.record.id) });
   const db = legacy.db;
-  if (!db.prepare("SELECT name FROM sqlite_master WHERE name='campaigns'").get()) {
+  const hasCampaigns = !!db.prepare("SELECT name FROM sqlite_master WHERE name='campaigns'").get();
+  if (!hasCampaigns || !db.prepare("SELECT name FROM sqlite_master WHERE name='campaign_deleted'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
-    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-campaigns-${randomUUID()}.sqlite`));
+    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-${hasCampaigns ? 'campaign-deletion' : 'campaigns'}-${randomUUID()}.sqlite`));
   }
   db.exec(`
     CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, template TEXT NOT NULL, created_at INTEGER NOT NULL);
@@ -24,6 +25,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     CREATE TABLE IF NOT EXISTS campaign_invites(hash TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT);
     CREATE TABLE IF NOT EXISTS campaign_abandoned(campaign_id TEXT NOT NULL, pilot_id TEXT NOT NULL, PRIMARY KEY(campaign_id,pilot_id));
     CREATE TABLE IF NOT EXISTS campaign_limits(identity_id TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS campaign_deleted(id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, deleted_at INTEGER NOT NULL);
   `);
   // Room visits are deliberately not restored after a process restart. Preserve
   // a crashed guest's construction while ending their ephemeral membership.
@@ -35,6 +37,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
   const campaign = id => db.prepare('SELECT * FROM campaigns WHERE id=?').get(id);
   const member = (id, actor) => db.prepare('SELECT * FROM campaign_members WHERE campaign_id=? AND identity_id=?').get(id, actor.id);
   const owns = (record, actor) => !!actor.accountId && record.owner_id === actor.accountId;
+  const deletable = (record, actor) => owns(record, actor) && !rooms.has(record.id) && !closing.has(record.id) && !occupants(record.id).length;
   function transaction(fn) {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -148,7 +151,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       const rows = actor.accountId ? db.prepare('SELECT c.* FROM campaigns c JOIN campaign_members m ON c.id=m.campaign_id WHERE m.identity_id=? AND m.account_id=? ORDER BY c.created_at DESC').all(actor.id, actor.accountId) : [];
       const visit = visits.get(actor.id);
       return { identity: { name: actor.name, kind: actor.kind }, active: visit?.campaignId || null,
-        campaigns: rows.map(c => ({ id: c.id, name: c.name, template: c.template, owner: owns(c, actor), open: !!rooms.get(c.id)?.ownerConnected })),
+        campaigns: rows.map(c => ({ id: c.id, name: c.name, template: c.template, owner: owns(c, actor), open: !!rooms.get(c.id)?.ownerConnected, canDelete: deletable(c, actor) })),
         planets: PLANETS, roomLimit: ROOM_LIMIT, activeLimit: ACTIVE_LIMIT };
     }
     if (req.method !== 'POST') fail('Method not allowed.', 405);
@@ -168,7 +171,9 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       const name = typeof data.name === 'string' ? data.name.trim() : '';
       if (!name || name.length > 48 || /[\x00-\x1f]/.test(name)) fail('Choose a campaign name of 1–48 characters.', 400);
       if (db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE owner_id=?').get(actor.accountId).n >= 3) fail('This prototype allows three saved campaigns per account.');
-      if (db.prepare('SELECT COUNT(*) AS n FROM campaigns').get().n >= 1000) fail('The saved campaign limit has been reached.', 503);
+      // Deleted saves retain private recovery files, so their tombstones still
+      // consume the global storage allowance even though they free an owner slot.
+      if (db.prepare('SELECT (SELECT COUNT(*) FROM campaigns)+(SELECT COUNT(*) FROM campaign_deleted) AS n').get().n >= 1000) fail('The saved campaign limit has been reached.', 503);
       const id = randomUUID();
       transaction(() => {
         db.prepare('INSERT INTO campaigns VALUES (?,?,?,?,?)').run(id, actor.accountId, name, template, Date.now());
@@ -177,6 +182,34 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       audit.bind({ campaignId: id }); return { id, saved: true };
     }
     if (action === 'leave') { await leave(actor.id); return { next: '/campaigns/' }; }
+    if (action === 'delete') {
+      if (!actor.accountId) fail('Only the owner can delete a saved campaign.', 403);
+      if (data.confirm !== true) fail('Confirm deletion of this saved campaign.', 400);
+      if (typeof data.id !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(data.id)) fail('Choose a saved campaign.', 400);
+      audit.bind({ campaignId: data.id });
+      const deleted = db.prepare('SELECT owner_id FROM campaign_deleted WHERE id=?').get(data.id);
+      if (deleted) {
+        if (deleted.owner_id !== actor.accountId) fail('Campaign unavailable or ownership required.', 403);
+        return { deleted: true, id: data.id };
+      }
+      const record = campaign(data.id);
+      if (!record || !owns(record, actor)) fail('Campaign unavailable or ownership required.', 403);
+      if (!deletable(record, actor)) fail('Close this campaign and wait for saving to finish before deleting it.');
+      // No asynchronous work between this closed-room check and commit: an
+      // enter/delete race admits exactly one operation. The tombstone and all
+      // access records change atomically, including retries after restart.
+      // Keep the private world database/backups for administrative recovery;
+      // there is no registry route that can reopen a deleted save.
+      transaction(() => {
+        db.prepare('INSERT INTO campaign_deleted VALUES (?,?,?)').run(record.id, record.owner_id, Date.now());
+        db.prepare('DELETE FROM campaign_members WHERE campaign_id=?').run(record.id);
+        db.prepare('DELETE FROM campaign_invites WHERE campaign_id=?').run(record.id);
+        db.prepare('DELETE FROM campaign_abandoned WHERE campaign_id=?').run(record.id);
+        db.prepare('DELETE FROM campaigns WHERE id=?').run(record.id);
+      });
+      audit.emit('campaign.deleted', { campaignId: record.id, actorId: actor.id, kind: actor.kind, cause: 'owner_deleted_closed_save', saved: true });
+      return { deleted: true, id: record.id };
+    }
     if (action === 'join') {
       if (visits.has(actor.id)) fail('Leave your current room before accepting an invitation.');
       const code = typeof data.code === 'string' ? data.code.trim().toUpperCase().replace(/-/g, '') : '';

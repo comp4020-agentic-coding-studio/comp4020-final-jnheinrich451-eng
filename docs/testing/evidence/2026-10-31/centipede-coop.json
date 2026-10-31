@@ -1,0 +1,10 @@
+{
+  "scope": "Automated local two-browser test. Disposable flat terrain, source readiness and sentry placement are staged; warning, birth, movement, siege attacks, snapshots and persistence use production code and normal combat stats. Not Fly capacity or human balance evidence.",
+  "sharedSnapshots": 78,
+  "bodySegments": 8,
+  "rootEmergence": "passed",
+  "facilitySiege": "passed",
+  "browserErrors": [],
+  "serverRestart": "passed",
+  "validatedAt": "2026-10-31T09:39:14.544Z"
+}

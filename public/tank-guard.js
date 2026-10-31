@@ -2,12 +2,14 @@ import { operational } from './vehicle.js';
 import { WEAPONS, loadout } from './weapons.js';
 import { turnTurret, angleDelta } from './turret.js';
 import { raycast } from './raycast.js';
+import { isGroundEnemy } from './target-domain.js';
 
 export const TANK_GUARD = Object.freeze({ search:.5, tolerance:Math.PI/90 });
-export const tankGuardReady = (world,tank) => operational(tank)&&!tank.occupant&&!world.logistics?.jobs?.[tank.id]&&!tank.carriedBy&&Math.abs(tank.speed||0)<.05;
+export const tankGuardReady = (world,tank) => tank.kind!=='aa'&&operational(tank)&&!tank.occupant&&!world.logistics?.jobs?.[tank.id]&&!tank.carriedBy&&Math.abs(tank.speed||0)<.05;
 export function tankGuardTarget(world,buildings,tank,enemies,id) {
   if(!tankGuardReady(world,tank))return null;
   const weapon=tank.weapon==='MAGNETIC'?'MAGNETIC':'HE',range=WEAPONS[weapon].range;
+  enemies=enemies.filter(isGroundEnemy);
   const target=enemies.find(e=>e.id===id&&e.hp>0);if(!target)return null;
   const d=Math.hypot(target.x-tank.x,target.y-tank.y);if(d<=.2||d>range)return null;
   return raycast(world,buildings,tank,(target.x-tank.x)/d,(target.y-tank.y)/d,d+.01,enemies).enemy?.id===target.id?target:null;
