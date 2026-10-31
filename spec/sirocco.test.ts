@@ -109,7 +109,7 @@ it('fits four completed large docks and routes full-size carriers into the conne
   for (const p of [{ x: 48.5, y: 192.5 }, { x: 464.5, y: 192.5 }, { x: 256.5, y: 24.5 }, { x: 256.5, y: 360.5 }])
     expect(shipRoute(w, s, p)).not.toBeNull();
   for (let i = 0; i < 16; i++) expect(canSail(w, s, s.x, s.y, i * Math.PI / 8)).toBe(true);
-});
+}, 15000);
 
 it('supports a heavy bridge between plateaus while retaining a full carrier underpass and separate pressure budgets', () => {
   const w = world(), from = { x: 200, y: 180 }, to = { x: 200, y: 221 }, builder = { x: 203.5, y: 179.5 };

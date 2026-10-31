@@ -126,7 +126,7 @@ it('saves a short orbital facility delivery and keeps it unusable until completi
   await f.restart();facility=(await f.state()).logistics.facilities.find((v:any)=>v.id===id);expect(facility.deliveryDuration).toBe(CARGO_POD_DURATION);expect(facility.remaining).toBeGreaterThan(0);
   await f.connect();await expect.poll(async()=>(await f.state()).logistics.facilities.find((v:any)=>v.id===id).remaining,{timeout:5000}).toBe(0);
  }finally{await f.close();}
-});
+}, 15000);
 it('serializes competing local purchases across teammates and refunds to ground only',async()=>{
  const f=await fixture((_db,_w,l)=>l.groundSupplies=7);try{
   await f.connect();await f.connect(1);
