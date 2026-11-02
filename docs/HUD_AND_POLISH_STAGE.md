@@ -262,8 +262,10 @@ no other, and only `GET /api/world` sends the terrain. The whole suite was not r
 for that one line. The 35 colony browser tests, left out of these runs, passed on the
 E-cores with retries off.
 
-`pnpm check` (1,210 tests) and `pnpm check:evidence` pass on Node 24, and the latest
-CI run on `main` passed. CI does not run this suite.
+`pnpm check` (1,210 tests) and `pnpm check:evidence` pass on Node 24. CI does not run
+this suite. The first push of this work failed CI on a race in `spec/campaigns.test.ts`:
+a tick landed between two viewers' reads, so an idle tank's search timer differed. The
+test now waits for a pair from one tick and still compares them exactly.
 
 Latency in run 6, on local loopback in headless Chrome: two players had a median of
 121 ms and a worst case of 502 ms (13 samples); four had a median of 167 ms and a

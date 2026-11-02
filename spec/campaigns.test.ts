@@ -391,8 +391,12 @@ it('serializes named-room construction and boarding races, with private attribut
   expect((await [owner, friend][1 - winner].request(worldRoute(id, 'dismantle'), { id: building.id })).status).toBe(403);
   const boards = await Promise.all([owner, friend].map(c => c.request(worldRoute(id, 'tanks/board'), { id: 'shared-tank' })));
   expect(boards.map(r => r.status).sort()).toEqual([200, 409]);
-  const states = await Promise.all([owner, friend].map(c => c.request(worldRoute(id))));
-  expect(states[0].data.tanks).toEqual(states[1].data.tanks);
+  // A tick can land between the two reads, so wait for a pair from one tick; viewers that truly differ never match.
+  const states = await vi.waitFor(async () => {
+    const pair = await Promise.all([owner, friend].map(c => c.request(worldRoute(id))));
+    expect(pair[0].data.tanks).toEqual(pair[1].data.tanks);
+    return pair;
+  });
   expect(states[0].data.buildings).toEqual(states[1].data.buildings);
   expect(states[0].data.tanks[0].occupant).toBe([a, b][boards.findIndex(r => r.status === 200)]);
   await expect.poll(() => h.logs.filter((e: any) => e.action === 'tanks/board' && e.event === 'action.result').length).toBe(2);
