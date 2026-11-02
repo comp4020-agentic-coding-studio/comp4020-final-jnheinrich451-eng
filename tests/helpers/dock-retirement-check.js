@@ -14,7 +14,8 @@ export async function checkDockRetirement(browser,mobile=false){
   await p.locator('#shipyard-interact').click();await expect(p.locator('#shipyard-retire')).toBeDisabled();await expect(p.locator('#shipyard-help')).toContainText('Your robot is on the offshore dock at 49:30');
   const blocked=await f.post('shipyards/retire',{id:'empty-yard'});expect(blocked.status).toBe(409);expect(blocked.data.error).toContain('Your robot');
   await p.screenshot({path:'.local/dock-retire-blocked-'+mobile+'.png'});await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.down('d');
-  try{await expect.poll(async()=>(await f.state()).me.x,{timeout:10000,intervals:[100]}).toBeGreaterThan(55.4);}finally{await p.keyboard.up('d');}
+  // The pier ends at x 55 and the robot's box reaches .42 past its centre.
+  try{await expect.poll(async()=>(await f.state()).me.x,{timeout:10000,intervals:[100]}).toBeGreaterThan(55.5);}finally{await p.keyboard.up('d');}
   await p.locator('#shipyard-interact').click();await expect(p.locator('#shipyard-retire')).toBeEnabled();p.once('dialog',d=>d.accept());await p.locator('#shipyard-retire').click();
   await expect.poll(async()=>(await f.state()).logistics.shipyards.length).toBe(0);expect((await f.state()).me.x).toBeGreaterThan(55);expect(errors).toEqual([]);
  }finally{await context?.close();await f.close();}

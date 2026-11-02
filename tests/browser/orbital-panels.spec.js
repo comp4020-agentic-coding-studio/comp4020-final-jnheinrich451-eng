@@ -52,7 +52,7 @@ for(const mobile of [false,true])test(`full helipad preview and saved orbital fl
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-  const state=()=>page.evaluate(async()=>await(await fetch('/api/world')).json());
+  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   const choose=async(x,y)=>{await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();};
   await page.locator('#build-mode').click();await page.locator('#tab-air').click();await page.locator('#helipad-card').click();
   await choose(70,40);await expect(page.locator('#site-reason')).toContainText('Pod wall');await expect(page.locator('#place-building')).toBeDisabled();

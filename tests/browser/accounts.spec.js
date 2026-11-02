@@ -16,7 +16,7 @@ for (const mobile of [false, true]) test(`Demo registration, private inbox, logi
     await page.goto(base + '/?legacy=1');
     await expect(page.locator('#connection')).toContainText('live');
     const id = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me.id);
-    await page.locator('#account-link').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#account-link').click());
     await expect(page).toHaveURL(/\/login\//);
     await page.locator('#register-link').click(); await page.locator('#demo-mode').click();
     const form = page.locator('#register-form');

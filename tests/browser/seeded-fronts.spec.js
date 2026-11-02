@@ -37,7 +37,7 @@ for (const mobile of [false, true]) test('survey seeded compounds and render dis
     const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.goto(origin + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     if (await page.getByRole('button', { name: 'Close site controls' }).isVisible()) await page.getByRole('button', { name: 'Close site controls' }).click();
-    await page.locator('#planet-open').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());
     expect(await page.locator('#planet-fronts option').count()).toBeGreaterThan(3);
     await page.locator('#planet-fronts').selectOption(group.id);
     await page.screenshot({ path: `.local/seeded-globe-${mobile}.png` });
@@ -46,7 +46,7 @@ for (const mobile of [false, true]) test('survey seeded compounds and render dis
     await expect(page.locator('#tile-x')).toHaveValue(String(Math.floor(group.x)));
     await expect(page.locator('#tile-y')).toHaveValue(String(Math.floor(group.y)));
     if (await page.getByRole('button', { name: 'Close site controls' }).isVisible()) await page.getByRole('button', { name: 'Close site controls' }).click();
-    if (mobile) { await page.locator('#zoom-out').click(); await page.locator('#zoom-out').click(); }
+    if (mobile) { await page.locator('#hud-menu-button').click().then(()=>page.locator('#zoom-out').click()); await page.locator('#hud-menu-button').click().then(()=>page.locator('#zoom-out').click()); }
     await page.waitForTimeout(250);
     await page.screenshot({ path: `.local/seeded-surface-${mobile}.png` });
     const state = await (await context.request.get(origin + route)).json();

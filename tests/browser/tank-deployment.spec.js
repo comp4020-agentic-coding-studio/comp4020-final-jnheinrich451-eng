@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
 
 for (const mobile of [false,true]) test(`orbital tank deployment, boarding and saved exit on ${mobile?'phone':'desktop'}`, async({browser})=>{
   test.setTimeout(60000);
@@ -15,7 +16,7 @@ for (const mobile of [false,true]) test(`orbital tank deployment, boarding and s
     await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
     context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();
     const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
-    const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json());
+    const state=p=>serverState(p,url);
     const post=(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,data:await r.json()};},{route,data});
     await expect(page.locator('#connection')).toContainText('live');
     expect((await post('cores',{x:18,y:24})).status).toBe(201);
@@ -37,9 +38,10 @@ for (const mobile of [false,true]) test(`orbital tank deployment, boarding and s
     await expect.poll(async()=>(await state(peer)).players.find(p=>p.id===owner)?.vehicleId).toBeTruthy();
     await expect(page.locator('#tank-primary')).toBeVisible();await page.locator('#tank-primary').selectOption('MAGNETIC');await page.locator('#tank-secondary').selectOption('HEAVY_FLAME');
     const before=(await state(page)).me;
-    if(mobile){const button=page.locator('[data-direction="right"]'),b=await button.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(350);await page.mouse.up();}
-    else{await page.locator('#world-canvas').focus();await page.keyboard.down('d');await page.waitForTimeout(350);await page.keyboard.up('d');}
-    await expect.poll(async()=>(await state(peer)).tanks[0].x).toBeGreaterThan(before.x+.1);
+    // Tanks build speed gradually, so hold until the other player sees the hull move.
+    if(mobile){const button=page.locator('[data-direction="up"]'),b=await button.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();}
+    else{await page.locator('#world-canvas').focus();await page.keyboard.down('w');}
+    try{await expect.poll(async()=>(await state(peer)).tanks[0].x,{intervals:[50]}).toBeGreaterThan(before.x+.1);}finally{if(mobile)await page.mouse.up();else await page.keyboard.up('w');}
     const viewport=page.viewportSize(),aim={x:viewport.width/2+70,y:viewport.height/2-50};
     if(mobile){await page.touchscreen.tap(aim.x,aim.y);await page.locator('#fire-button').click();}else await page.mouse.click(aim.x,aim.y);
     await expect.poll(async()=>(await state(peer)).combat.charges.some(c=>c.owner===owner),{intervals:[50]}).toBe(true);

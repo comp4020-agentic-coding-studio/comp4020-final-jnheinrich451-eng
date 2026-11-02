@@ -15,7 +15,7 @@ export async function checkSupplyReserve(browser,mobile){
   db.close();app=createApp({dataDir:dir,logSink:()=>{}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});
   await context.addCookies([{name:'frontier',value:tokens[0],url}]);const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.goto(url+'/?legacy=1');await expect(p.locator('#connection')).toContainText('live');await p.locator('#supplies-button').click();
+  await p.goto(url+'/?legacy=1');await expect(p.locator('#connection')).toContainText('live');await p.locator('#hud-menu-button').click().then(()=>p.locator('#supplies-button').click());
   const balance=p.locator('#logistics-balance');await expect(balance).toContainText('1 connected player: ORB +2/s up to 250; GND +0.4/s up to 50');
   const connect=async i=>{const c=new AbortController();streams.push(c);const r=await fetch(url+'/api/events',{headers:{Cookie:'frontier='+tokens[i]},signal:c.signal});void(async()=>{try{for await(const chunk of r.body){}}catch{}})();};
   await connect(0);await expect(balance).toContainText('1 connected player:');

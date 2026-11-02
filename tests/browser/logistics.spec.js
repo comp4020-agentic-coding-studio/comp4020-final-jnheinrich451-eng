@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
 
 for(const mobile of [false,true])test(`construction, recycler and orbital cargo on ${mobile?'phone':'desktop'}`,async({browser})=>{
   test.setTimeout(90000);
@@ -21,20 +22,20 @@ for(const mobile of [false,true])test(`construction, recycler and orbital cargo 
     await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
     context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-    const state=()=>page.evaluate(async()=>await(await fetch('/api/world')).json());
+    const state=()=>serverState(page,url);
     const choose=async(x,y)=>{await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();};
     const deploy=async(kind,x,y)=>{await page.locator('#build-mode').click();await page.locator('[data-force-tab="logistics"]').click();await page.locator(`#${kind}-card`).click();await choose(x,y);await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();};
     await deploy('factory',48,24);await deploy('uplink',50,40);await deploy('recycler',55,37);
     await expect.poll(async()=>(await state()).logistics.facilities.find(f=>f.kind==='factory')?.remaining,{timeout:12000}).toBe(0);
     const factory=(await state()).logistics.facilities.find(f=>f.kind==='factory');
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await page.locator('#airbase-card').click();await choose(88,60);await page.locator('#construction-method').selectOption(factory.id);
-    await expect(page.locator('#place-building')).toBeDisabled();await expect(page.locator('#site-reason')).toContainText('24 tiles');
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await page.locator('#airbase-card').click();await choose(88,60);await expect(page.locator('#delivery-ground')).toBeHidden();
+    await expect(page.locator('#construction-availability')).toContainText('GND construction is unavailable at this site');
     await page.screenshot({path:`docs/previews/construction-support-${mobile?'mobile':'desktop'}.png`});
     await page.locator('#world-canvas').focus();await page.keyboard.press('Escape');
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="strike"]').click();await page.locator('#missile-card').click();await choose(58,30);await page.locator('#construction-method').selectOption(factory.id);
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="ground"]').click();await page.locator('#missile-card').click();await choose(58,30);await page.locator('#delivery-ground').click();
     await expect(page.locator('#deployment-cost')).toContainText('55 GND');await page.locator('#place-building').click();
     await expect.poll(async()=>Object.keys((await state()).logistics.jobs).length).toBe(1);
-    await page.locator('#supplies-button').click();await expect(page.locator('#logistics-cancel')).toBeEnabled();await page.locator('#logistics-cancel').click();await expect.poll(async()=>(await state()).artillery.length).toBe(0);
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#supplies-button').click());await expect(page.locator('#logistics-cancel')).toBeEnabled();await page.locator('#logistics-cancel').click();await expect.poll(async()=>(await state()).artillery.length).toBe(0);
     await page.locator('#salvage-target').selectOption('site:ruin');await page.locator('#recycler-collect').click();
     await expect.poll(async()=>(await state()).logistics.recyclers[0].cargo,{timeout:16000}).toBe(180);
     await page.locator('#uplink-select').selectOption((await state()).logistics.facilities.find(f=>f.kind==='uplink').id);await page.locator('#recycler-deliver').click();await expect.poll(async()=>(await state()).logistics.facilities.find(f=>f.kind==='uplink').cargo,{timeout:16000}).toBe(180);
@@ -44,7 +45,7 @@ for(const mobile of [false,true])test(`construction, recycler and orbital cargo 
     await expect(page.locator('#logistics-dialog')).not.toBeVisible();
     await expect.poll(async()=>(await state()).logistics.shipments,{timeout:7000}).toBe(1);expect((await state()).logistics.supplies).toBe(before+180);
     await page.reload();await expect(page.locator('#connection')).toContainText('live');expect((await state()).logistics.salvage.ruin).toBe(0);
-    await page.locator('#supplies-button').focus();await page.keyboard.press('Enter');await expect(page.locator('#logistics-dialog')).toBeVisible();await page.keyboard.press('Escape');
+    await page.locator('#hud-menu-button').click();await page.keyboard.press('Tab');await expect(page.locator('#supplies-button')).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#logistics-dialog')).toBeVisible();await page.keyboard.press('Escape');
     if(!mobile)await page.setViewportSize({width:900,height:700});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true);expect(errors).toEqual([]);
   }finally{await context?.close();await app.close();if(!path.resolve(dataDir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-logistics-browser-'))throw Error('Unexpected directory');await rm(dataDir,{recursive:true,force:true});}

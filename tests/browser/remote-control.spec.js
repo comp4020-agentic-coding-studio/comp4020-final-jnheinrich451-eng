@@ -27,7 +27,7 @@ async function field(browser,mobile,airKind=null){
  db.close();app=createApp({dataDir:dir,logSink:()=>{}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));
  const url='http://127.0.0.1:'+app.server.address().port,context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
  await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
- return {page,errors,async connectPeer(){const response=await fetch(url+'/api/events',{headers:{cookie:'frontier='+peerToken},signal:peerAbort.signal});void response.text().catch(()=>{});},async peerControl(release=false){return fetch(url+'/api/artillery/control',{method:'POST',headers:{cookie:'frontier='+peerToken,'Content-Type':'application/json'},body:JSON.stringify({id:'cannon',release})});},state:()=>page.evaluate(async()=>(await fetch('/api/world')).json()),async close(){peerAbort.abort();await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-remote-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
+ return {page,errors,async connectPeer(){const response=await fetch(url+'/api/events',{headers:{cookie:'frontier='+peerToken},signal:peerAbort.signal});void response.text().catch(()=>{});},async peerControl(release=false){return fetch(url+'/api/artillery/control',{method:'POST',headers:{cookie:'frontier='+peerToken,'Content-Type':'application/json'},body:JSON.stringify({id:'cannon',release})});},state:()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse),async close(){peerAbort.abort();await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-remote-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
 }
 for(const mobile of [false,true])test('Ground catalogue and direct remote control / '+(mobile?'phone':'desktop'),async({browser})=>{
  const f=await field(browser,mobile),p=f.page;try{
@@ -81,7 +81,10 @@ test('cancel an in-flight remote request releases its control lease',async({brow
 
 for(const mobile of [false,true])for(const kind of ['bomber','attack-jet'])test('remote '+kind+' map strike keeps robot movement / '+(mobile?'phone':'desktop'),async({browser})=>{
  const f=await field(browser,mobile,kind),p=f.page;try{
-  await p.locator('#remote-mode').click();const a=await p.locator('[data-remote-id="cannon"]').boundingBox(),b=await p.locator('[data-remote-id="missile"]').boundingBox();
+  await p.locator('#remote-mode').click();
+  // A snapshot adds the markers; the next frame gives them their map position.
+  await expect.poll(()=>p.locator('[data-remote-id="missile"]').evaluate(m=>m.style.left)).not.toBe('');
+  const a=await p.locator('[data-remote-id="cannon"]').boundingBox(),b=await p.locator('[data-remote-id="missile"]').boundingBox();
   const scale=(b.x+b.width/2-a.x-a.width/2)/(72-35.5),x=a.x+a.width/2+(78-35.5)*scale,y=a.y+a.height/2+(45-35.5)*scale;
   const marker=p.locator('[data-remote-id="air:air"]');await expect(marker).toBeEnabled();if(mobile)await marker.tap();else await marker.click();
   await expect(p.locator('#remote-air')).toBeVisible();await expect(p.locator('#bomber-panel')).toBeHidden();
@@ -92,7 +95,7 @@ for(const mobile of [false,true])for(const kind of ['bomber','attack-jet'])test(
   const response=p.waitForResponse(r=>r.url().endsWith('/api/aircraft/mission'));
   if(mobile)await p.touchscreen.tap(x,y);else await p.mouse.click(x,y);
   const result=await response;expect(await result.json()).toMatchObject({saved:true});expect(result.status()).toBe(201);
-  await expect(p.locator('#remote-air')).toBeHidden();const state=await f.state();expect(state.me.body).toBe('robot');expect(state.airbases[0].aircraft.occupant).toBeNull();expect(state.airbases[0].aircraft.mission.resumeCruise).toBe(true);
+  await expect.poll(async()=>(await f.state()).airbases[0].aircraft?.mission?.id).toBeTruthy();await p.keyboard.press('Escape');await expect(p.locator('#remote-air')).toBeHidden();const state=await f.state();expect(state.me.body).toBe('robot');expect(state.airbases[0].aircraft.occupant).toBeNull();expect(state.airbases[0].aircraft.mission.resumeCruise).toBe(true);
   expect(state.airbases[0].aircraft.mission.weapon).toBe(kind==='bomber'?'bombs':'strafe');
   if(kind==='attack-jet'&&!mobile){await expect.poll(async()=>(await f.state()).airbases[0].aircraft.mission.shotsRemaining,{timeout:22000}).toBe(0);expect((await f.state()).airbases[0].aircraft.rounds).toBe(90);}
   expect(f.errors).toEqual([]);

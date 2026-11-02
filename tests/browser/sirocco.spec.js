@@ -52,7 +52,7 @@ for (const mobile of [false, true]) test(`Sirocco campaign, landing, sandport pr
     await page.keyboard.down('d');
     try { await expect.poll(async () => (await read()).me.x).toBeGreaterThan(before + .4); }
     finally { await page.keyboard.up('d'); }
-    await page.locator('#planet-open').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());
     await expect(page.locator('#planet-title')).toHaveText('Sirocco');
     await page.screenshot({ path: info.outputPath('sirocco-globe.png') });
     await page.locator('#planet-regions').selectOption('lake');

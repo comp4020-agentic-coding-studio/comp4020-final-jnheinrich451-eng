@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {openFieldTool} from './ui-helper.js';
 import {createApp} from '../../server.js';
 import {createWorld} from '../../public/world.js';
 import {newAirbase} from '../../public/aircraft.js';
@@ -17,10 +18,10 @@ for(const mobile of [false,true])test('shared airfield cruise / '+(mobile?'phone
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json()),plane=async()=>(await state()).airbases.find(b=>b.id==='source').aircraft;
+  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse),plane=async()=>(await state()).airbases.find(b=>b.id==='source').aircraft;
   await expect(page.locator('#aircraft-interact')).toBeEnabled();await expect(page.locator('#aircraft-cruise')).toBeEnabled();await page.screenshot({path:'.local/cruise-apron-'+mobile+'.png'});
   await page.locator('#aircraft-cruise').click();await expect.poll(async()=>(await plane()).mission?.phase,{timeout:5000}).toBe('cruise');expect((await state()).me.body).toBe('robot');
-  await page.reload();await expect(page.locator('#connection')).toContainText('live');await page.locator('#bomber-open').click();await expect(page.locator('#bomber-status')).toContainText('CRUISE');await expect(page.locator('#bomber-select option:checked')).toContainText('CRUISING');await expect(page.locator('#bomber-payload')).toBeEnabled();
+  await page.reload();await expect(page.locator('#connection')).toContainText('live');await openFieldTool(page,'bomber-open');await expect(page.locator('#bomber-status')).toContainText('CRUISE');await expect(page.locator('#bomber-select option:checked')).toContainText('CRUISING');await expect(page.locator('#bomber-payload')).toBeEnabled();
   await page.locator('#bomber-x').fill('85');await page.locator('#bomber-y').fill('40');await page.locator('#bomber-bearing').selectOption('1');await page.locator('#bomber-payload').selectOption('HEAVY');await expect(page.locator('#bomber-dispatch')).toBeEnabled();
   await page.locator('#bomber-landing-base').selectOption('destination');await page.screenshot({path:'.local/cruise-planner-'+mobile+'.png'});await page.locator('#bomber-recall').click();
   await expect.poll(async()=>(await plane()).baseId).toBe('destination');await expect(page.locator('#bomber-select option:checked')).toContainText('RETURNING');await expect.poll(async()=>(await plane()).state,{timeout:22000}).toBe('parked');await expect(page.locator('#bomber-select option:checked')).toContainText(/PARKED|REARMING/);await expect(page.locator('#bomber-recall-help')).toContainText('Already on the ground');

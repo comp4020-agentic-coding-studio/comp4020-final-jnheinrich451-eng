@@ -45,17 +45,18 @@ for (const mobile of [false, true]) test(`settlement shared checklist and perman
       await p.addInitScript(() => { const Original = window.EventSource; window.EventSource = class extends Original { constructor(...args) { super(...args); this.addEventListener('message', e => { try { window.lastBattle = JSON.parse(e.data); } catch {} }); } }; });
     }
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
+    const openBar = () => page.locator('#mission-bar').evaluate(bar => bar.classList.add('open', 'site-selected'));
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live'); await page.bringToFront();
     const locateSettlement = async () => {
-      if (mobile) await page.locator('#planet-open').tap();
-      else await page.locator('#planet-open').click();
+      if (mobile) await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').tap());
+      else await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());
       await page.locator('#planet-fronts').selectOption(group.id);
       if (mobile) await page.locator('#planet-visit').tap(); else await page.locator('#planet-visit').click();
       await expect(page.locator('#planet-dialog')).toBeHidden();
     };
     await locateSettlement();
-    await expect(page.locator('#settlement-progress')).toBeVisible();
+    await openBar(); await expect(page.locator('#settlement-progress')).toBeVisible();
     await expect(page.locator('#settlement-progress')).toContainText('0/3');
     await page.screenshot({ path: info.outputPath('settlement-alive.png') });
     const terrain = (await state()).world.terrain;
@@ -85,7 +86,7 @@ for (const mobile of [false, true]) test(`settlement shared checklist and perman
     await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));
     await post(owner, '/api/campaigns/enter', { id }); await page.goto(base + '/?campaign=' + id);
     await expect(page.locator('#connection')).toContainText('live');
-    await locateSettlement();
+    await locateSettlement(); await openBar();
     await expect(page.locator('#settlement-progress')).toBeVisible();
     await expect(page.locator('#settlement-progress')).toContainText('3/3');
     await expect(page.locator('#settlement-progress')).toContainText('Permanently conquered');

@@ -7,21 +7,26 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import {serverState} from './drive-helper.js';
 
 for(const mobile of [false,true])test(`airbase, forward flight, HE run and return on ${mobile?'phone':'desktop'}`,async({browser})=>{
  test.setTimeout(80000);
  const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-air-browser-'));let app=createApp({dataDir,logSink:()=>{}}),context,other;
  await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=expandWorld(createWorld()),token=randomUUID();world.terrain.fill(2);world.bridges=[];
- db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',54.6,56.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',63,60,4.5);db.close();app=createApp({dataDir,logSink:()=>{}});
+ db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',54.6,60.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',63,60,4.5);db.close();app=createApp({dataDir,logSink:()=>{}});
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
-  const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json()),plane=async()=>(await state(peer)).airbases[0]?.aircraft;
+  const state=p=>p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse),plane=async()=>(await serverState(peer,url)).airbases[0]?.aircraft;
   await expect(page.locator('#connection')).toContainText('live');await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await expect(page.locator('#airbase-card')).toBeVisible();await expect(page.locator('#ship-card')).toBeHidden();
   await page.locator('#airbase-card').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();
   await page.screenshot({path:`.local/airbase-site-${mobile?'mobile':'desktop'}.png`});await page.locator('#place-building').click();await expect.poll(plane).toMatchObject({state:'vacant'});await expect.poll(async()=>Object.keys((await state(page)).logistics.jobs).length,{timeout:15000}).toBe(0);await page.locator('#build-mode').click();await page.locator('[data-force-tab="air"]').click();await page.locator('#bomber-card').click();await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('48');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();await expect.poll(plane,{timeout:7000}).toMatchObject({state:'parked',runs:2});
-  await page.screenshot({path:`.local/airbase-ready-${mobile?'mobile':'desktop'}.png`});await expect.poll(async()=>Object.keys((await state(page)).logistics.jobs).length,{timeout:15000}).toBe(0);await expect(page.locator('#aircraft-interact')).toBeEnabled();await page.locator('#aircraft-interact').click();await expect(page.locator('#flight-weapons')).toBeVisible();
+  await page.screenshot({path:`.local/airbase-ready-${mobile?'mobile':'desktop'}.png`});await expect.poll(async()=>Object.keys((await state(page)).logistics.jobs).length,{timeout:15000}).toBe(0);
+  // The delivery crate reserves the ground around the airbase, so the robot starts clear of it and walks to the gate once the crate has become flooring.
+  await page.locator('#world-canvas').focus();let walk=null;if(mobile){walk=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(walk.x+walk.width/2,walk.y+walk.height/2);await page.mouse.down();}else await page.keyboard.down('w');
+  await expect(page.locator('#aircraft-interact')).toBeEnabled();if(mobile)await page.mouse.up();else await page.keyboard.up('w');
+  await page.locator('#aircraft-interact').click();await expect(page.locator('#flight-weapons')).toBeVisible();
   await expect.poll(async()=>(await plane()).state,{timeout:5000}).toBe('flying');await page.locator('#world-canvas').focus();
   if(mobile){const box=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(450);await page.mouse.up();}
   else{await page.keyboard.down('w');await page.waitForTimeout(450);await page.keyboard.up('w');}
@@ -35,7 +40,7 @@ for(const mobile of [false,true])test(`airbase, forward flight, HE run and retur
   await page.locator('#world-canvas').focus();const deadline=Date.now()+18000;let held='';
   // Fly home with physical keys, levelling early to allow for the bomber bank response.
   await page.keyboard.down('s');
-  while(Date.now()<deadline){const p=await plane();if(p.state!=='flying')break;const target=Math.atan2(50-p.x,-(55.5-p.y)),delta=Math.atan2(Math.sin(target-p.angle),Math.cos(target-p.angle)),bank=p.bank||0,stoppingAngle=bank*Math.abs(bank)*6/p.speed/2,error=delta-stoppingAngle,next=Math.abs(error)<.08?'':error>0?'d':'a';if(held!==next){if(held)await page.keyboard.up(held);if(next)await page.keyboard.down(next);held=next;}await page.waitForTimeout(100);}
+  while(Date.now()<deadline){const p=(await serverState(page,url)).airbases[0].aircraft;if(p.state!=='flying')break;const target=Math.atan2(50-p.x,-(55.5-p.y)),delta=Math.atan2(Math.sin(target-p.angle),Math.cos(target-p.angle)),bank=p.bank||0,stoppingAngle=bank*Math.abs(bank)*6/p.speed/2,error=delta-stoppingAngle,next=Math.abs(error)<.08?'':error>0?'d':'a';if(held!==next){if(held)await page.keyboard.up(held);if(next)await page.keyboard.down(next);held=next;}await page.waitForTimeout(100);}
   if(held)await page.keyboard.up(held);await page.keyboard.up('s');await expect.poll(async()=>(await plane()).state,{timeout:5000}).toBe('parked');
   await expect(page.locator('#aircraft-launch')).toBeEnabled();await page.screenshot({path:`.local/bomber-rearm-${mobile?'mobile':'desktop'}.png`});await page.locator('#aircraft-interact').click();await expect.poll(async()=>(await state(page)).me.body).toBe('robot');
   await expect.poll(async()=>(await plane()).runs,{timeout:11000}).toBe(2);await expect(page.locator('#aircraft-interact')).toBeEnabled();

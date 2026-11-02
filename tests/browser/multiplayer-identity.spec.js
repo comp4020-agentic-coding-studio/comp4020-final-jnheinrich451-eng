@@ -21,7 +21,7 @@ test('accounts created in one browser get independent robots and cores when join
   await post(owner,'/api/auth/login',credentials('Alpha'));
   const {id}=await post(owner,'/api/campaigns/create',{name:'Independent pilots'});await post(owner,'/api/campaigns/enter',{id});
   const a=await owner.newPage(),sameProfile=await owner.newPage(),b=await friend.newPage(),route='/api/campaign-world/'+id;
-  const state=p=>p.evaluate(async route=>await(await fetch(route+'/world')).json(),route);
+  const state=async p=>JSON.parse(await p.evaluate(async route=>await(await fetch(route+'/world')).text(),route));
   await a.goto(base+'/?campaign='+id);await expect(a.locator('#connection')).toContainText('live');
   await sameProfile.goto(base+'/?campaign='+id);await expect(sameProfile.locator('#connection')).toContainText('live');
   expect((await state(sameProfile)).me.id).toBe((await state(a)).me.id);

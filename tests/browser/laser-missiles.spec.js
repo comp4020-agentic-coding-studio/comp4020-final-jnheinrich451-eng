@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../../server.js';
-import { missileAim, targetBox } from '../../public/missile.js';
+import { missileAim, targetBox, batteryPose } from '../../public/missile.js';
 import { aimOverview } from './aim-helper.js';
 
 for (const mobile of [false, true]) test(`laser encounter and distant missile fire ${mobile ? 'phone' : 'desktop'}`, async ({ browser }, info) => {
@@ -32,8 +32,11 @@ for (const mobile of [false, true]) test(`laser encounter and distant missile fi
       world.terrain.fill(2); db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
       const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get().value);
       for (const s of saved.sites) { s.guardsRemaining = 0; if (s.kind !== 'laser') Object.assign(s, { hp: 0, state: 'conquered', conqueredAt: -100000 }); }
+      // Natural raids belong to the encounter director. Push them out of reach so only the tower threatens the tank.
+      if (saved.director) Object.assign(saved.director, { nextRaid: 1e9, nextPulse: 1e9 });
       db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
-      const tank = { id: 'laser-tank', owner: initial.me.id, occupant: initial.me.id, health: 200, hurt: 0, x: site.x + 1.5, y: site.y - 5.5, podX: 40, podY: 40, elapsed: 99, angle: Math.PI, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
+      // East of the tower and facing north, across the beam, so the 40-tile beam has room to run its full length on this campaign's seed.
+      const tank = { id: 'laser-tank', owner: initial.me.id, occupant: initial.me.id, health: 200, hurt: 0, x: site.x + 8.5, y: site.y + 1.5, podX: 40, podY: 40, elapsed: 99, angle: 0, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
       db.prepare('INSERT INTO tanks VALUES (?,?)').run(tank.id, JSON.stringify(tank));
       db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('test-core', initial.me.id, 10, 10, 99);
       db.prepare('INSERT INTO artillery VALUES (?,?)').run(gun.id, JSON.stringify(gun));
@@ -47,7 +50,8 @@ for (const mobile of [false, true]) test(`laser encounter and distant missile fi
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live'); await page.bringToFront();
-    await page.getByRole('button', { name: 'Locate laser tower' }).click();
+    // Individually named site locators are gone. O selects the nearest hostile site, and the lance tower is the only one left.
+    await page.locator('#world-canvas').focus(); await page.keyboard.press('o');
     await expect(page.locator('#combat-status')).toContainText('Lance tower');
     await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.sites.find(s => s.kind === 'laser').laser?.phase), { timeout: 12000 }).toBe('firing');
     await page.screenshot({ path: info.outputPath('laser-beam.png') });
@@ -58,31 +62,39 @@ for (const mobile of [false, true]) test(`laser encounter and distant missile fi
     await expect.poll(async () => (await tower()).laser.phase).toBe('cooling');
     const parked = (await state()).world.tanks.find(t => t.id === 'laser-tank');
     await expect.poll(async () => (await tower()).laser.phase, { timeout: 7000, intervals: [50] }).toBe('charging');
-    await page.locator('#world-canvas').focus(); await page.keyboard.down('d');
+    // W drives along the hull heading and the tank is seeded facing north, across the beam, so holding W is the escape run.
+    await page.locator('#world-canvas').focus(); await page.keyboard.down('w');
     try {
-      await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.sites.find(s => s.kind === 'laser').laser?.phase)).toBe('firing');
-      await expect.poll(async () => (await state()).world.tanks.find(t => t.id === 'laser-tank').x).toBeGreaterThan(parked.x + 4);
+      await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.sites.find(s => s.kind === 'laser').laser?.phase), { intervals: [50] }).toBe('firing');
       await expect.poll(() => peer.evaluate(() => {
         const s = window.lastBattle?.combat.sites.find(s => s.kind === 'laser'), end = s?.laser?.beam;
         return end ? Math.hypot(end.x - s.x - 1.5, end.y - s.y - 1.5) : 0;
       }), { intervals: [50] }).toBeGreaterThan(20);
+      await expect.poll(async () => (await state()).world.tanks.find(t => t.id === 'laser-tank').y).toBeLessThan(parked.y - 4);
       await page.screenshot({ path: info.outputPath('laser-chase-escape.png') });
       await expect.poll(async () => (await tower()).laser.phase).toBe('cooling');
-    } finally { await page.keyboard.up('d'); }
+    } finally { await page.keyboard.up('w'); }
     const escaped = (await state()).world.tanks.find(t => t.id === 'laser-tank');
-    expect(escaped.health).toBe(parked.health); expect(escaped.x).toBeGreaterThan(parked.x + 6);
+    expect(escaped.health).toBe(parked.health); expect(escaped.y).toBeLessThan(parked.y - 6);
     await post(owner, route + '/tanks/exit', {});
     await post(owner, route + '/artillery/control', { id: gun.id });
     await expect(page.locator('#facility-controls')).toBeVisible();
     await aimOverview(page, gun.target.x, gun.target.y, mobile);
     await expect(page.locator('#artillery-fire')).toBeEnabled();
     await page.screenshot({ path: info.outputPath('missile-clamped-aim.png') });
+    // Volleys strike the launcher's actual pose, not the cursor. Let it settle exactly on the clamped aim before firing,
+    // so the saved box can be compared with the clamped cursor strike.
+    await expect.poll(async () => {
+      const now = await state(), live = now.artillery.find(g => g.id === gun.id), want = batteryPose(live, now.world, live.target);
+      return Math.abs(live.angle - want.angle) < 1e-6 && Math.abs(live.elevation - want.elevation) < 1e-6;
+    }, { intervals: [100] }).toBe(true);
     const fired = page.waitForResponse(r => r.url().endsWith('/artillery/fire') && r.request().method() === 'POST');
     await page.locator('#artillery-fire').click(); const response = await fired; expect(response.status()).toBe(200);
     const requested = response.request().postDataJSON().target;
     expect(Math.hypot(requested.x - gun.x - 2, requested.y - gun.y - 2)).toBeGreaterThan(100);
     const after = await state(), expected = targetBox(missileAim(gun, after.world, requested));
-    expect(after.combat.barrages[0].box).toEqual(expected);
+    // The pose is rebuilt from an angle and an elevation, so allow for floating-point rounding.
+    for (const key of ['x', 'y', 'width', 'height']) expect(after.combat.barrages[0].box[key]).toBeCloseTo(expected[key], 6);
     await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.barrages.length)).toBe(1);
     expect(errors).toEqual([]);
   } finally {

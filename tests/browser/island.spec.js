@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { isolatedField, landCore } from './rover-helper.js';
+import { openFieldTool } from './ui-helper.js';
+import { serverState } from './drive-helper.js';
 
 test('stabilized turret trails a cursor reversal and shares its actual firing bearing', async ({ browser }) => {
   const arena = await isolatedField('turret', [{ x: 24.5, y: 18.5 }]);
@@ -41,7 +43,7 @@ test('stabilized turret trails a cursor reversal and shares its actual firing be
 });
 
 async function siteControls(page) {
-  if (!await page.locator('#site-panel').isVisible()) await page.locator('#site-button').click();
+  if (!await page.locator('#site-panel').isVisible()) await openFieldTool(page, 'site-button');
   if (!await page.locator('#coordinate-details').getAttribute('open')) {
     if (!await page.locator('#tile-x').isVisible()) await page.locator('#coordinate-details summary').click();
   }
@@ -67,15 +69,18 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
   expect(moved.x).toBeGreaterThan(initial.x + .5);
   await page.locator('#build-mode').click();
   await page.locator('#sentry-card').click();
-  // Choosing a site with the mouse while placing never fires a weapon.
-  await page.mouse.click(1130, 650); await page.waitForTimeout(200);
-  expect(fireRequests).toHaveLength(0); await expect(page.locator('#site-panel')).toBeVisible();
+  // With a mouse the ghost follows the cursor and LMB places with ORB; it never fires a weapon.
+  await page.mouse.click(1130, 650);
+  await expect(page.locator('#toast')).toContainText('Sentry deployment saved');
+  expect(fireRequests).toHaveLength(0);
+  await page.locator('#build-mode').click();
+  await page.locator('#sentry-card').click();
   await siteControls(page);
   await page.locator('#tile-x').fill('28'); await page.locator('#tile-y').fill('21'); await page.locator('#select-tile').click();
   await expect(page.locator('#place-building')).toBeEnabled(); await page.locator('#place-building').click();
-  await expect(page.locator('#toast')).toContainText('placed and saved');
-  // The landed core contributes its built-in sentry; the placed sentry is the second.
-  await expect(peer.locator('#building-count')).toHaveText('2 FOUNDATIONS');
+  await expect(page.locator('#toast')).toContainText('Sentry deployment saved');
+  // The landed core contributes its built-in sentry; the mouse-placed and form-placed sentries follow.
+  await expect(peer.locator('#building-count')).toHaveText('3 FOUNDATIONS');
   await page.reload(); await expect(page.locator('#connection')).toContainText('Uplink live');
   await expect(page.locator('#task-save')).toHaveClass(/done/);
   const returned = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
@@ -84,7 +89,7 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
   await page.locator('#tile-x').fill('0'); await page.locator('#tile-y').fill('0'); await page.locator('#select-tile').click();
   await expect(page.locator('#place-building')).toBeDisabled(); await expect(page.locator('#site-reason')).toContainText('water');
   await page.locator('#tile-x').fill('28'); await page.locator('#tile-y').fill('21'); await page.locator('#select-tile').click();
-  await page.locator('#center').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#center').click());
   await page.locator('#close-site').click();
   await page.bringToFront(); await page.waitForTimeout(400);
   await mkdir('docs/previews', { recursive: true });
@@ -96,7 +101,7 @@ test('two scouts share a saved foundation; keyboard movement, reload, and resize
   expect(field).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
   await expect(page.locator('[data-direction="up"]')).toBeVisible();
   await page.screenshot({ path: 'docs/previews/mobile.png', fullPage: true });
-  await page.locator('#help-button').click(); await expect(page.locator('#help-dialog')).toBeVisible();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click()); await expect(page.locator('#help-dialog')).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.locator('#help-dialog')).not.toBeVisible();
   await page.setViewportSize({ width: 844, height: 390 });
   await page.locator('#build-mode').click(); await expect(page.locator('#sentry-card')).toBeInViewport();
@@ -116,14 +121,14 @@ test('touch users can select a site and place a foundation', async ({ browser })
   await expect(page.locator('#deployment-tray')).toBeVisible();
   await page.locator('#sentry-card').tap();
   await expect(page.locator('#deployment-tray')).not.toBeVisible();
-  // Two tiles east and three south of the robot, in the unobscured play area.
-  await page.touchscreen.tap(262, 523);
+  // Two tiles east and one north of the robot (it exits north of the landed core), in the unobscured play area.
+  await page.touchscreen.tap(262, 388);
   await expect(page.locator('#site-panel')).toBeVisible();
   await expect(page.locator('#place-building')).toBeInViewport();
   await page.screenshot({ path: 'docs/previews/mobile-deployment.png' });
-  await page.locator('#place-building').tap(); await expect(page.locator('#toast')).toContainText('placed and saved');
+  await page.locator('#place-building').tap(); await expect(page.locator('#toast')).toContainText('Sentry deployment saved');
   await expect(page.locator('#site-panel')).not.toBeVisible();
-  await page.locator('#site-button').tap();
+  await openFieldTool(page, 'site-button');
   await expect(page.locator('#remove-building')).toBeVisible();
   await page.locator('#remove-building').tap(); await expect(page.locator('#toast')).toContainText('removed');
   } finally { await context.close(); await arena.close(); }
@@ -179,7 +184,7 @@ test('HE leaves shared cosmetic craters; effects deduplicate and reduced mode pe
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(arena.base + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('Uplink live');
   await page.bringToFront();
-  await page.locator('#zoom-in').click(); await page.locator('#zoom-in').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#zoom-in').click()); await page.locator('#hud-menu-button').click().then(()=>page.locator('#zoom-in').click());
   await page.evaluate(async () => {
     window.lastBlast = null;
     window.fxObserver = new EventSource('/api/events');
@@ -204,10 +209,10 @@ test('HE leaves shared cosmetic craters; effects deduplicate and reduced mode pe
   expect(result.first).toBeGreaterThan(0); expect(result.duplicate).toBe(result.first); expect(result.marks).toBeGreaterThan(0);
   expect(result.retainedHits).toBeLessThanOrEqual(5); expect(result.retainedBursts).toBeLessThanOrEqual(10);
   await page.waitForTimeout(1300); await page.screenshot({ path: 'docs/previews/he-crater.png' });
-  await page.locator('#help-button').click(); await page.locator('#reduced-effects').check();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click()); await page.locator('#reduced-effects').check();
   await page.keyboard.press('Escape'); await page.reload(); await expect(page.locator('#connection')).toContainText('Uplink live');
-  await page.locator('#help-button').click(); await expect(page.locator('#reduced-effects')).toBeChecked(); await page.keyboard.press('Escape');
-  await page.setViewportSize({ width: 390, height: 844 }); await page.locator('#center').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click()); await expect(page.locator('#reduced-effects')).toBeChecked(); await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 390, height: 844 }); await page.locator('#hud-menu-button').click().then(()=>page.locator('#center').click());
   await page.screenshot({ path: 'docs/previews/he-mobile.png' });
   expect(errors).toEqual([]);
   } finally { await context.close(); await arena.close(); }
@@ -250,7 +255,7 @@ test('mouse weapons are independent; readouts are passive; held fire stops on re
   const blurred = await count('APCR'); await page.waitForTimeout(350); expect(await count('APCR')).toBe(blurred);
   await page.mouse.up({ button: 'right' });
   await page.locator('#world-canvas').focus(); await page.keyboard.down('j'); await page.waitForTimeout(250);
-  await page.locator('#help-button').click(); await page.waitForTimeout(200);
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click()); await page.waitForTimeout(200);
   const paused = await count('APCR'); await page.waitForTimeout(350); expect(await count('APCR')).toBe(paused);
   await page.keyboard.up('j'); await page.keyboard.press('Escape');
   await page.locator('#world-canvas').focus(); await page.keyboard.down('j'); await page.waitForTimeout(250);
@@ -301,7 +306,7 @@ test('automatic sentries share gradual traverse and fire along the aligned barre
   await landCore(page);
   await expect(page.locator('#start-drill')).toBeEnabled();
   const building = await page.evaluate(async () => {
-    const response = await fetch('/api/buildings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: 24, y: 14 }) });
+    const response = await fetch('/api/buildings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: 22, y: 14 }) });
     if (!response.ok) throw new Error('Test sentry deployment failed');
     return (await response.json()).building;
   });
@@ -310,6 +315,8 @@ test('automatic sentries share gradual traverse and fire along the aligned barre
     window.sentryStream.onmessage = e => window.sentryEvents.push(JSON.parse(e.data));
   });
   await expect.poll(() => peer.evaluate(id => window.sentryEvents.some(s => s.combat.sentries[id]), building.id)).toBe(true);
+  // An orbital sentry fires only once its crate has unfolded and its construction job is gone.
+  await expect.poll(async () => (await serverState(page, arena.base)).logistics.jobs[building.id], { timeout: 15000 }).toBeUndefined();
   await page.locator('#start-drill').click();
   await expect.poll(() => page.evaluate(id => window.sentryEvents.some(s => {
     const mount = s.combat.sentries[id];
@@ -359,7 +366,7 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   await expect(page.locator('#core-status')).toHaveText('PANELS UNFOLDING');
   await page.waitForTimeout(450); await page.screenshot({ path: 'docs/previews/core-panels.png' });
   await expect(page.locator('#core-status')).toBeHidden({ timeout: 7000 });
-  const saved = await page.evaluate(async () => (await (await fetch('/api/world')).json()));
+  const saved = await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   const core = saved.cores.find(c => c.owner === saved.me.id);
   expect(core.elapsed).toBe(4.5); expect(saved.me.body).toBe('robot'); expect(saved.me.x).toBeCloseTo(32.6);
   await expect.poll(() => peer.evaluate(id => window.coreStates.some(s => s.cores.some(c => c.id === id && c.elapsed === 4.5)), core.id)).toBe(true);
@@ -368,7 +375,7 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   const walked = await page.evaluate(async () => (await (await fetch('/api/world')).json()).me);
   expect(walked.x).toBeGreaterThan(33.2); // Walk through the rock tile covered by the right panel.
   await page.reload(); await expect(page.locator('#connection')).toContainText('Uplink live');
-  const returned = await page.evaluate(async () => (await (await fetch('/api/world')).json()));
+  const returned = await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   expect(returned.cores.find(c => c.id === core.id)?.elapsed).toBe(4.5); expect(returned.me.x).toBeCloseTo(walked.x, 1);
   await page.locator('#build-mode').click(); await expect(page.locator('#core-card')).toBeDisabled();
   // The second player owns a separate core; native touch can confirm deployment.
@@ -409,7 +416,7 @@ test('orbital core lands, unfolds walkable panels, releases a robot and survives
   await page.mouse.up({ button: 'right' });
   await expect.poll(() => peer.evaluate(id => window.coreStates.some(s => s.combat.shots.some(shot => shot.owner === id && shot.weapon === 'LASER' && Number.isFinite(shot.endX))), saved.me.id)).toBe(true);
   await page.locator('#world-canvas').focus(); await page.keyboard.down(' '); await page.waitForTimeout(350);
-  await page.locator('#help-button').click(); await page.keyboard.up(' '); await page.waitForTimeout(300);
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click()); await page.keyboard.up(' '); await page.waitForTimeout(300);
   const stoppedAt = await page.evaluate(async () => (await (await fetch('/api/world')).json()).combat.shots.filter(s => s.weapon === 'FLAME').map(s => s.id));
   await page.waitForTimeout(400);
   const later = await page.evaluate(async () => (await (await fetch('/api/world')).json()).combat.shots.filter(s => s.weapon === 'FLAME').map(s => s.id));

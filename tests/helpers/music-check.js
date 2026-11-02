@@ -8,7 +8,7 @@ export async function checkMusic(browser,mobile=false){
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(f.url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   expect(await page.locator('#background-music').evaluate(a=>a.paused)).toBe(true);
-  await page.locator('#help-button').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());
   await expect.poll(()=>page.locator('#background-music').evaluate(a=>!a.paused&&a.currentTime>0)).toBe(true);
   await expect.poll(()=>page.locator('#background-music').evaluate(a=>Number.isFinite(a.duration))).toBe(true);
   const meta=await page.locator('#background-music').evaluate(a=>({duration:a.duration,loop:a.loop,volume:a.volume}));
@@ -30,7 +30,7 @@ export async function checkMusic(browser,mobile=false){
   await expect.poll(()=>page.locator('#background-music').evaluate(a=>a.volume)).toBe(.4);
   await page.locator('#music-toggle').click();expect(await page.locator('#background-music').evaluate(a=>a.paused)).toBe(true);
   await page.reload();await expect(page.locator('#connection')).toContainText('live');
-  await page.locator('#help-button').click();await expect(page.locator('#music-toggle')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());await expect(page.locator('#music-toggle')).toHaveAttribute('aria-pressed','false');
   expect(await page.locator('#background-music').evaluate(a=>a.paused)).toBe(true);await expect(page.locator('#music-volume')).toHaveValue('40');
   await page.locator('#music-toggle').click();await expect.poll(()=>page.locator('#background-music').evaluate(a=>!a.paused&&Number.isFinite(a.duration))).toBe(true);
   await page.locator('#background-music').evaluate(a=>{a.currentTime=a.duration-.2;});

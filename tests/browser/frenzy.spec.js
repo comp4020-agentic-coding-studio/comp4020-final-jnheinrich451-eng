@@ -7,7 +7,7 @@ for(const mobile of [false,true])test('local frenzy warning and shared signal / 
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});
   await field.seat(context);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(field.base+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-  await expect(page.locator('#frenzy-test')).toBeEnabled();await page.locator('#frenzy-test').click();
+  if(mobile)await page.locator('#mission-toggle').tap();await expect(page.locator('#frenzy-test')).toBeEnabled();await page.locator('#frenzy-test').click();
   await expect(page.locator('#frenzy-status')).toContainText('SURGE IN');await expect(page.locator('#frenzy-test')).toBeDisabled();await expect(page.locator('#frenzy-status')).toContainText('Bulwark');
   await page.screenshot({path:'.local/frenzy-warning-'+mobile+'.png'});
   await expect(page.locator('#frenzy-status')).toContainText('TRACKING SIGNAL',{timeout:8000});

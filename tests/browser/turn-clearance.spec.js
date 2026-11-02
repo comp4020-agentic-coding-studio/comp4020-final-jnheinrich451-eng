@@ -27,7 +27,7 @@ for (const mobile of [false, true]) test(`south turn clears the nearby scout on 
     const peer = await other.newPage(), page = await context.newPage(), errors = [];
     for (const p of [page, peer]) p.on('pageerror', e => errors.push(e.message));
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
-    const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
+    const state = p => p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const status = await page.evaluate(async id => (await fetch('/api/artillery/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })).status, id);
     expect(status).toBe(200); await expect(page.locator('#facility-controls')).toBeVisible();
     if (mobile) { const r = await page.locator('[data-direction="down"]').boundingBox(); await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2); await page.mouse.down(); }

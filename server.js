@@ -1,5 +1,6 @@
 import { createCommunication } from './communication.js';
 import { emoteAnchor } from './public/emotes.js';
+import { renderMarkdown } from './public/readme-markdown.js';
 import { airSize } from './public/helicopter.js';
 import { recordPayment, rememberRecovery, nearbyRecovery, collectRecovery, tickSeaRecovery } from './public/wreck-recovery.js';
 import { rememberRuin } from './public/ruins.js';
@@ -54,8 +55,8 @@ import { lockWorld } from './world-maintenance.js';
 import { createAccounts } from './accounts/service.js';
 import { smtpMailer } from './accounts/mail.js';
 import { createCampaigns } from './campaigns/service.js';
-import { createWorld, canStand, clearSpawn, findPath, placementError, SPEED } from './public/world.js';
 import { createColonizationRuntime } from './colonization-runtime.js';
+import { createWorld, canStand, clearSpawn, findPath, placementError, SPEED } from './public/world.js';
 import { createCombat } from './public/combat.js';
 import { turnTurret } from './public/turret.js';
 import { CORE, corePlacementError, coreSentries, coreExit, coreCells } from './public/core.js';
@@ -78,10 +79,9 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, 'public');
 // Loaded client modules must match the simulation's snapshot format after restart.
 const buildHash = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url)));
-for (const name of readdirSync(publicDir).filter(name => /\.(js|css|html)$/.test(name)).sort()) buildHash.update(name).update(readFileSync(path.join(publicDir, name)));
 buildHash.update(readFileSync(path.join(root, 'colonization-runtime.js')));
+for (const name of readdirSync(publicDir).filter(name => /\.(js|css|html)$/.test(name)).sort()) buildHash.update(name).update(readFileSync(path.join(publicDir, name)));
 const clientBuild = buildHash.digest('hex').slice(0, 16);
-const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.local', 'data'), emailDelivery = smtpMailer(), logSink = line => console.log(line), testEvents = !process.env.FLY_APP_NAME && process.env.NODE_ENV !== 'production' } = {}) {
   const release = lockWorld(dataDir);
@@ -1619,7 +1619,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if (!['GET', 'HEAD'].includes(req.method)) return json(res, 405, { error: 'Method not allowed.' });
       if (url.pathname === '/readme/' || url.pathname === '/readme') {
         const readme = await readFile(path.join(root, 'README.md'), 'utf8');
-        const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>About Frontier</title><link rel="stylesheet" href="/style.css"><body class="readme-page"><main><a href="/">← Return to the island</a><h1>About this field test</h1><pre>${escapeHtml(readme)}</pre></main></body></html>`;
+        const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>About Frontier</title><link rel="stylesheet" href="/style.css"><body class="readme-page"><main><a href="/">← Return to the island</a><article>${renderMarkdown(readme)}</article></main></body></html>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(req.method === 'HEAD' ? '' : html);
       }
       const accountPage = /^\/(login|register|account|demo-inbox|verify|forgot-password|reset-password)\/?$/.test(url.pathname);
@@ -2040,7 +2040,10 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     for (const base of airRecords(world)) saveAirbase(base);
     for (const ship of world.ships) saveShip(ship);
     for (const set of streams.values()) for (const res of set) res.end();
-    server.closeIdleConnections(); await new Promise(resolve => server.close(resolve)); if (!options.accounts) await accounts.close(); db.close();
+    server.closeIdleConnections();
+    // A browser's spare socket has sent no request, so Node never counts it as idle.
+    const stragglers = setTimeout(() => server.closeAllConnections(), 1000);
+    await new Promise(resolve => server.close(resolve)); clearTimeout(stragglers); if (!options.accounts) await accounts.close(); db.close();
   }
   return { server, close, db, accounts, identity, validIdentity, endPlayerAccess, checkpoint, stopInputs, abandon, broadcast, connected: id => !!streams.get(id)?.size };
 }

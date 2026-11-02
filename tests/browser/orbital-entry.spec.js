@@ -14,7 +14,7 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: mobile, hasTouch: mobile });
     const page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const state = () => page.evaluate(async () => (await fetch('/api/world')).json());
+    const state = () => page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     await page.goto(base + '/?legacy=1');
     await expect(page.locator('#connection')).toContainText('live');
     await expect(page.locator('.battlefield')).toHaveClass(/in-orbit/);
@@ -34,7 +34,7 @@ for (const mobile of [false, true]) test(`first landing and saved robot controls
     expect((await state()).me.body).toBe('orbital');
     expect((await state()).cores).toHaveLength(0);
     // Escape closes one window; Recenter restores orbital site selection.
-    await page.locator('#center').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#center').click());
     await expect(page.locator('#site-panel')).toBeVisible();
     await page.reload();
     await expect(page.locator('#place-building')).toBeEnabled();

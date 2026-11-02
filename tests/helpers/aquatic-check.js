@@ -27,7 +27,7 @@ export async function checkAquatic(browser,mobile=false){
   await expect.poll(async()=>{const s=await state();return s.combat.aquaticClouds.some(f=>s.combat.time>f.activeAt);}).toBe(true);
   await p.screenshot({path:'.local/aquatic-active-'+mobile+'.png'});
   await expect.poll(async()=>(await state()).combat.enemies.some(e=>e.variant==='bile-spitter')).toBe(true);
-  await p.locator('#planet-open').click();await p.locator('#planet-fronts').selectOption(hive.id);await p.locator('#planet-visit').click();
+  await p.locator('#hud-menu-button').click().then(()=>p.locator('#planet-open').click());await p.locator('#planet-fronts').selectOption(hive.id);await p.locator('#planet-visit').click();
   await p.reload();await expect(p.locator('#connection')).toContainText('live');expect((await state()).combat.sites.filter(s=>s.kind==='aquatic-hive')).toHaveLength(1);
   expect(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
  }finally{await context?.close();await app.close();if(path.dirname(path.resolve(dir))!==path.resolve(tmpdir())||!path.basename(dir).startsWith('frontier-aquatic-'))throw Error('Unsafe fixture path');await rm(dir,{recursive:true,force:true});}

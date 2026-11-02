@@ -17,7 +17,7 @@ export async function checkCommunication(browser,mobile=false,{snapshotCrates=0}
    await contexts[0].setOffline(false);await expect(p.locator('#connection')).toContainText('live');
   }
   const channel=async()=>(await contexts[0].request.get(f.url+'/api/communication')).json();
-  const open=async()=>{if(mobile)await p.locator('#chat-open').click();else{await p.locator('#world-canvas').focus();await p.keyboard.press('Enter');}};
+  const open=async()=>{if(mobile)await p.locator('#hud-menu-button').click().then(()=>p.locator('#menu-chat').click());else{await p.locator('#world-canvas').focus();await p.keyboard.press('Enter');}};
   await open();await expect(p.locator('#chat-input')).toBeFocused();await p.keyboard.press('Enter');
   await expect(p.locator('#chat-form')).toBeHidden();expect((await channel()).messages).toHaveLength(0);
   await open();await p.locator('#chat-input').fill('Keep my draft');await p.keyboard.press('Escape');
@@ -33,7 +33,7 @@ export async function checkCommunication(browser,mobile=false,{snapshotCrates=0}
   const after=(await f.state()).me;expect(Math.hypot(before.x-after.x,before.y-after.y)).toBeLessThan(.01);
   await p.locator('#chat-input').fill('<img src=x onerror=alert(1)>');await p.keyboard.press('Enter');
   await expect(peer.locator('#chat-messages')).toContainText('<img src=x onerror=alert(1)>');expect(await peer.locator('#chat-messages img').count()).toBe(0);
-  if(mobile)await p.locator('#emote-open').click();else await p.keyboard.down('q');
+  if(mobile)await p.locator('#hud-menu-button').click().then(()=>p.locator('#menu-emote').click());else await p.keyboard.down('q');
   await expect(p.locator('.emote-cover')).toBeVisible();
   await p.screenshot({path:'.local/communication-wheel-'+(mobile?'phone':'desktop')+'.png'});
   const choice=p.locator('[data-emote="thanks"]');
@@ -41,9 +41,9 @@ export async function checkCommunication(browser,mobile=false,{snapshotCrates=0}
   await expect(p.locator('.emote-cover')).toBeHidden();
   await expect.poll(async()=>(await channel()).emotes.length).toBe(1);
   const event=(await channel()).emotes[0];expect(event.emote).toBe('thanks');expect(event.anchor).toEqual({kind:'recycler',id:'r0'});
-  await p.locator('#chat-history-toggle').click();
+  await p.locator('#hud-menu-button').click().then(()=>p.locator('#menu-history').click());
   await p.screenshot({path:'.local/communication-bubble-'+(mobile?'phone':'desktop')+'.png'});
-  await p.locator('#emote-open').click();await p.keyboard.press('Escape');expect((await channel()).emotes[0]?.id).toBe(event.id);
+  await p.locator('#hud-menu-button').click().then(()=>p.locator('#menu-emote').click());await p.keyboard.press('Escape');expect((await channel()).emotes[0]?.id).toBe(event.id);
   await p.locator('#world-canvas').focus();await p.keyboard.press('e');await expect.poll(async()=>(await f.state()).me.body).toBe('robot');await expect(p.locator('#build-mode')).toBeEnabled();await p.keyboard.press('b');await expect(p.locator('#deployment-tray')).toBeVisible();await p.keyboard.press('Escape');
   if(!mobile){
    const start=(await f.state()).me.y;await p.keyboard.down('w');await expect.poll(async()=>(await f.state()).me.y).toBeLessThan(start-.2);

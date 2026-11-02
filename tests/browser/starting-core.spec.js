@@ -28,7 +28,7 @@ for(const hasCore of [false,true])test(hasCore?'recover at a teammates protected
    await page.screenshot({path:'.local/starting-core-recovery.png'});
    await page.locator('#revive-button').click();
    await expect(page.locator('#recovery-panel')).toBeHidden({timeout:6000});
-   const state=await page.evaluate(async()=>await(await fetch('/api/world')).json());
+   const state=await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
    expect(state.me.health).toBe(100);expect(state.me.reviveCore).toBe('anchor');
   }else{
    await expect(page.locator('#recovery-core')).toBeDisabled();await expect(page.locator('#revive-button')).toBeHidden();

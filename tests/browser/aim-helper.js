@@ -1,6 +1,9 @@
-// Initial overview transform. Use real pointer/touch input, never a debug camera.
+// Planet overview transform. Guns open near themselves, so flip to it with the panel's
+// own button. Use real pointer/touch input, never a debug camera.
 export async function aimOverview(page, x, y, mobile = false) {
   await page.locator('#facility-controls').waitFor({ state: 'visible' });
+  if (!await page.locator('.battlefield.artillery-orbit').count()) await page.locator('#gun-view-toggle').click();
+  await page.locator('.battlefield.artillery-orbit').waitFor({ state: 'attached' });
   // Matches fitOrbitalView in app.js for the saved world size.
   const world = await page.evaluate(async () => { const w = (await (await fetch('/api/world')).json()).world; return { width: w.width, height: w.height }; });
   const { width, height } = page.viewportSize(), top = 90, bottom = width > 760 ? 180 : 250;

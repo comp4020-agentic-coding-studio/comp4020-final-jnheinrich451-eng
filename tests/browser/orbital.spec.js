@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {openFieldTool} from './ui-helper.js';
 import {createApp} from '../../server.js';
 import {createWorld} from '../../public/world.js';
 import {freshLife} from '../../public/survival.js';
@@ -9,16 +10,17 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {isolatedField} from './rover-helper.js';
 
-test('orbital tray remains accessible while driving',async({browser})=>{
+test('orbital strikes stay locked to the robot while driving',async({browser})=>{
  const arena=await isolatedField('orbital-driving',[{x:24.5,y:18.5}]);
  const context=await browser.newContext({viewport:{width:1920,height:1080}});
  try{
   await arena.seat(context);const page=await context.newPage();await page.goto(arena.base+'/?legacy=1');
   await expect(page.locator('#connection')).toContainText('live');await page.keyboard.press('v');
-  await expect(page.locator('#deployment-tray')).toBeVisible();await expect(page.locator('#orbital-panel')).toBeVisible();
-  await page.locator('[data-orbital-payload="GAS"]').click();await expect(page.locator('#orbital-status')).toContainText('Gas seeding');
-  const state=await page.evaluate(async()=>(await fetch('/api/world')).json());expect(state.me.vehicleId).toBeTruthy();expect(state.logistics.orbital?.order).toBeFalsy();
-  await page.keyboard.press('Escape');await expect(page.locator('#orbital-panel')).toBeHidden();
+  await expect(page.locator('#orbital-open')).toBeDisabled();await expect(page.locator('#orbital-panel')).toBeHidden();
+  const state=await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);expect(state.me.vehicleId).toBeTruthy();expect(state.logistics.orbital?.order).toBeFalsy();
+  const refused=await page.evaluate(async()=>{const r=await fetch('/api/orbital/strike',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({payload:'GAS',target:{x:30.5,y:18.5},bearing:1})});return {status:r.status,error:(await r.json()).error};});
+  expect(refused.status).toBe(409);expect(refused.error).toContain('active robot');
+  expect((await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse)).logistics.orbital?.order).toBeFalsy();
  }finally{await context.close();await arena.close();}
 });
 for(const payload of ['HE','INCENDIARY','GAS','BEAM'])for(const mobile of [false,true])test('orbital '+payload+' / '+(mobile?'phone':'desktop'),async({browser})=>{
@@ -54,14 +56,14 @@ for(const payload of ['HE','INCENDIARY','GAS','BEAM'])for(const mobile of [false
   const committed=(await state()).logistics.orbital.order;expect(committed.payload).toBe(payload);if(['HE','INCENDIARY'].includes(payload))expect(committed.bearing).toBe(1);
   expect((await state()).combat.shells).toHaveLength(0);expect((await state()).logistics.supplies).toBe(payload==='HE'?1080:payload==='BEAM'?1020:1100);
   await click(point.x,point.y);expect(calls).toBe(1);
-  await page.locator('#orbital-close').click();await page.reload();await expect(page.locator('#connection')).toContainText('live');await page.locator('#orbital-open').click();
+  await page.locator('#orbital-close').click();await page.reload();await expect(page.locator('#connection')).toContainText('live');await openFieldTool(page,'orbital-open');
   await expect(page.locator('[data-orbital-payload="'+payload+'"]').first()).toHaveAttribute('aria-pressed','true');
   expect((await state()).logistics.orbital.order.target).toEqual(committed.target);if(payload==='BEAM')expect((await state()).logistics.orbital.order.end).toEqual(committed.end);
   if(['HE','INCENDIARY'].includes(payload))await expect(page.locator('#orbital-rotate')).toBeDisabled();
   await expect.poll(async()=>(await state()).logistics.orbital.order.points.filter(p=>p.landed).length,{timeout:10000,intervals:[250]}).toBeGreaterThan(3);await page.locator('#orbital-close').click();if(payload==='BEAM')await expect.poll(async()=>{const o=(await state()).logistics.orbital.order;return o.age-o.delay;}).toBeGreaterThan(2);
   if(['INCENDIARY','GAS'].includes(payload))await expect.poll(async()=>{const s=(await state()).logistics.orbital;return s.cooldown>0&&s.cooldown<43;}).toBe(true);
   await page.screenshot({path:'.local/orbital-impact-'+payload+'-'+mobile+'.png'});
-  await expect.poll(async()=>(await state()).logistics.orbital.order.points.filter(p=>p.landed).length,{timeout:23000}).toBe(payload==='HE'?15:payload==='BEAM'?121:7);await page.locator('#orbital-open').click();await expect(page.locator('#orbital-status')).toContainText('RECOVERY');expect((await state()).me.body).toBe('robot');
+  await expect.poll(async()=>(await state()).logistics.orbital.order.points.filter(p=>p.landed).length,{timeout:23000}).toBe(payload==='HE'?15:payload==='BEAM'?121:7);await openFieldTool(page,'orbital-open');await expect(page.locator('#orbital-status')).toContainText('RECOVERY');expect((await state()).me.body).toBe('robot');
   if(['INCENDIARY','GAS'].includes(payload)){const f=(await state()).combat.fields.find(f=>f.orbital);expect(f.weapon).toBe(payload);expect(f.sectors).toHaveLength(7);}
   if(payload==='BEAM')expect((await state()).logistics.orbital.scars).toHaveLength(1);
   if(!mobile){await page.setViewportSize({width:1024,height:768});await expect(page.locator('#orbital-status')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('#orbital-panel')).toBeHidden();}

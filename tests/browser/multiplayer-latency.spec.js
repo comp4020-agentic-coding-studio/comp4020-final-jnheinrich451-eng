@@ -54,7 +54,7 @@ test('two then four participants display shared construction and conquest prompt
     await post(owner, '/api/campaigns/enter', { id });
     const page = await owner.newPage(); pages.push(page);
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate alert station' }).click();
+    await page.locator('#hud-menu-button').click().then(()=>page.getByRole('button', { name: 'Locate alert station' }).click());
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     async function addPeer() {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context);
@@ -64,11 +64,11 @@ test('two then four participants display shared construction and conquest prompt
       await expect(peer.locator('#connection')).toContainText('live');
       await post(context, `/api/campaign-world/${id}/cores`, { x: [24, 48, 64][pages.length - 2], y: 18 });
       await expect.poll(async () => (await (await context.request.get(base + `/api/campaign-world/${id}/world`)).json()).me.deploying, { timeout: 8000 }).toBe(false);
-      await expect(peer.locator('#objective-health')).toBeVisible();
+      await expect(peer.locator('#objective-health')).not.toBeEmpty();
     }
     async function measure(action, invoke, selector, text) {
       for (const peer of pages) expect(await peer.evaluate(() => document.hidden)).toBe(false);
-      for (const peer of pages.slice(1)) await expect(peer.locator(selector)).toBeVisible();
+      for (const peer of pages.slice(1)) await expect(peer.locator(selector)).toBeAttached();
       const started = performance.now(); // One Node observer clock for every peer.
       const observed = pages.slice(1).map(async (peer, index) => {
         await peer.waitForFunction(({ selector, text }) => document.querySelector(selector)?.textContent.includes(text), { selector, text }, { polling: 'raf', timeout: 5000 });
@@ -101,7 +101,7 @@ test('two then four participants display shared construction and conquest prompt
         await measure('remove', () => post(owner, `/api/campaign-world/${id}/dismantle`, { id: built.building.id }), '#building-count', `${count} FOUNDATIONS`);
       }
       await post(owner, `/api/campaign-world/${id}/tanks/board`, { id: 'timing-tank' });
-      await page.getByRole('button', { name: 'Locate alert station' }).click();
+      await page.locator('#hud-menu-button').click().then(()=>page.getByRole('button', { name: 'Locate alert station' }).click());
       for (let i = 0; i < 3; i++) {
         await page.waitForTimeout(800); hp = Math.max(0, hp - 75);
         const box = await page.locator('#world-canvas').boundingBox();

@@ -12,7 +12,7 @@ test('a mismatched page build refreshes once and keeps the same guest', async ({
   await expect.poll(() => documents).toBe(2);
   await expect(page.locator('#connection')).toContainText('live');
   const meta = await page.locator('meta[name="frontier-build"]').getAttribute('content');
-  const state = await page.evaluate(async () => (await (await fetch('/api/world')).json()));
+  const state = await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   expect(meta).toBe(state.clientBuild);
   expect(state.players.filter(p => p.id === state.me.id)).toHaveLength(1);
   await page.waitForTimeout(500); expect(documents).toBe(2);

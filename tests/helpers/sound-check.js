@@ -16,7 +16,7 @@ export async function checkSound(browser,mobile=false){
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(f.url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   expect(await page.evaluate(()=>window.audioStarts)).toBe(0);
-  await page.locator('#help-button').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());
   await expect(page.locator('#sound-status')).toContainText('ready');
   const metadata=await page.evaluate(()=>window.decodedSounds);
   expect(metadata).toHaveLength(6);expect(metadata.every(b=>b.duration>0&&b.duration<10)).toBe(true);
@@ -36,9 +36,9 @@ export async function checkSound(browser,mobile=false){
   await expect.poll(()=>page.evaluate(()=>window.audioStarts)).toBeGreaterThan(0);
   await expect.poll(async()=>(await f.state()).combat.impacts.length,{timeout:7000}).toBeGreaterThan(0);
   await expect.poll(()=>page.evaluate(()=>window.audioStarts)).toBeGreaterThan(1);
-  await page.locator('#help-button').click();await page.locator('#sound-toggle').click();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());await page.locator('#sound-toggle').click();
   await page.reload();await expect(page.locator('#connection')).toContainText('live');
-  await page.locator('#help-button').click();await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed','false');
   await expect(page.locator('#sound-volume')).toHaveValue('40');expect(await page.evaluate(()=>window.audioStarts)).toBe(0);
   // Isolate the browser mixer to exercise busy snapshots, mute, hidden and resets
   // against real decoded files and native Web Audio, without changing any save.

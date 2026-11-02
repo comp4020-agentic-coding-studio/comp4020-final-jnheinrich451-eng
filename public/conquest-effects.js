@@ -1,4 +1,5 @@
 import { ANTI_AIR } from './anti-air.js';
+import { LABEL_ZOOM } from './map-labels.js';
 import {drawAquaticBody} from './aquatic-effects.js';
 import {AQUATIC} from './aquatic-profile.js';
 import { drawAntiAirBody } from './anti-air-effects.js';
@@ -134,8 +135,11 @@ export function drawConquest(c, sites, tile, zoom, time, reduced, world, buildin
     const blocked = !dead && time - site.blockedAt < 1800;
     const label = site.kind==='aquatic-hive'?(dead?'CONQUERED / HIVE SILENCED':time-site.hitAt<AQUATIC.healDelay?'AQUATIC HIVE / HEALING SUPPRESSED':site.hp<site.maxHp?'AQUATIC HIVE / REGENERATING':'AQUATIC HIVE / USE HE'):antiAir ? (dead ? 'CONQUERED / AIRSPACE CLEAR' : 'SPORE FLAK / ' + (site.aa?.phase || 'watching').toUpperCase()) : laser ? (dead ? 'CONQUERED / LANCE SILENCED' : 'LANCE TOWER / ' + (site.laser?.phase || 'watching').toUpperCase()) : site.kind === 'contaminator' ? (dead ? 'CONQUERED / EMITTER SILENCED' : 'AIR CONTAMINATOR / USE HE') : dead ? (mortar ? 'CONQUERED / MORTAR SILENCED' : modifier ? 'CONQUERED / BLIGHT CLEARED' : 'CONQUERED / CROWN SILENCED') : blocked ? 'ARMORED ORGAN / USE HE' : modifier ? 'BLIGHT ROOT / USE HE' : mortar ? (site.mortar?.charge ? 'BILE MORTAR / INCOMING ACID' : 'BILE MORTAR / USE HE') : site.sensor?.mode === 'tracking' ? 'TRACKING / DEFENDERS ALERTED' : site.sensor?.mode === 'lost' ? 'CONTACT LOST / INVESTIGATING' : 'ALERT STATION / SCANNING';
     const w = c.measureText(label).width;
-    c.fillStyle = '#132523e8'; c.fillRect(-w / 2 - font * .5, labelY - font, w + font, font * 1.5);
-    c.fillStyle = dead ? '#99d5cc' : '#efb1a0'; c.fillText(label, 0, labelY);
+    // Far out, the compound's own label speaks for its sites.
+    if (zoom >= LABEL_ZOOM || !(dead || site.settlement || site.encounter)) {
+      c.fillStyle = '#132523e8'; c.fillRect(-w / 2 - font * .5, labelY - font, w + font, font * 1.5);
+      c.fillStyle = dead ? '#99d5cc' : '#efb1a0'; c.fillText(label, 0, labelY);
+    }
     if (!dead) {
       c.fillStyle = '#241e2c'; c.fillRect(-tile, -1.65 * tile, tile * 2, 4 / zoom);
       c.fillStyle = '#c27889'; c.fillRect(-tile, -1.65 * tile, tile * 2 * site.hp / site.maxHp, 4 / zoom);

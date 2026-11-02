@@ -25,8 +25,7 @@ test('two browser pilots see, contest, reconnect and restore shared remote ship 
   expect((await f.state(0)).me.id).not.toBe((await f.state(1)).me.id);
   // Both planners start at revision null. The desktop issues an actual map order.
   const started=performance.now();
-  await owner.mouse.click(projection.x,projection.y-8*projection.scale);
-  await expect(owner.locator('#remote-naval')).toBeHidden();
+  await owner.mouse.click(projection.x,projection.y-8*projection.scale,{button:'right'});
   await peer.waitForFunction(()=>document.querySelector('#remote-naval [role="status"]')?.textContent.includes('move / moving'));
   await peer.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   timings.push({action:'desktop map move to phone rendered status',ms:Math.round(performance.now()-started)});
@@ -36,13 +35,12 @@ test('two browser pilots see, contest, reconnect and restore shared remote ship 
   await expect.poll(async()=>ship(await snapshot(peer)).y).toBeLessThan(50.4);
   // A peer who opened the planner earlier cannot silently overwrite that order.
   const conflict=peer.waitForResponse(r=>r.url().endsWith('/api/ships/order'));
-  await peer.locator('#remote-naval [data-command="stop"]').tap();expect((await conflict).status()).toBe(409);
+  await peer.locator('#remote-naval [data-command="dock"]').tap();expect((await conflict).status()).toBe(409);
   await expect(peer.locator('#remote-naval')).toBeVisible();expect(ship(await f.state()).remoteOrder.id).toBe(first.id);
-  await expect(peer.locator('#remote-naval [data-command="stop"]')).toBeEnabled();
+  await expect(peer.locator('#remote-naval [data-command="dock"]')).toBeEnabled();
   const retry=peer.waitForResponse(r=>r.url().endsWith('/api/ships/order'));
-  await peer.locator('#remote-naval [data-command="stop"]').tap();expect((await retry).status()).toBe(201);
-  await owner.locator('[data-remote-id="ship:ship"]').click();
-  await expect(owner.locator('#remote-naval [role="status"]')).toContainText('stop / holding');
+  await peer.locator('#remote-naval [data-command="dock"]').tap();expect((await retry).status()).toBe(201);
+  await expect(owner.locator('#remote-naval [role="status"]')).toContainText('dock /');
   const stopped=ship(await snapshot(owner)).remoteOrder;expect(stopped.actorId).toBe('pilot1');
 
   // Same-revision requests racing through two separate browser cookie jars.

@@ -3,6 +3,8 @@ import { createApp } from '../../server.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
+import { openFieldTool } from './ui-helper.js';
 
 for (const mobile of [false, true]) test(`shared junction routes, lock and saved turn on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }) => {
   test.setTimeout(80000);
@@ -12,17 +14,17 @@ for (const mobile of [false, true]) test(`shared junction routes, lock and saved
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     other = await browser.newContext(); const page = await context.newPage(), peer = await other.newPage(), errors = [];
     for (const p of [page, peer]) p.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
-    const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live'); await expect(peer.locator('#connection')).toContainText('live');
+    const state = p => p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     // Orbital entry: both scouts land before building; the first core supports the facility.
     expect((await post(page, 'cores', { x: 60, y: 30 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
-    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    for (const p of [page, peer]) await expect.poll(async () => (await serverState(p, url)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const x of [64, 68, 72, 76]) expect((await post(page, 'rails', { x, y: 19, shape: 'EW' })).status).toBe(201);
     for (const y of [22, 26]) expect((await post(page, 'rails', { x: 71, y, shape: 'NS' })).status).toBe(201);
     expect((await post(page, 'rails', { x: 68, y: 22, shape: 'NE' })).status).toBe(201);
     expect((await post(peer, 'rails/switch', { x: 68, y: 22, route: 'curve' })).status).toBe(403);
-    await page.locator('#site-button').click(); await page.locator('#coordinate-details summary').click();
+    await openFieldTool(page, 'site-button'); await page.locator('#coordinate-details summary').click();
     await page.locator('#tile-x').fill('68'); await page.locator('#tile-y').fill('22'); await page.locator('#select-tile').click();
     await page.locator('#enable-switch').click(); await expect(page.locator('#switch-status')).toContainText('CURVE');
     await page.locator('#switch-route').click(); await expect.poll(async () => (await state(peer)).switches[0]?.route).toBe('straight');
@@ -33,6 +35,8 @@ for (const mobile of [false, true]) test(`shared junction routes, lock and saved
     await page.locator('#switch-inspect').click(); await page.screenshot({ path: `docs/previews/junction-open-${mobile ? 'mobile' : 'desktop'}.png` });
     await page.locator('#switch-close').click(); await page.locator('#close-site').click();
     const gun = (await post(page, 'artillery', { x: 64, y: 19 })).data.gun;
+    // Orbital cargo arrives in a crate and unfolds; the cannon cannot be operated until its job completes.
+    await expect.poll(async () => !!(await serverState(page, url)).logistics.jobs[gun.id], { timeout: 20000 }).toBe(false);
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#facility-controls')).toBeVisible(); await page.locator('#world-canvas').focus(); await page.keyboard.down('d');
     await expect.poll(async () => (await state(peer)).artillery[0].move?.curve?.shape, { timeout: 12000, intervals: [100] }).toBe('NE'); await page.keyboard.up('d');

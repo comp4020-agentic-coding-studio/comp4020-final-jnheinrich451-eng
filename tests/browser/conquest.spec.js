@@ -42,7 +42,7 @@ for (const mobile of [false, true]) test(`shared alert station, HE conquest and 
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }); const admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate alert station' }).click();
+    await page.locator('#hud-menu-button').click().then(()=>page.getByRole('button', { name: 'Locate alert station' }).click());
     await expect(page.locator('#combat-status')).toContainText('alert station');
     await page.screenshot({ path: info.outputPath('station-alarm.png') });
     const canvas = page.locator('#world-canvas'), box = await canvas.boundingBox();

@@ -29,11 +29,14 @@ for (const mobile of [false, true]) test(`mortar shared warning, dodge, hit and 
       world.terrain.fill(2); db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
       const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get().value);
       // Isolate artillery counterplay from melee damage; guards have simulation coverage.
-      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; }
-      saved.sites.find(s => s.kind === 'mortar').mortar = { angle: 0, nextShot: saved.now + 3000, targetId: null, charge: null };
+      // Newer campaigns seed several mortars and settlements. Conquer every other site so O can only select this one.
+      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; if (s.id !== site.id) Object.assign(s, { hp: 0, state: 'conquered', conqueredAt: -100000 }); }
+      saved.sites.find(s => s.id === site.id).mortar = { angle: 0, nextShot: saved.now + 3000, targetId: null, charge: null };
+      // Natural raids belong to the encounter director. Push them out of reach so only the mortar threatens the tank.
+      if (saved.director) Object.assign(saved.director, { nextRaid: 1e9, nextPulse: 1e9 });
       db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
       const tank = { id: 'mortar-tank', owner: initial.me.id, occupant: initial.me.id, health: 200, hurt: 0,
-        x: site.x + 1.5, y: site.y - 6.5, podX: 40, podY: 40, elapsed: 99, angle: Math.PI, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
+        x: site.x + 1.5, y: site.y - 6.5, podX: 40, podY: 40, elapsed: 99, angle: Math.PI / 2, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
       db.prepare('INSERT INTO tanks VALUES (?,?)').run(tank.id, JSON.stringify(tank));
     } finally { db.close(); }
     await post(owner, '/api/campaigns/enter', { id });
@@ -45,19 +48,29 @@ for (const mobile of [false, true]) test(`mortar shared warning, dodge, hit and 
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate mortar outpost' }).click();
+    // Named site locators are gone. O walks the hostile sites nearest first, and this mortar is the only one left hostile.
+    const locateMortar = async () => {
+      await page.locator('#world-canvas').focus();
+      for (let i = 0; i < 12; i++) {
+        await page.keyboard.press('o');
+        if (await expect(page.locator('#combat-status')).toContainText('mortar outpost', { timeout: 400 }).then(() => true, () => false)) return;
+      }
+      await expect(page.locator('#combat-status')).toContainText('mortar outpost');
+    };
+    await locateMortar();
     await expect(page.locator('#combat-status')).toContainText('mortar outpost');
     await expect(page.locator('#acid-warning')).toBeVisible();
     await expect.poll(() => peer.evaluate(() => !!window.lastBattle?.combat.sites.find(s => s.kind === 'mortar')?.mortar?.charge || window.lastBattle?.combat.acidShells.length > 0)).toBe(true);
     await page.screenshot({ path: info.outputPath('mortar-warning.png') });
-    await page.locator('#world-canvas').focus(); await page.keyboard.down('d');
-    try { await page.waitForTimeout(1600); } finally { await page.keyboard.up('d'); }
+    await page.locator('#world-canvas').focus(); // W drives along the hull heading; the tank is seeded facing east, so holding W dodges sideways as holding D once did.
+    await page.keyboard.down('w');
+    try { await page.waitForTimeout(1600); } finally { await page.keyboard.up('w'); }
     await expect.poll(async () => (await state()).combat.acidShells.some(s => s.impacted), { timeout: 5000, intervals: [100] }).toBe(true);
     expect((await state()).tanks.find(t => t.id === 'mortar-tank').health).toBe(200);
     await page.screenshot({ path: info.outputPath('mortar-dodged.png') });
     await expect.poll(async () => (await state()).tanks.find(t => t.id === 'mortar-tank').health, { timeout: 12000 }).toBe(160);
     await page.screenshot({ path: info.outputPath('mortar-hit.png') });
-    await page.getByRole('button', { name: 'Locate mortar outpost' }).click();
+    await locateMortar();
     const box = await page.locator('#world-canvas').boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.waitForTimeout(1200);
     const fire = () => mobile ? page.locator('#fire-button').click() : page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);

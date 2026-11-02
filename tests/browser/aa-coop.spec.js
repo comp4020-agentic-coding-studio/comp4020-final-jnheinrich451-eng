@@ -139,8 +139,8 @@ test('two players share air-only sentry combat, moving AA fire and reconnect wit
     expect((await read(owner)).combat.enemies.filter(e => [9010, 9011].includes(e.id)).map(e => e.hp)).toEqual([60, 60]);
 
     // Touch-held fire on the phone and forward input move/fire concurrently.
-    await driver.locator('#center').click();
-    await driver.locator('#zoom-out').click();
+    await driver.locator('#hud-menu-button').click().then(()=>driver.locator('#center').click());
+    await driver.locator('#hud-menu-button').click().then(()=>driver.locator('#zoom-out').click());
     let target;
     await expect.poll(async () => {
       const state = await read(peer);

@@ -39,7 +39,7 @@ for (const mobile of [false, true]) test(`four starting areas preview before sha
     expect((await read()).me).toMatchObject({ x: initial.me.x, y: initial.me.y, body: 'orbital' });
     await page.screenshot({ path: info.outputPath('landing-area-preview.png') });
     // Browsing the globe also changes only the selected map location, not a body.
-    await page.locator('#planet-open').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());
     await expect(page.locator('#planet-regions optgroup[label="Starting areas"] option')).toHaveCount(4);
     await expect(page.locator('#planet-landing-legend')).toBeVisible();
     await page.locator('#planet-regions').selectOption('landing:' + zones[1].id);
@@ -66,7 +66,7 @@ for (const mobile of [false, true]) test(`four starting areas preview before sha
     await page.reload(); await expect(page.locator('#connection')).toContainText('live');
     expect((await read()).world.landingZones).toEqual(zones);
     expect((await read()).cores).toHaveLength(2);
-    await page.locator('#planet-open').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());
     await page.locator('#planet-regions').selectOption('landing:' + chosen.id);
     await page.screenshot({ path: info.outputPath('landing-areas-globe.png') });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

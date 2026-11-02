@@ -1,11 +1,13 @@
 export function frenzyUI({api,notify}){
  const button=document.getElementById('frenzy-test'),status=document.getElementById('frenzy-status');let enabled=false,busy=false;
+ // Hidden in campaigns: add testTools=1 to the URL on a local server to reach it.
+ const tools=new URLSearchParams(location.search).has('testTools');
  button.onclick=async()=>{busy=true;button.disabled=true;try{await api('frenzy/test',{});notify('Mixed surge incoming. Bring HE or magnetic rounds for Bulwarks.');}catch(e){notify(e.message);}finally{busy=false;}};
  function update(state,me,connected){
   if(typeof state.testEvents==='boolean')enabled=state.testEvents;
   const f=state.combat?.frenzy,active=f&&f.phase!=='complete';
   const conquered=state.combat?.conquest?.state==='conquered';
-  button.hidden=conquered||!enabled||(state.room&&state.room.ownerPilot!==me?.id);
+  button.hidden=conquered||!enabled||(state.room&&(!tools||state.room.ownerPilot!==me?.id));
   button.disabled=conquered||busy||!connected||!!active||!!state.room?.paused||me?.life!=='active'||!['robot','tank','rover'].includes(me?.body);
   status.hidden=!active;if(!active)return;
   const seconds=Math.max(0,Math.ceil((f.until-state.combat.time)/1000));

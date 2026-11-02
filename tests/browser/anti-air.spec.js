@@ -53,7 +53,7 @@ for (const mobile of [false, true]) test(`flak warning, steering escape and save
     else await page.keyboard.down('d');
     try {
       await expect.poll(async()=>Math.abs((await plane()).angle)).toBeGreaterThan(.8);
-      const panel=await page.locator('#aircraft-controls').boundingBox();
+      const panel=await page.locator('#flight-meter').boundingBox();
       expect(panel.x).toBeGreaterThanOrEqual(0);expect(panel.x+panel.width).toBeLessThanOrEqual(page.viewportSize().width);
       await expect(page.locator('#aircraft-readout')).toContainText('HULL 180/180');
       await page.screenshot({path:info.outputPath('flak-evasion.png')});
@@ -64,7 +64,7 @@ for (const mobile of [false, true]) test(`flak warning, steering escape and save
     await page.goto('about:blank');await ready(40);await page.goto(origin+'/?campaign='+id);await expect(page.locator('#connection')).toContainText('live');
     const invite=await post(owner,'/api/campaigns/invite',{id});const joined=await post(other,'/api/campaigns/join',{code:invite.code});
     await peer.goto(origin+joined.next);await expect(peer.locator('#connection')).toContainText('live');await page.bringToFront();
-    await page.getByRole('button',{name:'Locate anti-air outpost'}).click();await expect(page.locator('#combat-status')).toContainText('Spore flak');
+    await page.locator('#world-canvas').focus();await page.keyboard.press('o');await expect(page.locator('#combat-status')).toContainText('Spore flak');
     await expect(page.locator('#recovery-title')).toHaveText('Aircraft shot down',{timeout:7000});
     await expect.poll(()=>peer.evaluate(()=>window.lastBattle?.airbases[0].aircraft.state)).toBe('destroyed');
     expect((await plane()).occupant).toBeNull();await page.screenshot({path:info.outputPath('bomber-shot-down.png')});

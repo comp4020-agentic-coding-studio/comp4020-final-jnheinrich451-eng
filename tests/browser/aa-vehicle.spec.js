@@ -76,7 +76,7 @@ for (const mobile of [false, true]) test(`AA controls, free cursor and flying co
     await page.locator('#aa-tank-card').click(); await expect(page.locator('#site-title')).toContainText('AA vehicle');
     await expect(page.locator('#site-reason')).toContainText('5 tiles');
     await page.keyboard.press('Escape'); await page.locator('#tank-interact').click();
-    await expect(page.locator('#aa-loadout')).toBeVisible(); await page.locator('#center').click();
+    await expect(page.locator('#aa-loadout')).toBeVisible(); await page.locator('#hud-menu-button').click().then(()=>page.locator('#center').click());
     const bounds = await page.locator('#world-canvas').boundingBox(), zoom = Number((await page.locator('#zoom-label').textContent()).replace('%', '')) / 100;
     const state = await read(), target = state.combat.enemies.find(e => e.kind === 'skimmer');
     expect(target).toBeTruthy();

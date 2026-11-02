@@ -16,7 +16,7 @@ for(const mobile of [false,true])for(const kind of ['bomber','attack-jet'])test(
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
   peerContext=await browser.newContext();const peer=await peerContext.newPage();await peer.goto(url+'/?legacy=1');const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');await page.bringToFront();
-  const state=()=>peer.evaluate(async()=>await(await fetch('/api/world')).json()),plane=async()=>(await state()).airbases[0].aircraft;
+  const state=()=>peer.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse),plane=async()=>(await state()).airbases[0].aircraft;
   await expect(page.locator('#flight-weapons')).toBeVisible();await expect(page.locator('#aircraft-controls')).toBeHidden();await page.screenshot({path:info.outputPath('takeoff.png')});await expect.poll(async()=>(await plane()).state).toBe('flying');
   if(kind==='bomber'){
    await page.locator('#world-canvas').focus();await page.keyboard.press('2');await expect(page.locator('[data-flight-payload="HEAVY"]')).toHaveAttribute('aria-pressed','true');

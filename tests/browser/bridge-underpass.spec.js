@@ -31,10 +31,10 @@ for(const mobile of [false,true])test(`ground crew crosses above a ship, then th
    await context.addCookies([{name:'frontier',value:tokens[i],url}]);const page=await context.newPage();pages.push(page);page.on('pageerror',e=>errors.push(e.message));
    await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   }
-  const [pilot,crew]=pages,state=()=>pilot.evaluate(async()=>(await fetch('/api/world')).json());
-  await crew.bringToFront();await crew.locator('#world-canvas').focus();await crew.keyboard.down('d');
+  const [pilot,crew]=pages,state=()=>pilot.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
+  await crew.bringToFront();await crew.locator('#world-canvas').focus();await crew.keyboard.down('w');
   await expect.poll(async()=>(await state()).logistics.recyclers[0].x,{timeout:6000}).toBeGreaterThan(37);
-  await crew.keyboard.up('d');
+  await crew.keyboard.up('w');
   expect((await state()).ships[0].y).toBe(40.5);
   await pilot.bringToFront();await pilot.screenshot({path:`.local/bridge-underpass-${mobile?'mobile':'desktop'}.png`});
   await pilot.locator('#world-canvas').focus();for(let i=0;i<4;i++)await pilot.keyboard.press('w');

@@ -1,4 +1,6 @@
+import { drawCargoRing } from './unit-hud.js';
 import { drawTankDust } from './tank-art.js';
+import { LABEL_ZOOM } from './map-labels.js';
 import { tileAt } from './world.js';
 import { drawCrawler } from './effects.js';
 import { drawCentipede } from './centipede-art.js';
@@ -11,7 +13,7 @@ import { dockRecords } from './shipyard.js';
 export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construction=null,advance=0){
   const l=world.logistics;if(!l)return;
   const cargo=id=>l.cargoPods?.some(p=>p.id===id);
-  const label=(text,x,y,color='#e8dfa8')=>{c.font=`${10/zoom}px monospace`;c.textAlign='center';const w=c.measureText(text).width;c.fillStyle='#122d29e8';c.fillRect(x*T-w/2-3,y*T-11/zoom,w+6,15/zoom);c.fillStyle=color;c.fillText(text,x*T,y*T);};
+  const label=(text,x,y,color='#e8dfa8')=>{if(zoom<LABEL_ZOOM)return;c.font=`${10/zoom}px monospace`;c.textAlign='center';const w=c.measureText(text).width;c.fillStyle='#122d29e8';c.fillRect(x*T-w/2-3,y*T-11/zoom,w+6,15/zoom);c.fillStyle=color;c.fillText(text,x*T,y*T);};
   c.save();
   for(const site of world.sites||[])if(site.state==='conquered'&&(l.salvage[site.id]??ECONOMY.salvage)>0)label('SALVAGE '+(l.salvage[site.id]??ECONOMY.salvage),site.x+1.5,site.y+3.4);
   for(const f of l.facilities){
@@ -48,9 +50,10 @@ export function drawLogistics(c,world,buildings,T,zoom,reduced,driverId,construc
     c.fillStyle=r.kind==='builder'?'#b3bcb6':'#c39d58';c.fillRect(-.33*T,-.4*T,.66*T,.8*T);c.fillStyle='#3d656a';c.fillRect(-.23*T,-.31*T,.46*T,.25*T);
     c.fillStyle=r.cargo?'#aa6d94':'#4a5045';c.fillRect(-.25*T,.06*T,.5*T,.28*T);c.fillStyle='#adba9e';c.fillRect(-.45*T,-.54*T,.9*T,.12*T);c.restore();
     if(r.kind==='builder'){c.strokeStyle='#dab96e';c.lineWidth=4/zoom;c.beginPath();c.moveTo(r.x*T,r.y*T);c.lineTo((r.x+Math.sin(r.angle)*.55)*T,(r.y-Math.cos(r.angle)*.55)*T);c.stroke();}
-    if(r.occupant){c.strokeStyle=r.occupant===driverId?'#e3bc70':'#a6ccc0';c.lineWidth=2/zoom;c.beginPath();c.arc(r.x*T,r.y*T,T*.67,0,Math.PI*2);c.stroke();}
+    if(r.occupant===driverId&&r.kind!=='builder'){c.save();c.translate(r.x*T,r.y*T);drawCargoRing(c,r.cargo/ECONOMY.cargo,T*.67,zoom);c.restore();}
+    else if(r.occupant){c.strokeStyle=r.occupant===driverId?'#e3bc70':'#a6ccc0';c.lineWidth=2/zoom;c.beginPath();c.arc(r.x*T,r.y*T,T*.67,0,Math.PI*2);c.stroke();}
     c.restore();if(!cargo(r.id)||stage.method==='factory')construction?.draw(c,world,r,1,stage,zoom,reduced);
-    label(r.remaining>0?stage.phase+' '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':r.task?.action==='wreck'?'RECOVERING WRECK / '+Math.ceil(r.cargo):(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':Math.ceil(r.cargo)),r.x,r.y+.85);
+    label(r.remaining>0?stage.phase+' '+Math.ceil(r.remaining)+'s':r.collecting>0?'RECLAIMING '+Math.ceil(ECONOMY.collectTime-r.collecting)+'s':r.blocked?'ROUTE BLOCKED':r.task?.action==='wreck'?'RECOVERING WRECK / '+Math.ceil(r.cargo):(r.occupant===driverId?'YOU / ':r.occupant?'CREW / ':r.kind==='builder'?'BUILDER / ':'RECYCLER / ')+(r.kind==='builder'?'ENG':r.cargo>=ECONOMY.cargo?'FULL':Math.ceil(r.cargo)),r.x,r.y+.85);
   }
   for(const tank of world.tanks||[]){const job=l.jobs[tank.id];if(job)construction?.draw(c,world,tank,1,jobStage(job,advance),zoom,reduced,true);}
   for(const b of airRecords(world))if(b.aircraft?.repairing)label('REPAIR / GROUND SUP',b.aircraft.x,b.aircraft.y+1.5);
@@ -92,7 +95,7 @@ const uplinkBearing=f=>{let h=7;for(const ch of String(f.id))h=h*31+ch.charCodeA
 function drawRocketTop(c,r,tilt=0,flame=0,time=0,reduced=false,legs=false){
   // Nose toward -y. Upright it is a circle seen nose-on; pitching over morphs it
   // into a side-on capsule with the nose cone forward and fins at the tail.
-  const half=r*(1+tilt*2.2),side=Math.min(1,tilt*2.5);
+  const half=r*(1+tilt*2.2),side=Math.min(1,tilt*2.5),fade=c.globalAlpha;
   const body=()=>{c.beginPath();c.moveTo(-r,-half+r);c.arc(0,-half+r,r,Math.PI,0);c.lineTo(r,half-r);c.arc(0,half-r,r,0,Math.PI);c.closePath();};
   if(flame>0){
     const plume=r*(1.4+tilt*3)*flame*(reduced?1:1+Math.sin(time*.04)*.12);
@@ -108,8 +111,8 @@ function drawRocketTop(c,r,tilt=0,flame=0,time=0,reduced=false,legs=false){
   body();c.fillStyle='#e4e2d2';c.fill();c.strokeStyle='#8f968a';c.lineWidth=r*.08;c.stroke();
   // Stage band: a ring around the nose from above, a stripe across the side.
   c.save();body();c.clip();
-  if(side<1){c.globalAlpha=1-side;c.strokeStyle='#ae5744';c.lineWidth=r*.18;c.beginPath();c.arc(0,0,r*.8,0,Math.PI*2);c.stroke();}
-  if(side>0){c.globalAlpha=side;c.fillStyle='#ae5744';c.fillRect(-r,half*.2,r*2,r*.32);c.fillStyle='#c7c6b5';c.fillRect(-r,-r*.2,r*2,r*.06);}
+  if(side<1){c.globalAlpha=fade*(1-side);c.strokeStyle='#ae5744';c.lineWidth=r*.18;c.beginPath();c.arc(0,0,r*.8,0,Math.PI*2);c.stroke();}
+  if(side>0){c.globalAlpha=fade*side;c.fillStyle='#ae5744';c.fillRect(-r,half*.2,r*2,r*.32);c.fillStyle='#c7c6b5';c.fillRect(-r,-r*.2,r*2,r*.06);}
   c.restore();
   // Nose cone: lit from the upper left, at the centre upright and forward when pitched.
   const tipY=-half+r*(1-tilt*.9),nose=c.createRadialGradient(-r*.25,tipY+r*.1,r*.05,0,tipY+r*.4,r*(.75+tilt*.4));
@@ -140,10 +143,10 @@ function drawUplinkPad(c,f,s,x,y,T,reduced,parked){
 // Flights draw above units and aircraft: a launch arcs along a curved ground track,
 // climbing toward the camera until it fades; the booster later lands on the pad.
 export function drawUplinkFlights(c,world,T,zoom,reduced,advance=0){
-  const time=reduced?0:performance.now();
+  const time=reduced?0:performance.now(),age=Math.max(0,advance);
   for(const f of world.logistics?.facilities||[]){
     if(f.kind!=='uplink')continue;
-    const launch=Math.max(0,(f.launch||0)-advance),cooldown=Math.max(0,(f.cooldown||0)-advance);
+    const launch=Math.max(0,(f.launch||0)-age),cooldown=Math.max(0,(f.cooldown||0)-age);
     const flying=launch>0,landing=!flying&&cooldown>0&&cooldown<=RETURN_TIME;if(!flying&&!landing)continue;
     const pad=uplinkPad(f,T),bearing=uplinkBearing(f),cos=Math.cos(bearing),sin=Math.sin(bearing);
     const turn=([px,py])=>[pad.x+(px*cos-py*sin)*T,pad.y+(px*sin+py*cos)*T];
@@ -151,7 +154,7 @@ export function drawUplinkFlights(c,world,T,zoom,reduced,advance=0){
     const track=g=>{const b=[0,-1.6],e=[4.5,-6.5],m=1-g;return turn([2*m*g*b[0]+g*g*e[0],2*m*g*b[1]+g*g*e[1]]);};
     c.save();c.lineCap='round';
     if(flying){
-      const u=Math.min(1,1-launch/ECONOMY.launchTime),g=u*u,[rx,ry]=track(g),[ax,ay]=track(Math.max(0,g-.02));
+      const u=Math.max(0,Math.min(1,1-launch/ECONOMY.launchTime)),g=u*u,[rx,ry]=track(g),[ax,ay]=track(Math.max(0,g-.02));
       // Liftoff smoke ring spreading off the pad.
       if(u<.45){const k=u/.45;c.globalAlpha=(1-k)*.55;c.strokeStyle='#d6dcd2';c.lineWidth=pad.r*(1.2-k*.6);c.beginPath();c.arc(pad.x,pad.y,pad.r*(1.6+k*5),0,Math.PI*2);c.stroke();}
       // Smoke trail along the track: puffs widen and thin with age.

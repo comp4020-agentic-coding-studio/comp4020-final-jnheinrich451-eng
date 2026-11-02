@@ -17,14 +17,14 @@ export async function checkRemoteBranches(browser,mobile=false){
    await marker.click();
    const before=(await f.state()).me.x;await page.locator('#world-canvas').focus();await page.keyboard.down('a');await expect.poll(async()=>(await f.state()).me.x).toBeLessThan(before-.25);await page.keyboard.up('a');
    if(heli){
-    await page.locator('[data-heli="pickup"]').click();await page.screenshot({path:'.local/remote-helicopter-'+(mobile?'phone':'desktop')+'.png'});await tap(origin.x,origin.y);
+    await page.locator('[data-heli="sling"]').click();await page.screenshot({path:'.local/remote-helicopter-'+(mobile?'phone':'desktop')+'.png'});await tap(origin.x,origin.y);
     await expect.poll(async()=>(await plane()).sling?.vehicle.id).toBe('cargo');await expect.poll(async()=>(await plane()).mission.phase,{timeout:7000}).toBe('holding');
-    await marker.click();await page.locator('[data-heli="drop"]').click();await tap(origin.x+45,origin.y-30);
+    await page.locator('[data-heli="sling"]').click();await tap(origin.x+45,origin.y-30);
     await expect.poll(async()=>!!(await plane()).sling,{timeout:18000}).toBe(false);expect((await f.state()).logistics.recyclers[0]).toMatchObject({id:'cargo',cargo:73});
-    await marker.click();await page.keyboard.press('Escape');await expect(page.locator('#remote-air')).toBeHidden();
+    await page.keyboard.press('Escape');await expect(page.locator('#remote-air')).toBeHidden();
    }else{
     await page.locator('#world-canvas').focus();await page.keyboard.press('ControlLeft');await expect.poll(async()=>(await f.state()).ships.find(s=>s.id==='ship').depth,{timeout:5000}).toBe('submerged');
-    await marker.click();await page.locator('[data-command="strike"]').click();await page.locator('#world-canvas').focus();await page.keyboard.press('r');await expect(page.locator('[data-command="rotate"]')).toContainText('8 x 6');
+    await page.locator('[data-command="strike"]').click();await page.locator('#world-canvas').focus();await page.keyboard.press('t');await expect(page.locator('[data-command="rotate"]')).toContainText('8 x 6');
     await page.screenshot({path:'.local/remote-submarine-'+(mobile?'phone':'desktop')+'.png'});await tap(origin.x+(120-97.5)*scale,origin.y);
     await expect.poll(async()=>(await f.state()).combat.barrages.length).toBe(1);expect((await f.state()).combat.barrages[0].missiles[0].underwater).toBe(true);
    }

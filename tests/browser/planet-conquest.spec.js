@@ -66,7 +66,7 @@ for (const mobile of [false, true]) test(`planet conquest ribbon follows the sha
     const admission = await post(peer, '/api/campaigns/join', { code: invite.code });
     await peerPage.goto(base + admission.next); await expect(peerPage.locator('#connection')).toContainText('live');
     await page.bringToFront();
-    await page.locator('#locate-station').click();
+    await page.locator('#hud-menu-button').click(); await page.locator('#locate-station').click();
     const battlefield = await page.locator('#world-canvas').boundingBox();
     await page.mouse.move(battlefield.x + battlefield.width / 2, battlefield.y + battlefield.height / 2);
     // Firing follows the physical turret, so let the tank finish traversing.

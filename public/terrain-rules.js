@@ -21,13 +21,14 @@ export function flightLineClear(w,a,b,r=.7){
  for(let i=0;i<=steps;i++)if(!mountainClear(w,{x:a.x+(b.x-a.x)*i/steps,y:a.y+(b.y-a.y)*i/steps},r))return false;
  return true;
 }
+import {calderaColor} from './caldera-art.js';
 export function terrainColor(w,x,y,kind=w.terrain[Math.floor(y)*w.width+Math.floor(x)]){
  if(w.template==='sirocco-v1'){
   const peak=mountainAt(w,x,y);if(peak&&kind!==4)return ['','#8e5341','#ad7051','#c6956b'][peak];
   if(kind===0)return inlandWaterAt(w,x,y)?'#3b9d9a':'#b9763e';
   return ['#b9763e','#e4c994','#d1b489','#906c58','#798d89'][kind]||'#d1b489';
  }
- if(w.template!=='vesper-v1')return ['#31585b','#cfc29b','#93a17c','#607160','#798d89'][kind]||'#31585b';
+ if(w.template!=='vesper-v1')return calderaColor(Math.floor(x),Math.floor(y),kind);
  const peak=mountainAt(w,x,y);if(peak&&kind!==4)return ['','#4c5863','#77848b','#b1bab9'][peak];
  if(kind===0)return inlandWaterAt(w,x,y)?'#427e83':'#234c61';
  return ['#234c61','#b9b39b','#718c70','#596872','#798d89'][kind]||'#718c70';

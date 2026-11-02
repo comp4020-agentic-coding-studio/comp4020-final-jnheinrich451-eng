@@ -25,7 +25,7 @@ for(const mobile of [false,true])test(`drive, park, reclaim and launch on ${mobi
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
     const state=async()=>(await context.request.get(url+'/api/world')).json();
     await expect(page.locator('#recycler-interact')).toBeVisible();if(mobile)await page.locator('#recycler-interact').tap();else{await page.locator('#world-canvas').focus();await page.keyboard.press('e');}
-    await expect(page.locator('#recycler-controls')).toBeVisible();await expect(page.locator('#state-banner')).toContainText('RECYCLER');
+    await expect(page.locator('#recycler-interact')).toHaveText('Exit / E');await expect(page.locator('#state-banner')).toContainText('RECYCLER');
     const before=(await state()).logistics.recyclers[0].x;
     if(mobile){const b=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(700);await page.mouse.up();}
     else{await page.keyboard.down('w');await page.waitForTimeout(700);await page.keyboard.up('w');}
@@ -33,10 +33,10 @@ for(const mobile of [false,true])test(`drive, park, reclaim and launch on ${mobi
     await expect.poll(async()=>(await state()).logistics.recyclers[0].speed).toBe(0);
     await expect.poll(async()=>(await state()).logistics.facilities[0].cargo,{timeout:15000}).toBe(188);
     await page.screenshot({path:`docs/previews/recycler-driving-${mobile?'mobile':'desktop'}.png`});
-    await expect(page.locator('#recycler-uplink')).toContainText('Send to orbit');await page.locator('#recycler-uplink').click();await expect(page.locator('#logistics-dialog')).not.toBeVisible();
+    await expect(page.locator('#recycler-uplink')).toContainText('Send to orbit');await expect(page.locator('#recycler-status')).toContainText('/ 180 cargo');if(mobile)await page.locator('#recycler-uplink').tap();else{await page.locator('#world-canvas').focus();await page.keyboard.press('l');await page.keyboard.press('l');}await expect(page.locator('#logistics-dialog')).not.toBeVisible();
     await expect.poll(async()=>(await state()).logistics.shipments,{timeout:7000}).toBe(1);
-    await page.reload();await expect(page.locator('#recycler-controls')).toBeVisible();expect((await state()).me.recyclerId).toBe('r');
-    await page.locator('#recycler-interact').click();await expect(page.locator('#recycler-controls')).not.toBeVisible();expect((await state()).me.body).toBe('robot');
+    await page.reload();await expect(page.locator('#recycler-interact')).toHaveText('Exit / E');expect((await state()).me.recyclerId).toBe('r');
+    await page.locator('#recycler-interact').click();await expect(page.locator('#recycler-controls')).toBeHidden();expect((await state()).me.body).toBe('robot');
     expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }finally{await context?.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-recycler-browser-'))throw Error('Unexpected fixture path');await rm(dir,{recursive:true,force:true});}
 });

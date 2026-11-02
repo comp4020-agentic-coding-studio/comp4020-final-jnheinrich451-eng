@@ -5,11 +5,11 @@ import { raycast } from './raycast.js';
 // hand): a flamethrower barrel over a laser emitter, fed by a hose from the fuel
 // pack. The left hand grips the gun, thumb on the release. The gun axis sits just
 // right of centre so the existing flame and laser effects leave its muzzle.
-export function drawRobot(c, angle, vx, vy, phase, mine) {
+export function drawRobot(c, angle, vx, vy, phase, mine, lights = 0) {
   const local = relativeMovement(angle, vx, vy), speed = Math.hypot(vx, vy);
   const stride = speed > .02 ? Math.sin(phase) * 6 : 0;
   const sideways = speed ? local.right / speed : 0, forward = speed ? local.forward / speed : 0;
-  const armor = mine ? '#c4b38d' : '#819e93', edge = mine ? '#e9dcb4' : '#c1d4cb', frame = '#263a3d', dark = '#18282c', metal = '#4a5a5c';
+  const armor = mine ? '#d8b230' : '#819e93', edge = mine ? '#f4dc7c' : '#c1d4cb', frame = '#263a3d', dark = '#18282c', metal = '#4a5a5c';
   const poly = (points, fill, stroke) => { c.beginPath(); points.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.stroke(); } };
   const limb = (points, width, color) => { c.strokeStyle = color; c.lineWidth = width; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); points.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); };
   c.save(); c.rotate(angle); c.lineWidth = 1;
@@ -55,6 +55,8 @@ export function drawRobot(c, angle, vx, vy, phase, mine) {
   }
   c.beginPath(); c.ellipse(0, -2.5, 3.8, 4.4, 0, 0, Math.PI * 2); c.fillStyle = '#2a3537'; c.fill(); c.strokeStyle = '#6f7f7c'; c.stroke();
   poly([[-3, -5.3], [3, -5.3], [0, -2.4]], '#ff3d3d'); c.fillStyle = '#ffd2c8'; c.fillRect(-.6, -5.1, 1.2, 1.2);
+  // Spine lights down the back: the body's own health gauge, as on the concept armour.
+  if (mine) for (let i = 0; i < 5; i++) { c.fillStyle = 4 - i < lights ? '#7fe0b0' : '#14201f'; c.fillRect(-1.3, 2.6 + i * 1.9, 2.6, 1.2); }
   c.restore();
 }
 

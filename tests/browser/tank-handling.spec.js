@@ -6,6 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {serverState} from './drive-helper.js';
 
 for(const mobile of [false,true])test(`tank acceleration, coasting, reverse and turns / ${mobile?'phone':'desktop'}`,async({browser},info)=>{
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-tank-handling-'));let app=createApp({dataDir:dir,logSink:()=>{}}),context;await app.close();
@@ -19,7 +20,7 @@ for(const mobile of [false,true])test(`tank acceleration, coasting, reverse and 
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-  const state=()=>page.evaluate(async()=>(await(await fetch('/api/world')).json()));
+  const state=()=>serverState(page,url);
   const start=async(key,direction)=>{if(mobile){const box=await page.locator(`[data-direction="${direction}"]`).boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();}else{await page.locator('#world-canvas').focus();await page.keyboard.down(key);}};
   const release=async(key)=>{if(mobile)await page.mouse.up();else await page.keyboard.up(key);};
   await start('w','up');await expect.poll(async()=>-(await state()).me.vy,{intervals:[100],timeout:10000}).toBeGreaterThan(2.9);
@@ -32,10 +33,14 @@ for(const mobile of [false,true])test(`tank acceleration, coasting, reverse and 
   await start('s','down');await expect.poll(async()=>(await state()).me.vy,{intervals:[50]}).toBeGreaterThan(1.4);
   const reverse=(await state()).me;expect(reverse.vy).toBeLessThanOrEqual(1.61);expect(Math.abs(reverse.angle)).toBeLessThan(.05);
   await release('s');await expect.poll(async()=>(await state()).me.vy).toBe(0);
+  // A/D only steer (a tank pivots at rest); W drives along the saved hull heading.
   await start('d','right');await expect.poll(async()=>(await state()).me.angle,{intervals:[50]}).toBeGreaterThan(.15);
-  expect((await state()).me.angle).toBeLessThan(Math.PI/2);
-  await expect.poll(async()=>(await state()).me.vx,{intervals:[50]}).toBeGreaterThan(2.9);await release('d');
+  const pivoting=(await state()).me;expect(Math.hypot(pivoting.vx,pivoting.vy)).toBe(0);expect(pivoting.angle).toBeLessThan(Math.PI/2);await release('d');
   await expect.poll(async()=>(await state()).me.vx).toBe(0);
+  const heading=(await state()).me.angle;await start('w','up');
+  await expect.poll(async()=>(await state()).me.vx,{intervals:[50]}).toBeGreaterThan(.3);
+  const along=(await state()).me;expect(Math.abs(Math.atan2(along.vx,-along.vy)-along.angle)).toBeLessThan(.2);expect(along.angle).toBeGreaterThanOrEqual(heading-.01);await release('w');
+  await expect.poll(async()=>Math.hypot((await state()).me.vx,(await state()).me.vy)).toBe(0);
   await page.screenshot({path:info.outputPath('tank-handling.png')});
   await page.reload();await expect(page.locator('#connection')).toContainText('live');expect((await state()).me.vehicleId).toBe('tank');
   expect((await state()).me.vx).toBe(0);expect(errors).toEqual([]);

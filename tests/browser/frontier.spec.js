@@ -4,6 +4,7 @@ import { createApp } from '../../server.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
 
 for (const mobile of [false, true]) test(`robot guard, curved railway and expanded battlefield on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }) => {
   test.setTimeout(70000);
@@ -13,8 +14,8 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
     context = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1920, height: 1080 } });
     peerContext = await browser.newContext(); const peer = await peerContext.newPage(), page = await context.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront();
-    await expect(page.locator('#connection')).toContainText('live');
-    const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
+    await expect(page.locator('#connection')).toContainText('live'); await expect(peer.locator('#connection')).toContainText('live');
+    const state = p => p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     const positionRobot = async (x, y) => {
       // This setup uses server navigation; idle mouse-aim input normally cancels
@@ -26,15 +27,17 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
         await expect.poll(async () => { const p = (await state(page)).me; return Math.hypot(p.x - x - .5, p.y - y - .5); }, { timeout: 10000, intervals: [100] }).toBeLessThan(.1);
       } finally { await page.unroute('**/api/input', idle); }
     };
-    const initial = await state(page); expect([initial.world.width, initial.world.height]).toEqual([128, 96]);
+    const initial = await state(page); expect([initial.world.width, initial.world.height]).toEqual([512, 384]);
     // Orbital entry: both scouts land before building. The teammate's core near
     // the eastern track supplies the cannon's construction support.
     expect((await post(page, 'cores', { x: 29, y: 13 })).status).toBe(201);
     expect((await post(peer, 'cores', { x: 60, y: 26 })).status).toBe(201);
-    await expect.poll(async () => (await state(page)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
-    await expect.poll(async () => (await state(peer)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    await expect.poll(async () => (await serverState(page, url)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    await expect.poll(async () => (await serverState(peer, url)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const data of [{ x: 68, y: 19, shape: 'EW' }, { x: 71, y: 22, shape: 'NS' }, { x: 68, y: 22, shape: 'NE' }]) expect((await post(page, 'rails', data)).status).toBe(201);
     const deployed = await post(page, 'artillery', { x: 68, y: 19 }); expect(deployed.status).toBe(201); const gun = deployed.data.gun;
+    // Orbital cargo arrives in a crate and unfolds; the cannon cannot be operated until its job completes.
+    await expect.poll(async () => !!(await serverState(page, url)).logistics.jobs[gun.id], { timeout: 20000 }).toBe(false);
     await positionRobot(30, 11);
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#artillery-guard')).toContainText('Robot guarding');
@@ -61,12 +64,16 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
     expect((await post(page, 'rails/remove', { x: 68, y: 22 })).status).toBe(409);
     await expect.poll(async () => (await state(page)).artillery[0].move, { timeout: 8000 }).toBeNull();
     expect([(await state(page)).artillery[0].x, (await state(page)).artillery[0].y]).toEqual([71, 22]);
+    // On a phone the drill sector selector sits in the folded mission bar.
+    if (mobile) await page.locator('#mission-toggle').tap();
     await page.locator('#drill-front').selectOption('east'); await page.locator('#start-drill').click();
     await expect.poll(async () => (await state(peer)).combat.objective.id).toBe('east');
     expect((await state(page)).combat.enemies.every(e => e.x > 48)).toBe(true);
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
     await aimOverview(page, 71.5, 65, mobile);
-    await expect.poll(async () => (await state(page)).artillery[0].elevation).toBeLessThanOrEqual(70);
+    // With the 180-tile range a 42.5-tile shot uses the higher arc, 90 - asin(d / 180) * 90 / PI (about 83.2 degrees).
+    const higherArc = 90 - Math.asin(42.5 / 180) * 90 / Math.PI;
+    await expect.poll(async () => Math.abs((await state(page)).artillery[0].elevation - higherArc) < 0.5).toBe(true);
     await expect(page.locator('#artillery-fire')).toBeEnabled(); await page.locator('#artillery-fire').click();
     await expect.poll(async () => (await state(peer)).combat.salvos.length).toBe(1);
     const shot = (await state(peer)).combat.salvos[0]; expect(Math.hypot(shot.targetX - shot.x, shot.targetY - shot.y)).toBeGreaterThan(30);

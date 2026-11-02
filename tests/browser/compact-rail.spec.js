@@ -3,6 +3,7 @@ import { createApp } from '../../server.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
 
 for (const mobile of [false, true]) test(`one-tile junction builds, branches and persists on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }) => {
   test.setTimeout(60000);
@@ -12,12 +13,12 @@ for (const mobile of [false, true]) test(`one-tile junction builds, branches and
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     other = await browser.newContext(); const peer = await other.newPage(), page = await context.newPage(), errors = [];
     for (const p of [peer, page]) p.on('pageerror', e => errors.push(e.message));
-    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
-    const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
+    await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live'); await expect(peer.locator('#connection')).toContainText('live');
+    const state = p => p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const post = (p, route, data) => p.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     // Orbital entry: both scouts land before building; the first core supports the facility.
     expect((await post(page, 'cores', { x: 60, y: 30 })).status).toBe(201); expect((await post(peer, 'cores', { x: 29, y: 13 })).status).toBe(201);
-    for (const p of [page, peer]) await expect.poll(async () => (await state(p)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
+    for (const p of [page, peer]) await expect.poll(async () => (await serverState(p, url)).me.deploying, { timeout: 8000, intervals: [100] }).toBe(false);
     for (const x of [64, 68, 72]) expect((await post(page, 'rails', { x, y: 22, shape: 'EW' })).status).toBe(201);
     expect((await post(peer, 'rails', { x: 68, y: 22, shape: 'NS', length: 1 })).status).toBe(409);
     await page.locator('#build-mode').click(); await page.locator('[data-force-tab="rail"]').click(); await page.locator('#rail-card').click(); await page.locator('#coordinate-details summary').click();
@@ -31,6 +32,8 @@ for (const mobile of [false, true]) test(`one-tile junction builds, branches and
     await page.screenshot({ path: `docs/previews/compact-track-${mobile ? 'mobile' : 'desktop'}.png` });
     await page.keyboard.press('Escape'); await expect(page.locator('#site-panel')).toBeHidden();
     const deployed = await post(page, 'artillery', { x: 67, y: 22 }); expect(deployed.status).toBe(201); const id = deployed.data.gun.id;
+    // Orbital cargo arrives in a crate and unfolds; the cannon cannot be operated until its job completes.
+    await expect.poll(async () => !!(await state(page)).logistics.jobs[id], { timeout: 20000 }).toBe(false);
     expect((await post(page, 'artillery/control', { id })).status).toBe(200); await expect(page.locator('#facility-controls')).toBeVisible();
     const down = async key => { if (mobile) { const b = page.locator(`[data-direction="${{ d: 'right', w: 'up', s: 'down', a: 'left' }[key]}"]`); const rect = await b.boundingBox(); await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2); await page.mouse.down(); } else { await page.locator('#world-canvas').focus(); await page.keyboard.down(key); } };
     const up = async key => { if (mobile) await page.mouse.up(); else await page.keyboard.up(key); };

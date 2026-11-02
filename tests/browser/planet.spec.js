@@ -8,9 +8,9 @@ for (const mobile of [false, true]) test('campaign globe navigates without movin
     await field.seat(context); const page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(field.base + '/?legacy=1'); await expect(page.locator('#connection')).toContainText('live');
-    const state = () => page.evaluate(async () => (await fetch('/api/world')).json());
+    const state = () => page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const initial = await state(); expect([initial.world.width, initial.world.height]).toEqual([512, 384]);
-    if (mobile) await page.locator('#planet-open').click(); else { await page.locator('#world-canvas').focus(); await page.keyboard.press('n'); }
+    if (mobile) await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click()); else { await page.locator('#world-canvas').focus(); await page.keyboard.press('n'); }
     await expect(page.locator('#planet-dialog')).toBeVisible();
     await expect(page.locator('#planet-status')).toContainText('512 × 384');
     const globe = page.locator('#planet-globe'); const before = await globe.getAttribute('data-longitude');
@@ -28,12 +28,12 @@ for (const mobile of [false, true]) test('campaign globe navigates without movin
     await expect(page.locator('#tile-x')).toHaveValue('370'); await expect(page.locator('#tile-y')).toHaveValue('250');
     const after = await state(); expect(after.me.x).toBe(initial.me.x); expect(after.me.y).toBe(initial.me.y);
     await page.screenshot({ path: '.local/planet-surface-' + (mobile ? 'phone' : 'desktop') + '.png' });
-    await page.locator('#planet-open').click(); await page.keyboard.press('Escape'); await expect(page.locator('#planet-dialog')).not.toBeVisible();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click()); await page.keyboard.press('Escape'); await expect(page.locator('#planet-dialog')).not.toBeVisible();
     if (!mobile) {
       await page.locator('#world-canvas').focus(); await page.keyboard.press('m');
       const zoom = parseInt(await page.locator('#zoom-label').textContent()); await page.keyboard.press('-'); expect(parseInt(await page.locator('#zoom-label').textContent())).toBeLessThanOrEqual(zoom);
       await page.keyboard.press('m'); await page.setViewportSize({ width: 390, height: 844 });
-      await page.locator('#planet-open').click(); await expect(page.locator('#planet-visit')).toBeVisible();
+      await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click()); await expect(page.locator('#planet-visit')).toBeVisible();
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(errors).toEqual([]);

@@ -30,7 +30,11 @@ for (const mobile of [false, true]) test(`contaminator concealment, heavy aim an
       world.terrain.fill(2); db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
       const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get().value);
       // Isolate terrain/conquest visuals; domain checks cover guards and calls.
-      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; if(s.kind === 'mortar') s.mortar = { angle: 0, nextShot: 1e9, charge: null }; if(s.kind === 'contaminator') s.hp = 140; }
+      // Newer campaigns seed several contaminators and settlements. Conquer every other site so O can only select this one, and list it
+      // first: with nothing selected (after a reload) the objective panel falls back to the first site.
+      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; if(s.kind === 'mortar') s.mortar = { angle: 0, nextShot: 1e9, charge: null }; if(s.kind === 'contaminator') s.hp = 140; if (s.id !== site.id) Object.assign(s, { hp: 0, state: 'conquered', conqueredAt: -100000 }); }
+      saved.sites.sort((a, b) => (b.id === site.id) - (a.id === site.id));
+      if (saved.director) Object.assign(saved.director, { nextRaid: 1e9, nextPulse: 1e9 });
       db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
       const tank = { id: 'modifier-tank', owner: initial.me.id, occupant: initial.me.id, health: 200, hurt: 0,
         x: site.x + 1.5, y: site.y - 6.5, podX: 40, podY: 40, elapsed: 99, angle: Math.PI, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
@@ -50,7 +54,8 @@ for (const mobile of [false, true]) test(`contaminator concealment, heavy aim an
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live'); await page.bringToFront();
-    await page.getByRole('button', { name: 'Locate air contaminator' }).click();
+    // Named site locators are gone. O selects the nearest hostile site, and this contaminator is the only one left.
+    await page.locator('#world-canvas').focus(); await page.keyboard.press('o');
     await expect(page.locator('#combat-status')).toContainText('Air contaminator');
     await expect(page.locator('#fog-status')).toBeVisible();
     await expect(page.locator('#objective-health')).toContainText('Surveyed center');
@@ -62,7 +67,7 @@ for (const mobile of [false, true]) test(`contaminator concealment, heavy aim an
     await page.waitForTimeout(250); const withoutAim = await pixels();
     if (mobile) await page.touchscreen.tap(target.x, target.y); else await page.mouse.move(target.x, target.y);
     await page.waitForTimeout(250); expect(await pixels()).toEqual(withoutAim);
-    const minimapPixel = () => page.locator('#minimap').evaluate((c, point) => Array.from(c.getContext('2d').getImageData(Math.floor(point.x*c.width/128),Math.floor(point.y*c.height/96),1,1).data), { x: site.x + 1.5, y: site.y + 1.5 });
+    const minimapPixel = () => page.locator('#minimap').evaluate((c, point) => Array.from(c.getContext('2d').getImageData(Math.floor(point.x*c.width/point.w),Math.floor(point.y*c.height/point.h),1,1).data), { x: site.x + 1.5, y: site.y + 1.5, w: initial.world.width, h: initial.world.height });
     expect(await minimapPixel()).toEqual([114, 80, 102, 255]);
     await page.screenshot({ path: info.outputPath('contaminator-ground.png') });
     // The same opaque texture covers every underlying pixel in both effects modes.
@@ -79,13 +84,16 @@ for (const mobile of [false, true]) test(`contaminator concealment, heavy aim an
     await post(owner, '/api/campaign-world/' + id + '/tanks/exit', {});
     await post(owner, '/api/campaign-world/' + id + '/artillery/control', { id: 'fog-cannon' });
     await expect(page.locator('#facility-controls')).toBeVisible();
-    await page.getByRole('button', { name: 'Locate air contaminator' }).click();
+    await page.locator('#world-canvas').focus(); await page.keyboard.press('o');
     if (mobile) await page.touchscreen.tap(target.x, target.y); else await page.mouse.move(target.x,target.y);
     await page.waitForTimeout(1300);
     expect(await pixels()).not.toEqual(withoutAim);
     await page.screenshot({ path: info.outputPath('contaminator-heavy-aim.png') });
     await page.locator('#artillery-fire').click();
-    await expect.poll(async () => (await state()).combat.sites.find(s => s.kind === 'contaminator').state, { timeout: 8000 }).toBe('conquered');
+    // The shell flies for its saved duration (about 7 s at this elevation); wait for that flight plus margin.
+    await expect.poll(async () => (await state()).combat.salvos.length).toBe(1);
+    const flight = (await state()).combat.salvos[0].duration;
+    await expect.poll(async () => (await state()).combat.sites.find(s => s.kind === 'contaminator').state, { timeout: flight * 1000 + 4000 }).toBe('conquered');
     await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.sites.find(s => s.kind === 'contaminator').state)).toBe('conquered');
     await expect(page.locator('#objective-health')).toContainText('Air clear', { timeout: 10000 });
     await expect(page.locator('#fog-status')).toBeHidden();
@@ -101,10 +109,14 @@ for (const mobile of [false, true]) test(`contaminator concealment, heavy aim an
     await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));
     await post(owner, '/api/campaigns/enter', { id }); await page.goto(base + '/?campaign=' + id);
     await expect(page.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate air contaminator' }).click();
+    // After a reload nothing is selected, so the panel falls back to the first site, which is this contaminator.
+    // (Hostile-only O cannot select a conquered site.)
     await expect(page.locator('#objective-health')).toContainText('Air clear');
-    expect((await state()).combat.sites.filter(s => s.kind === 'contaminator' && !s.settlement)).toEqual([expect.objectContaining({ hp: 0, state: 'conquered', conqueredAt: completed })]);
-    if(!mobile) { await page.setViewportSize({width:1280,height:720}); await expect(page.locator('#objective-health')).toBeVisible(); }
+    // Campaigns now seed several contaminators, so check this one by id rather than expecting it to be the only one.
+    expect((await state()).combat.sites.find(s => s.id === site.id)).toMatchObject({ hp: 0, state: 'conquered', conqueredAt: completed });
+    // In a campaign the objective detail (#objective-health) is hidden until a site is selected, and O cannot select a
+    // conquered site, so after the reload only the mission bar itself can be checked at laptop size.
+    if(!mobile) { await page.setViewportSize({width:1280,height:720}); await expect(page.locator('#mission-bar')).toBeVisible(); const bar = await page.locator('#mission-bar').boundingBox(); expect(bar.x + bar.width).toBeLessThanOrEqual(1280); expect(bar.y + bar.height).toBeLessThanOrEqual(720); }
     expect(errors).toEqual([]);
   } finally {
     await Promise.all(contexts.map(c => c.close())); await app.close();

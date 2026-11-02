@@ -1,4 +1,5 @@
 import {terrainColor,mountainAt,inlandWaterAt} from './terrain-rules.js';
+import {terrainChanges,chunksAround,cellsAround} from './terrain-repaint.js';
 import {drawVesperTile} from './vesper-art.js';
 import {drawSiroccoTile,drawSiroccoPalms} from './sirocco-art.js';
 import {isSandSeaWorld,navalText,submarineDepthLabel} from './biome.js';
@@ -87,7 +88,13 @@ import { switchAt, switchLocked, switchConnectionError } from './switches.js';
 import { drawHazards } from './hazard-effects.js';
 import { fieldCapacityError } from './hazards.js';
 import { tileAt, LABELS, placementError } from './world.js';
-import { hudState, coreSiteAnalysis, orbitStep, landingLog } from './hud.js';
+import { hudState, coreSiteAnalysis, orbitStep } from './hud.js';
+import { missionGuide } from './mission-guide.js';
+import { LABEL_ZOOM } from './map-labels.js';
+import { anchoredCamera, gunFrame, gunTargets } from './gun-view.js';
+import { LOCATOR_MS, drawHealthRing, drawLocator, drawReloadArc, spineLights } from './unit-hud.js';
+import { CALDERA, drawCalderaLand, drawCalderaRock, drawCalderaTree, treeAt } from './caldera-art.js';
+import { HORIZON_CHUNKS, drawHorizon, horizonSea } from './map-horizon.js';
 import { TABS, ASSETS, assetByCard, assetsIn, orbitalPrice, factoryPrice, specRows } from './catalogue.js';
 import { BINDINGS, SCOPES, POINTER, keyOf } from './keymap.js';
 import { drawGraticule, drawScaleBar, telemetry } from './instruments.js';
@@ -130,6 +137,8 @@ function updateRoom(room) {
 const clientBuild = document.querySelector('meta[name="frontier-build"]')?.content;
 let updatingClient = false;
 const canvas = $('world-canvas'), ctx = canvas.getContext('2d');
+// A GPU reset wipes every cached canvas. The server holds the real state, so start the page again.
+canvas.addEventListener('contextrestored', () => { eventStream?.close(); keys.clear(); stopFiring(); location.reload(); });
 const mini = $('minimap'), mctx = mini.getContext('2d');
 const T = 48, images = {}, keys = new Set(), positions = new Map();
 const effects = new CombatEffects(T), monsterPositions = new Map();
@@ -163,6 +172,9 @@ let camera = { x: 24.5 * T, y: 18.5 * T, zoom: 0.7 }, following = false, pointer
 let path = [], toastTimer, moved = false, seenRevision = -1, lastMini = 0;
 let initialFoundations = 0, inputBusy = false, lastInput = '0,0', failedInputs = 0, lastAim = null;
 let combat = { status: 'ready', health: 100, enemies: [], shells: [], impacts: [], sentries: {} }, aim = null, mouseAim = null, stateReceived = 0;
+// The frame clock starts before a frame's messages run, so a snapshot can be newer than
+// `now`. Without the floor, that makes every countdown read slightly above its value.
+const snapshotAge = now => Math.max(0, Math.min(.1, (now - stateReceived) / 1000));
 let lastPointerKind = 'mouse';
 let locatedSite = false; try { locatedSite = sessionStorage.getItem('frontier-located') === '1'; } catch {}
 const ASSET_NAMES = { core: 'Orbital core', sentry: 'APCR sentry', 'aa-sentry':'AA sentry', tank: 'Tank drop pod', 'aa-tank':'AA vehicle', rail: 'Rail track', artillery: 'Railway cannon', mac:'Rail MAC', missile: 'Missile battery', airbase: 'Airbase', helipad:'Helipad', outpost: 'Support outpost', factory: 'Factory', uplink: 'Launch station', recycler: 'Recycler', builder: 'Bridge builder' };
@@ -174,14 +186,31 @@ function updateHud() {
   const state = hudState({ me, mode, deploymentKind, gun: gun && (isMissile(gun) ? 'Missile battery' : isMAC(gun)?'Rail MAC':'Rail cannon').toUpperCase(), ship: ship && shipName(ship).toUpperCase(), aircraft: plane && aircraftName(plane).toUpperCase(), placingLabel });
   $('state-banner').textContent = state.key==='vehicle'&&isAA(currentTank())?'AA VEHICLE / TWIN 35 MM':ship?navalText(world,state.label):state.label;
   document.querySelector('.battlefield').dataset.state = state.key;
-  const log = landingLog({ world, buildings, me, located: locatedSite }), list = $('landing-log');
-  list.hidden = !['ground', 'placing'].includes(state.key) || log.every(item => item.done);
-  const key = log.map(item => item.id + ':' + item.done).join();
-  if (!list.hidden && list.dataset.key !== key) {
+  renderMission();
+}
+// A finished step shows its gold check on the folded bar, then the bar moves on.
+let missionStep = null, missionDone = null, missionTarget = null, locatorAt = -Infinity;
+function projectLocator() { if (!missionTarget) { notify('No hostile sites left to find.'); return; } locatorAt = performance.now(); }
+function renderMission() {
+  const guide = missionGuide({ world, buildings, me, located: locatedSite, conquest: combat?.conquest }), list = $('landing-log');
+  missionTarget = guide.target;
+  const step = guide.current?.id ?? 'complete', now = performance.now();
+  if (missionStep && missionStep !== step) missionDone = { label: guide.steps.find(item => item.id === missionStep)?.label, until: now + 2000 };
+  missionStep = step;
+  const flash = missionDone?.until > now, text = flash ? missionDone.label : guide.text;
+  if ($('mission-current').textContent !== text) $('mission-current').textContent = text;
+  const mark = flash ? '✓' : '◆', progress = guide.fronts.total ? guide.fronts.cleared + ' / ' + guide.fronts.total : '';
+  if ($('mission-mark').textContent !== mark) $('mission-mark').textContent = mark;
+  if ($('mission-progress').textContent !== progress) $('mission-progress').textContent = progress;
+  $('mission-bar').classList.toggle('mission-done', flash); $('mission-bar').classList.toggle('site-selected', !!selectedSiteId);
+  document.querySelector('.battlefield').classList.toggle('first-steps', ['core', 'sentry'].includes(guide.current?.id));
+  const key = guide.steps.map(item => item.id + ':' + item.done).join();
+  if (list.dataset.key !== key) {
     list.dataset.key = key;
-    list.replaceChildren(...log.map(item => {
-      const li = document.createElement('li'); li.classList.toggle('done', item.done);
-      li.append((item.done ? '✓ ' : '○ ') + item.label);
+    list.replaceChildren(...guide.steps.map(item => {
+      const li = document.createElement('li'), active = item === guide.current;
+      li.classList.toggle('done', item.done); li.classList.toggle('current', active);
+      li.append((item.done ? '✓ ' : active ? '◆ ' : '○ ') + (item.done ? item.label : item.doing));
       if (item.key && !item.done) li.append(' ', Object.assign(document.createElement('kbd'), { textContent: item.key }));
       return li;
     }));
@@ -224,7 +253,7 @@ function updateCatalogue() {
     if (asset.kind === 'orbitalStrike') continue;
     const card = $(asset.card), ground = $(asset.card + '-ground');
     if(asset.card==='dock-card')card.querySelector('.unit-body strong').textContent=isSandSeaWorld(world)?'Empty sandport':asset.name;
-    if(asset.kind==='vessel'){const price=quote(asset.cost,true);card.querySelector('.asset-cost').textContent=price+' GND / 60s';card.disabled=!allowed||groundBalance<price;card.classList.toggle('short',groundBalance<price);card.title='Select an empty dock on the map.';card.setAttribute('aria-label',asset.name+' / '+price+' GND');continue;}
+    if(asset.kind==='vessel'){const price=quote(asset.cost,true);card.querySelector('.asset-cost').textContent=price+' GND';card.disabled=!allowed||groundBalance<price;card.classList.toggle('short',groundBalance<price);card.title='Select an empty dock on the map.';card.setAttribute('aria-label',asset.name+' / '+price+' GND');continue;}
     const free = asset.kind === 'core' && (!world.logistics?.deployments?.[me.id] || !world.cores.length) || asset.aircraftKind === 'bomber' && !world.logistics?.freeBomberUsed;
     const price = free ? 0 : orbitalPrice(asset), local = factoryPrice(asset);
     const vesselKind = ({'ship-card':'gunship','submarine-card':'submarine','transport-card':'transport','carrier-card':'carrier'})[asset.card];
@@ -254,6 +283,27 @@ function chooseDeployment(asset, method) {
   else { deploymentKind = asset.kind; setMode('build'); toggleSite(true); canvas.focus({preventScroll:true}); }
 }
 const deployLogistics = (kind, emergency = false) => { emergencyDeployment = emergency; deliveryPreference = 'orbital'; $('construction-method').value = 'orbital'; beginCoreSurvey(kind); };
+// With a mouse, the ghost follows the cursor and a click places it: left drops with ORB,
+// right builds with GND where a site supports it, and Shift keeps placing. Touch and
+// the coordinate form keep their explicit confirm. The server still admits every order.
+const placingByMouse = event => event.pointerType === 'mouse' && mode === 'build' && !pointer && !inOrbit() && !$('coordinate-details').open && !(deploymentKind === 'ship' && deployEmptyYard);
+function chipLine(key, text) { const line = document.createElement('div'); line.append(Object.assign(document.createElement('b'), { textContent: key }), ' ' + text); return line; }
+function showPlaceChip(x, y) {
+  const chip = $('place-chip'), button = $('place-building'), eligible = !$('delivery-buttons').hidden, ground = eligible && !$('delivery-ground').hidden;
+  chip.hidden = false; chip.classList.toggle('blocked', button.disabled); chip.style.transform = `translate(${Math.min(x + 24, width - 240)}px,${Math.min(y + 16, height - 70)}px)`;
+  if (button.disabled) chip.textContent = button.title || 'Site blocked';
+  else {
+    const price = deploymentPrice(false);
+    chip.replaceChildren(chipLine('LMB', eligible ? (price ? price + ' ORB · now' : 'Free · now') : 'Place'), ...(ground ? [chipLine('RMB', deploymentPrice(true) + ' GND · 60 s')] : []));
+  }
+}
+function quickPlace(method, repeat) {
+  deliveryPreference = method; updateSelection();
+  const button = $('place-building'), noGround = method === 'factory' && $('construction-method').value === 'orbital';
+  if (noGround) { notify('GND needs a friendly support area here.'); deliveryPreference = 'orbital'; updateSelection(); return; }
+  if (button.disabled) { notify(button.title || 'Site blocked.'); return; }
+  keepPlacing = repeat; void place();
+}
 function noteLocated() { locatedSite = true; try { sessionStorage.setItem('frontier-located', '1'); } catch {} updateHud(); }
 // Site analysis for an orbital core: measured footprint facts plus the client preview's verdict.
 function renderSiteAnalysis(a, error) {
@@ -771,10 +821,10 @@ function updateArtillery() {
   if(me?.body!=='robot'&&!inOrbit()&&(!$('deployment-tray').hidden||mode==='build'))setMode('explore');
   updateRemote();
   if(gun&&remoteAttempt?.cancelled)return;
-  document.querySelector('.battlefield').classList.toggle('artillery-control', !!gun);
+  document.querySelector('.battlefield').classList.toggle('artillery-control', !!gun); document.querySelector('.battlefield').classList.toggle('missile-control', !!gun && isMissile(gun));
   if ((gun?.id || null) !== lastControlledId) {
     keys.clear(); stopFiring(); path = []; lastInput = '0,0'; lastAim = null;
-    if (gun) { bodyCamera = remoteCamera ? {...remoteCamera.camera} : { ...camera }; closeRemote(false,false); setMode('explore'); aim = isMissile(gun) ? gun.target || { x: Math.min(world.width - 9, gun.x + 32), y: Math.max(9, Math.min(world.height - 9, gun.y + 2)) } : isMAC(gun)?{x:Math.max(.5,Math.min(world.width-.5,gun.x+.5+Math.sin(gun.angle)*40)),y:Math.max(.5,Math.min(world.height-.5,gun.y+.5-Math.cos(gun.angle)*40))}:artillerySolution(gun); mouseAim = null; setOrbitalView(true); }
+    if (gun) { bodyCamera = remoteCamera ? {...remoteCamera.camera} : { ...camera }; closeRemote(false,false); setMode('explore'); aim = isMissile(gun) ? gun.target || { x: Math.min(world.width - 9, gun.x + 32), y: Math.max(9, Math.min(world.height - 9, gun.y + 2)) } : isMAC(gun)?{x:Math.max(.5,Math.min(world.width-.5,gun.x+.5+Math.sin(gun.angle)*40)),y:Math.max(.5,Math.min(world.height-.5,gun.y+.5-Math.cos(gun.angle)*40))}:artillerySolution(gun); mouseAim = null; gunTargetIndex = -1; setOrbitalView(false); fitGunView(gun); }
     else if (lastControlledId) { setOrbitalView(false); if (bodyCamera) camera = { ...bodyCamera }; bodyCamera = null; setMode('explore'); recenter(); notify('Artillery control released. Your body is available.'); }
     lastControlledId = gun?.id || null;
   }
@@ -799,7 +849,7 @@ function updateArtillery() {
   }
   if (isMissile(gun)) {
     // The launcher's predicted pose decides where a volley would land right now.
-    const target = aim || gun.target, view = predictBattery(gun, world, connected ? Math.min(.1, (performance.now() - stateReceived) / 1000) : 0, target), actual = batteryTarget(view, world, gun.rotated);
+    const target = aim || gun.target, view = predictBattery(gun, world, connected ? snapshotAge(performance.now()) : 0, target), actual = batteryTarget(view, world, gun.rotated);
     const committed = [combat.barrages || [], (combat.fields || []).concat(combat.aquaticClouds||[]), combat.salvos || []];
     const reason = missileFireError(view, world, actual, gun.rotated, ...committed), turning = !!target && view.deploy >= 1 && !batteryAligned(view, world, target, gun.rotated);
     // A valid aim with the launcher still pointed somewhere unusable is a wait, not a bad aim.
@@ -893,6 +943,30 @@ function setOrbitalView(open) {
   orbitalView = open; document.querySelector('.battlefield').classList.toggle('artillery-orbit', open);
   if (open) fitOrbitalView(); following = false;
 }
+// Cannons open on what is near them. M still flips to the planet and back.
+let gunTargetIndex = -1;
+const reachOf = gun => isMissile(gun) ? { min: MISSILE.minRange, max: MISSILE.range } : isMAC(gun) ? { min: MAC.minRange, max: MAC.range } : { min: RAIL_HE.minRange, max: RAIL_HE.range };
+const targetsFor = gun => gunTargets(gunPosition(gun), reachOf(gun), world?.sites, combat.enemies);
+function fitGunView(gun) {
+  camera = { ...camera, ...gunFrame(gunPosition(gun), targetsFor(gun)[0], { width, height, top: 90, bottom: width > 760 ? 180 : 250 }, T) };
+  following = false; $('zoom-label').textContent = Math.round(camera.zoom * 100) + '%';
+}
+function toggleGunView(gun) { setOrbitalView(!orbitalView); if (!orbitalView) fitGunView(gun); $('gun-view-toggle').textContent = orbitalView ? 'Near' : 'Planet'; }
+function nextGunTarget() {
+  const gun = controlledGun(), list = gun ? targetsFor(gun) : [];
+  if (!list.length) { notify('No target in range.'); return; }
+  gunTargetIndex = (gunTargetIndex + 1) % list.length; const target = list[gunTargetIndex];
+  if (orbitalView) toggleGunView(gun);
+  camera.x = target.x * T; camera.y = target.y * T; camera.zoom = Math.max(camera.zoom, width > 760 ? .33 : .2); following = false;
+  mouseAim = null; aim = { x: target.x, y: target.y }; notify(`${target.label} · ${Math.round(target.distance)} t`);
+}
+// 1 just after firing, falling to 0 when ready. Rapid weapons have nothing worth showing.
+function reloadLeft(now) {
+  const gun = controlledGun();
+  if (gun) return Math.min(1, (gun.reload || 0) / (isMissile(gun) ? MISSILE.reload : isMAC(gun) ? MAC.cooldown : RAIL_HE.cooldown / 1000));
+  const primary = loadout(me.body, me.tankWeapon).primary, cooldown = WEAPONS[primary]?.cooldown || 0;
+  return cooldown > 600 && now < nextFire[primary] ? (nextFire[primary] - now) / cooldown : 0;
+}
 function fitOrbitalView() {
   const top = 90, bottom = width > 760 ? 180 : 250;
   camera.zoom = Math.min(.7, (width - 40) / (world.width * T), Math.max(120, height - top - bottom) / (world.height * T));
@@ -909,6 +983,7 @@ function updateSurvival() {
   $('health-label').textContent = me.shield > 0 ? 'LANDING SHIELD' : inactive ? 'BODY OFFLINE' : 'ROBOT HULL';
   if (me.guarding) $('health-label').textContent = 'ROBOT GUARDING';
   $('health-meter').max=vehicle?hullMaximum(vehicle):SURVIVAL.health;
+  queueMicrotask(()=>$('robot-health').classList.toggle('full',$('health-meter').value>=$('health-meter').max&&!(me.shield>0)));
   if(vehicle){$('health-label').textContent=me.shipId?'SHIP HULL':isAA(vehicle)?'AA HULL':'TANK HULL';$('health-value').textContent=Math.ceil(hullHealth(vehicle))+' / '+$('health-meter').max;$('health-meter').value=hullHealth(vehicle);}
   if(aircraft){$('health-label').textContent=isAirGunship(aircraft)?'GUNSHIP HULL':isHelicopter(aircraft)?'HELICOPTER HULL':isAttackJet(aircraft)?'JET HULL':'BOMBER HULL';$('health-value').textContent=Math.ceil(aircraftHealth(aircraft))+' / '+AIR_HULL.health;$('health-meter').max=AIR_HULL.health;$('health-meter').value=aircraftHealth(aircraft);}
   document.querySelector('.battlefield').classList.toggle('recovering', inactive);
@@ -1178,7 +1253,7 @@ function setMode(next) {
     $(`${name}-mode`).setAttribute('aria-pressed', String(name === next));
   }
   const coarse = matchMedia('(pointer:coarse)').matches;
-  $('map-hint').textContent = next === 'build' ? (coarse ? 'Tap a clear site · Confirm below' : 'Click a site · Enter confirm · Shift+Enter keep placing' + (deploymentKind === 'rail' ? ' · R shape · T length' : '') + ' · Esc cancel') : coarse ? 'Tap to aim · Buttons fire · Pad moves' : 'WASD move · Mouse aim · B deploy · F1 keys';
+  $('map-hint').textContent = next === 'build' ? (coarse ? 'Tap a clear site · Confirm below' : 'LMB ORB · RMB GND · Shift keep placing' + (deploymentKind === 'rail' ? ' · R shape · T length' : '') + ' · Esc cancel') : coarse ? 'Tap to aim · Buttons fire · Pad moves' : 'WASD move · Mouse aim · B deploy · F1 keys';
   toggleTray(false); toggleSite(false);
   updateSelection(); if (world) { updateTankControl(); updateShips(); updateAircraft(); }
   if (inOrbit()) { following = false; $('map-hint').textContent = 'In orbit / Choose a core landing site / Confirm orbital drop'; toggleSite(true); }
@@ -1424,22 +1499,32 @@ function hash(x, y) { return ((x * 73856093) ^ (y * 19349663)) >>> 0; }
 function roundRect(c, x, y, w, h, r = 4) { c.beginPath(); c.roundRect(x, y, w, h, r); }
 
 const terrainChunks = new Map();
-let oceanRestrictionCanvas;
+let oceanRestrictionCanvas, paintedTiles;
+// A finished core, tank, bridge or dock changes a few tiles. Redrawing the whole map
+// for that froze every client, so only the first paint covers all of it.
 function paintTerrain() {
-  terrainChunks.clear();
-  terrainCanvas = document.createElement('canvas'); terrainCanvas.width = world.width * 4; terrainCanvas.height = world.height * 4;
-  const c = terrainCanvas.getContext('2d');
-  oceanRestrictionCanvas = document.createElement('canvas'); oceanRestrictionCanvas.width = world.width; oceanRestrictionCanvas.height = world.height;
-  const ocean = oceanRestrictionCanvas.getContext('2d'); ocean.fillStyle = '#ed505063';
-  for (let y = 0; y < world.height; y++) for (let x = 0; x < world.width; x++) {
-    c.fillStyle = terrainColor(world,x,y,tileAt(world,x,y)); c.fillRect(x * 4, y * 4, 4, 4);
-    if (tileAt(world, x, y) === 0) ocean.fillRect(x, y, 1, 1);
+  const first = paintedTiles?.length !== world.width * world.height;
+  if (first) {
+    terrainChunks.clear(); paintedTiles = new Uint8Array(world.width * world.height).fill(255);
+    terrainCanvas = document.createElement('canvas'); terrainCanvas.width = world.width * 4; terrainCanvas.height = world.height * 4;
+    oceanRestrictionCanvas = document.createElement('canvas'); oceanRestrictionCanvas.width = world.width; oceanRestrictionCanvas.height = world.height;
+  }
+  const c = terrainCanvas.getContext('2d'), ocean = oceanRestrictionCanvas.getContext('2d'); ocean.fillStyle = '#ed505063';
+  const changed = terrainChanges(world, paintedTiles);
+  if (!first) for (const key of chunksAround(world, changed)) terrainChunks.delete(key);
+  for (const index of first ? changed : cellsAround(world, changed)) {
+    const x = index % world.width, y = Math.floor(index / world.width), kind = paintedTiles[index];
+    c.fillStyle = terrainColor(world,x,y,kind); c.fillRect(x * 4, y * 4, 4, 4);
+    if (!first) ocean.clearRect(x, y, 1, 1);
+    if (kind === 0) ocean.fillRect(x, y, 1, 1);
+    // Far views keep the groves, as one soft dab per tree.
+    if (world.template !== 'vesper-v1' && !isSandSeaWorld(world) && kind === 2) { const tree = treeAt(x, y); if (tree) { c.fillStyle = '#34488f'; c.beginPath(); c.arc(tree.x * 4, tree.y * 4, tree.r * 4, 0, Math.PI * 2); c.fill(); } }
   }
 }
 function drawTerrain() {
-  const left = Math.max(0, Math.floor((camera.x - width / camera.zoom / 2) / (T * 16))), right = Math.min(Math.ceil(world.width / 16) - 1, Math.floor((camera.x + width / camera.zoom / 2) / (T * 16)));
-  const top = Math.max(0, Math.floor((camera.y - height / camera.zoom / 2) / (T * 16))), bottom = Math.min(Math.ceil(world.height / 16) - 1, Math.floor((camera.y + height / camera.zoom / 2) / (T * 16)));
-  if (camera.zoom < .5 || (right - left + 1) * (bottom - top + 1) > 32) { ctx.drawImage(terrainCanvas, 0, 0, world.width * T, world.height * T); return; }
+  const left = Math.max(-HORIZON_CHUNKS, Math.floor((camera.x - width / camera.zoom / 2) / (T * 16))), right = Math.min(Math.ceil(world.width / 16) - 1 + HORIZON_CHUNKS, Math.floor((camera.x + width / camera.zoom / 2) / (T * 16)));
+  const top = Math.max(-HORIZON_CHUNKS, Math.floor((camera.y - height / camera.zoom / 2) / (T * 16))), bottom = Math.min(Math.ceil(world.height / 16) - 1 + HORIZON_CHUNKS, Math.floor((camera.y + height / camera.zoom / 2) / (T * 16)));
+  if (camera.zoom < .5 || (right - left + 1) * (bottom - top + 1) > 32) { const crisp = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(terrainCanvas, 0, 0, world.width * T, world.height * T); ctx.imageSmoothingEnabled = crisp; return; }
   for (let cy = top; cy <= bottom; cy++) for (let cx = left; cx <= right; cx++) {
     const key = cx + ',' + cy; let chunk = terrainChunks.get(key);
     if (!chunk) chunk = makeTerrainChunk(cx, cy);
@@ -1451,38 +1536,37 @@ function drawTerrain() {
 function makeTerrainChunk(cx, cy) {
   const tileCanvas = document.createElement('canvas'); tileCanvas.width = tileCanvas.height = 16 * T;
   const c = tileCanvas.getContext('2d'); c.translate(-cx * 16 * T, -cy * 16 * T);
-  c.fillStyle = '#31585b'; c.fillRect(cx * 16 * T, cy * 16 * T, 16 * T, 16 * T);
+  c.fillStyle = CALDERA.deep; c.fillRect(cx * 16 * T, cy * 16 * T, 16 * T, 16 * T);
   // Coast shallows are an overlay; collision is always the stored terrain type.
-  for (let y = cy * 16; y < Math.min(world.height, (cy + 1) * 16); y++) for (let x = cx * 16; x < Math.min(world.width, (cx + 1) * 16); x++) {
+  for (let y = cy * 16; y < (cy + 1) * 16; y++) for (let x = cx * 16; x < (cx + 1) * 16; x++) {
     if (tileAt(world, x, y)) continue;
     const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(world, x + dx, y + dy));
-    if (near) { c.fillStyle = '#58817a'; c.fillRect(x * T, y * T, T, T); }
+    if (near) { c.fillStyle = CALDERA.shallow; c.fillRect(x * T, y * T, T, T); }
     else if (hash(x, y) % 3 === 0) {
-      c.strokeStyle = '#b2c9ae16'; c.lineWidth = 1; c.beginPath();
+      c.strokeStyle = CALDERA.ripple; c.lineWidth = 1; c.beginPath();
       c.moveTo(x * T + 9, y * T + 25); c.quadraticCurveTo(x * T + 16, y * T + 21, x * T + 23, y * T + 25); c.stroke();
     }
   }
-  for (let y = cy * 16; y < Math.min(world.height, (cy + 1) * 16); y++) for (let x = cx * 16; x < Math.min(world.width, (cx + 1) * 16); x++) {
+  for (let y = cy * 16; y < (cy + 1) * 16; y++) for (let x = cx * 16; x < (cx + 1) * 16; x++) {
     const kind = tileAt(world, x, y);
     if(world.template==='vesper-v1'&&kind!==4){drawVesperTile(c,world,x,y,T,kind);continue;}
     if(isSandSeaWorld(world)&&kind!==4){drawSiroccoTile(c,world,x,y,T,kind);continue;}
     if (!kind) continue;
     const px = x * T, py = y * T;
-    c.fillStyle = kind === 1 ? '#cfc29b' : '#93a17c'; c.fillRect(px, py, T, T);
-    const texture = images[`${kind === 1 ? 'tileSand' : 'tileGrass'}${hash(x, y) % 2 + 1}.png`];
-    c.globalAlpha = .23; c.drawImage(texture, px, py, T, T); c.globalAlpha = 1;
+    drawCalderaLand(c, x, y, T, kind);
     if (kind === 4) { c.fillStyle = '#798d89'; c.fillRect(px, py, T, T); c.strokeStyle = '#b6c5ae'; c.lineWidth = 2; c.strokeRect(px + 3, py + 3, T - 6, T - 6); }
-    if (kind === 3) {
-      c.fillStyle = '#607160'; c.beginPath(); c.moveTo(px + 5, py + 22); c.lineTo(px + 16, py + 8); c.lineTo(px + 35, py + 11); c.lineTo(px + 43, py + 29); c.lineTo(px + 32, py + 41); c.lineTo(px + 10, py + 38); c.closePath(); c.fill();
-      c.strokeStyle = '#c8d0b750'; c.beginPath(); c.moveTo(px + 12, py + 20); c.lineTo(px + 20, py + 13); c.lineTo(px + 34, py + 15); c.stroke();
-    }
-    if (kind === 2 && hash(x, y) % 29 === 0 && Math.hypot(x - 24, y - 18) > 5) {
-      c.globalAlpha = .7; c.drawImage(images['treeGreen_small.png'], px + 8, py + 8, 29, 29); c.globalAlpha = 1;
-    }
+    if (kind === 3) drawCalderaRock(c, x, y, T);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!tileAt(world, x + dx, y + dy)) {
-      c.strokeStyle = '#e6dcba'; c.lineWidth = 3; c.beginPath();
+      c.strokeStyle = CALDERA.shore; c.lineWidth = 3; c.beginPath();
       if (dx) { const xx = px + (dx > 0 ? T - 1 : 1); c.moveTo(xx, py); c.lineTo(xx, py + T); }
       else { const yy = py + (dy > 0 ? T - 1 : 1); c.moveTo(px, yy); c.lineTo(px + T, yy); } c.stroke();
+    }
+  }
+  // Trees are drawn after the ground, with a one-tile margin so canopies cross chunks.
+  if (world.template !== 'vesper-v1' && !isSandSeaWorld(world)) {
+    for (let y = cy * 16 - 1; y <= (cy + 1) * 16; y++) for (let x = cx * 16 - 1; x <= (cx + 1) * 16; x++) {
+      if (tileAt(world, x, y) !== 2 || Math.hypot(x - 24, y - 18) <= 5) continue;
+      const tree = treeAt(x, y); if (tree) drawCalderaTree(c, tree, T, x * 977 + y);
     }
   }
   return tileCanvas;
@@ -1494,7 +1578,7 @@ function drawBuilding(building, ghost = false, dt = 0, now = performance.now()) 
   if (!ghost) {
     const mount = combat.sentries[building.id];
     const actual = mount?.angle ?? SENTRY_TURRET.restAngle;
-    const projected = turnTurret(actual, mount?.aim ?? actual, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, SENTRY_TURRET.speed);
+    const projected = turnTurret(actual, mount?.aim ?? actual, connected ? snapshotAge(now) : 0, SENTRY_TURRET.speed);
     angle = turnTurret(sentryPositions.get(building.id) ?? actual, projected, dt, SENTRY_TURRET.speed);
     sentryPositions.set(building.id, angle);
   }
@@ -1509,7 +1593,7 @@ function drawBuilding(building, ghost = false, dt = 0, now = performance.now()) 
 function drawScout(player, dt, now) {
   if (player.body === 'orbital' || player.recyclerId) return;
   if (player.aircraftId || player.shipId || player.body === 'ship' || (player.life==='disabled' && player.lostVehicle==='ship')) return;
-  if (player.life === 'arriving') { drawReplacement(ctx, player, T, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, effects.reduced); positions.delete(player.id); return; }
+  if (player.life === 'arriving') { drawReplacement(ctx, player, T, connected ? snapshotAge(now) : 0, effects.reduced); positions.delete(player.id); return; }
   const arrival = world.cores?.find(c => c.owner === player.id && c.elapsed < CORE.duration);
   if (arrival && arrival.elapsed < CORE.exit) return;
   let position = positions.get(player.id);
@@ -1537,14 +1621,16 @@ function drawScout(player, dt, now) {
   const aaSolution=antiAir?(mine&&aim&&!heldGun.size?aaAimSolution(world,buildings,tank,combat.enemies,aim.x,aim.y,combat.time):tank.aaAim):null;
   const targetAngle=antiAir&&aaSolution&&!(mine&&heldGun.size)?Math.atan2(aaSolution.x-player.x,player.y-aaSolution.y):player.aim??player.angle;
   const speed = antiAir?AA.turnSpeed:loadout(player.body).turnSpeed;
-  const projected = turnTurret(player.turret ?? tank.turret ?? player.angle, targetAngle, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, speed);
+  const projected = turnTurret(player.turret ?? tank.turret ?? player.angle, targetAngle, connected ? snapshotAge(now) : 0, speed);
   position.turret = turnTurret(position.turret, projected, dt, speed);
   if (player.body === 'robot') {
-    drawRobot(ctx, position.turret, player.vx || 0, player.vy || 0, position.phase, mine);
+    drawRobot(ctx, position.turret, player.vx || 0, player.vy || 0, position.phase, mine, mine ? spineLights((player.health ?? 100) / SURVIVAL.health) : 0);
   } else {
     const recoil = effects.tankRecoil(player.id, now);
     drawHeavyTank(ctx,{angle:position.angle,turret:position.turret,mine,travel:position.trackTravel,turn:position.trackTurn,recoil,secondaryRecoil:effects.recoil(player.id,now,'APCR'),weapon:player.weapon,kind:tank.kind,radar:now/1400,aaRecoil:effects.aaRecoil(player.id,now),reduced:effects.reduced});
   }
+  if (mine) { const hull = player.body === 'robot' ? null : tank, fraction = hull ? hullHealth(hull) / hullMaximum(hull) : (player.health ?? 100) / SURVIVAL.health; drawHealthRing(ctx, fraction, hull ? 54 : 38, camera.zoom, now, effects.reduced); }
+  if (!mine && camera.zoom < LABEL_ZOOM) { ctx.restore(); return; }
   ctx.font = `${10 / camera.zoom}px monospace`; ctx.textAlign = 'center';
   const label = mine ? 'YOU' : player.name.toUpperCase(), labelWidth = ctx.measureText(label).width;
   ctx.fillStyle = '#243b31cf'; roundRect(ctx, -labelWidth / 2 - 5 / camera.zoom, 26, labelWidth + 10 / camera.zoom, 16 / camera.zoom, 2); ctx.fill();
@@ -1568,7 +1654,7 @@ function drawCombat() {
     ctx.save();ctx.strokeStyle='#ff8d78';ctx.lineWidth=2/camera.zoom;ctx.setLineDash([6/camera.zoom,4/camera.zoom]);
     ctx.beginPath();ctx.arc(point.x*T,point.y*T,T*.8,0,Math.PI*2);ctx.stroke();ctx.restore();
   }
-  const clock = roomState?.paused ? stateReceived : performance.now(), elapsed = Math.min((clock - stateReceived) / 1000, .1);
+  const clock = roomState?.paused ? stateReceived : performance.now(), elapsed = snapshotAge(clock);
   drawCentipedeWarnings(ctx,combat.encounters?.centipedes,combat.time+elapsed*1000,T,camera.zoom,effects.reduced);
   if (combat.objective?.id && combat.objective.id !== 'landing') {
     const point = combat.objective; ctx.save(); ctx.strokeStyle = '#efcf84'; ctx.lineWidth = 2 / camera.zoom; ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
@@ -1657,10 +1743,10 @@ function drawCombat() {
   }
 }
 function drawHeavyAim() {
-  const elapsed = connected && !roomState?.paused ? Math.min((performance.now() - stateReceived) / 1000, .1) : 0;
+  const elapsed = connected && !roomState?.paused ? snapshotAge(performance.now()) : 0;
   if (isMissile(controlledGun()) && (aim || controlledGun().target)) {
     // Gold: the desired area under the cursor. Pale blue: where the launcher points now.
-    const gun = controlledGun(), desired = aim || gun.target, view = predictBattery(gun, world, connected ? Math.min(.1, (performance.now() - stateReceived) / 1000) : 0, desired);
+    const gun = controlledGun(), desired = aim || gun.target, view = predictBattery(gun, world, connected ? snapshotAge(performance.now()) : 0, desired);
     drawTargetBox(ctx, missileAim(gun, world, desired, gun.rotated), gun.rotated, T, camera.zoom, !(gun.reload>.001) && !missileTargetError(gun, world, desired, gun.rotated), gun.ammo);
     if (view.deploy >= 1 && !batteryAligned(view, world, desired, gun.rotated)) drawActualBox(ctx, batteryTarget(view, world, gun.rotated), gun.rotated, T, camera.zoom);
   }
@@ -1674,6 +1760,17 @@ function drawHeavyAim() {
     ctx.beginPath(); ctx.moveTo(target.x * T, target.y * T - cross); ctx.lineTo(target.x * T + cross, target.y * T); ctx.lineTo(target.x * T, target.y * T + cross); ctx.lineTo(target.x * T - cross, target.y * T); ctx.closePath(); ctx.stroke();
     ctx.globalAlpha = .4; ctx.beginPath(); ctx.moveTo(p.x * T, p.y * T); ctx.lineTo(target.x * T, target.y * T); ctx.stroke(); ctx.restore();
   }
+}
+// The frame relies on balanced save/restore calls, so one failed effect would otherwise
+// leave every later frame rotated or offset. Repair it, and name the failure once.
+let drawFailure = '', reportedFailure = false;
+addEventListener('error', event => { drawFailure = `${event.message} (${String(event.filename).split('/').pop()}:${event.lineno})`; });
+function repairCanvas() {
+  const m = ctx.getTransform(), scale = canvas.width / width;
+  if (Math.abs(m.a - scale) + Math.abs(m.d - scale) + Math.abs(m.b) + Math.abs(m.c) + Math.abs(m.e) + Math.abs(m.f) < 1e-6) return;
+  ctx.reset?.(); ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  console.error('Canvas drawing state repaired', drawFailure);
+  if (!reportedFailure) { reportedFailure = true; notify('Display repaired. Please report: ' + (drawFailure || 'unbalanced drawing state')); }
 }
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1700,17 +1797,19 @@ function frame(now) {
   $('core-status').hidden = !deploymentText; if ($('core-status').textContent !== deploymentText) $('core-status').textContent = deploymentText;
   if (mouseAim && mode !== 'build') aim = toWorld(mouseAim.x, mouseAim.y);
   if (me.shipId && now-lastShipUi > 100) { updateShips(); lastShipUi=now; }
-  ctx.clearRect(0, 0, width, height); ctx.fillStyle = '#284e52'; ctx.fillRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height); ctx.fillStyle = horizonSea(world); ctx.fillRect(0, 0, width, height);
   const shake = effects.offset(now, camera, camera.zoom);
-  const cargoAdvance=connected&&!roomState?.paused?Math.min(.1,Math.max(0,(now-stateReceived)/1000)):0;
+  const cargoAdvance=connected&&!roomState?.paused?snapshotAge(now):0;
   for(const pod of world.logistics?.cargoPods||[]){const offset=cargoEffects.cargoShake(pod,cargoTime(pod,cargoAdvance),camera,effects.reduced,effects.shakeEnabled);shake.x+=offset.x;shake.y+=offset.y;}
   for(const base of airRecords(world)){const p=base.aircraft;if(p?.state!=='delivering'||p.deliveryMethod==='factory')continue;const offset=cargoEffects.cargoShake({x:p.x-1,y:p.y-1.5,w:2,h:3},CORE.duration-p.remaining,camera,effects.reduced,effects.shakeEnabled);shake.x+=offset.x;shake.y+=offset.y;}
   for(const yard of dockRecords(world)){if(yard.dockReady||world.logistics?.jobs?.[yard.id])continue;const offset=shipEffects.dockShake(yard,shipEffects.time(yard,stateReceived,now,connected&&!roomState?.paused),camera,effects.reduced,effects.shakeEnabled);shake.x+=offset.x;shake.y+=offset.y;}
   for (const core of world.cores || []) { const offset = coreEffects.shake(core, coreEffects.time(core, stateReceived, now, connected), camera, effects.reduced, effects.shakeEnabled); shake.x += offset.x; shake.y += offset.y; }
   for (const tank of world.tanks || []) { if(world.logistics?.jobs?.[tank.id])continue; const pod = { ...tank, x: tank.podX, y: tank.podY }; const offset = tankEffects.shake(pod, tankEffects.time(pod, stateReceived, now, connected), camera, effects.reduced, effects.shakeEnabled); shake.x += offset.x; shake.y += offset.y; }
   shake.x=Math.max(-12,Math.min(12,shake.x));shake.y=Math.max(-12,Math.min(12,shake.y));
+  repairCanvas();
   ctx.save(); ctx.translate(width / 2 + shake.x, height / 2 + shake.y); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
   drawTerrain();
+  drawHorizon(ctx, world, T, { x0: camera.x - (width / 2 + 40) / camera.zoom, y0: camera.y - (height / 2 + 40) / camera.zoom, x1: camera.x + (width / 2 + 40) / camera.zoom, y1: camera.y + (height / 2 + 40) / camera.zoom });
   if(isSandSeaWorld(world)&&camera.zoom>=.25)drawSiroccoPalms(ctx,world,T,{x0:(camera.x-width/(2*camera.zoom))/T,y0:(camera.y-height/(2*camera.zoom))/T,x1:(camera.x+width/(2*camera.zoom))/T,y1:(camera.y+height/(2*camera.zoom))/T},[...players,...combat.enemies,...world.tanks,...world.ships,...(world.logistics?.recyclers||[])],new Set(world.logistics?.floors||[]));
   drawBridges(ctx,world,T,camera.zoom,bridges.preview());
   drawConvertedGround(ctx, world, T, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced);
@@ -1729,7 +1828,7 @@ function frame(now) {
   for (const rail of world.rails) if(!railDeliveries.some(p=>p.layout==='rail-crate'?rail.x===p.x&&rail.y===p.y&&rail.shape===p.shape:p.shape==='EW'?rail.y===p.y&&Math.abs(rail.x-p.x)<=2:rail.x===p.x&&Math.abs(rail.y-p.y)<=2)) drawRail(ctx, rail, T);
   for(const pod of railDeliveries)drawRailDelivery(ctx,pod,cargoTime(pod,cargoAdvance),T,cargoEffects,effects.reduced,world.rails);
   effects.drawGround(ctx, now, 'crater');
-  drawHazards(ctx, combat.fields, T, combat.time + (connected ? Math.min(now - stateReceived, 100) : 0), effects.reduced, camera.zoom);
+  drawHazards(ctx, combat.fields, T, combat.time + (connected ? snapshotAge(now) * 1000 : 0), effects.reduced, camera.zoom);
   effects.drawGround(ctx, now, 'mac-blood');
   effects.drawGround(ctx, now, 'remains');
   drawWrecks(ctx,world,T,camera.zoom);
@@ -1746,10 +1845,11 @@ function frame(now) {
   }
   drawAquaticFields(ctx,combat,T,camera.zoom,combat.time||0,effects.reduced);
   drawConquest(ctx, world.sites || [], T, camera.zoom, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced, world, buildings, { orbital: inOrbit(), inspectedId: following ? null : selectedSiteId });
-  drawLogistics(ctx,world,buildings,T,camera.zoom,effects.reduced,me.id,constructionEffects,connected&&!roomState?.paused?Math.min(.1,(now-stateReceived)/1000):0);
+  drawLogistics(ctx,world,buildings,T,camera.zoom,effects.reduced,me.id,constructionEffects,connected&&!roomState?.paused?snapshotAge(now):0);
   drawAcid(ctx, combat, T, camera.zoom, (combat.time || 0) + (roomState?.paused || !connected ? 0 : Math.min(150, Math.max(0, now - stateReceived))), effects.reduced);
   for (const state of world.switches || []) { const rail = world.rails.find(r => r.x === state.x && r.y === state.y); if (rail) drawSwitch(ctx, rail, state, switchLocked(world, rail), T, camera.zoom); }
-  if (mapGrid || mode === 'build' || bridges.active()) {
+  // Under six pixels a tile the grid is only moire, and it would outline the map's rim.
+  if ((mapGrid || mode === 'build' || bridges.active()) && camera.zoom * T >= 6) {
     ctx.strokeStyle = '#172f2926'; ctx.lineWidth = 1 / camera.zoom; ctx.beginPath();
     for (let x = 0; x <= world.width; x++) { ctx.moveTo(x * T, 0); ctx.lineTo(x * T, world.height * T); }
     for (let y = 0; y <= world.height; y++) { ctx.moveTo(0, y * T); ctx.lineTo(world.width * T, y * T); } ctx.stroke();
@@ -1768,7 +1868,7 @@ function frame(now) {
   }
   for (const id of sentryPositions.keys()) if (!buildings.some(b => b.id === id)) sentryPositions.delete(id);
   for (const b of buildings) if(!world.logistics?.jobs?.[b.id])drawBuilding(b, false, dt, now);
-  for (const gun of world.artillery) { if(world.logistics?.jobs?.[gun.id])continue; if (isMissile(gun)) drawBattery(ctx, predictBattery(gun, world, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, gun.id === controlledGun()?.id ? aim || gun.target : gun.target), T, gun.id === controlledGun()?.id, false, true, effects.reduced); else drawRailGun(ctx, gun, T, connected ? Math.min((now - stateReceived) / 1000, .1) : 0, effects.recoil(gun.id, now, gun.ammo || 'HE'), gun.id === controlledGun()?.id, effects.reduced); }
+  for (const gun of world.artillery) { if(world.logistics?.jobs?.[gun.id])continue; if (isMissile(gun)) drawBattery(ctx, predictBattery(gun, world, connected ? snapshotAge(now) : 0, gun.id === controlledGun()?.id ? aim || gun.target : gun.target), T, gun.id === controlledGun()?.id, false, true, effects.reduced); else drawRailGun(ctx, gun, T, connected ? snapshotAge(now) : 0, effects.recoil(gun.id, now, gun.ammo || 'HE'), gun.id === controlledGun()?.id, effects.reduced); }
   const target = mode === 'build' && hover && $('site-panel').hidden ? hover : selected;
   const coreMode = mode === 'build' && ['core', 'tank', 'aa-tank', 'ship', 'airbase', 'helipad'].includes(deploymentKind);
   const error = mode === 'build' ? deploymentError(target.x, target.y) : placementError(world, buildings, groundPlayers(), target.x, target.y);
@@ -1811,15 +1911,15 @@ function frame(now) {
   drawCombat();
   for(const base of airRecords(world)){
     const p=base.aircraft,deck=flightBase(world,base)?.carrier;if(deck&&p.state==='parked'){ctx.save();clipUnderBridges(ctx,world,T);ctx.translate(p.x*T,p.y*T);drawAircraft(ctx,{...p,x:0,y:0},T*.5,camera.zoom,p.id===me.aircraftId,0,effects.reduced);ctx.restore();}
-    else drawAircraft(ctx,p,T,camera.zoom,p.id===me.aircraftId,connected?(now-stateReceived)/1000:0,effects.reduced,effects.recoil(p.id,now,'APCR'),now/1000);
+    else drawAircraft(ctx,p,T,camera.zoom,p.id===me.aircraftId,connected?Math.max(0,(now-stateReceived)/1000):0,effects.reduced,effects.recoil(p.id,now,'APCR'),now/1000);
   }
   if(landingFlash&&now<landingFlash.until&&isHelicopter(currentAircraft())){
     const point=landingFlash.point;
     ctx.save();ctx.globalAlpha=effects.reduced ? .7 : .35+.65*Math.abs(Math.cos((now-landingFlash.start)/180));ctx.strokeStyle='#ed6860';ctx.fillStyle='#ed686033';ctx.lineWidth=1.5/camera.zoom;
     for(const cell of fieldLandingCells(point)){ctx.fillRect(cell.x*T,cell.y*T,T,T);ctx.strokeRect(cell.x*T,cell.y*T,T,T);}ctx.restore();
   }
-  drawUplinkFlights(ctx,world,T,camera.zoom,effects.reduced,connected&&!roomState?.paused?Math.min(.1,(now-stateReceived)/1000):0);
-  drawBombRuns(ctx,combat.barrages||[],T,connected?Math.min((now-stateReceived)/1000,.1):0,camera.zoom);
+  drawUplinkFlights(ctx,world,T,camera.zoom,effects.reduced,connected&&!roomState?.paused?snapshotAge(now):0);
+  drawBombRuns(ctx,combat.barrages||[],T,connected?snapshotAge(now):0,camera.zoom);
   drawFlak(ctx, world.sites || [], combat.flakShells || [], combat.time, T, camera.zoom, effects.reduced);
   drawLaserBeams(ctx, world.sites || [], T, camera.zoom, world, buildings, laserBeamRay);
   drawMobileLaserBeams(ctx, combat.enemies, T, camera.zoom);
@@ -1827,7 +1927,7 @@ function frame(now) {
   drawHeavyAim();
   if (currentShip() && aim && mode !== 'build') drawShipAim(currentShip());
   bombers.draw(ctx,T,camera.zoom);remoteAir.draw(ctx,T,camera.zoom);remoteNaval.draw(ctx,T,camera.zoom);
-  orbital.draw(ctx,T,camera.zoom,connected&&!roomState?.paused?Math.min((now-stateReceived)/1000,.1):0,effects.reduced);
+  orbital.draw(ctx,T,camera.zoom,connected&&!roomState?.paused?snapshotAge(now):0,effects.reduced);
   if (currentAircraft()) drawBombPrediction(ctx,world,previewAircraft(),currentAirbase(),T,camera.zoom, p => concealed(world.sites, p, combat.time));
   communication?.draw(ctx,world,visible,T,camera.zoom,now);
   for (const id of positions.keys()) if (!visible.some(p => p.id === id)) positions.delete(id);
@@ -1840,7 +1940,11 @@ function frame(now) {
   }
   // Survey instruments: graticule and scale bar, then cursor telemetry from you (or your facility).
   remoteMarkers.position(world,p=>({x:(p.x*T-camera.x)*camera.zoom+width/2,y:(p.y*T-camera.y)*camera.zoom+height/2}));
-  if (width > 760 || inOrbit() || overviewReturn || orbitalView || remoteSelecting) {
+  const screen = p => ({ x: (p.x * T - camera.x) * camera.zoom + width / 2, y: (p.y * T - camera.y) * camera.zoom + height / 2 });
+  const locatorAge = now - locatorAt;
+  if (locatorAge < LOCATOR_MS && missionTarget && me) drawLocator(ctx, screen(me), screen({ x: missionTarget.site.x + 1.5, y: missionTarget.site.y + 1.5 }), `${(missionTarget.site.name || missionTarget.site.kind).toUpperCase()} · ${Math.round(missionTarget.distance)} t ${missionTarget.bearing}`, locatorAge, effects.reduced);
+  if (mouseAim) { const rect = canvas.getBoundingClientRect(); drawReloadArc(ctx, mouseAim.x - rect.left, mouseAim.y - rect.top, reloadLeft(now)); }
+  if (inOrbit() || overviewReturn || orbitalView || remoteSelecting || mapGrid || mode === 'build' || controlledGun()) {
     drawGraticule(ctx, { camera, width, height, T, world, top: width > 760 ? 92 : 80, left: width > 760 ? 10 : 6 });
     if (width > 760) drawScaleBar(ctx, { camera, T, x: 22, y: height - 50 });
   }
@@ -1935,24 +2039,23 @@ function updateRecyclerControl(){
   const truck=currentRecycler(),near=nearbyRecycler(),button=$('recycler-interact'),station=nearbyStation();
   const available=alive()&&!controlledGun()&&mode!=='build';
   button.hidden=!available||(!truck&&(me.body!=='robot'||!near));button.disabled=!connected||(!truck&&!!near?.occupant);
-  text('recycler-interact',truck?(isBuilder(truck)?'Exit builder / E':'Exit recycler / E'):near?.occupant?'Vehicle occupied':isBuilder(near)?'Drive bridge builder / E':'Drive recycler / E');
+  text('recycler-interact',truck?'Exit / E':near?.occupant?'Vehicle occupied':isBuilder(near)?'Drive bridge builder / E':'Drive recycler / E');
   const launch=station?.kind==='uplink'?logistics.launchStatus(station.id):null;
   text('station-interact',launch?launch.label+' / E':'Ground receiver / E');
   $('station-interact').disabled=launch?launch.disabled:!connected;
   $('station-interact').title=launch?.reason||'Open ground logistics.';
   $('station-interact').hidden=!available||me.body!=='robot'||!station||!button.hidden;
   $('recycler-controls').hidden=!truck||!available;
-  $('builder-plan').hidden=!isBuilder(truck);$('recycler-name').textContent=isBuilder(truck)?'BRIDGE BUILDER':'RECYCLER';
+  $('builder-plan').hidden=!isBuilder(truck);
   if(truck){
     text('map-hint','W/S forward/reverse / A/D steer / E exit');
-    text('utility-manual',isBuilder(truck)?'W/S forward/reverse / A/D steer / E exit / Park beside a bank and plan a bridge. Anchored while building.':'W/S forward/reverse / A/D steer / E exit / Park near salvage to collect, beside a station to unload.');
-    text('recycler-cargo',Math.ceil(truck.cargo)+' / '+ECONOMY.cargo+' cargo');
-    text('recycler-status',truck.speed>.01?'DRIVING':truck.collecting>0?'COLLECTING / '+Math.ceil(ECONOMY.collectTime-truck.collecting)+'s':truck.cargo>=ECONOMY.cargo?'FULL / Park beside a launch station':'PARKED / Auto collect and unload');
+    // The load and its live status sit on the unit; this reads them out for screen readers.
+    text('recycler-status',Math.ceil(truck.cargo)+' / '+ECONOMY.cargo+' cargo');
     $('recycler-uplink').hidden=!station||isBuilder(truck);
-    text('recycler-uplink',launch?launch.label:'Ground logistics / L');
+    text('recycler-uplink-label',launch?launch.label:'Ground logistics');
     $('recycler-uplink').disabled=launch?launch.disabled:!connected;
     $('recycler-uplink').title=launch?.reason||'Open ground logistics.';
-    if(isBuilder(truck)){const job=world.logistics.bridges?.find(b=>b.builderId===truck.id&&!bridgeReady(b));text('recycler-cargo',job?Math.ceil(bridgeDuration(job)-job.elapsed)+'s remaining':'ENGINEERING');text('recycler-status',job?'ANCHORED / Bridge unfolding':'Drive beside a bank, then plan bridge.');$('builder-plan').disabled=!!job;}
+    if(isBuilder(truck)){const job=world.logistics.bridges?.find(b=>b.builderId===truck.id&&!bridgeReady(b)),left=job?Math.ceil(bridgeDuration(job)-job.elapsed)+'s':'';text('builder-plan-label',job?'Building '+left:'Bridge');text('recycler-status',job?'Bridge unfolding, '+left+' remaining':'Engineering');$('builder-plan').disabled=!!job;}
     const hp=world.logistics.durability['recycler:'+truck.id];
     $('robot-health').hidden=false;text('health-label',isBuilder(truck)?'BUILDER HULL':'RECYCLER HULL');$('health-meter').max=hp?.max||160;$('health-meter').value=hp?.health??160;text('health-value',Math.ceil(hp?.health??160)+' / '+(hp?.max||160));
     $('fire-button').disabled=$('machine-gun-button').disabled=true;
@@ -1969,6 +2072,7 @@ $('station-interact').onclick=$('recycler-uplink').onclick=async()=>{
   if(station.kind!=='uplink'){logistics.open(station.id);return;}
   const pending=logistics.launch(station.id);updateRecyclerControl();await pending;updateRecyclerControl();
 };
+const utilityAction = id => !$('recycler-controls').hidden && !$(id).hidden;
 function nearbyTank() {
   return world?.tanks?.filter(t => !t.destroyed && t.elapsed >= TANK.duration && Math.hypot(t.x-me.x,t.y-me.y) <= TANK.boardRange).sort((a,b) => Math.hypot(a.x-me.x,a.y-me.y)-Math.hypot(b.x-me.x,b.y-me.y))[0];
 }
@@ -2044,7 +2148,7 @@ $('force-tabs').addEventListener('keydown', event => {
   const index = TABS.findIndex(t => t.id === forceTab);
   setForceTab(TABS[(index + step + TABS.length) % TABS.length].id, true);
 });
-for(const tab of TABS)assetsIn(tab.id).forEach((asset,index)=>{const label=$(asset.card).querySelector('.asset-key');if(label)label.textContent=String(index+1);});
+for(const tab of TABS)assetsIn(tab.id).forEach((asset,index)=>{const card=$(asset.card),label=card.querySelector('.asset-key');card.style.order=index;if(label)label.textContent=String(index+1);});
 for (const asset of ASSETS) { const card = $(asset.card); card.addEventListener('pointerenter', () => showSpec(asset.card)); card.addEventListener('focus', () => showSpec(asset.card)); }
 for (const kind of ['factory', 'uplink', 'recycler','builder','outpost']) $(kind + '-card').onclick = () => deployLogistics(kind);
 $('logistics-open').onclick = () => { toggleTray(false); $('supplies-button').click(); };
@@ -2082,9 +2186,30 @@ $('zoom-in').onclick = () => zoom(1.2); $('zoom-out').onclick = () => zoom(1 / 1
 $('grid-toggle').onclick = () => { mapGrid = !mapGrid; $('grid-toggle').setAttribute('aria-pressed', String(mapGrid)); };
 $('help-button').onclick = () => { stopFiring(); keys.clear(); $('help-dialog').showModal(); if (campaignId) roomRequest('pause', { paused: true }).catch(e => notify(e.message)); };
 $('keys-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: pausedMenu() }).catch(e => notify(e.message)); canvas.focus({ preventScroll: true }); });
+for (const asset of ASSETS) {
+  const row = document.createElement('details'), list = document.createElement('dl');
+  row.append(Object.assign(document.createElement('summary'), { textContent: asset.name }), list);
+  for (const [term, value] of specRows(asset)) list.append(Object.assign(document.createElement('dt'), { textContent: term }), Object.assign(document.createElement('dd'), { textContent: value }));
+  $('field-equipment-list').append(row);
+}
 $('keys-open').onclick = () => { $('help-dialog').close(); openKeys(); };
 $('overview-button').onclick = () => toggleOverview();
 $('help-dialog').addEventListener('close', () => { if (campaignId) roomRequest('pause', { paused: pausedMenu() }).catch(e => notify(e.message)); });
+document.body.classList.toggle('legacy-world', !campaignId);
+function setHudMenu(open) { $('hud-menu').hidden = !open; $('hud-menu-button').setAttribute('aria-expanded', String(open)); }
+$('hud-menu-button').onclick = () => setHudMenu($('hud-menu').hidden);
+$('menu-locator').onclick = projectLocator;
+$('gun-next-target').onclick = () => { nextGunTarget(); canvas.focus({ preventScroll: true }); };
+$('gun-view-toggle').onclick = () => { const gun = controlledGun(); if (gun) toggleGunView(gun); canvas.focus({ preventScroll: true }); };
+$('hud-menu').addEventListener('click', event => { if (event.target.closest('button,a')) setHudMenu(false); });
+addEventListener('pointerdown', event => { if (!event.target.closest?.('.hud-header')) setHudMenu(false); });
+addEventListener('keydown', event => { if (event.key === 'Escape' && !$('hud-menu').hidden) { event.stopPropagation(); setHudMenu(false); canvas.focus({ preventScroll: true }); } }, true);
+for (const [button, target] of [['menu-chat', 'chat-open'], ['menu-history', 'chat-history-toggle'], ['menu-emote', 'emote-open']]) $(button).onclick = () => $(target)?.click();
+// Touch and keyboard open the mission bar; a mouse only hovers, so it folds on leaving.
+$('mission-toggle').onclick = event => {
+  if (event.pointerType === 'mouse') { canvas.focus({ preventScroll: true }); return; }
+  const open = $('mission-bar').classList.toggle('open'); $('mission-toggle').setAttribute('aria-expanded', String(open));
+};
 $('room-button').hidden = !campaignId;
 $('campaign-link').hidden = !!campaignId;
 // Stay in the live room: account navigation would disconnect the current pilot.
@@ -2107,7 +2232,11 @@ $('room-revoke').onclick = async () => { try { await roomRequest('revoke-invites
 $('room-leave').onclick = async () => { try { await roomRequest('leave'); eventStream?.close(); location.assign('/campaigns/'); } catch (e) { $('room-status').textContent = e.message; } };
 $('help-dialog').addEventListener('click', event => { if (event.target === $('help-dialog')) { const r = event.target.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) event.target.close(); } });
 // Desktop combat uses mouse buttons; middle-drag is the distinct pan gesture.
-canvas.addEventListener('contextmenu', event => event.preventDefault());
+canvas.addEventListener('contextmenu', event => {
+  event.preventDefault();
+  if (world && remoteSelecting) { const at = toWorld(event.clientX, event.clientY); if (remoteNaval.active()) remoteNaval.order(at.x, at.y); else if (remoteAir.active()) remoteAir.order(at.x, at.y); return; }
+  if (world && mode === 'build' && !inOrbit()) { const at = toWorld(event.clientX, event.clientY); select(at.x, at.y); quickPlace('factory', event.shiftKey); }
+});
 canvas.addEventListener('mousedown', event => {
   if (communication?.active()) return;
   if (lastPointerKind === 'touch' || event.sourceCapabilities?.firesTouchEvents) return;
@@ -2127,9 +2256,16 @@ canvas.addEventListener('mousedown', event => {
   if (event.button === 2 && combatInputAllowed()) { heldGun.add('mouse'); fire('APCR'); }
 });
 window.addEventListener('mouseup', event => { if (event.button === 2) heldGun.delete('mouse'); if (event.button === 0) releasePrimary('mouse'); });
+// Two fingers on the battlefield zoom; one finger keeps panning and aiming.
+const touches = new Map(); let pinch = 0;
+const pinchSpan = () => { const [a, b] = touches.values(); return { distance: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
 canvas.addEventListener('pointerdown', event => {
   if (communication?.active()) return;
   lastPointerKind = event.pointerType;
+  if (event.pointerType === 'touch') {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.size === 2) { pointer = null; canvas.classList.remove('panning'); pinch = pinchSpan().distance; return; }
+  }
   if (!world || pointer) return;
   if (event.pointerType === 'mouse' && event.button !== 1 && !(mode === 'build' && event.button === 0)) return;
   canvas.focus({ preventScroll: true }); canvas.setPointerCapture(event.pointerId);
@@ -2142,6 +2278,9 @@ canvas.addEventListener('pointerdown', event => {
 canvas.addEventListener('pointermove', event => {
   if (communication?.active()) return;
   if (!world) return;
+  if (touches.has(event.pointerId)) touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (placingByMouse(event)) { const at = toWorld(event.clientX, event.clientY); if (Math.floor(at.x) !== selected.x || Math.floor(at.y) !== selected.y) select(at.x, at.y); showPlaceChip(event.clientX, event.clientY); }
+  if (pinch && touches.size === 2) { const span = pinchSpan(); zoomAt(span.distance / pinch, span.x, span.y); pinch = span.distance; return; }
   const tile = toWorld(event.clientX, event.clientY); hover = { x: Math.floor(tile.x), y: Math.floor(tile.y) };
   if(event.pointerType==='mouse'&&!pointer&&remoteAir.active())remoteAir.aim(tile.x,tile.y);
   if(event.pointerType==='mouse'&&!pointer&&remoteNaval.active())remoteNaval.aim(tile.x,tile.y);
@@ -2164,14 +2303,15 @@ canvas.addEventListener('pointerup', event => {
   if (!wasDragged && world && event.button !== 1) {
     const tile = toWorld(event.clientX, event.clientY); if(remoteSelecting){if(remoteNaval.active())void remoteNaval.pick(tile.x,tile.y);else if(remoteAir.active())void remoteAir.pick(tile.x,tile.y);else pickRemote(tile);return;}if(orbital.pick(tile.x,tile.y))return;if(bombers.pick(tile.x,tile.y))return;if(bridges.pick(tile.x,tile.y))return; select(tile.x, tile.y);
     if (mode !== 'build') { mouseAim = null; aim = tile; }
-    else { hover = null; toggleSite(true); }
+    else { hover = null; toggleSite(true); if (event.pointerType === 'mouse' && !inOrbit()) quickPlace('orbital', event.shiftKey); }
 
   }
 });
+for (const name of ['pointerup', 'pointercancel']) canvas.addEventListener(name, event => { touches.delete(event.pointerId); if (touches.size < 2) pinch = 0; });
 const cancelPointer = () => { pointer = null; canvas.classList.remove('panning'); heldGun.delete('mouse'); releasePrimary('mouse'); };
 canvas.addEventListener('pointercancel', cancelPointer);
 canvas.addEventListener('lostpointercapture', cancelPointer);
-canvas.addEventListener('pointerleave', () => { hover = null; heldGun.delete('mouse'); releasePrimary('mouse'); if (!pointer?.pan) mouseAim = null; });
+canvas.addEventListener('pointerleave', () => { hover = null; $('place-chip').hidden = true; heldGun.delete('mouse'); releasePrimary('mouse'); if (!pointer?.pan) mouseAim = null; });
 const primaryButton = $('fire-button');
 primaryButton.addEventListener('pointerdown', event => {
   if (me?.body !== 'robot' && !isAA(currentTank())) return;
@@ -2191,7 +2331,14 @@ setInterval(() => {
   if (heldGun.size) fire('APCR');
   if (heldPrimary.size && !isAA(currentTank())) fire('HE');
 }, 30);
-canvas.addEventListener('wheel', event => { if (!world) return; event.preventDefault(); zoom(event.deltaY > 0 ? 1 / 1.1 : 1.1); }, { passive: false });
+// Far views step faster, and every zoom holds the point under the pointer when the
+// camera is free. Following the robot keeps it centred.
+function zoomAt(factor, clientX, clientY) {
+  const before = camera.zoom, rect = canvas.getBoundingClientRect(); zoom(factor); if (following) return;
+  const anchored = anchoredCamera({ ...camera, zoom: before }, camera.zoom, { x: clientX - rect.left - width / 2, y: clientY - rect.top - height / 2 });
+  camera.x = Math.max(0, Math.min(world.width * T, anchored.x)); camera.y = Math.max(0, Math.min(world.height * T, anchored.y));
+}
+canvas.addEventListener('wheel', event => { if (!world) return; event.preventDefault(); const step = camera.zoom < .5 ? 1.3 : 1.1; zoomAt(event.deltaY > 0 ? 1 / step : step, event.clientX, event.clientY); }, { passive: false });
 mini.addEventListener('pointerdown', event => {
   if (!world) return; const r = mini.getBoundingClientRect(); camera.x = (event.clientX - r.left) / r.width * world.width * T; camera.y = (event.clientY - r.top) / r.height * world.height * T; following = false;
 });
@@ -2225,7 +2372,12 @@ const KEY_ACTIONS = {
   'chat': {when:()=>connected,run:once(()=>communication.openChat())},
   'emote': {when:()=>connected,run:once(()=>communication.openWheel())},
   'planet-open': {when:()=>true,run:once(()=>planet.open())},
-  'remote-air-rotate': {when:()=>remoteAir.active()||remoteNaval.active(),run:once(()=>remoteAir.active()?remoteAir.rotate():remoteNaval.rotate())},
+  'remote-air-rotate': {when:()=>remoteAir.active()||remoteNaval.active(),run:once(()=>remoteAir.isHeli()?remoteAir.heli('return'):remoteAir.active()?remoteAir.rotate():remoteNaval.run('dock'))},
+  'remote-slot': {when:()=>remoteAir.active()||remoteNaval.active(),run:once(event=>{const slot=Number(event.code.slice(-1));if(remoteAir.active())remoteAir.slot(slot);else remoteNaval.slot(slot);})},
+  'remote-ramp': {when:()=>remoteAir.isHeli()||remoteNaval.active(),run:once(()=>{if(remoteAir.isHeli())remoteAir.heli('land');else remoteNaval.ramp();})},
+  'remote-sling': {when:()=>remoteAir.isHeli(),run:once(()=>remoteAir.heli('sling'))},
+  'remote-launch': {when:()=>remoteNaval.active(),run:once(()=>remoteNaval.run('launch'))},
+  'remote-turn': {when:()=>remoteNaval.isSub(),run:once(()=>remoteNaval.rotate())},
   'orbital-rotate': {when:()=>orbital.active(),run:once(()=>orbital.rotate())},
   'heli-sling': {when:event=>isHelicopter(currentAircraft())&&onCanvas(event),run:once(helicopterSling)},
   'orbital-open': {when:()=>!$('orbital-open').disabled,run:once(()=>orbital.active()?orbital.close():orbital.open())},
@@ -2263,9 +2415,13 @@ const KEY_ACTIONS = {
   recenter: { when: () => true, prevent: false, run: () => { overviewReturn = null; recenter(); } },
   'ship-cargo': { when: event => (isTransport(currentShip())||!!nearbyCargoShip()) && !event.repeat, run: () => {void transferCargo();} },
   'ship-ramp': { when: event => !!currentShip() && !event.repeat, run: () => void shipRamp() },
+  'builder-plan': { when: event => !event.repeat && utilityAction('builder-plan'), run: () => { if(!$('builder-plan').disabled)$('builder-plan').click(); } },
+  'recycler-launch': { when: event => !event.repeat && utilityAction('recycler-uplink'), run: () => { if(!$('recycler-uplink').disabled)$('recycler-uplink').click(); } },
   grid: { when: event => !event.repeat, prevent: false, run: () => $('grid-toggle').click() },
   logistics: { when: event => !event.repeat, run: () => $('supplies-button').click() },
   overview: { when: event => !event.repeat, run: () => toggleOverview() },
+  'gun-target': { when: event => !event.repeat && !!controlledGun(), run: nextGunTarget },
+  locator: { when: event => !event.repeat && !inOrbit(), run: projectLocator },
   'objective-next': { when: event => !event.repeat, run: () => cycleObjective(1) },
   'objective-prev': { when: event => !event.repeat, run: () => cycleObjective(-1) },
   room: { when: event => !event.repeat, run: () => { if ($('room-button').hidden || $('room-button').disabled) notify('The room menu is available in named campaigns.'); else $('room-button').click(); } },
@@ -2279,7 +2435,7 @@ function setTankWeapon(id, value) { if ($(id).value === value) return; $(id).val
 // M: whole-map survey overview, returning to the previous camera on the second press.
 function toggleOverview() {
   if(remoteSelecting){closeRemote(true);return;}
-  if (controlledGun()) { setOrbitalView(!orbitalView); return; }
+  if (controlledGun()) { toggleGunView(controlledGun()); return; }
   if (overviewReturn) { camera = overviewReturn.camera; following = overviewReturn.following; overviewReturn = null; }
   else {
     overviewReturn = { camera: { ...camera }, following }; following = false;
@@ -2352,6 +2508,8 @@ const pausedMenu = () => ['room-dialog','help-dialog','keys-dialog'].some(id=>$(
 const localPointerPanels = ['facility-service', 'deployment-tray'];
 const localPanelOwnsPointer = () => localPointerPanels.some(id => !$(id).hidden && $(id).matches(':hover'));
 for (const id of localPointerPanels) $(id).addEventListener('pointerenter', () => { stopFiring(); mouseAim = null; });
+// A sideways row ignores a plain wheel turn, so the shelf scrolls itself where it overflows.
+$('deployment-tray').addEventListener('wheel', event => { const row = $('tray-panel').querySelector('.unit-grid'); if (event.deltaX || row.scrollWidth <= row.clientWidth) return; event.preventDefault(); row.scrollLeft += event.deltaY; }, { passive: false });
 const panelOwnsPointer = () => communication?.active() || remoteSelecting || localPanelOwnsPointer() || mode==='build' || !$('site-panel').hidden || !$('switch-panel').hidden || orbital.active() || bombers.active() || bridges.active() || ['planet-dialog','shipyard-dialog','logistics-dialog','room-dialog','help-dialog','keys-dialog'].some(id=>$(id).open);
 const movementAllowed = () => connected && world && !roomState?.paused && !pausedMenu() && !inOrbit() && alive() && !me.deploying && !document.hidden && (!(me?.shipId||me?.aircraftId||me?.vehicleId)||drivingFocused);
 window.addEventListener('keydown', event => {
@@ -2365,6 +2523,9 @@ window.addEventListener('keydown', event => {
   }
   if (communication?.typing()) { if(movementKeys.has(key))communicationKeys.add(key); return; }
   if (!world || communicationKeys.has(key) || editingField(event.target)) return;
+  // Enter presses a control reached with Tab. A clicked button keeps focus without
+  // showing it, so Enter still opens chat after using the mouse.
+  if (key === 'enter' && event.target.closest?.('button,a,summary')?.matches(':focus-visible')) return;
   const helmBinding=BINDINGS.find(b=>b.id==='ship-throttle');
   if(currentShip()&&helmBinding.keys.includes(key)){if(movementAllowed()){event.preventDefault();KEY_ACTIONS['ship-throttle'].run(event);}return;}
   if (movementKeys.has(key)) {

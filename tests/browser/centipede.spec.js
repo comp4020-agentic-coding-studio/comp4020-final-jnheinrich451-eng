@@ -104,7 +104,7 @@ test('two players share a Root emergence, segmented siege and saved giant after 
     await host.screenshot({ path: info.outputPath('centipede-siege-desktop.png') });
     // Pan the emulated phone around the actual body, keeping its full six-tile
     // chain visible below the operations panel and above the combat controls.
-    await phone.locator('#zoom-out').click();
+    await phone.locator('#hud-menu-button').click().then(()=>phone.locator('#zoom-out').click());
     const state = await read(peer), creature = state.combat.enemies.find(e => e.id === giant.id), middle = creature.body[3];
     const zoom = Number((await phone.locator('#zoom-label').textContent()).replace('%', '')) / 100;
     await phone.mouse.move(170, 430); await phone.mouse.down({ button: 'middle' });

@@ -41,12 +41,12 @@ for(const mobile of [false,true])for(const kind of ['bomber','attack-jet'])test(
   await page.keyboard.down('d');await expect.poll(async()=>(await plane()).bank).toBeGreaterThan(.2);await page.keyboard.up('d');
   await page.locator('#flight-fire').click();await expect.poll(async()=>kind==='attack-jet'?(await state()).combat.shots.some(s=>s.mount==='jet-cannon'):(await plane()).bombCooldown>0).toBe(true);
   await page.screenshot({path:info.outputPath('rejoined-flight.png')});
-  await page.locator('#room-button').click();await expect.poll(async()=>(await state()).room.soloPaused).toBe(true);
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#room-button').click());await expect.poll(async()=>(await state()).room.soloPaused).toBe(true);
   await page.reload();await expect(page.locator('#connection')).toContainText('live');
   await expect(page.locator('#room-dialog')).toBeVisible();await page.screenshot({path:info.outputPath('restored-pause.png')});await page.locator('#room-resume').click();
   await expect.poll(async()=>(await state()).room.paused).toBe(false);
   await page.locator('#world-canvas').focus();await page.keyboard.down('s');await expect.poll(async()=>(await plane()).speed).toBeLessThan(8);await page.keyboard.up('s');
-  await page.locator('#room-button').click();await page.locator('#room-leave').click();await expect(page).toHaveURL(/campaigns/);
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#room-button').click());await page.locator('#room-leave').click();await expect(page).toHaveURL(/campaigns/);
   await post('/api/campaigns/enter',{id});await page.goto(url+'/?campaign='+id);await expect(page.locator('#connection')).toContainText('live');
   await expect(page.locator('#room-dialog')).toBeHidden();await expect.poll(async()=>(await plane()).mission.phase).toBe('complete');
   await page.locator('#world-canvas').focus();await page.keyboard.down('a');await expect.poll(async()=>(await plane()).bank).toBeLessThan(-.2);await page.keyboard.up('a');

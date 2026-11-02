@@ -10,6 +10,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {serverState} from './drive-helper.js';
 
 async function field(browser,body='robot',mobile=false){
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-deploy-flow-'));let app=createApp({dataDir:dir,logSink:()=>{}});await app.close();
@@ -33,7 +34,7 @@ async function field(browser,body='robot',mobile=false){
  for(const base of [a,b])db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));db.close();
  app=createApp({dataDir:dir,logSink:()=>{}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
- return {page,errors,state:()=>page.evaluate(async()=>(await fetch('/api/world')).json()),post:(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};},{route,data}),async close(){await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-deploy-flow-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
+ return {page,errors,state:()=>serverState(page,url),post:(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};},{route,data}),async close(){await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-deploy-flow-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
 }
 async function tile(page,x,y){if(!await page.locator('#tile-x').isVisible())await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();}
 for(const mobile of [false,true])test('separate empty airbase and map-selected aircraft / '+(mobile?'phone':'desktop'),async({browser})=>{
@@ -80,11 +81,11 @@ for(const body of ['robot','rover','recycler','ship','aircraft'])test('WASD cont
    await expect(p.locator('#deployment-tray')).toBeHidden();await expect(p.locator('#build-mode')).toBeDisabled();await expect(p.locator('#remote-mode')).toBeDisabled();
    for(const route of ['buildings','artillery/control','aircraft/mission']){const denied=await f.post(route,{id:'test',x:70,y:70});expect(denied.status).toBe(409);expect(denied.body.error).toContain('robot');}
   }
-  const before=(await f.state()).me,dir=body==='ship'?'w':'d';await p.keyboard.down(dir);
+  const before=(await f.state()).me,dir=['ship','rover','recycler'].includes(body)?'w':'d';const driven=i=>body==='ship'?i.throttle>0:dir==='w'?i.y===-1:i.x===1;await p.keyboard.down(dir);
   await expect.poll(async()=>{const m=(await f.state()).me;return body==='aircraft'?Math.abs(m.angle-before.angle):Math.hypot(m.x-before.x,m.y-before.y);}).toBeGreaterThan(.3);await p.keyboard.up(dir);
-  await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);expect(inputs.some(i=>dir==='w'?i.y===-1:i.x===1)).toBe(true);
+  await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);expect(inputs.some(driven)).toBe(true);
   // A modal owns the mouse, but its close button must not consume driving keys.
-  await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.press('l');await expect(p.locator('#logistics-dialog')).toBeVisible();inputs.length=0;await p.keyboard.down(dir);await expect.poll(()=>inputs.some(i=>dir==='w'?i.y===-1:i.x===1)).toBe(true);await p.keyboard.up(dir);await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);
+  if(body==='robot')await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.press('l');await expect(p.locator('#logistics-dialog')).toBeVisible();inputs.length=0;await p.keyboard.down(dir);await expect.poll(()=>inputs.some(driven)).toBe(true);await p.keyboard.up(dir);await expect.poll(()=>inputs.at(-1)?.x===0&&inputs.at(-1)?.y===0).toBe(true);
   if(body==='robot'){await expect(p.locator('#field-equipment')).toBeVisible();await expect(p.locator('#tank-find')).toBeVisible();await expect(p.locator('#artillery-open')).toHaveCount(0);}
   // Native select input owns keystrokes. No movement command should leak through.
   await p.locator('#recycler-select').focus();inputs.length=0;await p.keyboard.press('w');await p.waitForTimeout(350);expect(inputs.every(i=>i.x===0&&i.y===0)).toBe(true);
@@ -100,7 +101,7 @@ for(const mobile of [false,true])test('tank fleet deploys and selects the correc
   await expect.poll(async()=>(await f.state()).tanks.length).toBe(3);
   await p.locator('#build-mode').click();await p.locator('#tab-air').click();await p.keyboard.press('Escape');await p.locator('#world-canvas').focus();await p.keyboard.press('l');
   await expect(p.locator('#tank-select option')).toHaveCount(3);await p.locator('#tank-select').selectOption('sibling');await expect(p.locator('#tank-replace')).toBeHidden();await p.locator('#tank-select').selectOption('tank');
-  await expect(p.locator('#tank-replace')).toBeVisible();await expect(p.locator('#tank-replace')).toBeEnabled();await p.locator('#tank-replace').click();await expect.poll(async()=>(await f.state()).tanks[0].destroyed).toBe(false);expect(f.errors).toEqual([]);
-  const s=await f.state();expect(s.tanks).toHaveLength(3);expect(s.tanks.find(t=>t.id==='sibling').health).toBe(200);expect(s.logistics.supplies).toBe(1600);
+  await expect(p.locator('#tank-replace')).toBeVisible();await expect(p.locator('#tank-replace')).toBeEnabled();await p.locator('#tank-replace').click();await expect.poll(async()=>(await f.state()).tanks.find(t=>t.id==='tank').replacedBy).toBeTruthy();expect(f.errors).toEqual([]);
+  const s=await f.state(),ruin=s.tanks.find(t=>t.id==='tank'),built=s.tanks.find(t=>t.id===ruin.replacedBy);expect(ruin.destroyed).toBe(true);expect(built.destroyed).toBe(false);expect(built.health).toBe(200);expect(s.tanks).toHaveLength(4);expect(s.tanks.find(t=>t.id==='sibling').health).toBe(200);expect(s.logistics.supplies).toBe(1600);
  }finally{await f.close();}
 });

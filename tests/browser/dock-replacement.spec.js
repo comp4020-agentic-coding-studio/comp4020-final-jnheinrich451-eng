@@ -25,7 +25,7 @@ for(const mobile of [false,true])test(`replace ruined dock and detect the surviv
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080}});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-  const state=()=>page.evaluate(async()=>await(await fetch('/api/world')).json());
+  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   await page.locator('#build-mode').click();await page.locator('#tab-navy').click();await page.locator('#dock-card').click();
   await page.locator('#coordinate-details').evaluate(e=>e.open=true);await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('25');await page.locator('#select-tile').click();
   await expect(page.locator('#site-reason')).toContainText('surviving ship');await expect(page.locator('#place-building')).toBeEnabled();

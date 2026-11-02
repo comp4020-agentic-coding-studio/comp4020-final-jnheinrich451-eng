@@ -1,0 +1,192 @@
+/* Graphite and gold HUD. Loaded after style.css; see docs/HUD_AND_POLISH_STAGE.md.
+   Blue stays reserved for ORB and actual aim, gold for intent and the interface. */
+:root{--void:#090b0d;--panel:#0d1013e8;--panel-solid:#12161a;--field:#0a0d10;--rule:#e9e1cf1f;--rule-strong:#e9e1cf40;--tick:#d8b25e80;--ink:#eee9df;--muted:#8f9498;--gold:#d8b25e;--gold-soft:#d8b25e1f;--gold-ink:#f0d48a}
+body{--hud-gutter:max(16px,env(safe-area-inset-right));--map-width:160px}
+
+/* One restrained accent instead of bright filled buttons. */
+.primary-button,.tank-interact,.artillery-control .facility-controls #artillery-fire{background:var(--gold-soft);color:var(--gold-ink);box-shadow:inset 0 0 0 1px var(--gold)}
+.primary-button:hover:not(:disabled),.tank-interact:hover:not(:disabled),.artillery-control .facility-controls #artillery-fire:hover:not(:disabled){background:var(--gold);color:#14100a}
+button:hover:not(:disabled){background:var(--gold-soft)}
+
+/* Header: a status dot and one menu beside the map. */
+.hud-header{left:auto;top:max(16px,env(safe-area-inset-top));right:calc(var(--hud-gutter) + var(--map-width) + 8px);height:36px;padding:0;gap:10px;background:none;z-index:7}
+.state-banner{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.connection{font-size:0;gap:0}
+.connection.offline{font-size:11px;gap:7px;color:var(--warn)}
+#hud-menu-button{width:36px;min-width:36px;min-height:36px;height:36px;padding:0;display:grid;place-items:center;border:0;background:var(--panel)}
+#hud-menu-button svg{width:18px;height:18px}
+#hud-menu-button[aria-expanded=true]{color:var(--gold-ink);box-shadow:inset 0 0 0 1px var(--gold)}
+.hud-menu{position:absolute;top:44px;right:0;width:248px;padding:12px;display:grid;gap:10px;z-index:8}
+.hud-menu[hidden]{display:none}
+.hud-menu .brand{font-size:20px;color:var(--gold-ink)}
+.hud-menu .brand>span{font-size:12px;letter-spacing:3px}
+#presence{font:10px var(--mono);color:var(--muted)}
+.hud-menu .supply-readout{width:100%;min-height:36px;font:12px var(--mono)}
+.hud-menu .map-tools{position:static;display:flex;flex-wrap:wrap;gap:2px;padding:0;background:none;border:0}
+.hud-menu .map-tools button{width:40px;min-width:40px;min-height:36px;font-size:18px;flex:0 0 auto}
+.hud-menu .map-tools #planet-open{width:auto;padding:0 10px;font:11px var(--mono)}
+.hud-menu .menu-comms,.hud-menu nav{display:flex;flex-wrap:wrap;gap:4px}
+.hud-menu .menu-comms button,.hud-menu nav button,.hud-menu nav a{flex:1 1 auto;width:auto;min-width:0;min-height:36px;font:12px var(--sans);padding:0 8px}
+.communication-buttons{display:none}
+
+/* Map: no legend, tucked into the corner. */
+.survey{top:max(16px,env(safe-area-inset-top));right:var(--hud-gutter);width:var(--map-width);padding:3px}
+.survey>span{display:none}
+
+/* Mission bar: one line of optional guidance, expanded only while hovered or opened. */
+.objective{top:max(16px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));width:400px;max-width:calc(100% - 32px);padding:0;background:var(--panel);box-shadow:inset 3px 0 0 var(--gold);z-index:6}
+.mission-line{display:flex;align-items:center;gap:10px;width:100%;height:36px;min-height:36px;padding:0 12px 0 15px;border:0;background:none;text-align:left}
+.mission-line:hover:not(:disabled){background:none}
+#mission-mark{color:var(--gold);font-size:12px;flex:0 0 14px;text-align:center}
+.objective strong#mission-current{margin:0;font:600 14px var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mission-progress{margin-left:auto;padding-left:8px;font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.objective.mission-done strong#mission-current{color:var(--gold-ink)}
+.mission-detail{display:none;padding:0 14px 12px 15px}
+@media(hover:hover){.objective:hover .mission-detail{display:block}}
+.objective:has(:focus-visible) .mission-detail,.objective.open .mission-detail{display:block}
+.objective .landing-log{margin:2px 0 0;font:13px/2 var(--sans);color:var(--muted)}
+.objective .landing-log li.done{color:#d9c48a}
+.objective .landing-log li.current{color:var(--ink)}
+.objective strong#combat-status{margin:8px 0 2px;font:500 13px var(--sans);color:var(--ink)}
+.objective .objective-bottom>span{font:11px var(--mono)}
+
+/* Test tools: drills belong to the legacy shared world only. Open on a phone it covers the map and arrows. */
+@media(min-width:761px){.legacy-world .mission-detail{display:block}}
+body:not(.legacy-world) .front-label,body:not(.legacy-world) #drill-front,body:not(.legacy-world) #start-drill{display:none}
+
+/* Health sits with the weapons until it moves onto the unit. */
+.bottom-hud .robot-health{margin:0 2px 6px;font:9px var(--mono)}
+.bottom-hud .robot-health>div{margin-bottom:3px;text-shadow:0 1px 3px #000}
+.bottom-hud .robot-health progress{height:3px}
+
+@media(max-width:760px){
+  body{--hud-gutter:10px;--map-width:92px}
+  .hud-header{top:max(10px,env(safe-area-inset-top));height:36px;gap:6px;right:calc(var(--hud-gutter) + var(--map-width) + 6px)}
+  .hud-header button{width:36px;min-width:36px}
+  .hud-menu{width:min(248px,calc(100vw - 20px));right:-98px}
+  .survey{top:max(10px,env(safe-area-inset-top))}
+  .objective{top:max(10px,env(safe-area-inset-top));left:10px;width:calc(100% - 158px)}
+  .objective strong#mission-current{font-size:13px}
+  #mission-progress{font-size:11px}
+}
+
+/* Second pass after review on both screens. */
+.battlefield .map-instruments{top:max(16px,env(safe-area-inset-top));right:var(--hud-gutter)}
+.connection{position:absolute;right:3px;top:3px;z-index:1;pointer-events:none}
+.connection.offline{position:static;pointer-events:auto}
+.hud-header .hud-menu .supply-readout{width:100%!important;min-width:0;min-height:36px;padding:0 8px;font-size:12px!important;white-space:nowrap}
+.hud-header .hud-menu .brand>span{display:block}
+.tank-interact{display:block;width:max-content;min-width:180px;max-width:100%;margin:0 auto 6px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--gold)}
+body:not(.legacy-world) .objective:not(.site-selected) #combat-status,body:not(.legacy-world) .objective:not(.site-selected) .objective-bottom,body:not(.legacy-world) .objective:not(.site-selected) #settlement-objective{display:none}
+.battlefield[data-state=ground]:not(.first-steps) .map-hint{visibility:hidden}
+
+@media(max-width:760px){
+  .battlefield .map-instruments{top:max(10px,env(safe-area-inset-top));right:var(--hud-gutter)}
+  .objective{width:calc(100% - 154px)}
+  .battlefield[data-state=ground] .map-hint{visibility:hidden}
+  .tank-interact{min-width:0;width:118px;min-height:40px;margin:0 0 6px 158px;padding:2px 6px;font-size:11px;line-height:1.2}
+}
+
+/* Deploy shelf: one tile per item, name and price only. Specs live in the field guide. */
+.deployment-tray{width:min(720px,calc(100% - 20px));bottom:calc(max(18px,env(safe-area-inset-bottom)) + 92px);padding:6px 10px 10px;max-height:none}
+.tray-heading{gap:8px}
+.tray-heading .eyebrow,.tab-keys{display:none}
+.force-tabs button{min-height:30px;padding:0 8px;font-size:11px}
+#tray-supplies{font:12px var(--mono);white-space:nowrap}
+.tray-heading>button{min-height:30px;width:30px;font-size:18px}
+.tray-body{display:block;margin-top:6px}
+.asset-spec{display:none}
+.unit-grid{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--rule) transparent;padding-bottom:2px}
+.deployment-choice{display:contents}
+.unit-grid .unit-card.ground-choice{display:none}
+.unit-grid .unit-card{position:relative;flex:0 0 112px;width:112px;height:74px;min-height:74px;padding:6px 8px;gap:0;display:flex;align-items:flex-start;overflow:hidden;background:#12171b;border-color:var(--rule)}
+/* The biggest tab has seven tiles, so tiles narrow to keep every tab on one desktop row. Phones swipe. */
+@media(min-width:761px){.unit-grid .unit-card{flex:1 1 0;width:auto;min-width:0;max-width:112px}}
+/* Cards that used to split into ORB and GND are the same tile as the rest. */
+.unit-grid .deployment-choice.split .unit-card{flex-direction:row;padding:6px 8px;gap:0}
+.unit-grid .deployment-choice.split .unit-art{width:26px;height:26px;min-width:0;color:var(--muted)}
+.unit-grid .unit-card:hover:not(:disabled){border-color:var(--gold);background:var(--gold-soft)}
+.unit-card .unit-art{position:absolute;right:6px;bottom:6px;width:26px;height:26px;background:none;border:0;color:var(--muted)}
+.unit-card .unit-art svg.i{width:22px;height:22px}
+#dock-card .unit-art{color:var(--muted)}
+.unit-card .unit-body{display:block;flex:1;min-width:0}
+.unit-card .asset-code{font-size:0;display:block;height:0}
+.unit-card .asset-code kbd{position:absolute;right:6px;top:5px;font-size:10px;margin:0;min-width:0;padding:0 3px}
+.unit-card strong{display:block;margin:0;font:500 13px/16px var(--sans);max-height:32px;overflow:hidden}
+.unit-card strong::before{content:'';float:right;width:16px;height:16px}
+.unit-card small.asset-line{display:none}
+.unit-card em.asset-cost{position:absolute;left:8px;bottom:7px;margin:0;font:11px var(--mono);color:var(--actual);letter-spacing:0}
+.unit-card.short em.asset-cost{color:var(--warn)}
+
+/* The ghost carries its own price and verdict beside the cursor. */
+.place-chip{position:fixed;left:0;top:0;z-index:20;padding:6px 10px;max-width:230px;background:var(--panel);font:12px/18px var(--mono);pointer-events:none;box-shadow:inset 0 0 0 1px var(--rule)}
+.place-chip[hidden]{display:none}
+.place-chip b{font-weight:600;color:var(--actual)}
+.place-chip div+div b{color:var(--gold-ink)}
+.place-chip.blocked{color:var(--warn);font-family:var(--sans)}
+.battlefield:not([data-state=placing]) .place-chip{display:none}
+
+/* Site card: options and an explicit confirm for keyboards; no reading required. */
+.site-panel{width:252px;padding:8px 12px}
+.site-panel .terrain-info,#construction-availability,#construction-help,#deployment-cost,#site-reason:not(.danger){display:none}
+@media(pointer:fine) and (min-width:761px){.site-panel:not(:has(#coordinate-details[open])) #delivery-buttons{display:none}}
+.field-equipment{margin:10px 0;font-size:13px}
+.field-equipment summary{cursor:pointer;padding:6px 0}
+.field-equipment dl{display:grid;grid-template-columns:96px 1fr;gap:2px 10px;margin:4px 0 10px;font:11px var(--mono)}
+.field-equipment dd{margin:0}.field-equipment dt{color:var(--muted)}
+
+/* Control panels: one row, no heading, no sentence. */
+#artillery-ammo-info,#artillery-guard{display:none}
+.missile-control .touch-pad{visibility:hidden}
+#remote-naval,#remote-air{padding:6px 8px}
+#remote-naval>div,#remote-air>div{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+#remote-naval strong,#remote-air strong{display:none}
+#remote-naval button,#remote-air button,#remote-air select{min-height:36px;padding:0 10px;font-size:12px}
+#remote-naval p,#remote-air p{margin:4px 2px 0;font:11px var(--mono);color:var(--muted)}
+#remote-naval p[hidden],#remote-air p[hidden]{display:none}
+.facility-controls{width:min(640px,calc(100vw - 20px));padding:6px 8px}
+.facility-heading strong,.facility-movement,#artillery-guard{display:none}
+.facility-controls .facility-actions{flex-wrap:wrap;gap:4px}
+.facility-controls button{min-height:36px;padding:0 10px;font-size:12px}
+.facility-readouts{font-size:10px;margin-top:4px}
+
+@media(max-width:760px){
+  .deployment-tray{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 76px)}
+  .unit-grid .unit-card{flex-basis:96px;width:96px}
+  .site-panel{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 76px);width:calc(100% - 20px)}
+}
+
+/* Readouts live on the unit now: instruments return only for aiming and placing. */
+.battlefield:not([data-state=placing]):not([data-state=facility]):not([data-state=orbit]) .coordinates,.battlefield:not([data-state=placing]):not([data-state=facility]):not([data-state=orbit]) .save-indicator{visibility:hidden}
+.bottom-hud .robot-health.full{display:none}
+
+/* Command strip: one word and one key, the same language as the dock. */
+.mode-dock{width:max-content;margin:0 auto}
+#remote-mode[aria-pressed=true]{background:var(--gold-soft);color:var(--gold-ink);box-shadow:inset 0 0 0 1px var(--gold)}
+.remote-selecting #explore-mode.active{background:none;color:inherit;box-shadow:none}
+.remote-air-planning .mode-dock,.remote-naval-planning .mode-dock{visibility:visible}
+#remote-naval,#remote-air{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 64px);width:max-content;max-width:calc(100% - 20px);padding:5px;font:13px var(--sans);background:var(--panel);overflow:visible}
+#remote-naval>.command-strip,#remote-air>.command-strip{display:flex;gap:2px;align-items:center;flex-wrap:wrap;justify-content:center}
+#remote-naval button,#remote-air button{display:flex;align-items:center;gap:7px;min-height:40px;padding:0 12px;border:0;font:13px var(--sans);white-space:nowrap}
+#remote-naval button[aria-pressed=true],#remote-air button[aria-pressed=true]{background:var(--gold-soft);color:var(--gold-ink);box-shadow:inset 0 0 0 1px var(--gold)}
+#remote-naval kbd,#remote-air kbd,.strip-label kbd{font-size:9px;color:inherit;opacity:.75}
+.strip-label{display:flex;align-items:center;gap:7px;padding:0 12px;min-height:40px;font:13px var(--sans);color:var(--muted)}
+.strip-label[hidden]{display:none}
+#remote-naval p,#remote-air p{margin:3px 8px 2px;text-align:center}
+@media(max-width:760px){
+  #remote-naval button,#remote-air button{padding:0 9px;min-height:38px;font-size:12px}
+  #remote-naval kbd,#remote-air kbd,.strip-label kbd{display:none}
+}
+
+/* Recycler and bridge builder: no box. The load is on the unit; only actions stay here. */
+.recycler-controls{display:flex;gap:2px;width:max-content;max-width:calc(100% - 20px);padding:0;border:0;background:none;box-shadow:none;pointer-events:none}
+.recycler-controls[hidden]{display:none}
+.recycler-controls button{display:flex;align-items:center;gap:7px;min-height:40px;padding:0 12px;border:0;background:var(--panel);font:13px var(--sans);white-space:nowrap;pointer-events:auto}
+.recycler-controls button[hidden]{display:none}
+.recycler-controls kbd{font-size:9px;color:inherit;opacity:.75}
+.quiet-status{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:760px){.recycler-controls kbd{display:none}}
+/* This button sticks over the landing panel's rows on phones, so the gold needs a solid base. */
+@media(max-width:760px){.in-orbit .site-panel:has(.landing-zone-row:not([hidden])) #place-building{background:linear-gradient(var(--gold-soft),var(--gold-soft)),var(--panel-solid);box-shadow:inset 0 0 0 1px var(--gold),0 -8px 14px var(--panel-solid)}}
+/* On phones the workshop opens over the E buttons stacked on the dock, so it sits above them. */
+@media(max-width:760px){.facility-service{bottom:124px}.bottom-hud:has(.tank-interact:not([hidden])~.tank-interact:not([hidden]))~.facility-service,.battlefield:has(.tank-interact:not([hidden])~.tank-interact:not([hidden])) .facility-service{bottom:170px}}

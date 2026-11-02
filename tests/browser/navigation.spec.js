@@ -11,9 +11,8 @@ for(const mobile of [false,true])test(`Escape navigation and compact map tools $
   expect(await page.locator('.map-tools button').evaluateAll(nodes=>nodes.map(n=>n.id))).toEqual(['zoom-in','zoom-out','center','locate-station','planet-open','overview-button','grid-toggle']);
   for(const size of mobile?[{width:390,height:844},{width:844,height:390}]:[{width:1440,height:900}]){
    await page.setViewportSize(size);
-   const map=await page.locator('.survey').boundingBox(),tools=await page.locator('.map-tools').boundingBox();
-   expect(tools.y).toBeGreaterThanOrEqual(map.y+map.height+7);
-   expect(tools.y+tools.height).toBeLessThan(size.height);
+   await page.locator('#hud-menu-button').click();const tools=await page.locator('.map-tools').boundingBox();
+   expect(tools.y+tools.height).toBeLessThan(size.height);await page.locator('#hud-menu-button').click();
   }
   if(mobile)await page.setViewportSize({width:390,height:844});
   await page.locator('#build-mode').click();await expect(page.locator('#deployment-tray')).toBeVisible();
@@ -30,7 +29,7 @@ for(const mobile of [false,true])test(`Escape navigation and compact map tools $
   await page.keyboard.press('Escape');await expect(page.locator('#site-panel')).toBeHidden();
   await page.keyboard.press('F1');await expect(page.locator('#keys-dialog')).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.locator('#keys-dialog')).toBeHidden();
-  await page.locator('#planet-open').click();await expect(page.locator('#planet-dialog')).toBeVisible();
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#planet-open').click());await expect(page.locator('#planet-dialog')).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.locator('#planet-dialog')).toBeHidden();
   await page.screenshot({path:info.outputPath('compact-toolbar.png')});
   expect(errors).toEqual([]);

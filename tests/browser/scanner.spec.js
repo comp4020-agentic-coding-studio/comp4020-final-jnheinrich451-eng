@@ -52,7 +52,7 @@ for (const mobile of [false, true]) test(`scanner lock, shared report and escape
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate alert station' }).click();
+    await page.locator('#hud-menu-button').click().then(()=>page.getByRole('button', { name: 'Locate alert station' }).click());
     await expect(page.locator('#detection-status')).toBeVisible();
     await expect(page.locator('#detection-status')).toContainText('DETECTED');
     await expect.poll(() => peer.evaluate(() => window.lastBattle?.combat.sites[0].sensor.mode)).toBe('tracking');

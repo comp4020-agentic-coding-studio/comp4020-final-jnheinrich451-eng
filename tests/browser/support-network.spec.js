@@ -8,6 +8,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {serverState} from './drive-helper.js';
 for(const mobile of [false,true])test('shared supply network and deployment effects / '+(mobile?'phone':'desktop'),async({browser})=>{
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-network-browser-'));let app=createApp({dataDir:dir,logSink:()=>{}}),context;
  await app.close();const db=new DatabaseSync(path.join(dir,'world.sqlite')),token=randomUUID();
@@ -23,20 +24,19 @@ for(const mobile of [false,true])test('shared supply network and deployment effe
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
   await expect(page.locator('#supplies-button')).toContainText('GND 120 / ORB 1200');
-  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json());
+  const state=()=>serverState(page,url);
   await page.keyboard.press('e');await expect(page.locator('#logistics-dialog')).toBeVisible();await expect(page.locator('#uplink-select')).toHaveValue('outpost');await expect(page.locator('#cargo-launch')).toBeDisabled();await page.keyboard.press('Escape');
   await page.locator('#build-mode').click();await page.locator('[data-force-tab="logistics"]').click();await page.locator('#outpost-card').click();
-  await page.locator('#construction-method').selectOption('core');
-  await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('38');await page.locator('#select-tile').click();
-  await expect(page.locator('#deployment-cost')).toContainText('20 GND');await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
+    await page.locator('#coordinate-details').evaluate(el=>el.open=true);await page.locator('#tile-x').fill('48');await page.locator('#tile-y').fill('38');await page.locator('#select-tile').click();
+  await page.locator('#delivery-ground').click();await expect(page.locator('#deployment-cost')).toContainText('20 GND');await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
   await expect.poll(async()=>(await state()).logistics.groundSupplies).toBe(100);
   await page.screenshot({path:'.local/network-local-'+(mobile?'phone':'desktop')+'.png'});
-  await page.locator('#supplies-button').focus();await page.keyboard.press('Enter');await expect(page.locator('#logistics-dialog')).toBeVisible();
-  await expect(page.locator('#logistics-balance')).toContainText('Both pools shared');
+  await page.locator('#hud-menu-button').click();await page.keyboard.press('Tab');await expect(page.locator('#supplies-button')).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#logistics-dialog')).toBeVisible();
+  await expect(page.locator('#logistics-balance')).toContainText('Shared by all teammates and cores');
   await page.locator('#uplink-select').selectOption('core');await expect(page.locator('#cargo-launch')).toBeDisabled();
   await page.locator('#uplink-select').selectOption('rocket');await expect(page.locator('#cargo-launch')).toBeEnabled();await page.locator('#cargo-launch').click();
   await expect.poll(async()=>(await state()).logistics.shipments,{timeout:7000}).toBe(1);
-  await page.locator('#supplies-button').click();await page.locator('#uplink-select').selectOption('rocket');await expect(page.locator('#cargo-launch')).toBeDisabled();await expect(page.locator('#cargo-launch')).toContainText('returns');
+  await page.locator('#hud-menu-button').click().then(()=>page.locator('#supplies-button').click());await page.locator('#uplink-select').selectOption('rocket');await expect(page.locator('#cargo-launch')).toBeDisabled();await expect(page.locator('#cargo-launch')).toContainText('Rocket returning');
   await page.screenshot({path:'.local/network-menu-'+(mobile?'phone':'desktop')+'.png'});await page.keyboard.press('Escape');
   // Inspect deterministic capsule, drone-store and returning-rocket stages without racing short animations.
   await page.evaluate(async()=>{

@@ -26,9 +26,9 @@ for (const mobile of [false, true]) test(`distant tank click fires to maximum ra
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(base + '/?legacy=1'); await peer.goto(base + '/?legacy=1');
     await page.bringToFront(); await expect(page.locator('#connection')).toContainText('live');
-    const initial = await page.evaluate(async () => (await fetch('/api/world')).json());
-    await page.locator('#center').click();
-    for (let i = 0; i < 5; i++) await page.locator('#zoom-out').click();
+    const initial = await page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#center').click());
+    for (let i = 0; i < 5; i++) await page.locator('#hud-menu-button').click().then(()=>page.locator('#zoom-out').click());
     const zoom=parseInt(await page.locator('#zoom-label').textContent())/100;
     expect(zoom).toBeGreaterThan(0);expect(zoom).toBeLessThanOrEqual(.35);
     const box = await page.locator('#world-canvas').boundingBox();

@@ -18,7 +18,7 @@ for(const mobile of [false,true])test(`remote shore landing, return and saved ra
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
   const page=await context.newPage(),peer=await other.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await peer.goto(url + '/?legacy=1');await page.goto(url + '/?legacy=1');await page.bringToFront();
-  const state=p=>p.evaluate(async()=>await(await fetch('/api/world')).json());
+  const state=p=>p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   await expect(page.locator('#connection')).toContainText('live');await expect(page.locator('#ship-manual')).toContainText('SHORE IN REACH');
   await page.locator('#ship-systems-toggle').click();if(mobile)await page.locator('#ship-ramp').tap();else{await page.locator('#world-canvas').focus();await page.keyboard.press('g');}
   await expect(page.locator('#ship-ramp')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#ship-manual')).toContainText('ANCHORED');
@@ -27,7 +27,7 @@ for(const mobile of [false,true])test(`remote shore landing, return and saved ra
   await page.screenshot({path:`docs/previews/ship-ramp-${mobile?'mobile':'desktop'}.png`});
   if(mobile)await page.locator('#ship-interact').tap();else await page.keyboard.press('e');
   await expect.poll(async()=>(await state(page)).me.body).toBe('robot');expect((await state(peer)).ships[0].occupant).toBeNull();
-  await expect(page.locator('#ship-interact')).toHaveText('Board ship / E');await page.screenshot({path:`docs/previews/ship-shore-${mobile?'mobile':'desktop'}.png`});
+  await expect(page.locator('#ship-interact')).toHaveText('Board Coastal gunship / E');await page.screenshot({path:`docs/previews/ship-shore-${mobile?'mobile':'desktop'}.png`});
   await app.close();app=createApp({dataDir});await new Promise(r=>app.server.listen(port,'127.0.0.1',r));await page.reload();await expect(page.locator('#connection')).toContainText('live');
   expect((await state(page)).me).toMatchObject({x:20.5,y:24.5,body:'robot'});await page.locator('#ship-interact').click();await expect(page.locator('#ship-ramp')).toHaveAttribute('aria-pressed','true');
   await page.locator('#ship-systems-toggle').click();await page.locator('#ship-ramp').click();await expect(page.locator('#ship-ramp')).toHaveAttribute('aria-pressed','false');

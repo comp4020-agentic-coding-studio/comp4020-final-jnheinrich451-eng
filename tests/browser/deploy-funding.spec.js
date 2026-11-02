@@ -24,16 +24,16 @@ for(const mobile of [false,true])test('deployment funding follows the selected f
   await page.locator('#build-mode').click();await page.locator('[data-force-tab="logistics"]').click();
   await expect(page.locator('#outpost-card')).toContainText(quote('outpost')+' ORB');await expect(page.locator('#outpost-card-ground')).toContainText(quote('outpost',true)+' GND');
   await page.screenshot({path:'.local/deploy-prices-'+mobile+'.png'});
-  await page.locator('#outpost-card-ground').click();await page.locator('#coordinate-details summary').click();
+  await page.locator('#outpost-card').click();await page.locator('#coordinate-details summary').click();
   async function site(x,y){await page.locator('#tile-x').fill(String(x));await page.locator('#tile-y').fill(String(y));await page.locator('#select-tile').click();}
-  await site(20,18);await expect(page.locator('#construction-method option')).toHaveCount(2);await expect(page.locator('#delivery-ground')).toHaveAttribute('aria-pressed','true');
-  await page.locator('#delivery-ground').click();await expect(page.locator('#deployment-cost')).toContainText(quote('outpost',true)+' GND');
+  await site(20,18);await expect(page.locator('#construction-method option')).toHaveCount(2);
+  await page.locator('#delivery-ground').click();await expect(page.locator('#delivery-ground')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#deployment-cost')).toContainText(quote('outpost',true)+' GND');
   // The old local source must not survive a move beyond its support circle.
   await site(90,70);await expect(page.locator('#construction-method option')).toHaveCount(1);await expect(page.locator('#construction-method')).toHaveValue('orbital');await expect(page.locator('#delivery-ground')).toBeHidden();
-  await expect(page.locator('#deployment-cost')).toContainText(quote('outpost')+' ORB');await expect(page.locator('#construction-availability')).toContainText('Outside construction support');
+  await expect(page.locator('#deployment-cost')).toContainText(quote('outpost')+' ORB');await expect(page.locator('#construction-availability')).toContainText('GND construction is unavailable at this site');
   await site(20,18);await page.locator('#delivery-ground').click();await expect(page.locator('#place-building')).toBeEnabled();
   await page.screenshot({path:'.local/deploy-local-choice-'+mobile+'.png'});await page.locator('#place-building').click();
-  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json());
+  const state=()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
   await expect.poll(async()=>(await state()).logistics.facilities.length).toBe(1);
   const after=await state(),job=Object.values(after.logistics.jobs)[0];expect(job.method).toBe('factory');expect(job.pool).toBe('groundSupplies');expect(after.logistics.groundSupplies).toBe(300-quote('outpost',true));expect(after.logistics.supplies).toBe(1200);
   expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

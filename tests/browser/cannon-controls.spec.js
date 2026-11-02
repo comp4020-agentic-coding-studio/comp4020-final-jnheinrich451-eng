@@ -3,6 +3,7 @@ import { createApp } from '../../server.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverState } from './drive-helper.js';
 import { aimOverview } from './aim-helper.js';
 
 for (const mobile of [false, true]) test(`pointer cannon, directional drive and context manual on ${mobile ? 'phone' : 'desktop'}`, async ({ browser }) => {
@@ -12,17 +13,19 @@ for (const mobile of [false, true]) test(`pointer cannon, directional drive and 
     await new Promise(r => app.server.listen(0, '127.0.0.1', r)); const url = `http://127.0.0.1:${app.server.address().port}`;
     context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, isMobile: mobile, hasTouch: mobile });
     const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message)); await page.goto(url + '/?legacy=1');
-    const state = () => page.evaluate(async () => (await (await fetch('/api/world')).json()));
+    const state = () => page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const post = (route, data) => page.evaluate(async ({ route, data }) => { const r = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: r.status, data: await r.json() }; }, { route, data });
     await expect(page.locator('#connection')).toContainText('live');
     // The cannon needs a completed friendly core's construction support nearby.
     expect((await post('cores', { x: 29, y: 13 })).status).toBe(201);
-    await expect.poll(async () => (await state()).me.deploying, { timeout: 12000 }).toBe(false);
+    await expect.poll(async () => (await serverState(page, url)).me.deploying, { timeout: 12000 }).toBe(false);
     for (const x of [20, 24]) expect((await post('rails', { x, y: 23, shape: 'EW' })).status).toBe(201);
     const gun = (await post('artillery', { x: 20, y: 23 })).data.gun;
+    // Orbital cargo arrives in a crate and unfolds; the cannon cannot be operated until its job completes.
+    await expect.poll(async () => !!(await state()).logistics.jobs[gun.id], { timeout: 20000 }).toBe(false);
     expect((await post('artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#facility-controls')).toBeVisible(); await expect(page.locator('.mode-dock')).toBeHidden();
-    await expect(page.locator('.battlefield')).toHaveClass(/artillery-orbit/);
+    await expect(page.locator('.battlefield')).not.toHaveClass(/artillery-orbit/);
     await page.locator('#world-canvas').focus();
     for (const [key, ammo] of [['2', 'INCENDIARY'], ['3', 'GAS'], ['1', 'HE']]) {
       if (mobile) await page.locator(`[data-shell=${ammo}]`).tap(); else await page.keyboard.press(key);

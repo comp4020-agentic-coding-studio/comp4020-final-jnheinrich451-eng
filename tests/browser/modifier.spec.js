@@ -29,7 +29,11 @@ for (const mobile of [false, true]) test(`modifier shared conquest and terrain r
       world.terrain.fill(2); db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
       const saved = JSON.parse(db.prepare("SELECT value FROM meta WHERE key='combat-checkpoint-v1'").get().value);
       // Isolate terrain/conquest visuals; domain checks cover guards and calls.
-      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; }
+      // Newer campaigns seed several modifiers and settlements. Conquer every other site so O can only select this one, and list it
+      // first: with nothing selected (after a reload) the objective panel falls back to the first site.
+      for (const s of saved.sites) { s.guardsRemaining = 0; s.nextCall = 1e9; if (s.id !== site.id) Object.assign(s, { hp: 0, state: 'conquered', conqueredAt: -100000 }); }
+      saved.sites.sort((a, b) => (b.id === site.id) - (a.id === site.id));
+      if (saved.director) Object.assign(saved.director, { nextRaid: 1e9, nextPulse: 1e9 });
       db.prepare("UPDATE meta SET value=? WHERE key='combat-checkpoint-v1'").run(JSON.stringify(saved));
       const tank = { id: 'modifier-tank', owner: initial.me.id, occupant: initial.me.id, health: 200, hurt: 0,
         x: site.x + 1.5, y: site.y - 6.5, podX: 40, podY: 40, elapsed: 99, angle: Math.PI, turret: Math.PI, weapon: 'HE', secondary: 'APCR' };
@@ -44,7 +48,8 @@ for (const mobile of [false, true]) test(`modifier shared conquest and terrain r
     await page.goto(base + '/?campaign=' + id); await expect(page.locator('#connection')).toContainText('live');
     const invite = await post(owner, '/api/campaigns/invite', { id }), admitted = await post(guest, '/api/campaigns/join', { code: invite.code });
     await peer.goto(base + admitted.next); await expect(peer.locator('#connection')).toContainText('live'); await page.bringToFront();
-    await page.getByRole('button', { name: 'Locate environment modifier' }).click();
+    // Named site locators are gone. O selects the nearest hostile site, and this modifier is the only one left.
+    await page.locator('#world-canvas').focus(); await page.keyboard.press('o');
     await expect(page.locator('#combat-status')).toContainText('environment modifier');
     await page.screenshot({ path: info.outputPath('modifier-alive.png') });
     const terrain = (await state()).world.terrain;
@@ -69,9 +74,11 @@ for (const mobile of [false, true]) test(`modifier shared conquest and terrain r
     await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));
     await post(owner, '/api/campaigns/enter', { id }); await page.goto(base + '/?campaign=' + id);
     await expect(page.locator('#connection')).toContainText('live');
-    await page.getByRole('button', { name: 'Locate environment modifier' }).click();
+    // After a reload nothing is selected, so the panel falls back to the first site, which is this modifier.
+    // (Hostile-only O cannot select a conquered site.)
     await expect(page.locator('#objective-health')).toContainText('Natural terrain restored');
-    expect((await state()).combat.sites.filter(s => s.kind === 'modifier' && !s.settlement)).toEqual([expect.objectContaining({ hp: 0, state: 'conquered', conqueredAt: completed })]);
+    // Campaigns now seed several modifiers, so check this one by id rather than expecting it to be the only one.
+    expect((await state()).combat.sites.find(s => s.id === site.id)).toMatchObject({ hp: 0, state: 'conquered', conqueredAt: completed });
     expect(errors).toEqual([]);
   } finally {
     await Promise.all(contexts.map(c => c.close())); await app.close();

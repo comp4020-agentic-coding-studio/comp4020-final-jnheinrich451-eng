@@ -35,10 +35,11 @@ for (const mobile of [false, true]) test(`robot survival and shared-core recover
     page.on('pageerror', e => errors.push(e.message)); peer.on('pageerror', e => errors.push(e.message));
     await peer.goto(url + '/?legacy=1'); await page.goto(url + '/?legacy=1'); await page.bringToFront();
     await expect(page.locator('#connection')).toContainText('live');
-    const state = p => p.evaluate(async () => (await (await fetch('/api/world')).json()));
+    const state = p => p.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     const post = (route, data) => page.evaluate(async ({ route, data }) => (await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).status, { route, data });
     await expect(page.locator('#health-value')).toHaveText('25 / 100');
     await page.reload(); await expect(page.locator('#health-value')).toHaveText('25 / 100');
+    if (mobile) await page.locator('#mission-toggle').tap();
     await page.locator('#start-drill').click();
     await expect.poll(async () => (await state(page)).combat.enemies.some(e => e.attack)).toBe(true);
     await page.screenshot({ path: `docs/previews/survival-warning-${mobile ? 'mobile' : 'desktop'}.png` });

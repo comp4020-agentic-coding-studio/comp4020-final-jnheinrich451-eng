@@ -14,7 +14,7 @@ export async function checkWreckRecovery(browser,mobile=false){
     await expect(page.locator('#transport-status')).toContainText('180/180');
    }else{
     await expect.poll(async()=>(await f.state()).logistics.recyclers.find(r=>r.id==='r0').cargo,{timeout:7000}).toBeCloseTo(50);
-    await page.locator('#supplies-button').click();
+    await page.locator('#hud-menu-button').click().then(()=>page.locator('#supplies-button').click());
     await expect(page.locator('#salvage-target')).toContainText('Friendly factory wreck / 75 salvage');
     await page.keyboard.press('Escape');
    }

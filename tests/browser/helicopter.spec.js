@@ -9,6 +9,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {serverState} from './drive-helper.js';
 async function field(browser,mobile=false,cruise=false,landing=null){
  const dir=await mkdtemp(path.join(tmpdir(),'frontier-helicopter-'));let app=createApp({dataDir:dir,logSink:()=>{}});await app.close();
  const db=new DatabaseSync(path.join(dir,'world.sqlite')),token=randomUUID();
@@ -24,26 +25,26 @@ async function field(browser,mobile=false,cruise=false,landing=null){
  for(const base of [b,empty])db.prepare('INSERT INTO airbases VALUES (?,?)').run(base.id,JSON.stringify(base));db.close();
  app=createApp({dataDir:dir,logSink:()=>{}});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;
  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
- return {page,errors,state:()=>page.evaluate(async()=>(await fetch('/api/world')).json()),post:(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};},{route,data}),async close(){await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-helicopter-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
+ return {page,errors,url,state:()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse),post:(route,data)=>page.evaluate(async({route,data})=>{const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return{status:r.status,body:await r.json()};},{route,data}),async close(){await context.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-helicopter-'))throw Error('Bad fixture path');await rm(dir,{recursive:true,force:true});}};
 }
 const plane=s=>s.airbases.find(b=>b.id==='pad').aircraft;
 test('helicopter accelerates, holds speed and brakes to hover through keyboard controls',async({browser})=>{
  const f=await field(browser),p=f.page;try{
   await p.setViewportSize({width:1920,height:1080});
-  await p.locator('#aircraft-interact').click();await expect.poll(async()=>plane(await f.state()).state).toBe('flying');
+  await p.locator('#aircraft-interact').click();await expect.poll(async()=>plane(await serverState(p,f.url)).state).toBe('flying');
   await p.locator('#world-canvas').focus();await p.keyboard.down('d');
-  await expect.poll(async()=>plane(await f.state()).speed).toBeGreaterThan(.1);
-  expect(plane(await f.state()).speed).toBeLessThan(4);
-  await expect.poll(async()=>plane(await f.state()).speed).toBe(4);
-  const before=plane(await f.state());await expect.poll(async()=>plane(await f.state()).x).toBeGreaterThan(before.x+1);
-  expect(plane(await f.state()).speed).toBe(4);
+  await expect.poll(async()=>plane(await serverState(p,f.url)).speed).toBeGreaterThan(.1);
+  expect(plane(await serverState(p,f.url)).speed).toBeLessThan(4);
+  await expect.poll(async()=>plane(await serverState(p,f.url)).speed).toBe(4);
+  const before=plane(await serverState(p,f.url));await expect.poll(async()=>plane(await serverState(p,f.url)).x).toBeGreaterThan(before.x+1);
+  expect(plane(await serverState(p,f.url)).speed).toBe(4);
   await p.screenshot({path:'.local/helicopter-tilt-flight.png'});
-  await p.keyboard.up('d');const released=plane(await f.state());
-  await expect.poll(async()=>plane(await f.state()).speed).toBe(0);
-  const stopped=plane(await f.state());expect(stopped.x).toBeGreaterThan(released.x);expect(stopped.x-released.x).toBeLessThan(2.5);
+  await p.keyboard.up('d');const released=plane(await serverState(p,f.url));
+  await expect.poll(async()=>plane(await serverState(p,f.url)).speed).toBe(0);
+  const stopped=plane(await serverState(p,f.url));expect(stopped.x).toBeGreaterThan(released.x);expect(stopped.x-released.x).toBeLessThan(2.5);
   await p.setViewportSize({width:390,height:844});await p.screenshot({path:'.local/helicopter-hover-mobile.png'});
   expect(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await p.reload();await expect(p.locator('#connection')).toContainText('live');expect(plane(await f.state()).speed).toBe(0);
+  await p.reload();await expect(p.locator('#connection')).toContainText('live');expect(plane(await serverState(p,f.url)).speed).toBe(0);
   expect(f.errors).toEqual([]);
  }finally{await f.close();}
 });
@@ -82,7 +83,11 @@ test('remote helicopter support accepts an area while the robot keeps moving',as
   await p.locator('#remote-mode').click();await p.locator('[data-remote-id="air:pad"]').click();await expect(p.locator('#remote-air-name')).toContainText('HELICOPTER');await expect(p.locator('#remote-air-payload')).toBeHidden();
   await p.locator('#world-canvas').focus();const before=(await f.state()).me.x;await p.keyboard.down('d');await expect.poll(async()=>(await f.state()).me.x).toBeGreaterThan(before+.3);await p.keyboard.up('d');
   const box=await p.locator('#world-canvas').boundingBox();await p.mouse.click(box.x+box.width*.6,box.y+box.height*.4);
-  await expect.poll(async()=>plane(await f.state()).mission?.weapon).toBe('helicopter');await expect(p.locator('#remote-air')).toBeHidden();expect(plane(await f.state()).occupant).toBeNull();expect(f.errors).toEqual([]);
+  await expect.poll(async()=>plane(await f.state()).mission?.weapon).toBe('helicopter');expect(plane(await f.state()).occupant).toBeNull();await expect(p.locator('#remote-air')).toBeVisible();
+  // Right click moves and R returns: one word, one key, no Stop or close button.
+  await expect(p.locator('[data-heli="stop"]')).toHaveCount(0);await expect(p.locator('#remote-air-back')).toHaveCount(0);
+  await p.mouse.click(box.x+box.width*.55,box.y+box.height*.45,{button:'right'});await expect.poll(async()=>plane(await f.state()).mission?.action??plane(await f.state()).mission?.kind).toBe('move');
+  await expect(p.locator('#remote-air')).toBeVisible();await p.locator('#world-canvas').focus();await p.keyboard.press('r');await expect.poll(async()=>plane(await f.state()).mission?.action??plane(await f.state()).mission?.kind).toBe('return');expect(f.errors).toEqual([]);
  }finally{await f.close();}
 });
 

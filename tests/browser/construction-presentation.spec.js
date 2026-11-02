@@ -16,7 +16,7 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
   await app.close();
   const db=new DatabaseSync(path.join(dir,'world.sqlite')),token=randomUUID();
   const world={...createWorld(),version:2,width:128,height:96,terrain:Array(128*96).fill(2),sites:[],cores:[],ships:[]};
-  for(let y=0;y<96;y++)for(let x=21;x<=40;x++)world.terrain[y*128+x]=0;
+  for(let y=0;y<96;y++)for(let x=21;x<=54;x++)world.terrain[y*128+x]=0;
   db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(world));
   db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Builder',19.6,25.5,0);
   db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',10,18,4.5);
@@ -30,24 +30,28 @@ for(const mobile of [false,true])test(`construction presentation and funded nava
     await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${app.server.address().port}`;
     context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});await context.addCookies([{name:'frontier',value:token,url}]);
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
-    const state=()=>page.evaluate(async()=>(await fetch('/api/world')).json());
+    const state=()=>page.evaluate(async()=>(await fetch('/api/world')).text()).then(JSON.parse);
     // The dock is the contextual interaction, on keyboard and touch.
     await expect(page.locator('#shipyard-interact')).toBeVisible();
     if(mobile)await page.locator('#shipyard-interact').click();else await page.keyboard.press('e');
     await expect(page.locator('#shipyard-dialog')).toBeVisible();
-    await expect(page.locator('#shipyard-status')).toContainText('Vessel lost');
+    await expect(page.locator('#shipyard-status')).toContainText('Empty berth');
+    // Losses are permanent (docs/FACILITY_LIFECYCLE.md): the dock panel ignores the wreck and offers a new build.
+    expect((await state()).ships.filter(s=>s.destroyed)).toHaveLength(1);
     await expect(page.locator('#navy-vessel')).toHaveCount(0);await expect(page.locator('#shipyard-kind')).toHaveCount(0);
     await expect(page.locator('#yard-build-gunship')).toBeEnabled();await page.screenshot({path:`.local/naval-rebuild-${mobile?'phone':'desktop'}.png`});
-    await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state()).ships[0].destroyed).toBe(false);
-    const after=await state();expect(after.ships).toHaveLength(1);expect(after.logistics.groundSupplies).toBe(40);expect(after.logistics.supplies).toBe(423);
+    await page.locator('#yard-build-gunship').click();await expect.poll(async()=>(await state()).ships.filter(s=>!s.destroyed).length).toBe(1);
+    // The wreck stays as a ruin; the replacement is a new build paid in GND only (60 less, plus a little passive income).
+    const after=await state();expect(after.ships).toHaveLength(2);expect(after.ships.filter(s=>s.destroyed)).toHaveLength(1);expect(after.logistics.groundSupplies).toBeGreaterThanOrEqual(40);expect(after.logistics.groundSupplies).toBeLessThan(50);expect(after.logistics.supplies).toBe(423);
     await expect(page.locator('#shipyard-choices')).toBeHidden();
     await page.locator('#shipyard-close').click();
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('60 GND / AT SHIPYARD');await page.locator('#ship-card').click();expect((await state()).ships).toHaveLength(1);
-    await page.locator('#shipyard-new-dialog').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('36');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
+    // Dock first: the vessel card needs an existing empty dock chosen on the map, so it cannot add a second ship by itself.
+    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await expect(page.locator('#ship-card')).toContainText('60 GND');await expect(page.locator('#ship-card')).toBeDisabled();expect((await state()).ships.filter(s=>!s.destroyed)).toHaveLength(1);
+    await page.locator('#dock-card').click();await page.locator('#coordinate-details summary').click();await page.locator('#tile-x').fill('23');await page.locator('#tile-y').fill('36');await page.locator('#select-tile').click();await expect(page.locator('#place-building')).toBeEnabled();await page.locator('#place-building').click();
     await expect.poll(async()=>(await state()).logistics.shipyards.length).toBe(2);
     const yard=(await state()).logistics.shipyards.find(y=>y.id!=='gunship');
     await expect.poll(async()=>(await state()).logistics.shipyards.find(y=>y.id===yard.id).dockReady,{timeout:6500}).toBe(true);
-    await page.locator('#build-mode').click();await page.locator('[data-force-tab="navy"]').click();await page.locator('#submarine-card').click();await page.locator('#shipyard-select').selectOption(yard.id);await expect(page.locator('#yard-build-submarine')).toBeDisabled();await expect(page.locator('#yard-reason-submarine')).toContainText('Need 70 ground SUP');
+    await expect(page.locator('#shipyard-interact')).toBeVisible();await page.locator('#shipyard-interact').click();await page.locator('#shipyard-select').selectOption(yard.id);await expect(page.locator('#yard-build-submarine')).toBeDisabled();await expect(page.locator('#yard-reason-submarine')).toContainText('Need 70 ground SUP');
     await expect(page.locator('#shipyard-dialog')).toBeVisible();await page.screenshot({path:'.local/shipyards-'+(mobile?'phone':'desktop')+'.png'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.locator('#shipyard-close').click();

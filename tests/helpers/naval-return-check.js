@@ -11,7 +11,7 @@ export async function checkNavalReturn(browser,phone,screenshot,options={}){
    await page.locator('#remote-mode').click();await page.locator('[data-remote-id="ship:ship"]').click();
    await expect(page.locator('#remote-naval [data-command="dock"]')).toBeEnabled();
    await page.screenshot({path:screenshot('return-command')});await page.locator('#remote-naval [data-command="dock"]').click();
-   await expect(page.locator('#remote-naval')).toBeHidden();await page.keyboard.press('Escape');
+   await expect(page.locator('#remote-naval')).toBeVisible();await page.keyboard.press('Escape');
   }
   const ship=async()=>(await f.state()).ships.find(s=>s.id==='ship');
   await expect.poll(async()=>(await ship()).remoteOrder?.kind).toBe('dock');
