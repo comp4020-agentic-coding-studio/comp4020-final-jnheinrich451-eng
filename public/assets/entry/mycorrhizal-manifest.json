@@ -1,0 +1,51 @@
+{
+  "source": "output/video-frames/mycorrhizal-carrier-open-bottom-v5.png",
+  "creation": "Built-in image_gen edits of the author-selected MYCORRHIZAL reference, 1 November 2026. Empty-bay carrier and standalone cargo shuttle; original reference preserved.",
+  "delivery": "Native generated PNGs with alpha, copied byte-for-byte into public/assets/entry. No upscale.",
+  "carrier": {
+    "width": 1671,
+    "height": 941,
+    "alphaChecks": [
+      {
+        "y": 0,
+        "a": 0,
+        "x": 0
+      },
+      {
+        "y": 670,
+        "a": 0,
+        "x": 1160
+      },
+      {
+        "y": 760,
+        "a": 0,
+        "x": 1160
+      }
+    ]
+  },
+  "shuttle": {
+    "width": 1670,
+    "height": 941,
+    "alphaChecks": [
+      {
+        "y": 0,
+        "a": 0,
+        "x": 0
+      }
+    ]
+  },
+  "files": [
+    {
+      "file": "mycorrhizal-carrier-empty-v1.png",
+      "bytes": 1431432,
+      "sha256": "89b34a2b1c651c7bade66debab2902e20d2756d450198fcc7d33e71dfdf97f95",
+      "prompt": "output/video-frames/mycorrhizal-carrier-empty-v1-prompt.txt"
+    },
+    {
+      "file": "mycorrhizal-shuttle-v1.png",
+      "bytes": 1782535,
+      "sha256": "7c9289b7a9024a3616d5902d60540a5c50a7177dfb6006186d096c3c4871e463",
+      "prompt": "output/video-frames/mycorrhizal-shuttle-v1-prompt.txt"
+    }
+  ]
+}

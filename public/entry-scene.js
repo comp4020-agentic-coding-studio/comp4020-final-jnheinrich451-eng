@@ -1,8 +1,12 @@
 import { loadEntryScene, saveEntryScene } from './entry-continuity.js';
 import { PLANETS } from './planets.js';
+import { COLONY_PLANETS, colonyPlanetById, colonySavePlanetId } from './colony-planets.js';
+const ALL_PLANETS = [...PLANETS, ...COLONY_PLANETS];
 import { SIROCCO_MASK } from './sirocco-preview.js';
 import { entrySun, entrySurfaceLight } from './entry-lighting.js';
 import { DROP, JUMP, dropCamera, dropState, jumpPose, jumpState, loadShip, paintDive, paintFlash, paintPod, paintShip, podPose, podScreenSize, shipDeparture, shipPose } from './entry-ship.js';
+import { COLONY_ENTRY, COLONY_TRAVEL, colonyCamera, colonyCarrierPose, colonyEntryState, colonyShuttlePose, colonyTravelPose, colonyTravelState, loadColonyShip, paintColonyAtmosphere, paintColonyVessels } from './colony-entry-ship.js';
+import { colonyWormholeState, createColonySky, paintColonySky, paintColonySun, paintColonyWormhole } from './colony-system.js';
 // Presentation only. Terrain masks are a 2:1 sampling of createPlanet's immutable
 // Caldera/Vesper/Sirocco templates, encoded as [run length, palette ID].
 // Baking this tiny preview avoids importing the gameplay module graph on login.
@@ -14,7 +18,7 @@ const MASKS = {
 };
 const PALETTES = {
   'sirocco-v1': [[169,104,54],[214,186,134],[193,161,112],[131,94,67],[104,120,116],[131,73,52],[163,103,68],[193,143,95],[40,137,133]],
-  'caldera-v1': [[27,57,65],[153,141,106],[91,112,82],[95,103,92],[104,120,116]],
+  'caldera-v1': [[13,34,51],[169,181,187],[43,79,130],[81,90,104],[104,120,116]],
   'vesper-v1': [[22,47,66],[154,150,126],[76,106,85],[79,91,106],[105,120,118],[66,77,89],[105,116,125],[163,173,175],[44,94,101]],
 };
 const TAU = Math.PI * 2;
@@ -36,7 +40,52 @@ function cloudNoise(x, y) {
   return smoothNoise(x, y) * .5 + smoothNoise(x * 2.07 + 31, y * 2.07 - 12) * .27
     + smoothNoise(x * 4.13 - 7, y * 4.13 + 39) * .15 + smoothNoise(x * 8.19 + 71, y * 8.19) * .08;
 }
+// Civilian worlds have their own soft geographic silhouettes. Their palettes
+// come from the same catalog as the playable districts, not the combat masks.
+function makeColonyTexture(id) {
+  const planet = colonyPlanetById(id), palette = planet.surface;
+  const width = 512, height = 384, data = new Uint8ClampedArray(width * height * 3), mask = new Uint8Array(256 * 192);
+  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const water = rgb(palette.water), land = rgb(palette.land), shore = rgb(palette.shore), dark = rgb(palette.dark);
+  const variant = COLONY_PLANETS.findIndex(p => p.id === id);
+  const continents = [
+    [[.18,.40,.17,.31],[.62,.42,.19,.23],[.79,.72,.16,.19],[.36,.80,.12,.10]],
+    [[.14,.38,.12,.22],[.45,.61,.13,.24],[.72,.33,.15,.17],[.88,.69,.10,.21],[.28,.77,.07,.08]],
+    [[.12,.42,.24,.28],[.52,.31,.17,.23],[.75,.67,.24,.29],[.34,.76,.16,.18]],
+  ][variant];
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const u = x / width, v = y / height, lon = u * TAU;
+    const coarse = smoothNoise(Math.cos(lon) * 5 + variant * 17 + 20, Math.sin(lon) * 3 + v * 9 + 31);
+    const detail = smoothNoise(Math.cos(lon) * 15 + variant * 13, Math.sin(lon) * 8 + v * 22);
+    let elevation = -2;
+    for (const [cx, cy, rx, ry] of continents) {
+      const du = Math.min(Math.abs(u - cx), 1 - Math.abs(u - cx));
+      elevation = Math.max(elevation, 1 - (du / rx) ** 2 - ((v - cy) / ry) ** 2);
+    }
+    elevation += (coarse - .5) * .82 + (detail - .5) * .20;
+    // Sheltered lagoons on Nacre, bright inland lakes on Aurelia.
+    if (variant === 1 && detail > .57 && coarse > .51) elevation -= .72;
+    if (variant === 2 && detail > .64 && coarse < .47) elevation -= 1.02;
+    const kind = elevation <= 0 ? 0 : elevation < .13 ? 1 : 2;
+    mask[(y >> 1) * 256 + (x >> 1)] = kind;
+    const base = kind === 0 ? water : kind === 1 ? shore : land;
+    const relief = kind === 2 ? Math.min(.50, Math.max(0, (coarse - .42) * .82)) : 0;
+    const grain = (noise(x, y) - .5) * 4;
+    const terrace = variant === 2 && kind === 2 ? Math.sin((elevation * 15 + coarse) * 8) * 2.8 : 0;
+    const deep = kind === 0 ? .61 + .20 * Math.max(0, 1 + elevation) : 1;
+    const clouds = smoothNoise(Math.cos(lon) * 7 + 83, Math.sin(lon) * 2 + v * 17 + variant * 9);
+    const band = Math.sin(v * 34 + Math.sin(lon * 2) * 3 + variant) * .08;
+    const cloud = Math.min(.68, Math.max(0, (clouds + band - .64) * 2.1));
+    const offset = (y * width + x) * 3;
+    for (let c = 0; c < 3; c++) {
+      const pigment = (base[c] * (1 - relief) + dark[c] * relief) * deep + grain + terrace;
+      data[offset + c] = pigment * (1 - cloud) + [242, 242, 227][c] * cloud;
+    }
+  }
+  return { width, height, data, mask };
+}
 function makeTexture(id) {
+  if (colonyPlanetById(id)) return makeColonyTexture(id);
   const width = 512, height = 384, data = new Uint8ClampedArray(width * height * 3);
   const mask = new Uint8Array(256 * 192);
   if (Object.hasOwn(MASKS, id)) {
@@ -120,8 +169,8 @@ function makeSphere(id, size) {
   return { canvas, ctx, pixels, samples, texture: getTexture(id), lastPhase: NaN, lastLight: NaN };
 }
 const spheres = new Map();
-function sphere(id, size, phase, sun) {
-  const key = `${id}:${size}`;
+function sphere(id, size, phase, sun, warm = false) {
+  const key = `${id}:${size}:${warm ? 'warm' : 'cold'}`;
   if (!spheres.has(key)) spheres.set(key, makeSphere(id, size));
   const s = spheres.get(key);
   if (Math.abs(s.lastPhase - phase) < .00018 && Math.abs(s.lastLight - sun.angle) < .0006) return s.canvas;
@@ -131,19 +180,26 @@ function sphere(id, size, phase, sun) {
     const y = Math.min(height - 1, Math.floor(p.v * height));
     const i = (y * width + x) * 3, o = p.offset;
     const light = entrySurfaceLight(p.nx, p.ny, p.nz, sun), rim = light.rim * (id === 'moon' ? 12 : 105);
-    out[o] = data[i] * light.brightness * .95 + rim * .42;
-    out[o + 1] = data[i + 1] * light.brightness * 1.02 + rim * .78;
-    out[o + 2] = data[i + 2] * light.brightness * 1.13 + rim;
+    if (warm) {
+      const brightness = .10 + light.brightness * .93;
+      out[o] = data[i] * brightness * 1.08 + rim;
+      out[o + 1] = data[i + 1] * brightness * 1.02 + rim * .88;
+      out[o + 2] = data[i + 2] * brightness * .95 + rim * .55;
+    } else {
+      out[o] = data[i] * light.brightness * .95 + rim * .42;
+      out[o + 1] = data[i + 1] * light.brightness * 1.02 + rim * .78;
+      out[o + 2] = data[i + 2] * light.brightness * 1.13 + rim;
+    }
   }
   s.ctx.putImageData(s.pixels, 0, 0); s.lastPhase = phase; s.lastLight = sun.angle;
   return s.canvas;
 }
-function makeAtmosphere() {
+function makeAtmosphere(warm = false) {
   // A unit rim with room for its blur. Rotate and scale this cached sprite
   // instead of issuing 16 shadow-blurred strokes per planet on every frame.
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 288;
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas unavailable');
-  ctx.translate(144, 144); ctx.strokeStyle = '#95dcff'; ctx.shadowColor = '#5bbfff';
+  ctx.translate(144, 144); ctx.strokeStyle = warm ? '#fff0b5' : '#95dcff'; ctx.shadowColor = warm ? '#e9c36c' : '#5bbfff';
   ctx.shadowBlur = 128 * .026; ctx.lineWidth = 128 * .005;
   for (let i = -8; i < 8; i++) {
     ctx.globalAlpha = .32 * Math.pow(Math.cos(i / 8 * Math.PI / 2), 2);
@@ -222,45 +278,75 @@ function startScene() {
   const isCampaignPage = !location.pathname.match(/^\/(login|register|account|demo-inbox|verify|forgot-password|reset-password)/);
   if (isCampaignPage) {
     const params = new URLSearchParams(location.hash.slice(1)), view = params.get('view'), planet = params.get('planet');
-    if (['menu', 'new', 'continue', 'join'].includes(view)) document.body.dataset.entryView = view;
-    if (Object.hasOwn(MASKS, planet)) document.body.dataset.entryPlanet = planet;
+    if (['menu', 'colony', 'new', 'continue', 'join'].includes(view)) document.body.dataset.entryView = view;
+    if (params.get('mode') === 'colonization' || view === 'colony') {
+      document.body.dataset.entryMode = 'colonization';
+      document.body.dataset.entryPlanet = colonySavePlanetId(planet);
+    } else if (PLANETS.some(p => p.id === planet)) document.body.dataset.entryPlanet = planet;
   }
   const canvas = document.createElement('canvas'); canvas.className = 'entry-scene';
   canvas.setAttribute('aria-hidden', 'true'); document.body.prepend(canvas);
-  const ctx = canvas.getContext('2d', { alpha: false });
+  let ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) { canvas.remove(); document.body.dataset.sceneReady = 'fallback'; const control = document.getElementById('motion'); if (control) control.hidden = true; return; }
   const media = matchMedia('(prefers-reduced-motion: reduce)'), restored = loadEntryScene();
   let savedPause = false;
   try { savedPause = sessionStorage.getItem('frontier-entry-paused') === '1'; } catch { /* Storage may be disabled. */ }
   let paused = media.matches || savedPause, dead = false, failed = false, frame = 0, width = 0, height = 0;
   let lastTime = 0, elapsed = restored?.elapsed || 0, transitionStart = 0, lastCheckpoint = 0;
-  let currentView = '', currentPlanet = '', current = [], from = [], target = [];
+  let currentView = '', currentPlanet = '', currentMode = '', current = [], from = [], target = [];
   let orbitSide = restored?.orbitSide || -1, exchanging = false, transitionDuration = 600;
   let pointerX = restored?.pointer.x || 0, pointerY = restored?.pointer.y || 0, initialized = false;
-  let ship = null, shipAlpha = 0, lastDrawn = elapsed, pixelScale = 1, jump = null, drop = null, clouds = null, grain = null;
+  let ship = null, colonyShip = null, colonyShipRequested = false, shipAlpha = 0, lastDrawn = elapsed, pixelScale = 1, jump = null, drop = null, clouds = null, grain = null;
+  let colonyTravel = null, lastColonyPose = null, wormhole = null, colonySky = null, colonyAtmosphere = null;
   if (isCampaignPage) loadShip(images => { ship = images; document.body.dataset.entryShip = 'ready'; draw(performance.now()); });
+  function ensureColonyShip() {
+    if (!isCampaignPage || colonyShipRequested || (document.body.dataset.entryMode !== 'colonization' && !colonyPlanetById(document.body.dataset.entryPlanet))) return;
+    colonyShipRequested = true;
+    loadColonyShip(images => { colonyShip = images; document.body.dataset.entryColonyShip = 'ready'; draw(performance.now()); });
+  }
   const nebula = makeNebula(), lightShafts = makeLightShafts(), atmosphere = makeAtmosphere();
+  const warmSystem = () => currentMode === 'colonization';
+  function endWormhole() { wormhole = null; delete document.body.dataset.entryWormhole; delete document.body.dataset.entryWormholeDirection; }
+  function endColonyTravel(reason = 'settled') {
+    const completed = colonyTravel;
+    colonyTravel = null; delete document.body.dataset.entryColonyTravel;
+    if (completed?.requestId == null) return;
+    const { planet, requestId, mode, view } = completed;
+    // Menu updates can measure layout and redraw the scene. Notify only after
+    // this frame has finished, and identify the request so old trips cannot
+    // commit their text after a quick reversal or navigation away.
+    queueMicrotask(() => document.dispatchEvent(new CustomEvent('frontier:planet-travel-end', {
+      detail: { planet, requestId, mode, view, reason },
+    })));
+  }
   const stars = Array.from({ length: 1150 }, () => ({ x: random() * 2 - 1, y: random() * 2 - 1, z: .25 + random() * .75, phase: random() * TAU, size: random() }));
   function layout(view) {
     const mobile = width <= 760, unit = Math.min(width, height), main = document.body.dataset.entryPlanet || 'caldera-v1';
+    const peaceful = document.body.dataset.entryMode === 'colonization' || !!colonyPlanetById(main);
+    const catalogue = peaceful ? COLONY_PLANETS : PLANETS;
     const r = n => unit * n;
     if (view === 'join') return [
-      { id: 'caldera-v1', x: width * .50, y: height * .18, r: r(mobile ? .25 : .22), alpha: 1 },
-      { id: 'vesper-v1', x: width * .16, y: height * .77, r: r(mobile ? .23 : .29), alpha: 1 },
-      { id: 'sirocco-v1', x: width * .83, y: height * .79, r: r(mobile ? .20 : .23), alpha: 1 },
+      { id: catalogue[0].id, x: width * .50, y: height * .18, r: r(mobile ? .25 : .22), alpha: 1 },
+      { id: catalogue[1].id, x: width * .16, y: height * .77, r: r(mobile ? .23 : .29), alpha: 1 },
+      { id: catalogue[2].id, x: width * .83, y: height * .79, r: r(mobile ? .20 : .23), alpha: 1 },
     ];
     const settings = mobile
       ? { login: [.50, .36, .79], account: [.50, .36, .79], menu: [.50, .40, .74], new: [.50, .30, .44], continue: [.50, .28, .44] }
       : { login: [.50, .48, .60], account: [.50, .48, .60], menu: [.50, .48, .60], new: [.42, .49, .34], continue: [.29, .52, .33] };
     const [x, y, radius] = settings[view] || settings.menu;
     const noticeOffset = ['new', 'continue'].includes(view) ? parseFloat(document.body.style.getPropertyValue('--entry-notice-offset')) || 0 : 0;
-    const selected = Math.max(0, PLANETS.findIndex(p => p.id === main));
+    const selected = Math.max(0, catalogue.findIndex(p => p.id === main));
+    if (peaceful) return [
+      { id: catalogue[selected].id, x: width * x, y: height * y + noticeOffset, r: r(radius), alpha: 1 },
+      { id: catalogue[(selected + catalogue.length - 1) % catalogue.length].id, x: width * .10, y: height * .22, r: r(.062), alpha: .88 },
+      { id: catalogue[(selected + 1) % catalogue.length].id, x: width * .88, y: height * .80, r: r(.061), alpha: .9 },
+    ];
     // The world left behind sits on the opposite side from the chosen arrow;
     // the remaining third world stays visible in the lower distant orbit.
-    const behind = PLANETS[(selected + orbitSide + PLANETS.length) % PLANETS.length].id;
-    const distant = PLANETS.find(p => p.id !== main && p.id !== behind).id;
+    const behind = catalogue[(selected + orbitSide + catalogue.length) % catalogue.length].id;
+    const distant = catalogue.find(p => p.id !== main && p.id !== behind).id;
     return [
-      { id: Object.hasOwn(MASKS, main) ? main : 'caldera-v1', x: width * x, y: height * y + noticeOffset, r: r(radius), alpha: 1 },
+      { id: ALL_PLANETS.some(p => p.id === main) ? main : catalogue[0].id, x: width * x, y: height * y + noticeOffset, r: r(radius), alpha: 1 },
       { id: distant, x: width * (orbitSide > 0 ? .12 : .88), y: height * .78, r: r(.056), alpha: .8 },
       { id: behind, x: width * (orbitSide > 0 ? .91 : .09), y: height * .24, r: r(.055), alpha: .85 },
     ];
@@ -272,10 +358,19 @@ function startScene() {
       camera: current.map(p => ({ ...p, x: p.x / width, y: p.y / height, r: p.r / unit })),
       pointer: { x: pointerX, y: pointerY }, orbitSide });
   }
-  function applyState(immediate = false, direction = 0) {
-    const oldView = currentView, oldPlanet = currentPlanet;
+  function applyState(immediate = false, direction = 0, requestId = null) {
+    ensureColonyShip();
+    const oldView = currentView, oldPlanet = currentPlanet, oldMode = currentMode;
     currentView = document.body.dataset.entryView || 'login'; currentPlanet = document.body.dataset.entryPlanet || 'caldera-v1';
+    currentMode = document.body.dataset.entryMode || 'combat';
+    document.body.dataset.entryTheme = warmSystem() ? 'colony-gold' : 'combat-blue';
+    if (warmSystem()) { colonySky ||= createColonySky(nebula, lightShafts); colonyAtmosphere ||= makeAtmosphere(true); }
+    if (wormhole && (currentMode !== wormhole.toMode || currentView !== wormhole.toView || paused || immediate)) endWormhole();
+    const navigation = oldMode !== currentMode || oldView !== currentView || !['new', 'continue'].includes(currentView);
+    if (navigation || paused || immediate) endColonyTravel(navigation ? 'cancelled' : 'settled');
     const swap = direction && currentPlanet !== oldPlanet && currentView === oldView && ['new', 'continue'].includes(currentView);
+    const routePlanetChange = oldPlanet && oldPlanet !== currentPlanet && !swap;
+    if (routePlanetChange) endColonyTravel('cancelled');
     // The world the ship just left stays behind it in the sky.
     if (swap) orbitSide = direction > 0 ? -1 : 1;
     target = layout(currentView).map((p, i) => ({ ...p, scrollFactor: i === 0 && ['new', 'continue'].includes(currentView) ? 1 : 0 }));
@@ -287,14 +382,31 @@ function startScene() {
     // Match bodies by identity, not their foreground/background array slots.
     // This also rebases a quick second arrow press on the last visible poses.
     from = target.map(p => ({ ...(current.find(a => a.id === p.id) || p) }));
-    exchanging = !!swap && !paused && !immediate;
-    transitionDuration = exchanging ? JUMP.total : 600;
+    if (swap && warmSystem() && !paused && !immediate) {
+      endColonyTravel('cancelled');
+      const largest = current.reduce((a, b) => b.r > a.r ? b : a), selected = current.find(p => p.id === currentPlanet) || target[0];
+      const startPose = lastColonyPose || colonyCarrierPose(planetCenter(largest), elapsed, width <= 760);
+      const endPose = colonyCarrierPose(planetCenter(target[0]), elapsed + COLONY_TRAVEL.total, width <= 760);
+      const destination = planetCenter(selected), previous = planetCenter(target.find(p => p.id === oldPlanet) || target[1]);
+      colonyTravel = { start: elapsed, fromPose: startPose, toPose: endPose,
+        planet: currentPlanet, requestId, mode: currentMode, view: currentView,
+        options: { departureAngle: Math.atan2(destination.y - startPose.y, destination.x - startPose.x),
+          arrivalAngle: Math.atan2(endPose.y - previous.y, endPose.x - previous.x), distance: Math.hypot(width, height) * 1.4 } };
+      document.dispatchEvent(new CustomEvent('frontier:planet-travel-start', {
+        detail: { planet: currentPlanet, requestId, mode: currentMode, view: currentView },
+      }));
+    }
+    exchanging = !!colonyTravel || (!!swap && !paused && !immediate && !warmSystem());
+    transitionDuration = colonyTravel ? COLONY_TRAVEL.total : exchanging ? JUMP.total : 600;
     // A press after the swap waits for this arrival, so the ship never teleports.
-    if (!exchanging) jump = null;
+    if (!exchanging || warmSystem()) jump = null;
     else if (!jump) jump = { start: elapsed, direction };
     else if (jumpState(elapsed - jump.start).swapped) jump.next = direction;
     if (!jump) delete document.body.dataset.entryJump;
-    if (paused || immediate) from = current = target.map(p => ({ ...p }));
+    // A route or save-list change is not a planet-arrow voyage. Start directly
+    // on its selected body instead of briefly anchoring the ship to an old one.
+    if (routePlanetChange) { shipAlpha = 0; lastColonyPose = null; }
+    if (paused || immediate || routePlanetChange || wormhole) from = current = target.map(p => ({ ...p }));
     transitionStart = elapsed; draw(performance.now()); schedule();
   }
   function resize() {
@@ -303,20 +415,28 @@ function startScene() {
     const ratio = Math.min(devicePixelRatio || 1, 1.25, 1920 / width, 1200 / height);
     canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0); pixelScale = ratio;
-    if (!initialized && restored) {
+    const restoreCamera = restored && (!isCampaignPage || restored.planet === (document.body.dataset.entryPlanet || 'caldera-v1'));
+    if (!initialized && restoreCamera) {
       current = restored.camera.map((p, i) => ({ ...p, x: p.x * width, y: p.y * height, r: p.r * Math.min(width, height),
         scrollFactor: i === 0 && ['new', 'continue'].includes(restored.view) ? 1 : 0 }));
     } else if (current.length && previousWidth && previousHeight) {
       current = current.map(p => ({ ...p, x: p.x / previousWidth * width, y: p.y / previousHeight * height, r: p.r / Math.min(previousWidth, previousHeight) * Math.min(width, height) }));
     }
-    applyState(initialized || !restored); initialized = true;
+    applyState(initialized || !restoreCamera); initialized = true;
   }
-  function paintSky(streak = 0) {
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
+  function paintSky(streak = 0, sun) {
+    if (warmSystem()) paintColonySky(ctx, colonySky, width, height, elapsed, sun);
+    else {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
+      const span = Math.max(width, height);
+      ctx.save(); ctx.translate(width * .58, height * .35); ctx.rotate(-.5 + elapsed * .000014);
+      ctx.globalAlpha = .72; ctx.drawImage(nebula, -span * .85, -span * .70, span * 1.7, span * 1.4);
+      ctx.rotate(1.5); ctx.globalAlpha = .23; ctx.drawImage(nebula, -span * .65, -span * .25, span * 1.4, span * .8); ctx.restore();
+    }
+    paintStars(streak);
+  }
+  function paintStars(streak = 0) {
     const span = Math.max(width, height);
-    ctx.save(); ctx.translate(width * .58, height * .35); ctx.rotate(-.5 + elapsed * .000014);
-    ctx.globalAlpha = .72; ctx.drawImage(nebula, -span * .85, -span * .70, span * 1.7, span * 1.4);
-    ctx.rotate(1.5); ctx.globalAlpha = .23; ctx.drawImage(nebula, -span * .65, -span * .25, span * 1.4, span * .8); ctx.restore();
     // Roughly one degree per active second: visible sky rotation relative to
     // the planets and fixed controls, with a slower nebula layer for depth.
     const angle = elapsed * .000018, c = Math.cos(angle), s = Math.sin(angle);
@@ -325,7 +445,7 @@ function startScene() {
       const y = height * .5 + (star.x * s + star.y * c) * span * .77 + pointerY * star.z * 5;
       if (x < 0 || y < 0 || x > width || y > height) continue;
       const alpha = (.3 + star.z * .6) * (.86 + .14 * Math.sin(elapsed * .0005 + star.phase));
-      ctx.globalAlpha = alpha; ctx.fillStyle = star.size > .88 ? '#eff9ff' : '#afcde7';
+      ctx.globalAlpha = alpha; ctx.fillStyle = warmSystem() ? (star.size > .88 ? '#fffdf1' : '#d8d2b7') : star.size > .88 ? '#eff9ff' : '#afcde7';
       const radius = .35 + star.size * star.z * .9;
       if (streak) { const length = streak * (40 + star.z * 260); ctx.fillRect(x - length / 2, y, length, radius); continue; }
       ctx.fillRect(x, y, radius * 1.4, radius * 1.4);
@@ -336,6 +456,7 @@ function startScene() {
     ctx.globalAlpha = 1;
   }
   function paintSun(sun) {
+    if (warmSystem()) { paintColonySun(ctx, colonySky.shafts, sun, width, height, elapsed); return; }
     if (sun.visible <= 0) return;
     const x = width * (.5 + .48 * sun.x), y = height * (.48 + .65 * sun.y), unit = Math.min(width, height);
     const size = unit * .24, glow = ctx.createRadialGradient(x, y, 0, x, y, size);
@@ -352,7 +473,7 @@ function startScene() {
     ctx.rotate(-elapsed * .000025 + .12); ctx.fillStyle = streak; ctx.fillRect(-size * 1.5, -.65, size * 3, 1.3);
     ctx.fillStyle = '#f4fcff'; ctx.beginPath(); ctx.arc(0, 0, Math.max(2, unit * .0075), 0, TAU); ctx.fill(); ctx.restore();
   }
-  const bodyOrder = p => Math.max(0, PLANETS.findIndex(planet => planet.id === p.id));
+  const bodyOrder = p => Math.max(0, ALL_PLANETS.findIndex(planet => planet.id === p.id));
   function planetCenter(p) {
     const depth = clamp(p.r / (Math.min(width, height) * .34));
     const drift = Math.sin(elapsed * .00008 + bodyOrder(p)) * (3 - depth * 2.5);
@@ -368,7 +489,7 @@ function startScene() {
     const phase = .13 + surfaceTime * (bodyIndex ? .0000013 : .0000021) + bodyIndex * .19;
     const large = index === 0 || (exchanging && p.id !== 'moon');
     const size = large ? (width <= 760 ? 320 : 448) : p.r > 140 ? 256 : 128;
-    const image = sphere(p.id, size, phase, surfaceSun);
+    const image = sphere(p.id, size, phase, surfaceSun, warmSystem());
     const { x, y } = planetCenter(p);
     ctx.globalAlpha = p.alpha;
     // Atmosphere has the same source direction as the surface; the dark limb
@@ -377,9 +498,34 @@ function startScene() {
       const angle = Math.atan2(sun.y, sun.x), strength = Math.hypot(sun.x, sun.y);
       const radius = p.r * 144 / 128;
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = p.alpha * strength;
-      ctx.drawImage(atmosphere, -radius, -radius, radius * 2, radius * 2); ctx.restore();
+      ctx.drawImage(warmSystem() ? colonyAtmosphere : atmosphere, -radius, -radius, radius * 2, radius * 2); ctx.restore();
     }
     ctx.globalAlpha = p.alpha; ctx.drawImage(image, x - p.r, y - p.r, p.r * 2, p.r * 2); ctx.globalAlpha = 1;
+  }
+  function captureCelestials(frame = null) {
+    // Keep stars out of the cached source. The lens can remove planets and the
+    // sun while exactly the same live star field remains behind the aperture.
+    // Reuse the incoming layer at the display's backing resolution. A smaller
+    // frozen image would jump in rotation, lighting and sharpness on handoff.
+    const layer = frame?.image || document.createElement('canvas');
+    if (layer.width !== canvas.width || layer.height !== canvas.height) {
+      layer.width = canvas.width; layer.height = canvas.height;
+    }
+    const layerContext = layer.getContext('2d');
+    if (!layerContext) throw new Error('Canvas unavailable');
+    layerContext.setTransform(layer.width / width, 0, 0, layer.height / height, 0, 0);
+    layerContext.clearRect(0, 0, width, height);
+    const screenContext = ctx, sampled = paused ? elapsed : Math.floor(elapsed / 100) * 100;
+    try {
+      ctx = layerContext;
+      const sun = entrySun(elapsed), surfaceSun = entrySun(sampled);
+      paintSun(sun);
+      for (const { p, i } of current.map((p, i) => ({ p, i })).sort((a, b) => a.p.r - b.p.r)) paintPlanet(p, i, sun, sampled, surfaceSun);
+    } finally { ctx = screenContext; }
+    const globe = current.reduce((a, b) => b.r > a.r ? b : a), center = planetCenter(globe);
+    const result = frame || { image: layer, focus: null };
+    result.focus = { x: center.x, y: center.y, radius: center.r };
+    return result;
   }
   function advanceJump() {
     if (!jump) return null;
@@ -391,15 +537,21 @@ function startScene() {
     if (holding) document.body.dataset.entryJump = state.phase; else delete document.body.dataset.entryJump;
     return state;
   }
-  function endDrop() { drop = null; delete document.body.dataset.entryDrop; }
+  function advanceColonyTravel() {
+    if (!colonyTravel) return null;
+    const state = colonyTravelState(elapsed - colonyTravel.start);
+    if (state.done) { endColonyTravel('arrived'); return null; }
+    document.body.dataset.entryColonyTravel = state.phase; return state;
+  }
+  function endDrop() { drop = null; delete document.body.dataset.entryDrop; delete document.body.dataset.entryArrival; }
   // Unadmitted entry holds on the zoom's last moment. Release only starts on acceptance.
-  const zoomHeld = () => Math.min(elapsed - drop.start, DROP.zoom - 1);
+  const zoomHeld = () => Math.min(elapsed - drop.start, (drop.civilian ? COLONY_ENTRY : DROP).zoom - 1);
   function advanceDrop() {
     if (!drop) return null;
     let age = drop.accepted ? elapsed - drop.start : zoomHeld();
     if (drop.retreat !== undefined) age = drop.held - (elapsed - drop.retreat) * 2.5;
     if (age <= 0 && drop.retreat !== undefined) { endDrop(); return null; }
-    const state = dropState(age);
+    const state = drop.civilian ? colonyEntryState(age, drop.accepted) : dropState(age);
     document.body.dataset.entryDrop = state.done ? 'dark' : state.phase;
     if (state.done && !drop.dark) { drop.dark = true; document.dispatchEvent(new CustomEvent('frontier:drop-dark')); }
     return state;
@@ -427,10 +579,23 @@ function startScene() {
     }
     ctx.restore();
   }
-  function paintVoyage(globe, jumped, flight, camera) {
+  function paintVoyage(globe, jumped, flight, camera, civilian, traveled) {
     const wanted = ['new', 'continue'].includes(currentView) ? 1 : 0, step = (elapsed - lastDrawn) / 400;
     shipAlpha = paused ? wanted : clamp(shipAlpha + clamp(wanted - shipAlpha, -step, step));
     lastDrawn = elapsed;
+    if (document.body.dataset.entryMode === 'colonization' || civilian) {
+      if (!colonyShip || (!shipAlpha && !civilian)) { delete document.body.dataset.entryCarrier; return; }
+      let hover = civilian ? drop.pose : colonyCarrierPose(planetCenter(globe), elapsed, width <= 760);
+      if (traveled) hover = colonyTravelPose(colonyTravel.fromPose, colonyTravel.toPose, traveled, colonyTravel.options);
+      // An arrow during the offscreen exchange rebases from the last actual
+      // position, not the hidden arrival anchor in the centre of the new world.
+      if ((hover.alpha ?? 1) > 0) lastColonyPose = hover;
+      paintColonyVessels(ctx, colonyShip, hover, civilian || undefined, (civilian ? 1 : shipAlpha) * (hover.alpha ?? 1),
+        { time: elapsed, travel: traveled, paused });
+      document.body.dataset.entryCarrier = 'mycorrhizal';
+      return;
+    }
+    delete document.body.dataset.entryCarrier;
     if (!flight) {
       if (!ship || !shipAlpha) return;
       const hover = shipPose(planetCenter(globe), elapsed, width <= 760);
@@ -446,23 +611,41 @@ function startScene() {
     try {
       // Use the active scene clock, so a hidden tab freezes both the sky and
       // the jump. Globes hold still until the flash peaks, then swap beneath it.
-      const jumped = advanceJump();
-      const ease = paused ? 1 : jumped ? (jumped.swapped && !jump.next ? 1 : 0) : clamp((elapsed - transitionStart) / transitionDuration), t = ease * ease * (3 - 2 * ease);
+      const jumped = advanceJump(), traveled = advanceColonyTravel();
+      const ease = paused ? 1 : traveled ? traveled.sceneMix : jumped ? (jumped.swapped && !jump.next ? 1 : 0) : clamp((elapsed - transitionStart) / transitionDuration), t = ease * ease * (3 - 2 * ease);
       current = target.map((p, i) => {
         const a = from[i] || p;
         return { id: p.id, x: a.x + (p.x - a.x) * t, y: a.y + (p.y - a.y) * t, r: a.r + (p.r - a.r) * t, alpha: a.alpha + (p.alpha - a.alpha) * t,
           scrollFactor: a.scrollFactor + (p.scrollFactor - a.scrollFactor) * t };
       });
       if (ease === 1 && !jump) exchanging = false;
-      const flight = advanceDrop();
-      const sun = entrySun(elapsed); paintSky(jumped?.stars); paintSun(sun);
+      if (wormhole) {
+        const warp = colonyWormholeState(elapsed - wormhole.start);
+        if (warp.done) endWormhole();
+        else {
+          // Only the visible destination needs refreshing. Its slow sphere
+          // shading still uses the normal 100 ms cache, while light, parallax
+          // and compositing follow the live clock through the reveal.
+          if (!wormhole.incoming || warp.phase === 'expand') wormhole.incoming = captureCelestials(wormhole.incoming);
+          ctx.fillStyle = '#080c0d'; ctx.fillRect(0, 0, width, height);
+          paintStars();
+          document.body.dataset.entryWormhole = warp.phase;
+          paintColonyWormhole(ctx, wormhole.outgoing.image, wormhole.incoming.image, warp, width, height, {
+            direction: wormhole.direction, focus: wormhole.outgoing.focus, incomingFocus: wormhole.incoming.focus,
+          });
+          document.body.dataset.sceneReady = 'canvas';
+          return;
+        }
+      }
+      const voyage = advanceDrop(), civilian = drop?.civilian ? voyage : null, flight = civilian ? null : voyage;
+      const sun = entrySun(elapsed); paintSky(jumped?.stars, sun); paintSun(sun);
       // Slow surface rotation and lighting need only ten samples per second.
       // Camera movement, sky, rim direction and globe compositing use every
       // display frame. Pause uses the exact clock for identical reloads. A flight
       // keeps its first sample: the zoom would magnify ten samples a second into a
       // visibly low frame rate, and each one blocks the frame while it shades.
       const sampled = paused ? elapsed : Math.floor(elapsed / 100) * 100;
-      const surfaceTime = flight ? drop.surfaceTime ??= sampled : sampled;
+      const surfaceTime = voyage ? drop.surfaceTime ??= sampled : sampled;
       const surfaceSun = entrySun(surfaceTime);
       // The ship flies over the largest world, whichever side of the swap it is on.
       const globe = current.filter(p => p.id !== 'moon').reduce((a, b) => b.r > a.r ? b : a);
@@ -471,6 +654,9 @@ function startScene() {
       if (flight) {
         drop.pose ||= shipPose(planetCenter(globe), elapsed, width <= 760);
         camera = dropCamera(drop.pose, flight, podPose(drop.pose, flight), width, height); follow();
+      } else if (civilian) {
+        drop.pose ||= colonyCarrierPose(planetCenter(globe), elapsed, width <= 760);
+        camera = colonyCamera(drop.pose, civilian, width, height); follow();
       }
       // Small, distant bodies sit behind larger ones.
       for (const { p, i } of current.map((p, i) => ({ p, i })).sort((a, b) => a.p.r - b.p.r)) paintPlanet(p, i, sun, surfaceTime, surfaceSun);
@@ -481,7 +667,16 @@ function startScene() {
         if (fade) { drop.ground ||= chooseGround(globe, surfaceTime); paintGround(flight, camera, fade * fade * (3 - 2 * fade)); }
         follow();
       }
-      paintVoyage(globe, jumped, flight, camera);
+      if (civilian) {
+        ctx.restore();
+        const shuttle = colonyShuttlePose(drop.pose, civilian);
+        paintColonyAtmosphere(ctx, { width, height, state: civilian, time: elapsed, clouds,
+          ground: surface(globe.id), palette: colonyPlanetById(globe.id)?.surface,
+          shuttle: { ...shuttle, x: camera.x + (shuttle.x - camera.fx) * camera.z, y: camera.y + (shuttle.y - camera.fy) * camera.z } });
+        follow();
+      }
+      paintVoyage(globe, jumped, flight, camera, civilian, traveled);
+      if (civilian) ctx.restore();
       if (flight) {
         ctx.restore();
         if (flight.dive > 0) paintDive(ctx, { width, height, progress: flight.dive, time: elapsed, size: podScreenSize(width, height), clouds });
@@ -490,6 +685,7 @@ function startScene() {
       document.body.dataset.sceneReady = 'canvas';
       if (now - lastCheckpoint > 1000) { lastCheckpoint = now; checkpoint(); }
     } catch {
+      endWormhole(); endColonyTravel('cancelled'); delete document.body.dataset.entryJump;
       failed = true; canvas.remove(); document.body.dataset.sceneReady = 'fallback';
       const control = document.getElementById('motion'); if (control) control.hidden = true;
     }
@@ -524,28 +720,45 @@ function startScene() {
   addEventListener('scroll', () => { if (paused) draw(performance.now()); }, { passive: true });
   addEventListener('pointermove', event => { if (paused || event.pointerType !== 'mouse') return; pointerX = clamp(event.clientX / width) - .5; pointerY = clamp(event.clientY / height) - .5; }, { passive: true });
   // The lobby owns these: the pod only leaves once the server has admitted the player.
+  document.addEventListener('frontier:system-transition', event => {
+    const { from: sourceMode, to: toMode } = event.detail || {};
+    if (paused || failed || dead || sourceMode !== currentMode || !['combat', 'colonization'].includes(toMode) || sourceMode === toMode) return;
+    if (currentView !== (sourceMode === 'colonization' ? 'colony' : 'menu')) return;
+    // A second branch click during the effect skips it; navigation stays usable.
+    if (wormhole) { endWormhole(); return; }
+    endColonyTravel('cancelled'); jump = null; delete document.body.dataset.entryJump;
+    wormhole = { start: elapsed, outgoing: captureCelestials(), incoming: null,
+      toMode, toView: toMode === 'colonization' ? 'colony' : 'menu', direction: toMode === 'colonization' ? 'gold' : 'blue' };
+    document.body.dataset.entryWormhole = 'collapse'; document.body.dataset.entryWormholeDirection = wormhole.direction;
+    schedule();
+  });
   document.addEventListener('frontier:drop-start', () => {
     if (paused || failed) return;
-    jump = null; exchanging = false; delete document.body.dataset.entryJump;
+    const civilian = document.body.dataset.entryMode === 'colonization';
+    if (civilian && !colonyShip) return;
+    jump = null; exchanging = false; delete document.body.dataset.entryJump; endColonyTravel('cancelled'); endWormhole();
     // Bake here, at the click, so the first dive frames cannot stutter.
     clouds ||= makeClouds(); surface(currentPlanet);
-    drop = { start: elapsed, accepted: false, grain: ctx.createPattern(grain ||= makeGrain(), 'repeat') }; schedule();
+    drop = { start: elapsed, accepted: false, civilian, grain: civilian ? null : ctx.createPattern(grain ||= makeGrain(), 'repeat') };
+    document.body.dataset.entryArrival = civilian ? 'civilian' : 'combat'; schedule();
   });
   document.addEventListener('frontier:drop-accept', () => {
     if (!drop) return;
     drop.start = elapsed - zoomHeld(); drop.accepted = true;
   });
   document.addEventListener('frontier:drop-cancel', () => {
-    if (drop) { drop.held = zoomHeld(); drop.retreat = elapsed; }
+    if (!drop) return;
+    if (paused || document.hidden) { endDrop(); draw(performance.now()); return; }
+    drop.held = zoomHeld(); drop.retreat = elapsed;
   });
   document.addEventListener('frontier:drop-reset', endDrop);
   document.addEventListener('frontier:planet-select', event => {
-    if (event.detail?.planet !== document.body.dataset.entryPlanet || ![-1, 1].includes(event.detail?.direction)) return;
-    applyState(false, event.detail.direction);
+    if (failed || dead || event.detail?.planet !== document.body.dataset.entryPlanet || ![-1, 1].includes(event.detail?.direction)) return;
+    applyState(false, event.detail.direction, event.detail.requestId);
   });
-  new MutationObserver(() => { if (currentView !== document.body.dataset.entryView || currentPlanet !== (document.body.dataset.entryPlanet || 'caldera-v1')) applyState(); }).observe(document.body, { attributes: true, attributeFilter: ['data-entry-view', 'data-entry-planet'] });
-  addEventListener('pagehide', () => { checkpoint(); dead = true; if (frame) cancelAnimationFrame(frame); frame = 0; });
-  addEventListener('pageshow', event => { if (!event.persisted) return; dead = false; updateMotion(); });
+  new MutationObserver(() => { ensureColonyShip(); if (currentView !== document.body.dataset.entryView || currentPlanet !== (document.body.dataset.entryPlanet || 'caldera-v1') || currentMode !== (document.body.dataset.entryMode || 'combat')) applyState(); }).observe(document.body, { attributes: true, attributeFilter: ['data-entry-view', 'data-entry-planet', 'data-entry-mode'] });
+  addEventListener('pagehide', () => { checkpoint(); endWormhole(); endColonyTravel('cancelled'); dead = true; if (frame) cancelAnimationFrame(frame); frame = 0; });
+  addEventListener('pageshow', event => { if (!event.persisted) return; dead = false; applyState(true); updateMotion(); });
   resize(); updateMotion();
 }
 try { startScene(); } catch {

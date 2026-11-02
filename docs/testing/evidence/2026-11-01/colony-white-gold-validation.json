@@ -1,0 +1,141 @@
+﻿{
+    "verifiedAt":  "2026-11-01T12:49:02.0117064Z",
+    "stage":  "White and gold overhead carrier, controlled shuttle flight and dark civilian space",
+    "scope":  "Final isolated local Chrome fixtures; no developer saves, live email or deployment",
+    "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-white-gold.config.mjs",
+    "passed":  8,
+    "failed":  0,
+    "duration":  "1.3 minutes",
+    "coverage":  [
+                     "White and gold overhead carrier with two separate bow shuttles on all three planets in New and Continue, desktop and phone",
+                     "Lazy image loading excludes combat; both layers load once per document",
+                     "Pending admission keeps both shuttles docked, accepted entry releases one and leaves the companion with its carrier",
+                     "New and Continue arrivals enter correct garden; refusal keeps one save, skip and reduced motion remain functional",
+                     "Only main menu Colonization click uses circular collapse/expand wormhole",
+                     "Both arrow directions grow destination globe smoothly while carrier travels; rapid direction changes settle correctly",
+                     "Back cancels travel and wormhole; initial direct route and reload do not replay transitions",
+                     "Dark space with thin illuminated wisps, clear stars and a golden sun; combat blue theme retained",
+                     "Desktop and phone orbit, wormhole, travel, waiting, release and atmosphere captures reviewed"
+                 ],
+    "screenshots":  [
+                        "colony-white-gold-shuttle-desktop-approach.png",
+                        "colony-white-gold-shuttle-desktop-atmosphere.png",
+                        "colony-white-gold-shuttle-desktop-garden.png",
+                        "colony-white-gold-shuttle-desktop-release.png",
+                        "colony-white-gold-shuttle-desktop-waiting.png",
+                        "colony-white-gold-shuttle-phone-approach.png",
+                        "colony-white-gold-shuttle-phone-atmosphere.png",
+                        "colony-white-gold-shuttle-phone-garden.png",
+                        "colony-white-gold-shuttle-phone-release.png",
+                        "colony-white-gold-shuttle-phone-waiting.png",
+                        "colony-white-gold-carrier-continue-aurelia-v1-desktop.png",
+                        "colony-white-gold-carrier-continue-morrow-v1-desktop.png",
+                        "colony-white-gold-carrier-continue-nacre-v1-desktop.png",
+                        "colony-white-gold-carrier-new-aurelia-v1-desktop.png",
+                        "colony-white-gold-carrier-new-morrow-v1-desktop.png",
+                        "colony-white-gold-carrier-new-nacre-v1-desktop.png",
+                        "colony-white-gold-carrier-continue-aurelia-v1-phone.png",
+                        "colony-white-gold-carrier-continue-morrow-v1-phone.png",
+                        "colony-white-gold-carrier-continue-nacre-v1-phone.png",
+                        "colony-white-gold-carrier-new-aurelia-v1-phone.png",
+                        "colony-white-gold-carrier-new-morrow-v1-phone.png",
+                        "colony-white-gold-carrier-new-nacre-v1-phone.png",
+                        "colony-white-gold-shuttle-refused-return.png",
+                        "colony-white-gold-phone-civilian-system.png",
+                        "colony-white-gold-phone-combat-before.png",
+                        "colony-white-gold-phone-overhead-orbit.png",
+                        "colony-white-gold-phone-travel-left-depart.png",
+                        "colony-white-gold-phone-travel-left-exchange.png",
+                        "colony-white-gold-phone-travel-left-settled.png",
+                        "colony-white-gold-phone-travel-right-depart.png",
+                        "colony-white-gold-phone-travel-right-exchange.png",
+                        "colony-white-gold-phone-travel-right-settled.png",
+                        "colony-white-gold-phone-wormhole-collapse.png",
+                        "colony-white-gold-phone-wormhole-expand.png",
+                        "colony-white-gold-desktop-civilian-system.png",
+                        "colony-white-gold-desktop-combat-before.png",
+                        "colony-white-gold-desktop-overhead-orbit.png",
+                        "colony-white-gold-desktop-travel-left-depart.png",
+                        "colony-white-gold-desktop-travel-left-exchange.png",
+                        "colony-white-gold-desktop-travel-left-settled.png",
+                        "colony-white-gold-desktop-travel-right-depart.png",
+                        "colony-white-gold-desktop-travel-right-exchange.png",
+                        "colony-white-gold-desktop-travel-right-settled.png",
+                        "colony-white-gold-desktop-wormhole-collapse.png",
+                        "colony-white-gold-desktop-wormhole-expand.png",
+                        "colony-white-gold-reduced-motion-system.png"
+                    ],
+    "hashes":  [
+                   {
+                       "sha256":  "3748157ac838227d4ade0973f3fc71a5e8eb57e7b687e7249131f20c617b5aae",
+                       "file":  "public/entry-scene.js"
+                   },
+                   {
+                       "sha256":  "463d2361f12555cfb9370b46ca58883509a65731da5e7dff74fb22dda8d0eee7",
+                       "file":  "public/campaigns.js"
+                   },
+                   {
+                       "sha256":  "ca61e4f74460af45c119a6d03b989bb34230990d28888cbbf273975db1e2e892",
+                       "file":  "public/campaigns.css"
+                   },
+                   {
+                       "sha256":  "9806edee87f8b6be6afb2de3029d7d94cd07b1a77276d2a96d0ea0f608973a8e",
+                       "file":  "public/colony-entry-ship.js"
+                   },
+                   {
+                       "sha256":  "e136495733e245f9bc6a68941d6281bb24277820a495c09182319e4b86f9ac99",
+                       "file":  "public/colony-system.js"
+                   },
+                   {
+                       "sha256":  "f16e9bb666ac60622ed42421c23525de54d6a7b72bbcd749e09713f61da6a2ad",
+                       "file":  "tests/browser/colony-arrival.spec.js"
+                   },
+                   {
+                       "sha256":  "25d4ef7762a30500a58f5b03852aeb36a697e309a64c1e8c0cd0b020ce0a0d4c",
+                       "file":  "tests/browser/colony-voyage.spec.js"
+                   },
+                   {
+                       "sha256":  "a453d877b43462badc1df13966a711bafe52bc1a33b12e332c4152ebb623f8fd",
+                       "file":  "public/assets/entry/mycorrhizal-white-gold-top-v1.png"
+                   },
+                   {
+                       "sha256":  "2f846f6ad04309c1df903b604c395564576f42471198558cb0fa6e393de7b492",
+                       "file":  "public/assets/entry/mycorrhizal-shuttle-top-v1.png"
+                   }
+               ],
+    "supersedes":  {
+                       "previousHashes":  [
+                                              {
+                                                  "sha256":  "bc7723b515787f7b3b9610881ad5db78302a94d44d7ec302213d99e76a56fc9f",
+                                                  "file":  "public/entry-scene.js"
+                                              },
+                                              {
+                                                  "sha256":  "463d2361f12555cfb9370b46ca58883509a65731da5e7dff74fb22dda8d0eee7",
+                                                  "file":  "public/campaigns.js"
+                                              },
+                                              {
+                                                  "sha256":  "4fa4047469025b71b4aedfadd4192586cd053b05ffd4f2fdfe341bfd51352c7a",
+                                                  "file":  "public/campaigns.css"
+                                              },
+                                              {
+                                                  "sha256":  "9806edee87f8b6be6afb2de3029d7d94cd07b1a77276d2a96d0ea0f608973a8e",
+                                                  "file":  "public/colony-entry-ship.js"
+                                              },
+                                              {
+                                                  "sha256":  "ccc94ddd08607a16e4c5947b5adb6a4055951aff882bbada425ef870d3f8f483",
+                                                  "file":  "public/colony-system.js"
+                                              },
+                                              {
+                                                  "sha256":  "a453d877b43462badc1df13966a711bafe52bc1a33b12e332c4152ebb623f8fd",
+                                                  "file":  "public/assets/entry/mycorrhizal-white-gold-top-v1.png"
+                                              },
+                                              {
+                                                  "sha256":  "2f846f6ad04309c1df903b604c395564576f42471198558cb0fa6e393de7b492",
+                                                  "file":  "public/assets/entry/mycorrhizal-shuttle-top-v1.png"
+                                              }
+                                          ],
+                       "note":  "The earlier cream-sky visual revision is superseded by the user-requested dark-space revision. All 46 white-gold screenshots now come from this final full eight-case run. Original steel-carrier stage files and its validation record remain unchanged.",
+                       "previousPassed":  8,
+                       "previousVerifiedAt":  "2026-11-01T12:41:48.3376175Z"
+                   }
+}

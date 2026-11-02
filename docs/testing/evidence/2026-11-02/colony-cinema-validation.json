@@ -1,0 +1,56 @@
+{
+  "playing": {
+    "time": 45.413519,
+    "paused": false,
+    "status": {
+      "loaded": true,
+      "ready": true,
+      "muted": true,
+      "error": "",
+      "blocked": false
+    }
+  },
+  "paused": {
+    "time": 47,
+    "paused": true
+  },
+  "offscreen": {
+    "time": 47,
+    "paused": true
+  },
+  "audio": {
+    "loaded": true,
+    "ready": true,
+    "muted": false,
+    "error": "",
+    "blocked": false
+  },
+  "disposed": {
+    "src": null,
+    "paused": true
+  },
+  "requests": [
+    {
+      "url": "http://127.0.0.1:61900/assets/colony-cinema/big-buck-bunny.mp4",
+      "range": "bytes=0-"
+    },
+    {
+      "url": "http://127.0.0.1:61900/assets/colony-cinema/big-buck-bunny.mp4",
+      "range": "bytes=64290816-"
+    },
+    {
+      "url": "http://127.0.0.1:61900/assets/colony-cinema/big-buck-bunny.mp4",
+      "range": "bytes=4947968-"
+    },
+    {
+      "url": "http://127.0.0.1:61900/assets/colony-cinema/big-buck-bunny.mp4",
+      "range": "bytes=44040192-"
+    },
+    {
+      "url": "http://127.0.0.1:61900/assets/colony-cinema/big-buck-bunny.mp4",
+      "range": "bytes=61505536-"
+    }
+  ],
+  "errors": [],
+  "checks": "Lazy loading, active gating, play, shared pause position, offscreen pause, return seek, personal audio, credit frame and dispose passed."
+}

@@ -1,0 +1,150 @@
+﻿{
+    "verifiedAt":  "2026-11-01T13:32:43.6636478Z",
+    "stage":  "Planet rotation and lighting continuity through final wormhole expansion",
+    "scope":  "Isolated local Chrome, disposable demo accounts and temporary campaign directories; no developer saves or deployment",
+    "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-rotation.config.mjs",
+    "passed":  4,
+    "failed":  0,
+    "durationSeconds":  14.9,
+    "viewports":  [
+                      "1600x1000",
+                      "390x844"
+                  ],
+    "directions":  [
+                       "gold",
+                       "blue"
+                   ],
+    "method":  "Intercept only foreground sphere putImageData and drawImage in test initialization. Preserve immutable RGB samples when the sphere is composited into the transparent layer, then compare the actual displayed incoming sample with the first live sphere sample at handoff. Includes lit limb and terminator; does not infer continuity solely from dataset flags.",
+    "baseline":  {
+                     "source":  ".local/entry-scene-before-rotation.js",
+                     "sha256":  "1e8357bc853b9419c726ad00ada11648ce69e15e2b81f13592e098cdfb9256fc",
+                     "routeOverride":  "FRONTIER_ROTATION_BASELINE routes only entry-scene.js to the saved original source",
+                     "result":  "Expected regression failure: 1 raster version during expansion rather than at least 3",
+                     "metricsFile":  "rotation-baseline-gold-desktop.json",
+                     "measurements":  {
+                                          "expansionFrames":  108,
+                                          "expansionRasterVersions":  1,
+                                          "expansionPixelSamples":  1,
+                                          "lastVisibleSampleAgeMs":  1682.6999999284744,
+                                          "sphereIdentityPreserved":  true,
+                                          "snapshotResolutionMatches":  false,
+                                          "geometryDelta":  0.0719545213646029,
+                                          "handoffPixelDelta":  2.4463729417000444,
+                                          "ordinaryPixelStepMax":  0.2363150867823765,
+                                          "ordinarySampleCount":  5,
+                                          "handoffFrameGapMs":  16.600000023841858
+                                      }
+                 },
+    "results":  [
+                    {
+                        "file":  "rotation-gold-desktop.json",
+                        "sha256":  "c24598b888fed90f4c6467f8115f37b4055f44858a8ce103fadeae3da828d1c1",
+                        "measurements":  {
+                                             "expansionFrames":  107,
+                                             "expansionRasterVersions":  9,
+                                             "expansionPixelSamples":  9,
+                                             "lastVisibleSampleAgeMs":  14.799999952316284,
+                                             "sphereIdentityPreserved":  true,
+                                             "snapshotResolutionMatches":  true,
+                                             "geometryDelta":  0.00027981289514400487,
+                                             "handoffPixelDelta":  0,
+                                             "ordinaryPixelStepMax":  0.2363150867823765,
+                                             "ordinarySampleCount":  5,
+                                             "handoffFrameGapMs":  7.400000095367432
+                                         }
+                    },
+                    {
+                        "file":  "rotation-gold-phone.json",
+                        "sha256":  "7664debfed8bcbee042ecef41604914ae13c2a13162faacc443c02f0d863c5a6",
+                        "measurements":  {
+                                             "expansionFrames":  108,
+                                             "expansionRasterVersions":  9,
+                                             "expansionPixelSamples":  9,
+                                             "lastVisibleSampleAgeMs":  24.399999976158142,
+                                             "sphereIdentityPreserved":  true,
+                                             "snapshotResolutionMatches":  true,
+                                             "geometryDelta":  0.00027597663410006135,
+                                             "handoffPixelDelta":  0,
+                                             "ordinaryPixelStepMax":  0.24432576769025366,
+                                             "ordinarySampleCount":  5,
+                                             "handoffFrameGapMs":  7
+                                         }
+                    },
+                    {
+                        "file":  "rotation-blue-phone.json",
+                        "sha256":  "13ac77e111ad474f50113f350f715b9757e5995de02f6194312e9a3363499310",
+                        "measurements":  {
+                                             "expansionFrames":  108,
+                                             "expansionRasterVersions":  8,
+                                             "expansionPixelSamples":  8,
+                                             "lastVisibleSampleAgeMs":  52.200000047683716,
+                                             "sphereIdentityPreserved":  true,
+                                             "snapshotResolutionMatches":  true,
+                                             "geometryDelta":  0.0002725983349591843,
+                                             "handoffPixelDelta":  0,
+                                             "ordinaryPixelStepMax":  0.1344014241210503,
+                                             "ordinarySampleCount":  6,
+                                             "handoffFrameGapMs":  7
+                                         }
+                    },
+                    {
+                        "file":  "rotation-blue-desktop.json",
+                        "sha256":  "17d26b9da3c29e31b870e4d88414665c302c3b73c91f0fa8e2e155aafbd3fd9c",
+                        "measurements":  {
+                                             "expansionFrames":  107,
+                                             "expansionRasterVersions":  8,
+                                             "expansionPixelSamples":  8,
+                                             "lastVisibleSampleAgeMs":  63.5,
+                                             "sphereIdentityPreserved":  true,
+                                             "snapshotResolutionMatches":  true,
+                                             "geometryDelta":  0.00027255012918203647,
+                                             "handoffPixelDelta":  0,
+                                             "ordinaryPixelStepMax":  0.1878059635068981,
+                                             "ordinarySampleCount":  6,
+                                             "handoffFrameGapMs":  7
+                                         }
+                    }
+                ],
+    "sourceHashes":  [
+                         {
+                             "file":  "public/entry-scene.js",
+                             "sha256":  "71185f3ab6b47b33e0157d4ea37454526c1c75536e7d07514befa308c68b62a6"
+                         },
+                         {
+                             "file":  "public/colony-system.js",
+                             "sha256":  "76ce27cfcfdfa2d32f28aef1b4661757882d00347c288d0f5e3d6e6dacf54b52"
+                         },
+                         {
+                             "file":  "public/entry-lighting.js",
+                             "sha256":  "dd0658066aed964d25f71494b850318a28705660fae800dae7af290b3bc8a696"
+                         },
+                         {
+                             "file":  "public/entry-continuity.js",
+                             "sha256":  "e3733d361d92e546f7ec98f2c5b6e0ebe95df9d4c2bbcb1bea030a8f9cb40589"
+                         },
+                         {
+                             "file":  "public/campaigns.js",
+                             "sha256":  "d51d23be58922c1b540a4c14db93c9bd0124c93e525570d4252afec3ff581406"
+                         },
+                         {
+                             "file":  "public/campaigns.html",
+                             "sha256":  "1b13730e920052b51e62499e7ecdbac63578501b819d18b0001a40832c13d456"
+                         },
+                         {
+                             "file":  "public/campaigns.css",
+                             "sha256":  "088ce2af0a8f0e542fdf37086c7d41003fc13a653c5ea91d103db593827b76a3"
+                         },
+                         {
+                             "file":  "tests/browser/colony-rotation-continuity.spec.js",
+                             "sha256":  "bf5e42248a229afa109ac98453d21fb2f07152119d3b75e38abde9f8d3ea8d14"
+                         },
+                         {
+                             "file":  ".local/playwright.colony-rotation.config.mjs",
+                             "sha256":  "0279c0ace784356cc1b099ff3356340ab4bdfdb082a0a7cfb8515609a8817eb2"
+                         }
+                     ],
+    "limits":  [
+                   "Local Chrome coverage, no cross-browser or live server result claimed",
+                   "Pixel samples verify rendered rotation and lighting continuity together, not an independently measured physical rotation angle"
+               ]
+}

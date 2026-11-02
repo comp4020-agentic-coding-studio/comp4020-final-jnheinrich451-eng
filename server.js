@@ -45,7 +45,7 @@ import { cargoPlacementError } from './public/cargo-placement.js';
 import { claimStartingCore, isStartingCore } from './public/starting-core.js';
 import { driveTank, driveGroundRoute } from './public/tank-motion.js';
 import { readFile, stat } from 'node:fs/promises';
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { createReadStream, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
@@ -55,6 +55,7 @@ import { createAccounts } from './accounts/service.js';
 import { smtpMailer } from './accounts/mail.js';
 import { createCampaigns } from './campaigns/service.js';
 import { createWorld, canStand, clearSpawn, findPath, placementError, SPEED } from './public/world.js';
+import { createColonizationRuntime } from './colonization-runtime.js';
 import { createCombat } from './public/combat.js';
 import { turnTurret } from './public/turret.js';
 import { CORE, corePlacementError, coreSentries, coreExit, coreCells } from './public/core.js';
@@ -78,6 +79,7 @@ const publicDir = path.join(root, 'public');
 // Loaded client modules must match the simulation's snapshot format after restart.
 const buildHash = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url)));
 for (const name of readdirSync(publicDir).filter(name => /\.(js|css|html)$/.test(name)).sort()) buildHash.update(name).update(readFileSync(path.join(publicDir, name)));
+buildHash.update(readFileSync(path.join(root, 'colonization-runtime.js')));
 const clientBuild = buildHash.digest('hex').slice(0, 16);
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -88,7 +90,9 @@ export function createApp({ dataDir = process.env.DATA_DIR || path.join(root, '.
     let campaigns;
     const localTestEvents=!!testEvents&&!process.env.FLY_APP_NAME&&process.env.NODE_ENV!=='production';
     const app = createWorldApp(dataDir, emailDelivery, { audit, testEvents:localTestEvents, onRevoke: (...args) => campaigns?.revoke(...args) });
-    campaigns = createCampaigns({ dataDir, legacy: app, audit, createRuntime: (dir, options) => createWorldApp(dir, emailDelivery, { ...options, audit, testEvents:localTestEvents }) });
+    campaigns = createCampaigns({ dataDir, legacy: app, audit, createRuntime: (dir, options) => options.mode === 'colonization'
+      ? createColonizationRuntime(dir, { ...options, audit, clientBuild })
+      : createWorldApp(dir, emailDelivery, { ...options, audit, testEvents:localTestEvents }) });
     const handler = app.server.listeners('request')[0];
     app.server.removeListener('request', handler);
     app.server.on('request', (req, res) => audit.run(req, res, () => campaigns.route(req, res, handler)));
@@ -1622,16 +1626,59 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if (accountPage) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
       const lobbyPage = ['/campaigns', '/campaigns/'].includes(url.pathname) ||
         (url.pathname === '/' && !url.searchParams.has('campaign') && url.searchParams.get('legacy') !== '1');
-      const relative = decodeURIComponent(accountPage ? '/account.html' : lobbyPage ? '/campaigns.html' : url.pathname === '/' ? '/index.html' : url.pathname);
+      const colonyPage = ['/colony', '/colony/'].includes(url.pathname);
+      const relative = decodeURIComponent(accountPage ? '/account.html' : lobbyPage ? '/campaigns.html' : colonyPage ? '/colony.html' : url.pathname === '/' ? '/index.html' : url.pathname);
       const filename = path.resolve(publicDir, `.${relative}`);
       if (!filename.startsWith(publicDir + path.sep)) return json(res, 403, { error: 'Forbidden.' });
       const info = await stat(filename);
       if (!info.isFile()) return json(res, 404, { error: 'Not found.' });
+      // Movies are requested only by an active colony screen. Stream byte ranges
+      // so an MP4 with its index at the end can start/seek without buffering the
+      // entire film in either server memory or every visitor's browser.
+      if (path.extname(filename).toLowerCase() === '.mp4') {
+        if (!['GET', 'HEAD'].includes(req.method)) {
+          res.writeHead(405, { Allow: 'GET, HEAD', 'Content-Length': '0' }); return res.end();
+        }
+        const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=3600', 'Content-Length': info.size };
+        let start = 0, end = info.size - 1, partial = false;
+        // A mismatched/unvalidated If-Range asks for the complete current file.
+        const requested = req.method === 'GET' && !req.headers['if-range'] && req.headers.range;
+        if (requested) {
+          const match = /^bytes=(\d*)-(\d*)$/.exec(requested);
+          let valid = !!match && !!(match[1] || match[2]);
+          if (valid) {
+            if (!match[1]) {
+              const suffix = Number(match[2]);
+              valid = Number.isSafeInteger(suffix) && suffix > 0;
+              start = Math.max(0, info.size - suffix);
+            } else {
+              start = Number(match[1]);
+              const requestedEnd = match[2] ? Number(match[2]) : end;
+              valid = Number.isSafeInteger(start) && Number.isSafeInteger(requestedEnd) &&
+                start >= 0 && start < info.size && requestedEnd >= start;
+              end = Math.min(end, requestedEnd);
+            }
+          }
+          if (!valid || !info.size) {
+            res.writeHead(416, { ...headers, 'Content-Range': `bytes */${info.size}`, 'Content-Length': 0 });
+            return res.end();
+          }
+          partial = true;
+        }
+        res.writeHead(partial ? 206 : 200, { ...headers, 'Content-Length': Math.max(0, end - start + 1),
+          ...(partial ? { 'Content-Range': `bytes ${start}-${end}/${info.size}` } : {}) });
+        if (req.method === 'HEAD' || !info.size) return res.end();
+        const movie = createReadStream(filename, { start, end });
+        res.once('close', () => movie.destroy());
+        movie.once('error', () => res.destroy());
+        movie.pipe(res); return;
+      }
       const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' }[path.extname(filename)] || 'application/octet-stream';
       if (mime.startsWith('audio/')) res.setHeader('Content-Length', info.size);
       res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': accountPage ? 'no-store' : /^(image|font|audio)\//.test(mime) ? 'public, max-age=3600' : 'no-cache' });
       const content = req.method === 'HEAD' ? '' : await readFile(filename);
-      res.end(path.basename(filename) === 'index.html' ? content.toString().replace('FRONTIER_CLIENT_BUILD', clientBuild) : content);
+      res.end(['index.html', 'colony.html'].includes(path.basename(filename)) ? content.toString().replaceAll('FRONTIER_CLIENT_BUILD', clientBuild) : content);
     } catch (error) {
       if (res.headersSent) return res.end();
       const status = error.status || (error.code === 'ENOENT' ? 404 : 500);

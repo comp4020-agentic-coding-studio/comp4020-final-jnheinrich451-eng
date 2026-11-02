@@ -1,0 +1,116 @@
+﻿{
+    "verifiedAt":  "2026-11-01T12:07:09.9897009Z",
+    "scope":  "Isolated local Chrome browser tests; no live or developer saves",
+    "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-arrival.config.mjs",
+    "passed":  5,
+    "failed":  0,
+    "durationSeconds":  41.5,
+    "coverage":  [
+                     "Carrier and attached shuttle painted on Morrow, Nacre and Aurelia in New and Continue, desktop and phone",
+                     "Admission gate holds shuttle; successful new arrivals on desktop and phone",
+                     "Successful Continue arrival enters the original saved expedition",
+                     "Refused admission cancels animation, keeps one save and allows retry",
+                     "Skip and reduced motion reach the garden without a full animation"
+                 ],
+    "screenshots":  [
+                        "colony-shuttle-desktop-atmosphere.png",
+                        "colony-shuttle-desktop-garden.png",
+                        "colony-shuttle-desktop-release.png",
+                        "colony-shuttle-desktop-waiting.png",
+                        "colony-shuttle-phone-atmosphere.png",
+                        "colony-shuttle-phone-garden.png",
+                        "colony-shuttle-phone-release.png",
+                        "colony-shuttle-phone-waiting.png",
+                        "colony-carrier-continue-aurelia-v1-desktop.png",
+                        "colony-carrier-continue-morrow-v1-desktop.png",
+                        "colony-carrier-continue-nacre-v1-desktop.png",
+                        "colony-carrier-new-aurelia-v1-desktop.png",
+                        "colony-carrier-new-morrow-v1-desktop.png",
+                        "colony-carrier-new-nacre-v1-desktop.png",
+                        "colony-carrier-continue-aurelia-v1-phone.png",
+                        "colony-carrier-continue-morrow-v1-phone.png",
+                        "colony-carrier-continue-nacre-v1-phone.png",
+                        "colony-carrier-new-aurelia-v1-phone.png",
+                        "colony-carrier-new-morrow-v1-phone.png",
+                        "colony-carrier-new-nacre-v1-phone.png",
+                        "colony-shuttle-refused-return.png"
+                    ],
+    "hashes":  [
+                   {
+                       "sha256":  "0bc3433be97eec694570a783fd9551e54062c78af0d9429cda16696cbbede94d",
+                       "file":  "public/entry-scene.js"
+                   },
+                   {
+                       "sha256":  "26cffd57f0e0537e8fd428286cf83493fd6ec8d5ad161c49fc26a7e07b535986",
+                       "file":  "public/campaigns.js"
+                   },
+                   {
+                       "sha256":  "45d1c0e61271d068712340527730440900db85f481a7b003929ea1f93e7f9f3e",
+                       "file":  "public/colony-entry-ship.js"
+                   },
+                   {
+                       "sha256":  "89b34a2b1c651c7bade66debab2902e20d2756d450198fcc7d33e71dfdf97f95",
+                       "file":  "public/assets/entry/mycorrhizal-carrier-empty-v1.png"
+                   },
+                   {
+                       "sha256":  "7c9289b7a9024a3616d5902d60540a5c50a7177dfb6006186d096c3c4871e463",
+                       "file":  "public/assets/entry/mycorrhizal-shuttle-v1.png"
+                   }
+               ],
+    "incrementalChecks":  [
+                              {
+                                  "verifiedAt":  "2026-11-01T12:09:44.5170434Z",
+                                  "change":  "Load civilian image layers only when the Colonization branch is opened",
+                                  "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-arrival.config.mjs --grep \u0027MYCORRHIZAL follows\u0027",
+                                  "passed":  2,
+                                  "failed":  0,
+                                  "durationSeconds":  5.8,
+                                  "coverage":  [
+                                                   "Combat menu loads no MYCORRHIZAL sprites",
+                                                   "Opening Colonization loads exactly two image layers once across planet changes",
+                                                   "All three colony planets show carrier and attached shuttle in New and Continue on desktop and phone"
+                                               ],
+                                  "note":  "The original five-case run and its hashes above precede this lazy-loading change. Only the two orbit cases were rerun; orbit screenshots were refreshed and full-flight screenshots preserved.",
+                                  "refreshedScreenshots":  [
+                                                               "colony-carrier-continue-aurelia-v1-desktop.png",
+                                                               "colony-carrier-continue-morrow-v1-desktop.png",
+                                                               "colony-carrier-continue-nacre-v1-desktop.png",
+                                                               "colony-carrier-new-aurelia-v1-desktop.png",
+                                                               "colony-carrier-new-morrow-v1-desktop.png",
+                                                               "colony-carrier-new-nacre-v1-desktop.png",
+                                                               "colony-carrier-continue-aurelia-v1-phone.png",
+                                                               "colony-carrier-continue-morrow-v1-phone.png",
+                                                               "colony-carrier-continue-nacre-v1-phone.png",
+                                                               "colony-carrier-new-aurelia-v1-phone.png",
+                                                               "colony-carrier-new-morrow-v1-phone.png",
+                                                               "colony-carrier-new-nacre-v1-phone.png"
+                                                           ],
+                                  "hashes":  [
+                                                 {
+                                                     "sha256":  "6b77e9e147554351bef6dc3cd1623ec25be371a66104293afef704e7523947cb",
+                                                     "file":  "public/entry-scene.js"
+                                                 },
+                                                 {
+                                                     "sha256":  "26cffd57f0e0537e8fd428286cf83493fd6ec8d5ad161c49fc26a7e07b535986",
+                                                     "file":  "public/campaigns.js"
+                                                 },
+                                                 {
+                                                     "sha256":  "45d1c0e61271d068712340527730440900db85f481a7b003929ea1f93e7f9f3e",
+                                                     "file":  "public/colony-entry-ship.js"
+                                                 },
+                                                 {
+                                                     "sha256":  "34b1883623ef1583433d09034f732c1fc2857998cf1a7f86c120d92ae5b5fa27",
+                                                     "file":  "tests/browser/colony-arrival.spec.js"
+                                                 },
+                                                 {
+                                                     "sha256":  "89b34a2b1c651c7bade66debab2902e20d2756d450198fcc7d33e71dfdf97f95",
+                                                     "file":  "public/assets/entry/mycorrhizal-carrier-empty-v1.png"
+                                                 },
+                                                 {
+                                                     "sha256":  "7c9289b7a9024a3616d5902d60540a5c50a7177dfb6006186d096c3c4871e463",
+                                                     "file":  "public/assets/entry/mycorrhizal-shuttle-v1.png"
+                                                 }
+                                             ]
+                              }
+                          ]
+}

@@ -24,6 +24,12 @@ complete colony-development campaign.
 The current destinations are Morrow, Nacre and Aurelia; older planet names in
 the original roadmap are superseded by `COLONIZATION_HUD_AND_PLANETS.md`.
 
+The later [atmosphere/camp/cinema stage](COLONY_ANIMATION_AND_MEDIA.md) implements
+shared daylight/weather, bonfires and film playback. [Walk-up bed inspection](COLONY_NEARBY_INSPECTION.md)
+now shows plants near the local worker automatically. The industrial chain,
+power/charging, fishing, ponds, cabins and commissioning objective below are
+still proposals; neither visual stage implements them.
+
 ## Recommended core
 
 Turn a hand-tended garden into a reliable settlement, then commission its link
@@ -209,6 +215,28 @@ not a settled balance rule. All players should see the same phase, and saves,
 reconnects and pauses preserve it. No requirement to attend at a real-world
 hour. Keep night readable and the interface independent of scene darkness.
 
+Author clarification, 2 November: joining guests follow the host expedition's
+current time and weather, replacing any stale local presentation. "Preserved"
+means the expedition saves its shared timeline; it does not give each guest a
+separate weather history. If the room advances from afternoon sunshine to
+evening rain while a guest is away, that guest returns to evening rain.
+
+The authoritative source is the expedition server, which sends the same state
+to the host and guests. The host browser does not upload a competing clock.
+Persist the active-game time, weather event/seed, intensity and transition
+timing. A joining or reconnecting guest adopts the latest runtime/revision and
+snapshot before displaying the scene, then interpolates visuals between
+updates. Reject older updates and replace stale local estimates on reconnect.
+Local device time, time zones and independent weather rolls cannot change
+gameplay weather or advance the shared timeline. Individual rain particles can
+remain cosmetic; rain's irrigation effects are decided once by the server.
+
+Pausing or closing the host expedition freezes this timeline under the existing
+room lifecycle; resuming continues the saved phase and transition. A guest
+leaving does not rewind or change the host's running weather. Reopening the
+expedition restores its one saved state for everyone. These are agreed rules
+for the planned weather feature, not a claim that weather is implemented.
+
 Start with clear skies, drifting cloud and light rain. Warm sunrise, amber/pink
 sunset, small stars, water glints and warm window/firelight create atmosphere.
 Later gentle rain can water beds and change the fishing table, with no floods,
@@ -271,11 +299,19 @@ downloaded version and any edits. These are candidate sources and licensing
 guidance, not clearance of an as-yet-unselected movie file. No film was downloaded
 or added to the project in this discussion.
 
+Follow-up: the author has now supplied the official-source Big Buck Bunny file.
+The [animation and media record](COLONY_ANIMATION_AND_MEDIA.md) documents its
+actual playback check, credits, delivery requirements and the proposed visual
+effects. The film remains a prepared source asset; the movie-screen feature
+has not been implemented.
+
 ### Validation before release
 
 Check simultaneous fishing claims and duplicate requests, restart during a
 cast, placement under workers or on essential routes, saved pond/cabin
 collision, undo/removal, shared weather/time across two clients and reconnect,
+late entry after weather has changed, stale/out-of-order snapshots and clients
+with different device clocks,
 paused growth/weather, screen start/pause/seek and late entry, personal mute,
 readable phone controls, reduced effects and rendering performance. Preserve
 the separate combat game and developer saves throughout.

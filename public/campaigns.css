@@ -64,6 +64,44 @@ p { line-height: 1.6; color: var(--muted); text-shadow: 0 1px 8px #000; }
   padding: 0 6vw 40px;
 }
 .view-top { display: flex; align-items: center; gap: 18px; min-height: 48px; }
+.mode-picker { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.mode-picker button { padding: 9px 16px; font-size: 13px; border-radius: 999px; }
+.mode-picker button[aria-pressed=true] { background: #cce3f01c; color: #fff; box-shadow: inset 0 0 0 1px #cce3f03a; }
+.mode-picker #mode-colonization[aria-pressed=true] { color: #fff1bf; background: #f0cf8730; box-shadow: inset 0 0 0 1px #ffe4a650; }
+body[data-entry-mode=colonization] .threat { color: #d6edb3; }
+body[data-entry-mode=colonization] #select-planet { color: #fff1c9; text-shadow: 0 2px 10px #000,0 0 28px #ffe4a64a; }
+body[data-entry-mode=colonization] #campaign-name { border-radius: 14px; background: #2c30257d; border-color: #d5d8b780; }
+body[data-entry-mode=colonization] #campaign-name:focus { border-color: #f7e7ad; }
+.colony-menu-action > span, .colony-menu h1, .colony-menu .menu-actions button > span,
+body[data-entry-mode=colonization] .planet-title h1 { font-family: 'Segoe Print','Bradley Hand','Chalkboard SE',cursive; }
+.menu-actions .colony-menu-action { color: #f4eccf; text-shadow: 0 2px 12px #000,0 0 24px #cee3aa55; }
+.colony-menu .colony-intro { color: #dae3d2; font-size: 13px; margin: -8px 0 0; }
+.colony-menu .menu-actions button { color: #fff8e4; font-size: 29px; }
+.colony-menu .menu-actions .war-zone-action > span { font-family: 'IBM Plex Sans',system-ui,sans-serif; }
+.colony-menu .menu-actions .war-zone-action { margin-top: 10px; letter-spacing: .025em; }
+body[data-entry-mode=colonization] .planet-info dd { color: #eef0df; }
+/* Golden light scatters through thin dust; the surrounding universe stays dark. */
+html:has(body[data-entry-mode=colonization]) { background: #080c0d; }
+body[data-entry-mode=colonization] { color: #f7f5e8; background: #080c0d; --muted: #c8cec0; --ice: #eee9d3; --line: #d8d5b740; }
+body[data-entry-mode=colonization] :is(button,.button,h1,h2,p,.planet-info,.save-view,.eyebrow,.planet-title .eyebrow,.planet-info dd,.planet-info dt,.lore-note,.colony-intro,.menu-actions small) {
+  color: #eeeede; text-shadow: 0 1px 4px #08100c,0 0 14px #08100c99;
+}
+body[data-entry-mode=colonization] :is(.colony-menu h1,.menu-actions button,#select-planet) { color: #fff9dd; text-shadow: 0 1px 4px #08100c,0 0 20px #f6d88924; }
+body[data-entry-mode=colonization] .threat { color: #d6e7b1; }
+body[data-entry-mode=colonization] :is(button,.button):hover:not(:disabled) { color: #fff5cb; text-shadow: 0 0 8px #fff3c255,0 0 22px #ffe5a644; }
+body[data-entry-mode=colonization] input { color: #f7f3df; background: #111a15b3; border-color: #d7c99380; text-shadow: none; }
+body[data-entry-mode=colonization] #campaign-name { background: #111a15b3; border-color: #d7c99380; }
+body[data-entry-mode=colonization] input::placeholder { color: #b9bfad; }
+body[data-entry-mode=colonization] #message:not(:empty) { color: #f0d89c; text-shadow: 0 1px 4px #08100c,0 0 12px #08100c; }
+body[data-entry-mode=colonization] #message.error { color: #ffc4ae; }
+body[data-entry-mode=colonization] :is(.delete-campaign,.delete-confirm,.delete-confirmation p) { color: #ffc4ae; }
+body[data-entry-mode=colonization] :is(button,a,input):focus-visible { outline-color: #ebd49a; }
+body[data-entry-mode=colonization] #campaign-name:focus { border-color: #ebd49a; }
+body[data-entry-mode=colonization] .entry-brand img { filter: drop-shadow(0 1px 2px #263b2bd9); }
+body[data-entry-mode=colonization] :is(.planet-title h1,.planet-title .eyebrow,.colony-menu h1,.colony-menu .colony-intro,.colony-menu .eyebrow,.colony-menu .menu-actions button,.colony-menu .menu-actions small) {
+  color: #fffced; text-shadow: 0 1px 3px #263b2de6,0 0 12px #263b2d80;
+}
+body[data-entry-wormhole] .menu-view { opacity: .08; transition: opacity .18s ease; }
 .status-area {
   position: fixed; z-index: 5; left: 50%; bottom: max(24px,env(safe-area-inset-bottom));
   transform: translateX(-50%); width: min(660px,calc(100% - 40px));
@@ -84,7 +122,7 @@ p { line-height: 1.6; color: var(--muted); text-shadow: 0 1px 8px #000; }
 
 /* The menu reads as luminous type floating over the globe, with no menu cards. */
 .menu-view {
-  max-width: 620px; margin: 0 auto; padding-top: clamp(30px,9vh,120px);
+  max-width: 620px; margin: 0 auto; padding-top: clamp(22px,5vh,76px);
   padding-bottom: 50px; text-align: center;
 }
 .menu-view h1 { font-size: clamp(2rem,3vw,3.2rem); color: #fff; text-shadow: 0 2px 22px #000,0 0 30px #b7dfff35; }
@@ -187,13 +225,16 @@ body[data-entry-view=continue] .planet-title { width: 40vw; left: calc(var(--ent
   .entry-footer a { margin-left: auto; }
   .entry-footer button { padding-left: 0; }
   #lobby { padding: 0 24px 24px; min-height: calc(100svh - 200px); }
-  .view-top { min-height: 44px; gap: 10px; }
+  .view-top { min-height: 44px; gap: 10px; flex-wrap: wrap; }
   .view-top .eyebrow { font-size: 9px; }
-  .menu-view { padding-top: 35px; padding-bottom: 30px; }
+  .mode-picker { flex-basis: 100%; justify-content: center; margin: 0 0 5px; }
+  .mode-picker button { min-width: 125px; }
+  .menu-view { padding-top: 24px; padding-bottom: 24px; }
   .menu-view h1 { font-size: 2rem; }
   .menu-view .eyebrow { font-size: 9px; }
-  .menu-actions { margin-top: 26px; gap: 10px; }
-  .menu-actions button { padding: 19px 8px; font-size: 28px; }
+  .menu-actions { margin-top: 20px; gap: 6px; }
+  .menu-actions button { padding: 13px 8px; font-size: 27px; }
+  .colony-menu .menu-actions button { font-size: 25px; }
   .menu-actions small { font-size: 11px; }
   .planet-title, body[data-entry-view=continue] .planet-title {
     position: relative; left: auto; top: auto; width: 100%; padding-top: 10px;

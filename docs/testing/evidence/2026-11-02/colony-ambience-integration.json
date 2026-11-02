@@ -1,0 +1,64 @@
+{
+  "capturedAt": "2026-11-01T18:33:25.277Z",
+  "stage": "Colony atmosphere, campfires and cinema",
+  "scope": "Local disposable data fixtures and Chrome desktop/phone emulation. Real developer saves untouched. No deployment.",
+  "unitTests": {
+    "passed": 41,
+    "files": [
+      "colony-ambience",
+      "colonization",
+      "colonization-runtime",
+      "colony-motion",
+      "invariants",
+      "colony-media",
+      "colony-view"
+    ]
+  },
+  "browserTests": {
+    "passed": 9,
+    "files": [
+      "colony-ambience",
+      "colony-motion",
+      "colony-view",
+      "colony"
+    ],
+    "checks": [
+      "Camp placement through pointer controls",
+      "Host light/weather controls",
+      "Personal movie audio",
+      "Late-join movie synchronization",
+      "Shared movie pause",
+      "Host absence freezes timeline and playback",
+      "Reconnect preserves camp and resumes playback",
+      "Phone control bounds and reduced effects",
+      "Local and peer movement interpolation",
+      "Escape layers",
+      "Projected build placement",
+      "Real crop, irrigation, harvest and orbital delivery loop"
+    ]
+  },
+  "typeScript": "passed",
+  "localPreview": {
+    "port": 8080,
+    "campPage": 200,
+    "movieHead": 200,
+    "acceptRanges": "bytes",
+    "contentLength": 64657027
+  },
+  "limitations": [
+    "Rain is visual only",
+    "Industry, fishing, ponds and cabins remain deferred",
+    "Performance measurements exclude media decoding/network and do not establish actual phone or hosted capacity"
+  ],
+  "sources": {
+    "public/colony-app.js": "505bfdaf1e2f874ca7d8d662737651daef4b7f5f8c9fadb92afb9e953fd5270c",
+    "public/colony-camp-ui.js": "c36c7ec2110ff1c355d3dd95d79ac113aa4ae52db5a0752a5fd29109d4cf8871",
+    "public/colony-ambience.js": "b07e78c20134bfc1c93ebd6f218364b82b4cdee43f2d5f3fa76b93fe813f2818",
+    "public/colony-art.js": "857b83f6c46fa534cd9194b24d3ffd68b16b23e5b644d2e9201a7ac244af845c",
+    "public/colony-ambience-art.js": "c695e7259093aff5a9301a830f9768d8bca7c04420de48b33b42d5161c6838b9",
+    "public/colony-cinema.js": "0750005d7571905a63db740415e35729edfdea9abc0c9cca797df41f6624c19f",
+    "public/colonization.js": "646eaee195646809144c418ef724dfe10d8765030ea021364967ad3acbc26ad4",
+    "colonization-runtime.js": "2076a015471bf1afe9ecce37f4f2112c142795b0aa2487eecad3e9b14dad6ee8",
+    "server.js": "93ec1c14af8b130801e026b8573c8ebbe50de3fa0b86d4f6a4d4f63a69640c9e"
+  }
+}

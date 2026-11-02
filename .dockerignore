@@ -17,3 +17,7 @@ assets/
 .local/
 test-results/
 playwright-report/
+
+# Intro video source and working files; only a rendered file is ever deployed.
+output/
+video/

@@ -1,0 +1,45 @@
+{
+  "scope": "Isolated local app with actual 250 ms SSE packets; real renderer receives recorded poses. Pre-change app, current renderer; no real saves.",
+  "results": [
+    {
+      "reduced": false,
+      "samples": 178,
+      "packetIntervalsMs": [
+        289.6999999284744,
+        289.3000000715256,
+        304.7999999523163,
+        304.7000000476837,
+        306.1999999284744,
+        305.5,
+        305
+      ],
+      "movingFrameFraction": 1,
+      "speedP10": 0.27150350119876737,
+      "speedP90": 9.838356233910764,
+      "speedRatio": 36.23657223745382,
+      "cameraMovingFrameFraction": 1,
+      "cameraSpeedRatio": 3.517183446746681,
+      "maximumPacketDistance": 0.9351693395727239
+    },
+    {
+      "reduced": true,
+      "samples": 172,
+      "packetIntervalsMs": [
+        304.1999999284744,
+        305.60000002384186,
+        305.10000002384186,
+        305.1999999284744,
+        302.7000000476837,
+        308.39999997615814,
+        304.2000000476837
+      ],
+      "movingFrameFraction": 0.03488372093023256,
+      "speedP10": 0,
+      "speedP90": 0,
+      "speedRatio": 0,
+      "cameraMovingFrameFraction": 0.03488372093023256,
+      "cameraSpeedRatio": 0,
+      "maximumPacketDistance": 0
+    }
+  ]
+}

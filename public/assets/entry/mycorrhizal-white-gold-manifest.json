@@ -1,0 +1,42 @@
+{
+    "source":  "output/video-frames/mycorrhizal-white-gold-design-sheet-v1.png",
+    "selectedView":  "Middle TOP view only",
+    "creation":  "Built-in image_gen extraction plus a matching overhead cargo shuttle, 1 November 2026. Author-selected white/gold carrier identity; source sheet unchanged.",
+    "delivery":  "Native generated PNGs with alpha, copied byte-for-byte into public/assets/entry. No upscale. Runtime crop uses canvas sourceRect only.",
+    "carrier":  {
+                    "sourceRect":  {
+                                       "y":  162,
+                                       "width":  2100,
+                                       "height":  402,
+                                       "x":  36
+                                   },
+                    "width":  2172,
+                    "cornerAlpha":  0,
+                    "height":  724
+                },
+    "shuttle":  {
+                    "sourceRect":  {
+                                       "y":  84,
+                                       "width":  1980,
+                                       "height":  588,
+                                       "x":  48
+                                   },
+                    "width":  2079,
+                    "cornerAlpha":  0,
+                    "height":  756
+                },
+    "files":  [
+                  {
+                      "file":  "mycorrhizal-white-gold-top-v1.png",
+                      "bytes":  1341467,
+                      "sha256":  "a453d877b43462badc1df13966a711bafe52bc1a33b12e332c4152ebb623f8fd",
+                      "prompt":  "output/video-frames/mycorrhizal-white-gold-top-v1-prompt.txt"
+                  },
+                  {
+                      "file":  "mycorrhizal-shuttle-top-v1.png",
+                      "bytes":  2052779,
+                      "sha256":  "2f846f6ad04309c1df903b604c395564576f42471198558cb0fa6e393de7b492",
+                      "prompt":  "output/video-frames/mycorrhizal-shuttle-top-v1-prompt.txt"
+                  }
+              ]
+}

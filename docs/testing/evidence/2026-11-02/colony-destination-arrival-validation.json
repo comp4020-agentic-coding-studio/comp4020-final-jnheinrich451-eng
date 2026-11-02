@@ -1,0 +1,491 @@
+﻿{
+    "verifiedAt":  "2026-11-01T13:49:10.5522085Z",
+    "stage":  "Destination words commit on carrier arrival, 80 percent carrier size and blue engine flicker",
+    "scope":  "Isolated local Chrome fixtures, disposable demo accounts and temporary data directories; no real developer saves, live email or deployment",
+    "browserViewports":  [
+                             "1600x1000",
+                             "390x844"
+                         ],
+    "fullColonyRun":  {
+                          "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-destination.config.mjs",
+                          "passed":  14,
+                          "failed":  0,
+                          "duration":  "1.9 minutes",
+                          "note":  "Completed before a final scoped same-view route cancellation change. The current source was subsequently checked by the two affected Continue cases and six combat regressions below."
+                      },
+    "finalRouteCheck":  {
+                            "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-destination.config.mjs --grep \u0027Continue keeps its departing\u0027 --output=.local/colony-destination-route-results",
+                            "passed":  2,
+                            "failed":  0,
+                            "durationSeconds":  13.6,
+                            "note":  "Added same-view browser Back during pending travel; also rechecks Continue group holding, blocked mutations, Back to hub, reduced motion and canvas-failure unlock on desktop and phone."
+                        },
+    "combatRegression":  {
+                             "command":  "pnpm.cmd exec playwright test --config=.local/playwright.colony-combat-entry.config.mjs",
+                             "passed":  6,
+                             "failed":  0,
+                             "durationSeconds":  53.5,
+                             "note":  "Existing combat arrow travel, pending admission, desktop and phone entry, refused admission, skip, reduced motion and saved Vesper recovery."
+                         },
+    "coverage":  [
+                     "Heading, designation, description, facts, Select label and selected form remain on the departing world during turn, departure and arrival approach",
+                     "Only latest arrival commits after rapid arrow changes; the eventual created campaign uses the reached Nacre template",
+                     "Create, name input, Select, Enter and Delete cannot act during pending travel; no wrong-world API mutation is issued",
+                     "Continue retains the departing save group and restores enabled destination actions after arrival",
+                     "Back, same-view browser history, reduced motion and caught renderer failure clear pending selection locks",
+                     "Actual rendered hull lengths equal 0.8 of the original clamp on desktop and phone; actual blue pixels behind the hull vary over 16 frames",
+                     "Existing all-world carrier, controlled shuttle admission, refusal, skip, saved legacy worlds, wormhole, star visibility and smooth voyage checks remain green",
+                     "Root reviewed desktop and phone carrier size, aft flame placement and held-word departure screenshots"
+                 ],
+    "numericVisualEvidence":  [
+                                  "destination-arrival/destination-desktop-carrier.json",
+                                  "destination-arrival/destination-phone-carrier.json"
+                              ],
+    "fullRunScreenshotCount":  74,
+    "artifacts":  [
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-desktop-approach.png",
+                          "sha256":  "2e1eac25575f757223cf29386415d2d90f5a5b120b44fc8fe3150f8f75ea6511",
+                          "sourceTest":  "colony-arrival-civilian-sh-12fd0-ies-into-the-garden-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-desktop-atmosphere.png",
+                          "sha256":  "8f6d84576373338baf5d9cd8a4122c2f9dc788e04273f10b74eddd0c569a6b35",
+                          "sourceTest":  "colony-arrival-civilian-sh-12fd0-ies-into-the-garden-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-desktop-garden.png",
+                          "sha256":  "e315cf752d85ea0c446c778e2188506711fd0d8746e0e7e0d900346837887e7d",
+                          "sourceTest":  "colony-arrival-civilian-sh-12fd0-ies-into-the-garden-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-desktop-release.png",
+                          "sha256":  "2318450713f06ecaa853ee8105905debc1bc704b2c12e41f6dca0044398d096f",
+                          "sourceTest":  "colony-arrival-civilian-sh-12fd0-ies-into-the-garden-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-desktop-waiting.png",
+                          "sha256":  "5af3eaeac693c55786705471511d55cdc30cd695551b7631df1c89d01b3d928e",
+                          "sourceTest":  "colony-arrival-civilian-sh-12fd0-ies-into-the-garden-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-phone-approach.png",
+                          "sha256":  "b14e99ba9e9b58d250bf1fe5b7f429c1eaffa6511e5b497d0a1293326bc24b20",
+                          "sourceTest":  "colony-arrival-civilian-sh-49c8d-flies-into-the-garden-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-phone-atmosphere.png",
+                          "sha256":  "f7ace87b0be2896005e80080cea34c4fdd25178e35f9fbd1fb1ecfe2a9c9d0ca",
+                          "sourceTest":  "colony-arrival-civilian-sh-49c8d-flies-into-the-garden-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-phone-garden.png",
+                          "sha256":  "bd5877086877c42563b81b1246f87097e805793ca4c7ee5ba30e5182b3691e62",
+                          "sourceTest":  "colony-arrival-civilian-sh-49c8d-flies-into-the-garden-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-phone-release.png",
+                          "sha256":  "6e8ce4b27e498bd90876a14fddd9995dd31aca511debcbb28aeb2e3bcd738d4a",
+                          "sourceTest":  "colony-arrival-civilian-sh-49c8d-flies-into-the-garden-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-phone-waiting.png",
+                          "sha256":  "9847cafcc24ef6802be9357e24aae88fa146ebccdaf9f5e9fb11c26386be891f",
+                          "sourceTest":  "colony-arrival-civilian-sh-49c8d-flies-into-the-garden-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-aurelia-v1-desktop.png",
+                          "sha256":  "7b8e2431ad843b4e23807f9f652de6ff80d7cf3215fef49ca26eedb14a458bcc",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-morrow-v1-desktop.png",
+                          "sha256":  "7aaec004859b08abc8f81aa07d8aa7e52a7714114022a7313c5302b8254b1b4b",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-nacre-v1-desktop.png",
+                          "sha256":  "12205fe74d455f490ad73a9d3d99347025ad83b057f9a2e160250eb1c2462471",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-aurelia-v1-desktop.png",
+                          "sha256":  "2e94ec9b583bbfd4890134a74ac439ea7b9262872f3c4dbc2d97e9d6fa9c0152",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-morrow-v1-desktop.png",
+                          "sha256":  "e9adc92f385db596ebe77961a10fde6b9223e06f617c29b287ca2f0cb83e4eea",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-nacre-v1-desktop.png",
+                          "sha256":  "8a50f21e171bbfdbb0f6644c12367d31be25884a67db7c395f3337b79a71437e",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-9c871-in-New-and-Continue-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-aurelia-v1-phone.png",
+                          "sha256":  "4503204110e920da7be994e8ab4b2d8af22161a062a6d39e461db958ea7c772f",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-morrow-v1-phone.png",
+                          "sha256":  "b25a05c024755cdf7159970557edbd414c21287f646bb2ce0e2a11e6599a0b6f",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-continue-nacre-v1-phone.png",
+                          "sha256":  "9d35c157730148410317eb544eeed8c382c304a72624a37308edc5cfdddada71",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-aurelia-v1-phone.png",
+                          "sha256":  "a3457749e7d5903ee632deaabbb18ced1f48923079f20d6640c3c8bf12edeec4",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-morrow-v1-phone.png",
+                          "sha256":  "45e6eab4b34d18bec2797efc5c5009f064538ef86356a7e9f5fecb91c712c75f",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-carrier-new-nacre-v1-phone.png",
+                          "sha256":  "a1a78595d200f18b9c89ca3099b485a0783d0a26bbaab2e55457a24d76f772e1",
+                          "sourceTest":  "colony-arrival-MYCORRHIZAL-cb129-n-in-New-and-Continue-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-shuttle-refused-return.png",
+                          "sha256":  "360c12584a4a1473d5dedc1e9b3ef63d11c071b13a4069f4200b5a183b1a3b5d",
+                          "sourceTest":  "colony-arrival-refused-civ-6d79e-rts-skip-and-reduced-motion"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-arrived-new-words.png",
+                          "sha256":  "0b5e34e411c199f0a983654e890ad1c36b82fdf59c736515cc194ac6ac2ecbee",
+                          "sourceTest":  "colony-destination-arrival-2b176-s-the-reached-world-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-blue-engines.png",
+                          "sha256":  "0ffb7110e6817b1673ce3935251c867e62374b8b4fa91d1171b2404d97972881",
+                          "sourceTest":  "colony-destination-arrival-2b176-s-the-reached-world-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-carrier.json",
+                          "sha256":  "116c7fc2458a465b00077e352bf969899a8a03619340f32cf3a0be18a34fd8a5",
+                          "sourceTest":  "colony-destination-arrival-2b176-s-the-reached-world-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-depart-old-words.png",
+                          "sha256":  "8e7faf9d1ef435f801a218439681af79c7bed9a05b884296f4ba12fb617f499c",
+                          "sourceTest":  "colony-destination-arrival-2b176-s-the-reached-world-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-continue-arrived.png",
+                          "sha256":  "e58b7551e17b5cbf49dec3913f79411adc006dd38348c832b1fb91797709a8e0",
+                          "sourceTest":  "colony-destination-arrival-526e9-cks-every-exit-path-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-desktop-continue-depart.png",
+                          "sha256":  "d9b7347f4158f14d7be922a20945b66eb6c1ec551d2c122b19806c7e8db5aafc",
+                          "sourceTest":  "colony-destination-arrival-526e9-cks-every-exit-path-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-continue-arrived.png",
+                          "sha256":  "60f2f4215e7e7ebc52f26574db96c30d326ba5f3937454711b3075db60628e6e",
+                          "sourceTest":  "colony-destination-arrival-55b90-locks-every-exit-path-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-continue-depart.png",
+                          "sha256":  "8b7cad23bf0a65c1fc9d36e9dce40155f1f6f2491d427224b76ed69dc413a715",
+                          "sourceTest":  "colony-destination-arrival-55b90-locks-every-exit-path-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-arrived-new-words.png",
+                          "sha256":  "8836df4a9f6555752e8f1f9876bec88dc8b67b596a7cfe4e11004b6e3346e14e",
+                          "sourceTest":  "colony-destination-arrival-b4f3e-tes-the-reached-world-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-blue-engines.png",
+                          "sha256":  "c56b84394de32cc9e62ac41e6808c9d6033d79c40d4dd9b7888a9014deedcdc9",
+                          "sourceTest":  "colony-destination-arrival-b4f3e-tes-the-reached-world-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-carrier.json",
+                          "sha256":  "a30aef2d12c505d2c4ec314e3433874d822f4342981595413f91047971834262",
+                          "sourceTest":  "colony-destination-arrival-b4f3e-tes-the-reached-world-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/destination-phone-depart-old-words.png",
+                          "sha256":  "0e3e41700ef51e155f562d6bea330edc3061b0c54fe0f296761c9817bfff7798",
+                          "sourceTest":  "colony-destination-arrival-b4f3e-tes-the-reached-world-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-blue-collapse.png",
+                          "sha256":  "75d541006c7a62c862d2066641476828fcbb01488bf445ad7eb8bac40ce0fd8b",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-blue-collapse-early.png",
+                          "sha256":  "7bc2346457a3880a7b4c2b0a92b6ff055d4905cf9b3cee0ec10753bff2f8bef9",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-blue-converge.png",
+                          "sha256":  "c521e33dd72bc5d34f3d3e638ee5b29a0deb5878dccf788c50d9cc443a2cd5ca",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-blue-expand.png",
+                          "sha256":  "3c14705a8e938bb568db1c65ffa4d3e1b7c73416392500695dbe833a2dc6e56d",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-combat-restored.png",
+                          "sha256":  "0862e39247df25fffc0d1a7c0c201ba0054a708ad6e311dbb5f818f0d382297a",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-gold-collapse.png",
+                          "sha256":  "dd5ad3ec5c8b462cba948e6902639a1d78f5280ac7adf4a82a165bc26b44a5d0",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-gold-collapse-early.png",
+                          "sha256":  "7fbd0df46d541c355216480ad7786ac713f513c3a0eb9df7188bc3dbda93e802",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-gold-converge.png",
+                          "sha256":  "a8b286249349556f7b1c245ed25745e37d8945410747f94d498b19a85cc6c781",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-gold-expand.png",
+                          "sha256":  "9b6d26dfe3adb5d71d5dbac68bf5adaf1f7553de02186164f3ddd7a6bd441955",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-civilian-system.png",
+                          "sha256":  "7b1079f2fa143e37e05dd90abd9aee448818586fe5f99d43265f0827fc69f84b",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-combat-before.png",
+                          "sha256":  "0a2967d3c314b0736cfff935e7d82d90e043e076b693dd7a5cea48b9ede11221",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-overhead-orbit.png",
+                          "sha256":  "89fe5da46c8175866bf81c79768900cfbfdb67357771f31e43d2779b57dfae79",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-left-depart.png",
+                          "sha256":  "9c8d662119f2317c4442ebce45304079a2727236f08e1f7515d3769c02738298",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-left-exchange.png",
+                          "sha256":  "bccab75a7b86667e13c0278f8a51870561832df473f741d93686cee1c13d6c60",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-left-settled.png",
+                          "sha256":  "86e2c984d3bc104e7e8a459258d4ffca6e4409d1c5d6c99c4e18f4ccb222e6af",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-right-depart.png",
+                          "sha256":  "25c5579915b37d2602b4382742826688a84d9f69a04b2f71294116a052312cca",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-right-exchange.png",
+                          "sha256":  "4922f72810e6953b9b4805ce5036a4e1083adcfdd7676e34ebdbfa26cdac922b",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-phone-travel-right-settled.png",
+                          "sha256":  "3a393a26d5e36e7baa59cee77e512a6da71f1b5a915c19b7e1e1d0021492319b",
+                          "sourceTest":  "colony-voyage-civilian-sys-72371-smooth-planet-voyages-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-blue-collapse.png",
+                          "sha256":  "b12646ddcde27f92f9d2adc469cdead747c295a6faec66bfad8e97b8f48d7af9",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-blue-collapse-early.png",
+                          "sha256":  "395f8663a035fece071e630546cc747d1f4c436e36c960a8108e2a1b8adbcbf6",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-blue-converge.png",
+                          "sha256":  "92668942795562ab72f7970901f6335940032c9ec7cb0346e496b487a8e8165b",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-blue-expand.png",
+                          "sha256":  "d32c91a258e661f667cd5202debcb0f81cbdddc5f16dc644306331d5133c3391",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-combat-restored.png",
+                          "sha256":  "eaee4e67d45dc9d2f3f2b631b352b4a60ffb5f52af93c5f4b754454d5f13d445",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-gold-collapse.png",
+                          "sha256":  "19102b67a6812a178e74744e5296d3a5dcb4f76aa0419739a14e790fdaab0e8d",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-gold-collapse-early.png",
+                          "sha256":  "16a4ab3fe4899eed9320ac0c589a17cb94e1efdb14188a5e180a05ff28d2ab4f",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-gold-converge.png",
+                          "sha256":  "f07cd8726823f7c8c1762e48db8fb91338af5b838190a16effbadf0f995c742b",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-gold-expand.png",
+                          "sha256":  "5141aabd7db91d1bdd3812ad7bf90e6fec598e4a14c126806031836ade4ce0e2",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-civilian-system.png",
+                          "sha256":  "4cb3d7e5e188af7d1cbd674db00742ab2b14348756047358ef01648ad441d9bf",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-combat-before.png",
+                          "sha256":  "c19cba4a6953019f02c0da53a76a29dc3b49100fc290223e9959d9059d143392",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-overhead-orbit.png",
+                          "sha256":  "4aded5f2affbea9d3b1a6bdde08f3af65713df5b2407f6831c843ee4a8d0602d",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-left-depart.png",
+                          "sha256":  "5dd17185a90d5b4892a367dd9726e7c80049b50fcdc3c240dac0851ac387579a",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-left-exchange.png",
+                          "sha256":  "abd2a2d52f52c02a66a5fec7784788fe317306efbc9849e48968d4b3588e619a",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-left-settled.png",
+                          "sha256":  "11173a4adb5b97546c0f04225a18d8c4d85918a4484f91abf5c9175519197086",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-right-depart.png",
+                          "sha256":  "cd8c1a4ebfe58cc482aad5462f249bdf941ec16a32ffef26da0e66ecc419de97",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-right-exchange.png",
+                          "sha256":  "f00a09fca36822083b7c5a06bc756eb36ec0c9b4261eac43765284af88673421",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-desktop-travel-right-settled.png",
+                          "sha256":  "3980d9e7cb8bb7684994692075ef6c74c74f306fa7063bc6b419064e7ada33b9",
+                          "sourceTest":  "colony-voyage-civilian-sys-f6377-ooth-planet-voyages-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/white-gold-reduced-motion-system.png",
+                          "sha256":  "37c572dff381ff619fc2f982580f34230ac288f96013024d541a2c4e2190fa63",
+                          "sourceTest":  "colony-voyage-civilian-tra-c4340-on-reload-or-reduced-motion"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-continue-morrow.png",
+                          "sha256":  "c7ca67a3ce40376ce882a1dda7e83dbb0165e00bb5c5e9f80477bd108c0c8767",
+                          "sourceTest":  "colony-voyage-Continue-sta-65855-d-keeps-their-terrain-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-phone-legacy-sirocco.png",
+                          "sha256":  "e384d92525b9b4b98b4aaf19237a029895774907e8db698e4c4585a8ff80bbc3",
+                          "sourceTest":  "colony-voyage-Continue-sta-65855-d-keeps-their-terrain-phone"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-continue-morrow.png",
+                          "sha256":  "196e5c2f11b0bb1b494f030a7e9ff8f1d6b5fd839434a203f558caf760fab54b",
+                          "sourceTest":  "colony-voyage-Continue-sta-d8057-keeps-their-terrain-desktop"
+                      },
+                      {
+                          "file":  "destination-arrival/system-return-desktop-legacy-sirocco.png",
+                          "sha256":  "c9714e53d2f08f8409b90cf4dff4fdce77e17bfbdd582ce0f07ef8644fe4725e",
+                          "sourceTest":  "colony-voyage-Continue-sta-d8057-keeps-their-terrain-desktop"
+                      }
+                  ],
+    "finalRouteScreenshots":  [
+                                  "destination-arrival/same-view-back/destination-desktop-continue-arrived.png",
+                                  "destination-arrival/same-view-back/destination-desktop-continue-depart.png",
+                                  "destination-arrival/same-view-back/destination-phone-continue-arrived.png",
+                                  "destination-arrival/same-view-back/destination-phone-continue-depart.png"
+                              ],
+    "finalSourceHashes":  [
+                              {
+                                  "file":  "public/entry-scene.js",
+                                  "sha256":  "11ec43f12315508d37b2427088aeb809f6072b93773b659fdfbc518d0869dd60"
+                              },
+                              {
+                                  "file":  "public/campaigns.js",
+                                  "sha256":  "925e584a94b64517b727d4af400aae161dd28abca58f335ee98600e3c2b97831"
+                              },
+                              {
+                                  "file":  "public/colony-entry-ship.js",
+                                  "sha256":  "9342a5436443508123005d3b3f8d98657535cd335a6290439fa1d357604f646e"
+                              },
+                              {
+                                  "file":  "tests/browser/colony-destination-arrival.spec.js",
+                                  "sha256":  "b5a5fafd985dddd0bbbfef7d451f92910868e0651713e1e5a80102ce921c46c9"
+                              },
+                              {
+                                  "file":  "tests/browser/colony-voyage.spec.js",
+                                  "sha256":  "9ef4af703ba8543185f0fc622777f86a4800ee6e83f568b39be8cbff72d74064"
+                              },
+                              {
+                                  "file":  "tests/browser/colony-arrival.spec.js",
+                                  "sha256":  "f16e9bb666ac60622ed42421c23525de54d6a7b72bbcd749e09713f61da6a2ad"
+                              },
+                              {
+                                  "file":  "tests/browser/entry.spec.js",
+                                  "sha256":  "0d5ddae5fad24e8093d6979e99e3c3ac98260151c9d447d5d98a5b69c987fd7f"
+                              },
+                              {
+                                  "file":  ".local/playwright.colony-destination.config.mjs",
+                                  "sha256":  "084841fa3cf72bdc2671cfdf1c4458ada8bdf6898887115584a4b19e40ee701b"
+                              },
+                              {
+                                  "file":  ".local/playwright.colony-combat-entry.config.mjs",
+                                  "sha256":  "bc874ae90c2206725cb9e048726ad294b6992c928b34c2d743994fa6d8403386"
+                              }
+                          ],
+    "limitations":  [
+                        "Local Chrome only; no cross-browser or live multiplayer result claimed",
+                        "The full 14-case run is not represented as rerun after the scoped route-cancellation change; final incremental checks are recorded separately"
+                    ],
+    "supplementalAgentChecks":  {
+                                    "verifiedBy":  "colony_voyage agent; reported successful exit 0",
+                                    "runner":  "node .local/check-colony-arrival.mjs",
+                                    "isolation":  "Temporary createApp server sets APP_URL; validated fixture directory removed after completion",
+                                    "unitCommand":  "pnpm.cmd exec vitest run spec/entry-ship.test.ts spec/colony-entry-ship.test.ts",
+                                    "unitPassed":  20,
+                                    "unitFailed":  0,
+                                    "unitBreakdown":  {
+                                                          "spec/entry-ship.test.ts":  7,
+                                                          "spec/colony-entry-ship.test.ts":  13
+                                                      },
+                                    "typecheckCommand":  "pnpm.cmd exec tsc --noEmit",
+                                    "typecheckExitCode":  0,
+                                    "syntaxCommand":  "node --check public/colony-entry-ship.js",
+                                    "syntaxExitCode":  0
+                                }
+}

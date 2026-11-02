@@ -9,6 +9,16 @@ dist/
 test-results/
 playwright-report/
 
+# Generated concept images and test renders stay local (the folder is large).
+# The *-prompt.txt files beside them stay tracked as provenance evidence.
+/output/**/*.png
+/output/**/*.mp4
+/output/**/*.webm
+
+# Intro video workspace: derived layers and renders are rebuilt, not tracked.
+/video/public/layers/
+/video/out/
+
 # editor and OS junk
 .DS_Store
 ._*

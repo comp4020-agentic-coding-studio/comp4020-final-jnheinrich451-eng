@@ -1,0 +1,15 @@
+Big Buck Bunny
+Copyright 2008, Blender Foundation / www.bigbuckbunny.org
+
+Licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0).
+License: https://creativecommons.org/licenses/by/3.0/
+Project/license information: https://peach.blender.org/about/
+Official source: https://download.blender.org/peach/bigbuckbunny_movies/
+
+This file is an unchanged copy of the author's supplied
+BigBuckBunny_320x180.mp4. The full film, soundtrack and ending credits are retained.
+The author's source directory was confirmed on 2 November 2026.
+No endorsement of Frontier by Blender Foundation is implied.
+
+The movie's license applies to this movie asset; it does not change the
+license of Frontier's own source code or unrelated assets.

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8faf5"><meta name="frontier-build" content="FRONTIER_CLIENT_BUILD"><title>Frontier · Colonization</title>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/colony.css">
+  <script type="module" src="/colony-app.js"></script>
+</head>
+<body>
+<main id="colony-game" aria-label="Peaceful colonization expedition">
+  <canvas id="colony-canvas" tabindex="0" aria-label="Garden landscape. Use WASD or the arrow buttons to move. Select a growing bed to tend it."></canvas>
+  <header class="colony-header">
+    <div class="header-main">
+    <a class="colony-brand" data-colony-menu href="/campaigns/#view=colony&amp;mode=colonization" aria-label="Frontier campaigns"><svg viewBox="0 0 28 32" aria-hidden="true"><path d="M4 28V4h19M5 15h13"/><path d="M10 25c11-3 13-11 12-17-7 2-13 6-12 17Z"/><path d="m10 25 9-13"/></svg><span>FRONTIER<small>COLONIZATION</small></span></a>
+    <div class="expedition-name"><strong id="colony-name">Your expedition</strong><span id="colony-planet">Preparing your expedition</span></div>
+    <div class="materials" title="Shared building materials"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v11l-9 4-9-4ZM3 7l9 4 9-4M12 11v11M8 5l9 4v5"/></svg><strong id="materials-count">—</strong><small>materials</small></div>
+    <button id="room-open" class="soft-button room-toggle" aria-controls="room-panel" aria-expanded="false" title="Expedition menu / Esc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Crew <span id="crew-count">1</span></button>
+    </div>
+    <div class="header-secondary">
+  <section class="welcome-card" aria-labelledby="welcome-heading">
+    <h1 id="welcome-heading" class="sr-only">Expedition progress</h1>
+    <p class="eyebrow connection-status"><span id="connection-dot" class="connection-dot"></span><span id="colony-connection">Opening your garden…</span></p>
+    <button id="project-toggle" class="quiet-button" aria-expanded="false" aria-controls="milestones"><span id="project-label">Plant a seed</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></button>
+    <ol id="milestones" class="milestones"><li data-milestone="firstPlant"><i>1</i><span>Plant a seed</span></li><li data-milestone="firstHarvest"><i>2</i><span>Gather a harvest</span></li><li data-milestone="firstShipment"><i>3</i><span>Send an orbital parcel</span></li></ol>
+  </section>
+  <div class="view-tools" aria-label="View controls">
+    <button id="colony-zoom-in" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+    <button id="colony-zoom-out" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+    <button id="colony-recenter" aria-label="Find your robot" title="Find your robot / C"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg></button>
+    <button id="effects-toggle" aria-label="Reduce animation" aria-pressed="false" title="Reduce animation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14M3 12h2M19 12h2"/></svg></button>
+    <button id="colony-help" aria-label="Field guide" title="Field guide / F1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8a4 4 0 0 1 8 0c0 3-4 3-4 6M12 18v1"/><circle cx="12" cy="12" r="10"/></svg></button>
+  </div>
+    </div>
+  </header>
+  <aside id="inspector" class="inspector" hidden aria-labelledby="inspector-title">
+    <div class="inspector-heading"><div><p id="inspector-eyebrow" class="eyebrow">YOUR GARDEN</p><h2 id="inspector-title">First planting</h2></div><button id="inspector-close" class="round-button" aria-label="Close garden panel">×</button></div>
+    <div id="inspector-body"></div>
+  </aside>
+  <aside id="room-panel" class="room-panel" hidden aria-labelledby="room-title">
+    <div class="inspector-heading"><div><p class="eyebrow">MYCORRHIZAL / EXPEDITION</p><h2 id="room-title">Crew</h2></div><button id="room-close" class="round-button" aria-label="Close crew panel">×</button></div>
+    <ul id="crew-list" class="crew-list"></ul>
+    <p id="room-status" class="fine"></p>
+    <button id="colony-invite" class="soft-button wide">Invite a friend</button>
+    <div id="invite-box" hidden><label for="invite-code">Single-use invitation · 30 minutes</label><input id="invite-code" readonly><button id="invite-copy" class="quiet-button">Copy invitation</button></div>
+    <button id="colony-pause" class="soft-button wide">Pause expedition</button>
+    <button id="colony-leave" class="primary-button wide">Save and return to menu</button>
+  </aside>
+  <aside class="moss-note" aria-label="Assistant advice" hidden><p id="moss-message"></p></aside>
+  <p id="colony-toast" class="toast" role="status" aria-live="polite" hidden></p>
+  <div id="placement-note" class="placement-note" hidden><strong id="placement-title"></strong><span id="placement-reason"></span><button id="placement-cancel" class="quiet-button">Cancel / Esc</button></div>
+  <nav class="garden-toolbar" aria-label="Garden tools">
+    <button id="tool-inspect" data-tool="inspect" aria-pressed="true"><span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M14 24V9M14 16C5 17 3 10 4 7c7-1 10 3 10 9ZM14 12c8 0 11-6 10-9-6 0-10 4-10 9ZM8 25h12"/></svg></span><span>Garden<small id="bed-count">0 growing beds</small></span></button>
+    <button id="tool-bed" data-tool="bed" aria-pressed="false"><span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="m4 5 20-1 1 20-21 1ZM8 9h12M8 14h12M8 19h12"/><path class="sketch-stroke" d="m3 7 1 19 19-1"/></svg></span><span>Bed <kbd>B</kbd><small id="bed-cost">6 materials</small></span></button>
+    <button id="tool-sprinkler" data-tool="sprinkler" aria-pressed="false"><span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M14 24V13M8 24h12M7 12h14M4 7l2 2M10 4l1 4M18 4l-1 4M24 7l-2 2M5 17v2M23 17v2"/><circle cx="14" cy="11" r="2"/></svg></span><span>Sprinkler<small id="sprinkler-cost">12 materials</small></span></button>
+    <button id="tool-shipment" data-tool="shipment" aria-pressed="false"><span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M8 23h12M14 23v-5M5 17l9-13 9 13-9-3ZM14 4v10M2 23l2-2M24 21l2 2"/><path class="sketch-stroke" d="m7 17 7-11 8 11"/></svg></span><span>Orbital post<small id="shipment-count">First delivery</small></span></button>
+    <button id="tool-camp" data-tool="camp" aria-pressed="false"><span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M14 3c2 6-5 7-3 12 1-2 4-3 5-6 1 4 6 7 5 11-1 7-14 7-15 0-1-5 3-8 5-10-1 5 2 5 3 7M6 26l16-3M6 23l16 3"/></svg></span><span>Camp<small>Fire · film · sky</small></span></button>
+  </nav>
+  <div class="colony-touch-pad" aria-label="Move robot"><button data-dy="-1" data-dx="0" aria-label="Move north">↑</button><button data-dy="0" data-dx="-1" aria-label="Move west">←</button><button data-dy="1" data-dx="0" aria-label="Move south">↓</button><button data-dy="0" data-dx="1" aria-label="Move east">→</button></div>
+  <p class="control-hint"><kbd>WASD</kbd> move <span>·</span> drag / wheel <span>·</span> <kbd>E</kbd> tend <span>·</span> <kbd>Esc</kbd> menu <span>·</span> <kbd>F1</kbd> guide</p>
+  <dialog id="colony-help-dialog" aria-labelledby="colony-help-title">
+    <div class="inspector-heading"><div><p class="eyebrow">MYCORRHIZAL / FIELD NOTES</p><h2 id="colony-help-title">A little guidance</h2></div><button id="colony-help-close" class="round-button" aria-label="Close field guide">×</button></div>
+    <dl class="guide-controls"><div><dt>WASD / arrows</dt><dd>Move your robot.</dd></div><div><dt>Drag / wheel</dt><dd>Pan and zoom the view.</dd></div><div><dt>Walk near a bed</dt><dd>See its plant or seed choices. Click a bed to inspect from farther away.</dd></div><div><dt>E</dt><dd>Water or gather the displayed crop.</dd></div><div><dt>B · C</dt><dd>Build a bed · find your robot.</dd></div><div><dt>Esc</dt><dd>Close a panel or cancel placement; otherwise open the expedition menu.</dd></div></dl>
+    <p class="guide-note">Seeds and water are free. Dry crops pause; ripe crops wait.</p>
+    <p class="guide-note">Crew members share the garden, supplies and harvest.</p>
+    <p class="guide-note">Camp places free bonfires and an outdoor screen. The host can choose shared light and weather under Atmosphere. Film sound is personal; use Sound on to listen.</p>
+  </dialog>
+  <div id="colony-loading" class="loading-screen"><svg class="loading-mark" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="30"/><path d="M38 58V29M38 43C23 43 19 32 20 26c11-1 18 6 18 17ZM39 35c14 0 21-9 20-16-12 0-20 7-20 16M30 59h19"/></svg><h2>Preparing the clearing.</h2><p id="loading-message">Opening your saved expedition…</p><a data-colony-menu href="/campaigns/#view=colony&amp;mode=colonization">Return to campaigns</a></div>
+  <noscript><div class="loading-screen"><h2>A little help is needed.</h2><p>Enable JavaScript to open your expedition.</p><a data-colony-menu href="/campaigns/#view=colony&amp;mode=colonization">Return to campaigns</a></div></noscript>
+</main>
+</body>
+</html>

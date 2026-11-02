@@ -1,0 +1,13 @@
+Big Buck Bunny is licensed under Creative Commons Attribution 3.0 Unported.
+License identifier: CC-BY-3.0
+
+License deed: https://creativecommons.org/licenses/by/3.0/
+Legal code: https://creativecommons.org/licenses/by/3.0/legalcode
+
+Use and redistribution are subject to that license, including its attribution
+requirements. See CREDITS.txt and https://peach.blender.org/about/ for the
+movie's attribution instructions. Preserve the full ending credits when
+screening the complete film. Retain attribution and identify adaptations.
+
+This notice identifies the applicable license; the linked legal code contains
+its complete terms.

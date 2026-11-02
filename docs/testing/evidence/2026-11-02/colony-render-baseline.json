@@ -1,0 +1,190 @@
+{
+  "variant": "baseline",
+  "label": "baseline",
+  "capturedAt": "2026-11-01T14:19:52.136Z",
+  "browser": "155.0.8059.86",
+  "scope": "Local headless Chrome renderer-only synthetic fixture; no app, networking, server tick, real saves or hardware capacity claim. Full garden exercises rendering limits; scene placement is synthetic.",
+  "sources": {
+    "colony-art.js": "8cdb80eec2250a3d3e2f985753111a09516c73eb3d02a9458282b76643dd9476",
+    "colony-robot.js": "a3a041fbefe77687c039dc9c879ef19679ac6bfa6747fc4f45eeb271ebed4d37"
+  },
+  "results": [
+    {
+      "name": "desktop-starter",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 45,
+      "beds": 1,
+      "players": 1,
+      "drawMs": {
+        "mean": 3.572777776585685,
+        "p50": 3.600000023841858,
+        "p95": 4.599999904632568,
+        "max": 6.099999904632568
+      },
+      "frameMs": {
+        "mean": 10.212777777777777,
+        "p50": 10.099999999999909,
+        "p95": 13.099999999999909,
+        "max": 23.799999999999955
+      },
+      "framesOver25ms": 0,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 2393,
+        "fill": 2024,
+        "stroke": 1023,
+        "drawImage": 1
+      }
+    },
+    {
+      "name": "desktop-full",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 45,
+      "beds": 16,
+      "players": 4,
+      "drawMs": {
+        "mean": 10.758333332671059,
+        "p50": 10.899999976158142,
+        "p95": 13.399999976158142,
+        "max": 14.5
+      },
+      "frameMs": {
+        "mean": 33.400555555555556,
+        "p50": 31.699999999999818,
+        "p95": 42,
+        "max": 44.399999999999636
+      },
+      "framesOver25ms": 176,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 6643,
+        "fill": 5289,
+        "stroke": 3981,
+        "drawImage": 1
+      }
+    },
+    {
+      "name": "desktop-pan",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 45,
+      "beds": 16,
+      "players": 4,
+      "pan": true,
+      "drawMs": {
+        "mean": 10.653888885842429,
+        "p50": 10.600000023841858,
+        "p95": 13.899999976158142,
+        "max": 17.5
+      },
+      "frameMs": {
+        "mean": 32.720555555555556,
+        "p50": 31.5,
+        "p95": 41.80000000000018,
+        "max": 43.90000000000009
+      },
+      "framesOver25ms": 173,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 6663,
+        "fill": 5307,
+        "stroke": 3987,
+        "drawImage": 1
+      }
+    },
+    {
+      "name": "desktop-district",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 14,
+      "beds": 16,
+      "players": 4,
+      "drawMs": {
+        "mean": 11.358888889021344,
+        "p50": 11.399999976158142,
+        "p95": 14.100000023841858,
+        "max": 14.700000047683716
+      },
+      "frameMs": {
+        "mean": 36.35944444444444,
+        "p50": 37.20000000000073,
+        "p95": 44.5,
+        "max": 49.599999999999454
+      },
+      "framesOver25ms": 180,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 7061,
+        "fill": 5668,
+        "stroke": 4060,
+        "drawImage": 1
+      }
+    },
+    {
+      "name": "desktop-far-pan",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 78,
+      "beds": 16,
+      "players": 4,
+      "x": 8,
+      "y": 8,
+      "drawMs": {
+        "mean": 5.96277778479788,
+        "p50": 5.800000071525574,
+        "p95": 7.899999976158142,
+        "max": 12.700000047683716
+      },
+      "frameMs": {
+        "mean": 9.402777777777779,
+        "p50": 9.099999999999909,
+        "p95": 12.699999999999932,
+        "max": 18.200000000000045
+      },
+      "framesOver25ms": 0,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 5433,
+        "fill": 4193,
+        "stroke": 3731,
+        "drawImage": 1
+      }
+    },
+    {
+      "name": "phone-full",
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "tile": 29,
+      "beds": 16,
+      "players": 4,
+      "drawMs": {
+        "mean": 9.603888892465168,
+        "p50": 9.600000023841858,
+        "p95": 12.200000047683716,
+        "max": 14.400000095367432
+      },
+      "frameMs": {
+        "mean": 27.70666666666667,
+        "p50": 28.299999999999955,
+        "p95": 33.5,
+        "max": 77.5
+      },
+      "framesOver25ms": 139,
+      "samples": 180,
+      "canvasCalls": {
+        "beginPath": 5954,
+        "fill": 4664,
+        "stroke": 3842,
+        "drawImage": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "milliseconds": [
+    {
+      "action": "place-bed",
+      "milliseconds": 58
+    },
+    {
+      "action": "plant",
+      "milliseconds": 40
+    },
+    {
+      "action": "water",
+      "milliseconds": 42
+    }
+  ],
+  "browserErrors": [],
+  "hostReconnect": "passed",
+  "focusLossStop": "passed",
+  "focusLossMethod": "Synthetic browser blur event; headless Chromium retains focus across contexts"
+}

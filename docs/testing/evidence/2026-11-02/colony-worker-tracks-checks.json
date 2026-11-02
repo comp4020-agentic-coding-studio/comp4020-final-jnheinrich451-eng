@@ -1,0 +1,75 @@
+{
+  "movingChanges": true,
+  "settledStable": true,
+  "reducedStable": true,
+  "phaseOverridesClock": true,
+  "cardinalFinite": true,
+  "realCanvasMovingChanges": true,
+  "realCanvasStoppedStable": true,
+  "realCanvasReducedStable": true,
+  "cardinalDistinct": true,
+  "pixelDifferences": {
+    "moving": 17087,
+    "stopped": 0,
+    "reduced": 0
+  },
+  "commandCounts": {
+    "0": {
+      "before": {
+        "beginPath": 224,
+        "fill": 154,
+        "stroke": 211,
+        "lineTo": 649
+      },
+      "after": {
+        "beginPath": 216,
+        "fill": 146,
+        "stroke": 191,
+        "lineTo": 653
+      }
+    },
+    "1.5707963267948966": {
+      "before": {
+        "beginPath": 222,
+        "fill": 155,
+        "stroke": 207,
+        "lineTo": 649
+      },
+      "after": {
+        "beginPath": 230,
+        "fill": 159,
+        "stroke": 207,
+        "lineTo": 777
+      }
+    },
+    "3.141592653589793": {
+      "before": {
+        "beginPath": 236,
+        "fill": 160,
+        "stroke": 218,
+        "lineTo": 674
+      },
+      "after": {
+        "beginPath": 228,
+        "fill": 152,
+        "stroke": 198,
+        "lineTo": 678
+      }
+    },
+    "-1.5707963267948966": {
+      "before": {
+        "beginPath": 222,
+        "fill": 155,
+        "stroke": 207,
+        "lineTo": 649
+      },
+      "after": {
+        "beginPath": 230,
+        "fill": 159,
+        "stroke": 207,
+        "lineTo": 777
+      }
+    }
+  },
+  "pageErrors": []
+}

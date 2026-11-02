@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-01",
+  "scope": "Separate Colonization menu and saves; Morrow, Nacre and Aurelia opening globes; existing combat entry regression",
+  "environment": "Local Windows Chrome, isolated temporary application databases and browser contexts",
+  "deployed": false,
+  "results": [
+    {
+      "suite": "tests/browser/colonization-lobby.spec.js",
+      "passed": 2,
+      "failed": 0,
+      "coverage": ["desktop and phone", "three colony destinations", "refresh preserves selected mode and planet", "combat and colony saves separated", "legacy Caldera colony remains reachable", "failed admission preserves the newly created save"]
+    },
+    {
+      "suite": "tests/browser/entry.spec.js + tests/browser/entry-alignment.spec.js",
+      "passed": 15,
+      "failed": 0,
+      "coverage": ["combat navigation and save lists", "laptop, phone and short desktop alignment", "canvas and storage fallback", "login presentation continuity", "rapid arrows and reduced motion", "admission-gated combat drop", "entry refusal and retry"]
+    },
+    {
+      "suite": "spec/sirocco-presentation.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "coverage": ["original combat planet preview geography", "oasis decoration", "legacy entry camera persistence"]
+    }
+  ],
+  "visualReview": ["Morrow and Nacre desktop globes", "Aurelia phone globe", "four-entry phone main menu"],
+  "presentation": "New colony globes use their own deterministic continental textures and the same palette catalog as the playable districts. Civilian admission uses a brief fade; full MYCORRHIZAL arrival remains a later stage.",
+  "screenshots": [
+    "colony-opening-morrow-desktop.png",
+    "colony-opening-nacre-desktop.png",
+    "colony-opening-aurelia-desktop.png",
+    "colony-opening-morrow-phone.png",
+    "colony-opening-nacre-phone.png",
+    "colony-opening-aurelia-phone.png",
+    "colony-branch-menu-desktop.png",
+    "colony-branch-menu-phone.png"
+  ]
+}

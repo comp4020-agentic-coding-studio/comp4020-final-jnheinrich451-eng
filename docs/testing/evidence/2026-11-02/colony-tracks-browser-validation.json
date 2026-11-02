@@ -1,0 +1,74 @@
+{
+  "scope": "Local headless Chrome with disposable server/account/save fixtures; current four-track worker, real SSE and renderer inputs. No real saves or deployment.",
+  "observedAt": "2026-11-01T15:10:44.820Z",
+  "robotSha256": "5a60f7d90a0dda21daebd866bccaa0fcbc332ec9e8ac691750d1ea7efe231d9d",
+  "passed": 4,
+  "durationSeconds": 30.7,
+  "cases": [
+    "normal animation movement and follow camera between packets; pause; blur stop",
+    "reduced animation movement and follow camera between packets; pause; blur stop",
+    "tilted garden picking/building after zoom/pan and all four heading controls",
+    "390x844 phone gardening, movement release and sprinkler placement"
+  ],
+  "results": [
+    {
+      "reduced": false,
+      "summary": {
+        "samples": 259,
+        "packetIntervalsMs": [
+          270.5,
+          270.10000002384186,
+          281.60000002384186,
+          274.7999999523163,
+          269.7000000476837,
+          272.2000000476837,
+          263.59999990463257,
+          276.3000000715256
+        ],
+        "movingFrameFraction": 1,
+        "speedP10": 3.356840939427881,
+        "speedP90": 3.683333213032776,
+        "speedRatio": 1.0972617647056404,
+        "cameraMovingFrameFraction": 1,
+        "cameraSpeedRatio": 1.0577475128744074,
+        "maximumPacketDistance": 0.7577030497778026
+      }
+    },
+    {
+      "reduced": true,
+      "summary": {
+        "samples": 259,
+        "packetIntervalsMs": [
+          263.39999997615814,
+          291.60000002384186,
+          263.7000000476837,
+          265.5,
+          269.89999997615814,
+          270,
+          270.60000002384186,
+          264.1999999284744
+        ],
+        "movingFrameFraction": 1,
+        "speedP10": 3.3925039019623955,
+        "speedP90": 3.6691285000053373,
+        "speedRatio": 1.081539949853242,
+        "cameraMovingFrameFraction": 1,
+        "cameraSpeedRatio": 1.0529170884886805,
+        "maximumPacketDistance": 0.7839934935211588
+      }
+    }
+  ],
+  "screenshots": {
+    "desktop": {
+      "path": "colony-tracks-desktop.png",
+      "width": 1440,
+      "height": 960
+    },
+    "phone": {
+      "path": "colony-tracks-phone.png",
+      "width": 390,
+      "height": 844
+    }
+  },
+  "visualReview": "Both screenshots inspected: current tracks visible, facilities/planting scene intact, desktop toolbar and phone inspector fit."
+}

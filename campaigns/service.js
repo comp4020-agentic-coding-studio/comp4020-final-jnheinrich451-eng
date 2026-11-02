@@ -3,10 +3,13 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { lockWorld } from '../world-maintenance.js';
 import { PLANETS } from '../public/planets.js';
+import { COLONY_PLANETS } from '../public/colony-planets.js';
 
 const digest = text => createHash('sha256').update(text).digest('hex');
 const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
 export const ROOM_LIMIT = 4, ACTIVE_LIMIT = 2, RECONNECT_MS = 30000;
+const modeOf = record => record?.mode === 'colonization' ? 'colonization' : 'combat';
+const campaignPath = record => `${modeOf(record) === 'colonization' ? '/colony/' : '/'}?campaign=${record.id}`;
 
 // Accounts and this registry stay in the original database. Each new campaign
 // has an independent world database and bounded, lazily loaded simulation.
@@ -15,18 +18,28 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
   const lifecycle = (event, room, cause) => audit.emit(event, { campaignId: room.record.id, sourceId: room.ownerPilot, kind: 'system', cause, ...roomCounts(room.record.id) });
   const db = legacy.db;
   const hasCampaigns = !!db.prepare("SELECT name FROM sqlite_master WHERE name='campaigns'").get();
-  if (!hasCampaigns || !db.prepare("SELECT name FROM sqlite_master WHERE name='campaign_deleted'").get()) {
+  const hasModes = hasCampaigns && db.prepare('PRAGMA table_info(campaigns)').all().some(column => column.name === 'mode');
+  if (!hasCampaigns || !hasModes || !db.prepare("SELECT name FROM sqlite_master WHERE name='campaign_deleted'").get()) {
     const directory = path.join(dataDir, 'backups'); mkdirSync(directory, { recursive: true });
-    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-${hasCampaigns ? 'campaign-deletion' : 'campaigns'}-${randomUUID()}.sqlite`));
+    db.prepare('VACUUM INTO ?').run(path.join(directory, `before-${!hasCampaigns ? 'campaigns' : !hasModes ? 'campaign-modes' : 'campaign-deletion'}-${randomUUID()}.sqlite`));
   }
   db.exec(`
-    CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, template TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, template TEXT NOT NULL, created_at INTEGER NOT NULL, mode TEXT NOT NULL DEFAULT 'combat' CHECK(mode IN ('combat','colonization')));
     CREATE TABLE IF NOT EXISTS campaign_members(campaign_id TEXT NOT NULL, identity_id TEXT NOT NULL, account_id TEXT, pilot_id TEXT NOT NULL, PRIMARY KEY(campaign_id, identity_id));
     CREATE TABLE IF NOT EXISTS campaign_invites(hash TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT);
     CREATE TABLE IF NOT EXISTS campaign_abandoned(campaign_id TEXT NOT NULL, pilot_id TEXT NOT NULL, PRIMARY KEY(campaign_id,pilot_id));
     CREATE TABLE IF NOT EXISTS campaign_limits(identity_id TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS campaign_deleted(id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, deleted_at INTEGER NOT NULL);
   `);
+  // A mode belongs to the save's identity. Old saves remain combat campaigns;
+  // adding the registry column never opens or rewrites their world databases.
+  if (hasCampaigns && !hasModes) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.exec("ALTER TABLE campaigns ADD COLUMN mode TEXT NOT NULL DEFAULT 'combat' CHECK(mode IN ('combat','colonization'))");
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+  }
   // Room visits are deliberately not restored after a process restart. Preserve
   // a crashed guest's construction while ending their ephemeral membership.
   db.exec(`INSERT OR IGNORE INTO campaign_abandoned SELECT campaign_id,pilot_id FROM campaign_members WHERE account_id IS NULL;
@@ -55,7 +68,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
   };
   function frozen(room) { return room.state !== 'open' || !room.ownerConnected || room.paused; }
   function view(room) {
-    return { id: room.record.id, name: room.record.name, state: room.ownerConnected ? 'open' : 'reconnecting',
+    return { id: room.record.id, name: room.record.name, mode: modeOf(room.record), state: room.ownerConnected ? 'open' : 'reconnecting',
       paused: frozen(room), soloPaused: room.paused, players: occupants(room.record.id).length,
       limit: ROOM_LIMIT, notice: room.notice, ownerPilot: room.ownerPilot,
       abandoned: db.prepare('SELECT pilot_id FROM campaign_abandoned WHERE campaign_id=?').all(room.record.id).map(r => r.pilot_id) };
@@ -76,7 +89,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     const dir = path.join(dataDir, 'campaigns', record.id);
     const release = lockWorld(dir);
     try {
-      room.runtime = createRuntime(dir, { campaign: true, campaignId: record.id, planetTemplate:record.template, accounts: legacy.accounts,
+      room.runtime = createRuntime(dir, { campaign: true, campaignId: record.id, planetTemplate:record.template, mode: modeOf(record), accounts: legacy.accounts,
         frozen: () => frozen(room), roomView: () => view(room), authorized,
         canManage: (owner, pilot) => pilot === room.ownerPilot && !!db.prepare('SELECT 1 FROM campaign_abandoned WHERE campaign_id=? AND pilot_id=?').get(record.id, owner) });
     } catch (error) { release(); throw error; }
@@ -135,12 +148,14 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     if (existing && existing.credential !== actor.credential) fail('Your session changed. Re-enter from the lobby.', 401);
     visits.set(actor.id, existing || { actor, credential: actor.credential, campaignId: room.record.id, pilotId: membership.pilot_id, deadline: Date.now() + RECONNECT_MS, connections: new Set() });
     if (room.paused && occupants(room.record.id).length > 1) {
-      room.paused = false; room.notice = 'A teammate joined. The battle has resumed; menus do not pause multiplayer.';
+      room.paused = false; room.notice = modeOf(room.record) === 'colonization'
+        ? 'A teammate joined. The expedition has resumed; menus do not pause multiplayer.'
+        : 'A teammate joined. The battle has resumed; menus do not pause multiplayer.';
       room.runtime.stopInputs(); room.runtime.broadcast(); lifecycle('campaign.resumed', room, 'teammate_joined');
     }
     audit.bind({ campaignId: room.record.id }); audit.actor(actor, membership.pilot_id);
     if (!existing) audit.emit('participant.joined', { ...audit.context(), ...roomCounts(room.record.id), cause: 'visit_admitted' });
-    return { next: `/?campaign=${room.record.id}`, room: view(room) };
+    return { next: campaignPath(room.record), room: view(room) };
   }
   async function handle(action, req, res) {
     const actor = legacy.identity(req, res);
@@ -151,8 +166,9 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       const rows = actor.accountId ? db.prepare('SELECT c.* FROM campaigns c JOIN campaign_members m ON c.id=m.campaign_id WHERE m.identity_id=? AND m.account_id=? ORDER BY c.created_at DESC').all(actor.id, actor.accountId) : [];
       const visit = visits.get(actor.id);
       return { identity: { name: actor.name, kind: actor.kind }, active: visit?.campaignId || null,
-        campaigns: rows.map(c => ({ id: c.id, name: c.name, template: c.template, owner: owns(c, actor), open: !!rooms.get(c.id)?.ownerConnected, canDelete: deletable(c, actor) })),
-        planets: PLANETS, roomLimit: ROOM_LIMIT, activeLimit: ACTIVE_LIMIT };
+        activeMode: visit ? modeOf(rooms.get(visit.campaignId)?.record) : null,
+        campaigns: rows.map(c => ({ id: c.id, name: c.name, template: c.template, mode: modeOf(c), owner: owns(c, actor), open: !!rooms.get(c.id)?.ownerConnected, canDelete: deletable(c, actor) })),
+        planets: PLANETS, colonyPlanets: COLONY_PLANETS, roomLimit: ROOM_LIMIT, activeLimit: ACTIVE_LIMIT };
     }
     if (req.method !== 'POST') fail('Method not allowed.', 405);
     const expected = process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).origin : `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
@@ -166,8 +182,13 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     rate(actor);
     if (action === 'create') {
       if (!actor.accountId) fail('Sign in with an Email or Demo account to host a campaign.', 403);
-      const template = data.template === undefined ? 'caldera-v1' : data.template;
-      if (!PLANETS.some(planet => planet.id === template)) fail('Choose an available planet template.', 400);
+      const mode = data.mode === undefined ? 'combat' : data.mode;
+      if (!['combat', 'colonization'].includes(mode)) fail('Choose Combat or Colonization.', 400);
+      const template = data.template === undefined ? (mode === 'colonization' ? COLONY_PLANETS[0].id : 'caldera-v1') : data.template;
+      // Legacy colony templates remain valid for old clients and saved rooms;
+      // civilian world IDs can never enter the military runtime.
+      const allowedPlanets = mode === 'colonization' ? [...COLONY_PLANETS, ...PLANETS] : PLANETS;
+      if (!allowedPlanets.some(planet => planet.id === template)) fail('Choose an available planet template for this mode.', 400);
       const name = typeof data.name === 'string' ? data.name.trim() : '';
       if (!name || name.length > 48 || /[\x00-\x1f]/.test(name)) fail('Choose a campaign name of 1–48 characters.', 400);
       if (db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE owner_id=?').get(actor.accountId).n >= 3) fail('This prototype allows three saved campaigns per account.');
@@ -176,10 +197,10 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       if (db.prepare('SELECT (SELECT COUNT(*) FROM campaigns)+(SELECT COUNT(*) FROM campaign_deleted) AS n').get().n >= 1000) fail('The saved campaign limit has been reached.', 503);
       const id = randomUUID();
       transaction(() => {
-        db.prepare('INSERT INTO campaigns VALUES (?,?,?,?,?)').run(id, actor.accountId, name, template, Date.now());
+        db.prepare('INSERT INTO campaigns (id,owner_id,name,template,created_at,mode) VALUES (?,?,?,?,?,?)').run(id, actor.accountId, name, template, Date.now(), mode);
         db.prepare('INSERT INTO campaign_members VALUES (?,?,?,?)').run(id, actor.id, actor.accountId, actor.id);
       });
-      audit.bind({ campaignId: id }); return { id, saved: true };
+      audit.bind({ campaignId: id }); return { id, mode, saved: true };
     }
     if (action === 'leave') { await leave(actor.id); return { next: '/campaigns/' }; }
     if (action === 'delete') {
@@ -257,7 +278,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       room.runtime.stopInputs(visit.pilotId);
       room.paused = occupants(record.id).length === 1 && owns(record, actor) && data.paused;
       room.notice = room.paused ? 'Solo campaign paused.' : occupants(record.id).length > 1 ? 'Multiplayer continues while menus are open.' : '';
-      room.runtime.checkpoint(); room.runtime.broadcast(); audit.bind({ reason: room.paused ? 'solo_paused' : 'battle_running' }); return { room: view(room) };
+      room.runtime.checkpoint(); room.runtime.broadcast(); audit.bind({ reason: room.paused ? 'solo_paused' : modeOf(room.record) === 'colonization' ? 'expedition_running' : 'battle_running' }); return { room: view(room) };
     }
     fail('Unknown campaign action.', 404);
   }
@@ -279,8 +300,8 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       if (match[2] === 'events' && req.method === 'GET') {
         visit.connections.add(res); visit.deadline = Infinity;
         if (owns(room.record, actor)) {
-          if (!room.ownerConnected && room.notice.startsWith('Owner reconnecting')) room.notice = room.paused ? 'Owner reconnected. Solo campaign paused.' : 'Owner reconnected. Battle resumed.';
-          if (!room.ownerConnected) lifecycle('campaign.owner_connected', room, room.paused ? 'solo_pause_retained' : 'battle_resumed');
+          if (!room.ownerConnected && room.notice.startsWith('Owner reconnecting')) room.notice = room.paused ? 'Owner reconnected. Solo campaign paused.' : modeOf(room.record) === 'colonization' ? 'Owner reconnected. Expedition resumed.' : 'Owner reconnected. Battle resumed.';
+          if (!room.ownerConnected) lifecycle('campaign.owner_connected', room, room.paused ? 'solo_pause_retained' : modeOf(room.record) === 'colonization' ? 'expedition_resumed' : 'battle_resumed');
           room.ownerConnected = true; room.deadline = Infinity;
         }
         res.on('close', () => {
@@ -288,7 +309,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
           if (visits.get(actor.id) !== visit || visit.connections.size) return;
           visit.deadline = Date.now() + RECONNECT_MS;
           if (owns(room.record, actor) && room.state === 'open') {
-            room.ownerConnected = false; room.deadline = visit.deadline; room.notice = 'Owner reconnecting. Battle frozen for up to 30 seconds.';
+            room.ownerConnected = false; room.deadline = visit.deadline; room.notice = modeOf(room.record) === 'colonization' ? 'Owner reconnecting. Expedition safely paused for up to 30 seconds.' : 'Owner reconnecting. Battle frozen for up to 30 seconds.';
             room.runtime.stopInputs(); room.runtime.checkpoint(); room.runtime.broadcast(); lifecycle('campaign.frozen', room, 'owner_disconnected');
           }
           audit.emit('participant.disconnected', { campaignId: room.record.id, actorId: actor.id, pilotId: visit.pilotId, name: actor.name, kind: actor.kind, cause: 'event_stream_closed', ...roomCounts(room.record.id) });

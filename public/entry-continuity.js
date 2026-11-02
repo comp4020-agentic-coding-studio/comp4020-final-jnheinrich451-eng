@@ -1,9 +1,10 @@
 // Per-tab presentation state only. Never store account fields, tokens, room IDs,
 // form drafts or gameplay state here. Denied/full storage leaves entry usable.
 import { PLANETS as CATALOGUE } from './planets.js';
+import { COLONY_PLANETS } from './colony-planets.js';
 const KEY = 'frontier-entry-scene-v1';
-const VIEWS = new Set(['login', 'account', 'menu', 'new', 'continue', 'join']);
-const PLANETS = new Set(CATALOGUE.map(p=>p.id));
+const VIEWS = new Set(['login', 'account', 'menu', 'colony', 'new', 'continue', 'join']);
+const PLANETS = new Set([...CATALOGUE, ...COLONY_PLANETS].map(p=>p.id));
 const BODIES = new Set([...PLANETS, 'moon']);
 const inRange = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 

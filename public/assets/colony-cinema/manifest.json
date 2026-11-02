@@ -1,0 +1,44 @@
+{
+  "title": "Big Buck Bunny",
+  "file": "big-buck-bunny.mp4",
+  "creator": "Blender Foundation",
+  "copyright": "Copyright 2008, Blender Foundation / www.bigbuckbunny.org",
+  "sourceDirectory": "https://download.blender.org/peach/bigbuckbunny_movies/",
+  "sourceProvenance": "Source directory confirmed by the author on 2026-11-02; the local file was inspected. No remote byte-for-byte comparison was performed.",
+  "projectLicensePage": "https://peach.blender.org/about/",
+  "license": "CC-BY-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "creditRequirements": [
+    "Preserve the entire ending credit roll when showing the full film.",
+    "Provide the title, Blender Foundation attribution, source and license link in the cinema credits.",
+    "For excerpts or adaptations, retain the project attribution and describe any changes."
+  ],
+  "localChanges": "None. Supplied source file retained unchanged.",
+  "bytes": 64657027,
+  "sha256": "f78f39603e6774907f2faafabf26a667f4a6fc31769ec304a8a8f7c62d280508",
+  "width": 320,
+  "height": 180,
+  "durationSeconds": 596.458333,
+  "videoCodec": "avc1.42c00d",
+  "audioCodec": "mp4a.40.2",
+  "audioChannels": 2,
+  "audioSampleRate": 48000,
+  "moovBeforeMdat": false,
+  "validation": {
+    "date": "2026-11-02",
+    "environment": "Local headless Chrome, isolated HTTP fixture with byte ranges",
+    "playbackAdvanced": true,
+    "seekAndFrameSamplesSeconds": [
+      5,
+      45,
+      400,
+      560,
+      590
+    ],
+    "creditRollObservedAtSeconds": 560,
+    "pageOrMediaErrors": [],
+    "scope": "Container metadata, playback and sampled frames; not a complete human viewing or deployed/mobile-browser check."
+  },
+  "integrationStatus": "Runtime movie source: unchanged copy with range serving and client decoder.",
+  "deliveryNote": "Served via HTTP byte ranges; original remains in video/."
+}
