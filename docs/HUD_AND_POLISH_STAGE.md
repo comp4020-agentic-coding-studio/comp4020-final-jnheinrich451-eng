@@ -259,7 +259,8 @@ returning the whole world as an object; the sweep missed it because the spec bui
 its URL. It now reads text, and passed 5 of 5 on the E-cores at about 20 s, against
 about 30 s before on all cores. A scan of every `page.evaluate` that fetches JSON found
 no other, and only `GET /api/world` sends the terrain. The whole suite was not repeated
-for that one line.
+for that one line. The 35 colony browser tests, left out of these runs, passed on the
+E-cores with retries off.
 
 `pnpm check` (1,210 tests) and `pnpm check:evidence` pass on Node 24, and the latest
 CI run on `main` passed. CI does not run this suite.

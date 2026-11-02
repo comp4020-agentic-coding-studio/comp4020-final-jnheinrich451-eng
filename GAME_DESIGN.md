@@ -1,5 +1,139 @@
 # Frontier game design harness
 
+## 2 November 2026: walk-up colony bed inspection
+
+The author wants relaxed inspection by walking onto or near a growing bed.
+The [nearby inspection stage](docs/COLONY_NEARBY_INSPECTION.md) opens the existing
+plant/seed panel automatically, follows the local worker between beds and closes
+on departure. Explicit tools/manual inspection keep priority; Esc/X dismissal
+lasts until leaving and returning. Phone direction controls remain usable.
+Tending actions are still deliberate. Industry, charging, fishing, ponds,
+cabins and the colony commissioning goal remain planned.
+
+## 2 November 2026: colony atmosphere and cinema implementation
+
+The author approves the first visual stage for playtesting. The
+[atmosphere/camp/cinema stage](docs/COLONY_ANIMATION_AND_MEDIA.md) adds shared
+24-minute daylight and seeded six-minute weather slots, host-only visual presets,
+up to four free campfires and one free cinema, improved irrigation effects and
+on-demand Big Buck Bunny playback. Camp placement protects workers and essential
+routes. Weather is visual-only; it does not water crops or change production.
+Movie position follows the shared active clock, while sound is personal. Reduced
+effects retain smooth movement. Industry, fishing and cabins remain later stages.
+Local validation passed: 41 focused tests, TypeScript and nine integrated browser
+checks including desktop/phone controls, shared cinema, host reconnect and the
+existing gardening loop. Local visual/performance evidence is in the stage
+record; no real saves were reset and this stage has not been deployed.
+
+## 2 November 2026: colony animation and supplied movie
+
+The author requests animated irrigation, fire, rain and related effects, and
+supplies Big Buck Bunny from Blender's official download directory. The
+[animation/media record](docs/COLONY_ANIMATION_AND_MEDIA.md) distinguishes the
+existing rotating sprinkler and droplets from planned effects. The local
+320-by-180 film passed Chrome playback/seek checks; provenance and credits are
+recorded. The source is prepared, but bonfires, weather and cinema remain planned.
+
+## 2 November 2026: proposed life at the colony
+
+The author adds fishing, a buildable pond or lake editing, a bonfire, a wooden
+cabin, an outdoor movie screen and shared sunrise/sunset/weather to the industry
+discussion. The [settlement-life proposal](docs/COLONY_INDUSTRY_PROPOSAL.md#life-at-the-settlement)
+keeps these voluntary and supports continued play after network commissioning.
+Natural-water fishing and a bounded pond precede freeform terrain changes;
+day/weather use saved active time. The author's follow-up confirms that guests
+adopt the host expedition's current server state on join/reconnect; there are
+no independent guest weather histories. Film candidates and license requirements are
+recorded with official sources. This records design intent; no fishing, weather,
+decorations or movie playback were implemented in this discussion.
+
+## 2 November 2026: proposed colony industry and completion
+
+The author asks how conveyors, food processing, bio-power and worker charging
+could add mild pressure and lasting purpose. The
+[industry proposal](docs/COLONY_INDUSTRY_PROPOSAL.md) recommends a compact
+production chain and a finite human-network commissioning goal, followed by
+optional continued building. Recoverable production failures and optional rush
+orders provide tension. This is a design proposal; only the existing growing,
+sprinkler, harvest and raw-sample exchange loop is implemented.
+
+## 2 November 2026: four compact tracks for the colony worker
+
+After reviewing the walking animation, the author chooses four compact tracks
+with rolling belts and light suspension. The worker now has four separate dark
+belts, exposed rollers and white guards, retaining its four arms, cyan visor and
+white/violet upper body. Treads follow rendered travel; suspension settles when
+stopped and cosmetic motion respects Reduce animation. This replaces the feet
+from the first art pass without changing movement rules or saved positions.
+See the [tracked-worker follow-up](docs/COLONY_MOVEMENT_AND_PERFORMANCE.md#tracked-worker-follow-up).
+
+## 2 November 2026: colony controls and movement polish
+
+The author reports jerky worker movement and requests Esc for the expedition
+menu. The [movement/performance fix](docs/COLONY_MOVEMENT_AND_PERFORMANCE.md)
+keeps worker and camera motion smooth between sparse server updates, including
+with reduced cosmetic animation. Esc closes the current panel/placement first,
+then opens the existing Crew menu. This stage first improved the four-foot
+walking cycle, before the author's tracked redesign above. Fixed machinery is cached and
+offscreen objects are skipped. These are local presentation/input changes;
+movement authority, farming rules, saves and the combat branch remain unchanged.
+
+## 1 November 2026: HUD and polish stage
+
+The author approved a HUD readable in one second, in the spirit of Dead Space:
+information on the unit and world, not in corner panels. A folded mission bar and
+one menu replace the Operations panel and top bar. Cannons open near their targets
+instead of on the whole planet. Deploy becomes a small shelf where left-click drops
+with ORB and right-click builds with GND. The interface moves to graphite and gold,
+and Caldera becomes the blue world of the author's concept art. Presentation and
+input only; saves and rules are unchanged. See
+[HUD and polish](docs/HUD_AND_POLISH_STAGE.md).
+
+## 1 November 2026: separate peaceful colonization mode
+
+The author places agriculture in a later expedition, separate from the combat
+campaign. Another ship, operated by preserved human heads with AI assistance,
+arrives after conquest to cultivate and adapt the planet and connect it to human
+society. [Colonization mode](docs/COLONIZATION_MODE_DESIGN.md) records the confirmed
+premise and proposed farming, automation, orbital exchange and settlement loop.
+The earlier suggestion of gardens during active fighting is superseded.
+The author then approved implementation with a warm, cute presentation. The
+[first playable stage](docs/COLONIZATION_STAGE.md) adds standalone New Game
+entry, separate peaceful saves, three crops, watering, sprinklers and orbital
+sample deliveries. Its compact surveyed district uses the chosen planet's
+palette; it is not a clone of a military map. Combat saves remain intact.
+Automation, wider settlement development and an optional post-campaign handoff
+remain future stages. Local implementation and checks do not establish deployment.
+
+### Colony visual direction after the first review
+
+The author likes the peaceful environment and wants the machines and player to
+remain part of Frontier's human civilization. The [visual direction](docs/COLONIZATION_VISUAL_DIRECTION.md)
+records a dedicated Colonization entry between Continue and Join, separate save
+browsing, three new colony destinations, and MYCORRHIZAL's shuttle arrival.
+The author then supplied an agricultural robot sheet and requested a first
+visual pass. The [agricultural art pass](docs/COLONIZATION_ART_PASS.md) implements
+the 55-degree view, a directional four-arm/four-leg worker, white metallic
+facilities and a compact illustrated interface. Existing save coordinates,
+quotas and rules remain intact. The later [HUD and planets stage](docs/COLONIZATION_HUD_AND_PLANETS.md)
+groups the controls into a translucent header and contextual bottom dock, adds
+the separate Colonization menu/save branch, and implements Morrow, Nacre and
+Aurelia in the opening scene and playable districts. Old colony saves remain
+accessible and unchanged. The [carrier arrival stage](docs/COLONY_CARRIER_ARRIVAL.md)
+adds MYCORRHIZAL hovering over the selected colony world in New and Continue.
+Its shuttle detaches only after admission, banks through the atmosphere with
+wind ribbons, and fades into the garden; combat keeps its drop pod.
+The author's [white-and-gold revision](docs/COLONY_WHITE_GOLD_VOYAGE.md) uses the
+middle overhead ship view with two bow shuttles, smooth steered travel between
+planets and golden sunlight through thin haze in dark space. The subsequent
+[lensing revision](docs/COLONY_LENSING_TRANSITION.md) keeps three civilian
+destinations, starts New/Continue on Morrow, and groups legacy peaceful saves
+without altering them. Branch changes use a contracting distortion rim over a
+full-size planet, with persistent stars: gold into Colonization and blue back
+through War Zone.
+The author's next refinement extends the worker's mechanical detail to facility
+roofs and camera-facing sides, retaining their fixed orientation and footprints.
+
 ## 1 November 2026: Sirocco desert planet
 
 The author approved the third playable world with distinct firm desert and
@@ -109,9 +243,10 @@ Version 0.25, 14 October 2026. This is the central guide for deciding what belon
 in the game and what a playable stage must establish. It consolidates agreed
 direction; it does not authorize every future feature or implement new rules.
 
-**Combat is the core.** Construction, territory, vehicles and persistence should
-give players reasons to fight, tactical choices during fighting, and consequences
-worth returning to.
+**Combat is the core of the combat mode.** Its construction, territory, vehicles
+and persistence should give players reasons to fight, tactical choices during
+fighting, and consequences worth returning to. The separate colonization mode
+has peaceful cultivation and settlement goals, described above.
 
 The author approved this staged order on 11 October: environment modifier,
 small alien settlement, anti-air facility, then attack jet. The first

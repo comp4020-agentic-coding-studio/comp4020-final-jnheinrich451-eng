@@ -1,193 +1,77 @@
 # Frontier: a foothold worth returning to
 
-Frontier is a cooperative, overhead 2D war game for people who enjoy building
-bases, operating military machines and fighting alien enemies. Designed for
-**one to four players**, it supports solo progress and a shared campaign with friends.
-The larger goal is to defend a foothold, expand controlled territory, eliminate
-hostile forces and eventually secure the planet.
+Frontier is a cooperative overhead 2D war game for one to four friends. You land
+a robot on an alien planet, build a base, then take the planet with tanks, ships,
+aircraft, rail guns and orbital strikes. You can also play it alone.
 
 ## Start playing
 
-The 30 October opening-page update is implemented locally; it is not yet a
-deployment claim. Sign in with an Email or Demo account, then choose:
+Open [the game](https://comp4020-final-jnheinrich451-eng.fly.dev/), choose **Demo
+account**, then **Create account** with any `@frontier.test` address. Verify it in
+your private Demo inbox; no real email is sent. Choose **New Game**, pick a planet,
+name the campaign and enter. Place your support core and your robot lands. **WASD**
+moves, the mouse aims, **B** opens Deploy and **F1** lists the controls.
 
-- **New Game:** choose Caldera, Vesper or Sirocco, select it, name the campaign and enter.
-  Accounts can own three saves across all planets.
-- **Continue:** choose a planet and enter one of its saved campaigns. Members
-  can enter while the owner has the room open.
-- **Join:** paste the single-use code provided by your host. Play as guest goes
-  straight here and requires no registration.
+To add a second player, open **Room** and **Create invitation code**. They choose
+**Play as guest** in another browser and paste the code. To return later, use
+**Save and leave room**, then **Continue**.
 
-To invite a friend, enter your campaign and use **Room → Create invitation code**.
-Share that code with them; it expires after 30 minutes or when your room closes.
-Emailed, recipient-bound invitations are planned separately. Account verification
-and password-recovery links are different from room invitations.
+## What good means here
 
-In the battlefield, place your support core to land your robot. **WASD**
-moves, the mouse aims, **B** opens deployment and **F1** shows controls. Entry-menu
-Back/Escape changes views; **Save and leave room** explicitly ends your visit.
-If you own the room, leaving also returns your teammates to their menus.
+Good means **a defeat always leaves a way back, and the way back costs something**.
+Your robot can die, but you can still find a way to fight back. Your ruins, your
+spending and the sites you conquered all stay.
 
-## The experience we are building
+With permanent death, one bad fight ends a long campaign. With free respawns,
+nothing you lose matters. Juul (2009) found that players who failed some and then
+finished a game rated it highest, and that players prefer to feel responsible for
+failing. The first result only neared significance (p=0.06), so I take it as a
+reason, not proof. It fits Frontier's warned attacks: a loss should feel like your
+own mistake.
 
-Arrive quickly, deploy a robot and support core, then build the means to survive
-and advance. Players should move between fighting directly, piloting vehicles
-and operating facilities. Ground, naval and air forces should offer different
-ways to solve a problem, alongside shared orbital support. Players
-can defend, position artillery or fly bombing runs, leaving a base worth revisiting.
+Frontier is also small on purpose. Sloan (2020) writes that software freed from
+being "professional and scalable" becomes "a different activity altogether". A room
+holds four people, a campaign belongs to its host, and a friend needs no account to
+join. Helldivers 2 gave me the cooperative war, but I left out friendly fire.
 
-The 12 October logistics stage adds two ways around a blocked crossing: an
-[engineering rover](docs/BRIDGE_BUILDER.md) unfolds a three-tile-wide bridge, and
-an [armored transport](docs/ARMORED_TRANSPORT.md) ferries a tank or utility vehicle
-to another shore. These support the same combat loop: open a route, recover alien
-salvage, ship it to orbit and fund the next deployment.
+## What is enforced
 
-The 18 October checkpoint adds a carrier, shared airfield access and orbital
-strikes, with a 512-by-384 battlefield and a rotatable campaign globe. The globe
-helps players inspect distant terrain; map edges remain closed. Existing progress
-survives expansion. More space should make transport and remote bases useful;
-populating and balancing the new regions remains future work. See the
-[planet stage](docs/PLANET_EXPANSION.md) for its boundaries and local evidence.
+These claims are rules in [CLAUDE.md](CLAUDE.md), and each has a check:
 
-## What makes that experience good
+| Claim | Check |
+| --- | --- |
+| No defeat ends a campaign: with no cores and no money, you still get a core, an HE tank and your robot | [Recovery](spec/logistics.test.ts#L141) |
+| Losses stay: ruins remain and conquest is permanent | [Ruins](spec/infrastructure-repair-ui.test.ts#L27), [conquest](spec/conquest.test.ts#L57) |
+| Bulwarks take only explosives and charged magnetic shots, and warn before striking | [Bulwarks](spec/bulwark.test.ts#L29) |
+| Friendly weapons never hurt your side | [Friendly damage](spec/vehicle-survival.test.ts#L10) |
+| Two people share one world, and it survives a restart | [Restart](spec/wreck-recovery-http.test.ts#L17) |
 
-**Playable alone, better together.** Essential progress should not require a full
-squad. Another player should create useful choices: defending, building,
-transporting or attacking together. Friendly weapons should never destroy a
-teammate's work.
+## What is judged
 
-**Power that remains readable.** Shells, explosions and hit reactions should make
-combat satisfying. Players must still recognise threats, intended targets,
-actual weapon direction, damage areas and reload states. Survival should reward
-positioning and preparation, with understandable recovery after defeat.
+I judged these by playing each stage and correcting it:
 
-**Control without unnecessary friction.** An invited teammate should reach the
-battlefield without registration or an introductory video. A host creates an
-Email or clearly labelled Demo account to keep ownership of their campaign.
-Movement, deployment, boarding
-and facility handoffs should explain possibilities and rejected actions.
-Desktop and phone controls should keep the battlefield usable.
+- Death feels like part of the loop, not a punishment.
+- The HUD reads in one second, and you learn by playing. Dead Space led me to put
+  information on the unit, not in corner panels.
+- The three planets and their transitions make arriving feel like an event.
 
-**Progress with consequences.** Conquering hostile sites should permanently clear
-their influence from the map, leaving positions worth defending and revisiting.
-Enemies do not recapture completed sites. Construction is available wherever the
-terrain and placement rules permit it; conquest is progress, not a building
-permission gate. Local objectives now include alert stations, bile mortars,
-blight roots, a small settlement, air contaminators and lance towers. Their
-permanent conquest is implemented; planetary victory remains future work.
+This is only my own judgement. I have no recorded test with outside players, and
+sustained four-player combat on Fly is unmeasured. In a local
+[latency test](tests/browser/multiplayer-latency.spec.js#L125), changes reached other
+players in under 0.2 s (median) and 0.55 s at worst, inside its one-second limit.
 
-Military behavior should make choices understandable: a turret takes time to
-turn, heavy weapons reload, and vehicles need room to operate. Physical detail
-supports satisfying combat within overhead 2D and the server budget. The first
-local economy connects finite salvage, cargo rockets and shared deployment supplies.
-The 14 October local stage separates shared ground and orbital budgets: core/outpost
-processing funds local construction and repairs; reusable rocket shipments fund
-orbital delivery. Support outposts also provide robot respawn. See the
-[support-network stage](docs/SUPPORT_NETWORK_STAGE.md) for rules and validation;
-this checkpoint is not yet a deployment claim.
-Factories extend construction support and exchange time for lower equipment costs;
-enemies can destroy the infrastructure. Free robot recovery and emergency core/HE
-equipment keep defeat recoverable. Prices and timing are provisional, and height
-remains design work. [The current stage](docs/CONSTRUCTION_LOGISTICS.md) separates
-these local mechanics from deployment and performance validation.
+## What I chose not to build
 
-## The shared-world contract
+- Friendly fire, and any loss that ends a campaign.
+- Large public servers.
+- Per-shot costs and offline income.
+- Farms in the war. **Colonization** is a separate peaceful mode for people who
+  prefer not to fight. It shares accounts and multiplayer, but it is unfinished.
+- Isometric or 3D art: [Kenney's tank pack](https://kenney.nl/assets/top-down-tanks-remastered)
+  showed that overhead silhouettes stay readable.
 
-The [course brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/assessments/final-project/)
-requires distinct people acting on shared state, changes reaching other open
-sessions within about a second, and persistent consequences across sessions,
-restarts and redeploys. Frontier's saved trace is its constructions and vehicle
-state, permanently conquered sites, supplies and cargo. Accepted construction saves before
-confirmation; movement uses half-second checkpoints. Named campaigns retain
-enemies, committed airborne weapons and hazard state across closure/restart;
-cosmetic craters remain temporary. The labelled legacy field keeps its earlier
-transient-combat behavior.
+## Sources
 
-The owner chooses when their campaign runs. Explicit owner departure saves and
-closes the room; a lost connection freezes it for up to 30 seconds to reconnect.
-Solo menus can pause the battle; admitting a teammate resumes it with a warning.
-[The multiplayer decision](docs/decisions/001-owner-present-campaigns.md) explains
-the alternatives and the cost of preventing play while the owner is absent.
-
-These commitments belong in [agent rules](CLAUDE.md) and [automated checks](spec/).
-Checks cover persistence, conflicting actions, exclusive controls and
-responsive layouts. [Crit 8 Fly checks](docs/CRIT8_RELEASE.md) verified the earlier
-shared-world baseline. The newer accounts, campaigns, conquest and operational
-logs are a local checkpoint; [current evidence](docs/CRIT_9_10_EVIDENCE.md) separates
-local checks from the pending Fly update and classroom rehearsal. Sustained-load
-validation remains a gate.
-Enjoyment, readability and useful cooperation need human playtesting; the
-creator's prototype feedback is an initial signal, not independent validation.
-
-## Scope and development path
-
-Rooms enforce **one to four participants**, but four-player sustained combat
-capacity is not yet validated on Fly. The current deployment configuration is
-one shared CPU and 256 MB RAM. The author reports that a justified RAM increase
-can be discussed with the teaching team; measurement should motivate that request.
-Representative multiplayer
-battles must determine the supported maximum; reduce it if necessary while
-retaining at least two simultaneous players. Entity limits and affordable visual
-effects matter alongside player count.
-
-Development proceeds through a saved shared world, reusable ground/naval/air
-components, then the connected defense-and-expansion campaign, followed by
-balance, performance, textures and sound. The prototype already has construction,
-ground combat, artillery, ships and an HE bomber. Local host-owned campaigns add
-invitations, remembered account membership, orbital landing and the first
-permanent conquest objective. In-game help provides controls;
-[GAME_DESIGN.md](GAME_DESIGN.md) holds the boundaries and stage roadmap.
-
-The local [air-power refinement](docs/AIR_POWER_REFINEMENT.md) adds unlimited
-fixed-wing ammunition with cooldowns, stronger bomber payloads, the attack jet's
-RMB 30 mm gun, and compact green flight instruments. Its next-stage proposal is
-a slower side-firing gunship; that aircraft is not implemented yet.
-
-Email/password registration, verification and recovery are implemented locally,
-with SMTP for real delivery or a private simulated Demo inbox. Actual Brevo inbox
-receipt still needs testing. Guests join by invitation and keep their contributions
-in the host's world; only accounts host. [The permission decision](docs/decisions/002-identity-and-permissions.md)
-explains server-enforced ownership, shared equipment and the guest lifetime.
-Three planets are available locally. [Sirocco](docs/SIROCCO_PLANET.md) adds firm
-desert, ship-navigable sand seas, oases, mesas and alien palms. Entry includes the
-planet-selection flight and optional campaign dive. Final textures and replacement
-sound recordings remain refinement work.
-
-The local [orbital expansion](docs/ORBITAL_EXPANSION_AND_POLISH.md) adds a heavy
-bomb, a seeded 15-second barrage, and three-shell cluster strikes. New cutting
-beams sweep up to 72 tiles over 18 seconds. All use the shared ORB pool and save
-accepted impact progress across restarts. The same roadmap records future
-presentation art and terrain variety; the two additional planets are now available
-locally as Vesper and Sirocco.
-
-The local [helicopter and submarine refinement](docs/HELICOPTER_AND_SUBMARINE_REFINEMENT.md)
-now includes Remote helicopter movement, field landing and vehicle pickup/drop,
-plus submarine navigation, depth control and underwater missile orders. Use F
-from your robot and select the aircraft or submarine. Commands and cargo transfers
-are saved; named campaigns also preserve accepted missile salvos. The local
-[polish roadmap](docs/VEHICLE_POLISH_ROADMAP.md) now includes heavy-tank art,
-utility-vehicle handling and friendly wreck recycling. Park a recycler near a
-land wreck, or stop a transport carrying a recycler near a sea wreck, to recover
-half its recorded purchase payment as salvage. Deployment cards now have distinct
-strike/support icons, and missile batteries and railway cannons have more detailed
-overhead artwork. [Apex of Conquest](docs/BACKGROUND_MUSIC.md) now loops as local
-background music after your first click, tap or key press. Help (?) contains music
-on/off and volume controls. [Weapon sound effects](docs/SOUND_EFFECTS.md) now have
-their own controls, distance fading and bounded overlapping fire. Movement and
-ambient sounds, adaptive music and terrain remain later stages.
-
-Local [crew communication](docs/CHAT_EMOTES_AND_SOUND_PLAN.md) adds bottom-left
-chat: Enter opens, Enter sends and closes, and Esc keeps the draft. Empty Enter
-submissions close without a blank message. Hold Q, point and release to send a
-pixel emote above your controlled unit; touch users can tap the Emote button.
-Messages stay in the current room's short session history, not campaign saves.
-
-## Influences and choices
-
-[Helldivers 2](https://www.playstation.com/en-us/games/helldivers-2/) inspired the
-cooperative war fantasy and powerful support weapons. Frontier adds persistent
-base-building and deliberately excludes friendly fire.
-[Kenney's Top-down Tanks Remastered](https://kenney.nl/assets/top-down-tanks-remastered)
-informed the pure overhead presentation: consistent silhouettes and square tiles
-make a growing arsenal easier to read and produce. This choice keeps realistic
-3D simulation outside the project's scope.
+- Juul, J. (2009). [Fear of failing? The many meanings of difficulty in video games](https://www.jesperjuul.net/text/fearoffailing/). In *The Video Game Theory Reader 2*. Routledge.
+- Sloan, R. (2020). [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/).
+- Games: [Helldivers 2](https://www.playstation.com/en-us/games/helldivers-2/) and Dead Space (2008).
