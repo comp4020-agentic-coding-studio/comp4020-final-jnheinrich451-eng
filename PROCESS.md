@@ -126,6 +126,13 @@ whole case.
 
 ## Limits
 
+The [source asset audit](assets/README.md) records which files from my local
+library reached the game, which remain startup/preparation dependencies, and
+which sounds were replaced. It retains 28 original files with licenses and
+hashes as evidence; unused packs remain ignored. This is an audit of the
+9 November working tree, not an assertion that every pending gameplay change
+was included in the asset evidence commit.
+
 Passing checks shows that the rules hold. It does not show capacity or fun.
 Sustained four-player combat on Fly is unmeasured; a four-client idle probe used
 about 103 MiB, which is not a combat benchmark. CI does not run the full browser

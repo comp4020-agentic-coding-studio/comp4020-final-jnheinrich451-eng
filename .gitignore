@@ -2,9 +2,53 @@ node_modules/
 dist/
 *.log
 
-# Local source asset library. Copy selected runtime assets and their licenses
-# into a tracked game directory before using them in the deployed app.
-/assets/
+# Selected source evidence; every other local asset stays ignored.
+# See assets/README.md and assets/used-assets.json.
+/assets/**
+!/assets/2D assets/
+!/assets/2D assets/Desert Shooter Pack/
+!/assets/2D assets/Desert Shooter Pack/Sounds/
+!/assets/2D assets/Emote Pack/
+!/assets/2D assets/Emote Pack/PNG/
+!/assets/2D assets/Emote Pack/PNG/Pixel/
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/
+!/assets/2D assets/Topdown Tanks Remastered/
+!/assets/2D assets/Topdown Tanks Remastered/PNG/
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/
+!/assets/Audio/
+!/assets/Audio/Sci-Fi Sounds/
+!/assets/Audio/Sci-Fi Sounds/Audio/
+!/assets/concept/
+!/assets/2D assets/Desert Shooter Pack/License.txt
+!/assets/2D assets/Desert Shooter Pack/Sounds/explosion-a.ogg
+!/assets/2D assets/Desert Shooter Pack/Sounds/shoot-g.ogg
+!/assets/2D assets/Desert Shooter Pack/Sounds/shoot-h.ogg
+!/assets/2D assets/Emote Pack/License.txt
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_alert.png
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_exclamation.png
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_faceHappy.png
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_heart.png
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_question.png
+!/assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_stars.png
+!/assets/2D assets/Topdown Tanks Remastered/License.txt
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/sandbagBeige.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_dark.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_sand.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankDark_barrel1.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankSand_barrel1.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass1.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass2.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand1.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand2.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeBrown_small.png
+!/assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeGreen_small.png
+!/assets/Audio/Sci-Fi Sounds/Audio/laserLarge_000.ogg
+!/assets/Audio/Sci-Fi Sounds/Audio/lowFrequency_explosion_000.ogg
+!/assets/Audio/Sci-Fi Sounds/Audio/thrusterFire_000.ogg
+!/assets/Audio/Sci-Fi Sounds/License.txt
+!/assets/README.md
+!/assets/concept/cuculidae-sheet.png
+!/assets/used-assets.json
 .local/
 test-results/
 playwright-report/

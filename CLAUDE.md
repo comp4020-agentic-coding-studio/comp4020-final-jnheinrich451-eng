@@ -270,8 +270,10 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   effects. See `docs/SOUND_EFFECTS.md`.
 - Pure overhead 2D with square tiles; no isometric battlefield assets. Biological
   art is mildly unpleasant, overhead and readable; final textures remain open.
-- Source `assets/` stays local and ignored. Track selected runtime assets with
-  licences and provenance so Docker builds need none of the source library.
+- Source `assets/` tracks only the selected evidence in `assets/used-assets.json`;
+  all other local library files stay ignored. Keep original source licenses and
+  distinguish active use, preparation dependencies and historical media. Track
+  runtime copies under `public/` so Docker builds need none of the source library.
 - The Dockerfile copies root-level server modules by name: add every new
   root `.js` imported by `server.js` to its `COPY` line, or the deployed
   container fails to start.

@@ -1,0 +1,403 @@
+{
+  "schemaVersion": 1,
+  "auditedOn": "2026-11-09",
+  "baseCommit": "c7bfced8605d08dfab6ed5255b0aba4ba552b4d0",
+  "scope": "Root assets/ sources only. Runtime statuses describe the audited working tree, including gameplay changes not included in this asset-only commit.",
+  "policy": "Retain sources of current runtime assets, complete existing preparation dependencies, previously shipped sounds as historical evidence, and their original licenses. Leave other local library files ignored.",
+  "files": [
+    {
+      "source": "assets/2D assets/Desert Shooter Pack/License.txt",
+      "bytes": 622,
+      "sha256": "689f5ea270f44eda852ce8ab9dbf324f509c481404b41c67685dfe2b3a2f6fb1",
+      "status": "license",
+      "role": "Kenney CC0 notice for historical sounds",
+      "evidence": [
+        "public/audio/effects/README.md"
+      ],
+      "runtime": "public/audio/effects/LICENSE-Desert-Shooter.txt",
+      "relation": "license",
+      "licenseComparison": "Same text after whitespace normalization; original source retained byte-for-byte."
+    },
+    {
+      "source": "assets/2D assets/Desert Shooter Pack/Sounds/explosion-a.ogg",
+      "bytes": 13019,
+      "sha256": "336cd73aa1650c823c05e20c450b228f6b143706e5a38227903a89f0005d22bc",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/blast.ogg",
+      "relation": "copy",
+      "runtimeSha256": "336cd73aa1650c823c05e20c450b228f6b143706e5a38227903a89f0005d22bc"
+    },
+    {
+      "source": "assets/2D assets/Desert Shooter Pack/Sounds/shoot-g.ogg",
+      "bytes": 6682,
+      "sha256": "70f0a7b4d718fcec511486b7c32d22c32a3cd99b9dac38b3587092814558038f",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/gun.ogg",
+      "relation": "copy",
+      "runtimeSha256": "70f0a7b4d718fcec511486b7c32d22c32a3cd99b9dac38b3587092814558038f"
+    },
+    {
+      "source": "assets/2D assets/Desert Shooter Pack/Sounds/shoot-h.ogg",
+      "bytes": 6895,
+      "sha256": "0f6a8bfe009767d4970ea9a9114274b84829b94de1456171bdc5613321276348",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/cannon.ogg",
+      "relation": "copy",
+      "runtimeSha256": "0f6a8bfe009767d4970ea9a9114274b84829b94de1456171bdc5613321276348"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/License.txt",
+      "bytes": 540,
+      "sha256": "5fe69d172d9b59d8bfbd40551c17cfc38ac44323b9fa3b4d209549ae8d013a1a",
+      "status": "license",
+      "role": "Kenney CC0 source notice",
+      "evidence": [
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/License.txt",
+      "relation": "license",
+      "licenseComparison": "Same text after whitespace normalization; original source retained byte-for-byte."
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_alert.png",
+      "bytes": 193,
+      "sha256": "d39297011776d8a113750912936c7e541223dc316230a81bdb9cf4ea0ef2fbfa",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_alert.png",
+      "relation": "copy",
+      "runtimeSha256": "d39297011776d8a113750912936c7e541223dc316230a81bdb9cf4ea0ef2fbfa"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_exclamation.png",
+      "bytes": 174,
+      "sha256": "5111d386466a77bc39ee02c5e1ece2d19109f9635462117dd189b5337a98e26b",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_exclamation.png",
+      "relation": "copy",
+      "runtimeSha256": "5111d386466a77bc39ee02c5e1ece2d19109f9635462117dd189b5337a98e26b"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_faceHappy.png",
+      "bytes": 174,
+      "sha256": "af9a4fb3e32417aac48438fee36fb4912a70c11367af7aef2ea0feb802f5a434",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_faceHappy.png",
+      "relation": "copy",
+      "runtimeSha256": "af9a4fb3e32417aac48438fee36fb4912a70c11367af7aef2ea0feb802f5a434"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_heart.png",
+      "bytes": 172,
+      "sha256": "fa100fa21f82b995872d85b14d6ff691c856c967e09c425a4de6a5b44af0165b",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_heart.png",
+      "relation": "copy",
+      "runtimeSha256": "fa100fa21f82b995872d85b14d6ff691c856c967e09c425a4de6a5b44af0165b"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_question.png",
+      "bytes": 192,
+      "sha256": "7097f3f54d02d3914705bb3e9e1dea65bf185f29ad70d6fd2b7031bcef02938d",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_question.png",
+      "relation": "copy",
+      "runtimeSha256": "7097f3f54d02d3914705bb3e9e1dea65bf185f29ad70d6fd2b7031bcef02938d"
+    },
+    {
+      "source": "assets/2D assets/Emote Pack/PNG/Pixel/Style 1/emote_stars.png",
+      "bytes": 190,
+      "sha256": "2c0faef8242db3cbe4405ae361765309c35d4ae8ff4350b7536fc354a5c49077",
+      "status": "active-render",
+      "role": "Emote wheel and emotes above controlled units",
+      "evidence": [
+        "public/emotes.js EMOTES",
+        "public/communication-ui.js",
+        "public/emotes/README.md"
+      ],
+      "runtime": "public/emotes/emote_stars.png",
+      "relation": "copy",
+      "runtimeSha256": "2c0faef8242db3cbe4405ae361765309c35d4ae8ff4350b7536fc354a5c49077"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/License.txt",
+      "bytes": 494,
+      "sha256": "2dc815693c8a3adf1cd7f722af3d22570c641e07a6b2bfd83921df213ccae415",
+      "status": "license",
+      "role": "Kenney CC0 source notice",
+      "evidence": [
+        "public/assets/kenney/manifest.json"
+      ],
+      "runtime": "public/assets/kenney/LICENSE.txt",
+      "relation": "license",
+      "licenseComparison": "Same text after whitespace normalization; original source retained byte-for-byte."
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/sandbagBeige.png",
+      "bytes": 14820,
+      "sha256": "78fed1d3029f8b0b6611a83182a5516148f7f370888d5f0fbb0da0ccb12a252f",
+      "status": "preparation-dependency",
+      "role": "Exported by assets:prepare; not currently loaded by the game",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/sandbagBeige.png",
+      "relation": "copy",
+      "runtimeSha256": "78fed1d3029f8b0b6611a83182a5516148f7f370888d5f0fbb0da0ccb12a252f"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_dark.png",
+      "bytes": 14833,
+      "sha256": "92e6c7936ff8a60b7cb5e77226a0a351febff674314e9ca8d5904d32d45a085f",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tankBody_dark.png",
+      "relation": "copy",
+      "runtimeSha256": "92e6c7936ff8a60b7cb5e77226a0a351febff674314e9ca8d5904d32d45a085f"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankBody_sand.png",
+      "bytes": 14834,
+      "sha256": "e58f512c59a932b7bd8fe21f1e38f53d3a7aac5fe8e5d988f85b0cbe52a1d5df",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tankBody_sand.png",
+      "relation": "copy",
+      "runtimeSha256": "e58f512c59a932b7bd8fe21f1e38f53d3a7aac5fe8e5d988f85b0cbe52a1d5df"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankDark_barrel1.png",
+      "bytes": 14585,
+      "sha256": "01d3be7c1f4b48ed171261f65f1913ad8e9a656e81195ff7743703089f248b20",
+      "status": "active-render",
+      "role": "Sentry barrel sprite",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tankDark_barrel1.png",
+      "relation": "copy",
+      "runtimeSha256": "01d3be7c1f4b48ed171261f65f1913ad8e9a656e81195ff7743703089f248b20"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tankSand_barrel1.png",
+      "bytes": 14588,
+      "sha256": "265f632aceae77a156c3c686b24c2512f60d816e50fa450546872fa9835e9d9c",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tankSand_barrel1.png",
+      "relation": "copy",
+      "runtimeSha256": "265f632aceae77a156c3c686b24c2512f60d816e50fa450546872fa9835e9d9c"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass1.png",
+      "bytes": 15364,
+      "sha256": "d49605aaf5ebc5ae16da54aaf9a958757965d2045008bae6cb856324d4336187",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tileGrass1.png",
+      "relation": "copy",
+      "runtimeSha256": "d49605aaf5ebc5ae16da54aaf9a958757965d2045008bae6cb856324d4336187"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileGrass2.png",
+      "bytes": 15346,
+      "sha256": "93567fc56428e317d922435f68a0251d43f4a30c91ce1d98041dd44c0a3e99ae",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tileGrass2.png",
+      "relation": "copy",
+      "runtimeSha256": "93567fc56428e317d922435f68a0251d43f4a30c91ce1d98041dd44c0a3e99ae"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand1.png",
+      "bytes": 15368,
+      "sha256": "63c79252d41515e08ebcdc6a7dbbae437a67536da31c25a93150231b5c573cdb",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tileSand1.png",
+      "relation": "copy",
+      "runtimeSha256": "63c79252d41515e08ebcdc6a7dbbae437a67536da31c25a93150231b5c573cdb"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/tileSand2.png",
+      "bytes": 15358,
+      "sha256": "8097e026ae49e78e3af0b99d3d467c4dbcef0865e4f4605f3e3188f01fb8d7d9",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/tileSand2.png",
+      "relation": "copy",
+      "runtimeSha256": "8097e026ae49e78e3af0b99d3d467c4dbcef0865e4f4605f3e3188f01fb8d7d9"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeBrown_small.png",
+      "bytes": 16058,
+      "sha256": "002999f5df27647a73ad566e34c54af889f8fc650e6015d2c77a0cd1db8b8a17",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/treeBrown_small.png",
+      "relation": "copy",
+      "runtimeSha256": "002999f5df27647a73ad566e34c54af889f8fc650e6015d2c77a0cd1db8b8a17"
+    },
+    {
+      "source": "assets/2D assets/Topdown Tanks Remastered/PNG/Default size/treeGreen_small.png",
+      "bytes": 16068,
+      "sha256": "9dbaf12b1b09457b083fea10c0021b9b0894f3dd61dd9b96b03af0cbecf222ef",
+      "status": "startup-dependency",
+      "role": "Still loaded by game startup; no current draw call found",
+      "evidence": [
+        "scripts/prepare-assets.mjs",
+        "public/app.js start() and sentry rendering"
+      ],
+      "runtime": "public/assets/kenney/treeGreen_small.png",
+      "relation": "copy",
+      "runtimeSha256": "9dbaf12b1b09457b083fea10c0021b9b0894f3dd61dd9b96b03af0cbecf222ef"
+    },
+    {
+      "source": "assets/Audio/Sci-Fi Sounds/Audio/laserLarge_000.ogg",
+      "bytes": 27664,
+      "sha256": "65e0d17e4744a074f9d7a4c3340a953f91bdeea4212f6ebd2e3a3bf35faf851f",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/rail.ogg",
+      "relation": "copy",
+      "runtimeSha256": "65e0d17e4744a074f9d7a4c3340a953f91bdeea4212f6ebd2e3a3bf35faf851f"
+    },
+    {
+      "source": "assets/Audio/Sci-Fi Sounds/Audio/lowFrequency_explosion_000.ogg",
+      "bytes": 16398,
+      "sha256": "099906dd99fcb234bfeb73ef7688b5f52beae61ee3c5f7ce30f210eb5c9944f5",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/rumble.ogg",
+      "relation": "copy",
+      "runtimeSha256": "099906dd99fcb234bfeb73ef7688b5f52beae61ee3c5f7ce30f210eb5c9944f5"
+    },
+    {
+      "source": "assets/Audio/Sci-Fi Sounds/Audio/thrusterFire_000.ogg",
+      "bytes": 203314,
+      "sha256": "e32cd53d5c868320e05d5f8c4c6153e7bc47eb91a7badcaef22b304d8f8bd367",
+      "status": "retired-runtime",
+      "role": "Earlier weapon palette; superseded by generated recordings in the audited working tree",
+      "evidence": [
+        "public/audio/effects/README.md",
+        "public/sound-catalog.js"
+      ],
+      "runtime": "public/audio/effects/missile.ogg",
+      "relation": "copy",
+      "runtimeSha256": "e32cd53d5c868320e05d5f8c4c6153e7bc47eb91a7badcaef22b304d8f8bd367"
+    },
+    {
+      "source": "assets/Audio/Sci-Fi Sounds/License.txt",
+      "bytes": 571,
+      "sha256": "a9767b25c3533f69d03af136480efad08efba19a9f0d89616992b34c79fd6186",
+      "status": "license",
+      "role": "Kenney CC0 notice for historical sounds",
+      "evidence": [
+        "public/audio/effects/README.md"
+      ],
+      "runtime": "public/audio/effects/LICENSE-Sci-Fi.txt",
+      "relation": "license",
+      "licenseComparison": "Same text after whitespace normalization; original source retained byte-for-byte."
+    },
+    {
+      "source": "assets/concept/cuculidae-sheet.png",
+      "bytes": 1735227,
+      "sha256": "143def18ab3753ae768971c2b9454ad9ad2f54e59c2e47ed7729ac217d54797e",
+      "status": "derivative-source",
+      "role": "Source sheet for the extracted top-view entry ship",
+      "evidence": [
+        "public/assets/entry/manifest.json",
+        "public/entry-ship.js SPRITE"
+      ],
+      "runtime": "public/assets/entry/cuculidae-top.png",
+      "relation": "derived",
+      "runtimeSha256": "efb9ca2d1e1506cde5bde0415bb3bf58086e556d23bc513af64a31b9eeb77fed"
+    }
+  ]
+}
