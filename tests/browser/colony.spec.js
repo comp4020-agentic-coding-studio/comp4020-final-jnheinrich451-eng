@@ -80,7 +80,8 @@ for (const mobile of [false, true]) test(`peaceful gardening through real contro
     } else {
       // The gift is centered above the contextual tool dock. Place the
       // sprinkler on tile 34:32 through the same pointer path players use.
-      await page.locator('#tool-sprinkler').click();
+      await page.locator('#tool-inspect').click();
+      await page.locator('#place-sprinkler').click();
       const point = colonyWorldToScreen({ x: 34.5, y: 32.5 }, { x: 32.5, y: 31.5 + 1.2 / COLONY_DEPTH, tile: 45 }, viewport.width, viewport.height);
       await page.mouse.click(point.x, point.y);
       await expect.poll(async () => (await snapshot()).colony.sprinklers.length).toBe(1);

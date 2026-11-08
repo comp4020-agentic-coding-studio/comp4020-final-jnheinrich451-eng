@@ -116,7 +116,8 @@ test('manual remote inspection and other tools take priority over nearby beds', 
     await page.locator('#tool-shipment').click();
     await walkToX(f, 32.5);
     await expect(page.locator('#inspector-title')).toHaveText('Orbital post');
-    await page.locator('#tool-bed').click();
+    await page.locator('#tool-inspect').click();
+    await page.locator('#place-bed').click();
     await walkToX(f, 33.5);
     await expect(page.locator('#placement-note')).toBeVisible();
     await expect(page.locator('#inspector')).toBeHidden();

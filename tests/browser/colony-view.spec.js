@@ -35,7 +35,8 @@ test('tilted garden picks and builds after zoom and pan; worker faces all four d
     await page.mouse.move(650, 730); await page.mouse.down();
     await page.mouse.move(730, 695, { steps: 5 }); await page.mouse.up();
     const delta = colonyScreenDelta(80, -35, camera); camera.x -= delta.x; camera.y -= delta.y;
-    await page.locator('#tool-sprinkler').click();
+    await page.locator('#tool-inspect').click();
+    await page.locator('#place-sprinkler').click();
     const placement = colonyWorldToScreen({ x: 34.5, y: 32.5 }, camera, 1440, 960);
     await page.mouse.move(placement.x, placement.y);
     await expect(page.locator('#placement-reason')).toContainText('12 materials');

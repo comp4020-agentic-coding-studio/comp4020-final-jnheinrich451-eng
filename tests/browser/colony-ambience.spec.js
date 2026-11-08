@@ -109,7 +109,8 @@ test('phone camp controls fit and reduced effects keep the shared atmosphere', a
     const measured = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
       controls: [...document.querySelectorAll('.garden-toolbar button')].map(n => { const r = n.getBoundingClientRect(); return { x: r.x, right: r.right }; }) }));
     expect(measured.scroll).toBeLessThanOrEqual(measured.width);
-    expect(measured.controls).toHaveLength(8);
+    // Garden holds beds and sprinklers; the companion has its own button: seven in all.
+    expect(measured.controls).toHaveLength(7);
     for (const r of measured.controls) { expect(r.x).toBeGreaterThanOrEqual(0); expect(r.right).toBeLessThanOrEqual(measured.width); }
     expect((await latest(page)).reduced).toBe(true);
     expect((await latest(page)).environment).toMatchObject({ lightingPreset: 'sunset', weather: 'rain' });

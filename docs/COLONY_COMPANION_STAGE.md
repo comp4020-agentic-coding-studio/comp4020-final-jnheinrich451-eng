@@ -23,7 +23,7 @@ maps, UI and art.
 
 | Rule | Value |
 | --- | --- |
-| Adoption | Camp, 8 materials, once per expedition. The spider appears two tiles south of the pad, already happy. Shared colony state, saved with the garden, absent from remote district views |
+| Adoption | The Companion dock button (Camp until 9 November), 8 materials, once per expedition. The spider appears two tiles south of the pad, already happy. Shared colony state, saved with the garden, absent from remote district views |
 | Following | Each server tick it keeps company with its friend (the last worker who petted it) if present at home, otherwise the nearest connected worker. It walks at 3.2 tiles/s with the worker's collision rules, starts when 1.7 tiles away and stops at 1.4; it never teleports |
 | Resting | When its companion rests or fishes it walks to a clear spot beside them and sits |
 | Noticing | When its companion has stood still for 3 seconds and a planted bed or a furnishing is within 3 tiles, it turns to it for 4 seconds, then may notice something else |
@@ -43,8 +43,9 @@ maps, UI and art.
   eight stepping legs, a tucked sitting pose with breathing, a tilted noticing
   pose with a raised antenna, and hearts (with a hop when happy). Its picture
   eases toward each packet so server movement never jitters.
-- Camp shows the companion line (pets and fish given) or the adopt button, and
-  the creel with the best length of each species.
+- The companion panel (part of Camp until 9 November, below) shows the companion
+  line (pets and fish given) or the adopt button, and the creel with the best
+  length of each species.
 
 ## Validation (8 November 2026, disposable saves and servers)
 
@@ -75,3 +76,46 @@ Known limits: the spider has no name of its own yet and no petting animation
 on the worker; it notices beds and furnishings only, not machines or water;
 there is no sound. The author asked for refinement next, so poses, timings,
 species and prices are provisional.
+
+## Its own place in the dock (9 November 2026)
+
+The author found the pet hard to notice inside Camp and asked whether it should
+have its own button in the dock, and whether Bed and Sprinkler could move inside
+Garden if the dock grew too long. A ninth button would have crowded the phone
+dock, so both were done: the dock goes from eight buttons to seven (five on
+older worlds without Furnish and Explore).
+
+- Garden places beds and sprinklers. Its panel keeps the ground readout and the
+  bed list, and adds "Place bed" (free for the first bed, and the main button
+  until one exists) and "Place sprinkler · 12", with a count line. B still
+  places a bed, and Garden stays lit while either is being placed.
+- Companion has a spider icon in muted violet. Its small line reads "Adopt a
+  spider" until adoption, then the spider's name. Its panel shows the garden's
+  own spider drawing, seated and turned three-quarters so both eyes and the
+  violet panel show, even before adoption. Then it shows the adopt button, or
+  the pets and fish given, the name field, and "Find" followed by the name,
+  which moves the camera to it. The fishing line and the last catches moved
+  here from Camp, since the fish are its treats. Clicking the spider in the
+  garden opens the panel too.
+- Camp keeps fire, film and sky.
+- Presentation only: adoption, renaming, petting, costs and saves are unchanged.
+
+Checks, in disposable saves, pinned to the E-cores:
+- `pnpm typecheck` passes.
+- The colony browser specs that used the old buttons were updated: they place
+  beds and sprinklers through Garden, adopt through Companion, check that the
+  panel title and dock label follow the name, and count seven dock buttons.
+- The companion, ambience, industry, Morrow exploration, nearby inspection,
+  tilted view, gardening and world expansion specs, desktop and phone: 17
+  passed. After the portrait was turned three-quarters, the companion spec
+  passed again, 2 of 2.
+- A local screenshot script (not part of the suite) captured the Garden panel
+  and the companion panel before adoption.
+
+Evidence: [companion panel, desktop](testing/evidence/2026-11-09/colony-companion-panel-desktop.png),
+[phone](testing/evidence/2026-11-09/colony-companion-panel-phone.png),
+[before adoption, phone](testing/evidence/2026-11-09/colony-companion-adopt-phone.png),
+[Garden panel, desktop](testing/evidence/2026-11-09/colony-garden-panel-desktop.png),
+[phone](testing/evidence/2026-11-09/colony-garden-panel-phone.png).
+
+The author has not played it yet.

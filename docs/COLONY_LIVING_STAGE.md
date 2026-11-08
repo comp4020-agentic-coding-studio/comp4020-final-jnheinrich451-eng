@@ -13,7 +13,8 @@ costs nothing, it is a reason to linger.
 ## Two parts, by habit rather than by rule
 
 Production is the Garden, Bed, Sprinkler and Industry tabs; living is Camp
-and Furnish. The author's split is expressed by where things live in the dock
+and Furnish. (9 November 2026: Bed and Sprinkler moved inside Garden and the
+companion gained its own button; see `docs/COLONY_COMPANION_STAGE.md`.) The author's split is expressed by where things live in the dock
 and in the catalogue, not by a zoning rule: nothing already placed became
 invalid, and a kettle beside a generator is allowed. The Furnish catalogue
 gains a **Living** category holding the garden bench, the robot rest pad and

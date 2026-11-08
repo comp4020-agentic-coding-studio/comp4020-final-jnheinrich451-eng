@@ -78,23 +78,31 @@ for (const phone of [false, true]) test(`a worker fishes the pond, adopts the sp
     if (phone) await page.locator('#catch-close').click(); else await page.keyboard.press('e');
     await expect(page.locator('#catch-card')).toBeHidden();
     await expect.poll(async () => (await f.world()).colony.fishing?.treats).toBe(1);
-    // Stop fishing by moving, then adopt the companion from Camp.
+    // Stop fishing by moving, then adopt the companion from its own dock button.
     await page.keyboard.down('a'); await page.waitForTimeout(120); await page.keyboard.up('a');
     await expect.poll(async () => (await me()).activity).toBeNull();
-    await page.locator('#tool-camp').click();
+    await expect(page.locator('#companion-label')).toHaveText('Adopt a spider');
+    await page.locator('#tool-companion').click();
+    await expect(page.locator('#inspector-title')).toHaveText('Adopt a spider');
+    await expect(page.locator('.companion-portrait')).toBeVisible();
     await page.locator('#adopt-pet').click();
     await expect(page.locator('#colony-toast')).toContainText('scuttles down');
     await expect.poll(async () => !!(await f.world()).colony.pet).toBe(true);
-    await expect(page.locator('#camp-companion')).toContainText('Spider · petted 0 times');
-    await expect(page.locator('#camp-companion')).toContainText('Warehouse · 1 fish · 1 kind caught · longest ');
-    await expect(page.locator('#camp-companion')).not.toContainText('longest Fish ');
+    await expect(page.locator('#inspector-title')).toHaveText('Spider');
+    await expect(page.locator('#companion-label')).toHaveText('Spider');
+    await expect(page.locator('#companion-card')).toContainText('Petted 0 times · fed 0 fish');
+    await expect(page.locator('#companion-card')).toContainText('Warehouse · 1 fish · 1 kind caught · longest ');
+    await expect(page.locator('#companion-card')).not.toContainText('longest Fish ');
     await expect(page.locator('#creel-gallery figure')).toHaveCount(1);
-    // Name it in Camp: the field keeps a half-typed name while the panel stays open.
+    // Name it: the field keeps a half-typed name while the panel stays open.
     await page.locator('#pet-name').fill('Bramble');
     await page.locator('#pet-rename-button').click();
     await expect(page.locator('#colony-toast')).toHaveText('Your companion is now called Bramble.');
     await expect.poll(async () => (await f.world()).colony.pet.name).toBe('Bramble');
-    await expect(page.locator('#camp-companion')).toContainText('Bramble · petted 0 times');
+    await expect(page.locator('#inspector-title')).toHaveText('Bramble');
+    await expect(page.locator('#companion-label')).toHaveText('Bramble');
+    await expect(page.locator('#pet-find')).toHaveText('Find Bramble');
+    await page.screenshot({ path: path.join(process.cwd(), 'docs/testing/evidence/2026-11-09', `colony-companion-panel-${phone ? 'phone' : 'desktop'}.png`), fullPage: true });
     // It follows: walk away west and it closes in.
     await page.keyboard.press('Escape');
     await walkTo(page, me, 32.5, 31.5);

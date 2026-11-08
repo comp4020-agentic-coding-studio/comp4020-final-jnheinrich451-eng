@@ -13,10 +13,9 @@ import { renderSettlementPanel } from './colony-settlement-ui.js';
 import { renderExplorationPanel, closestDiscovery } from './colony-exploration-ui.js';
 import { groundSummary } from './colony-ground.js';
 import { nearestCrate } from './colony-crates.js';
-import { REST_LABELS, catchName, fishingSummary, nearestRest, nearestWater, restKind } from './colony-rest.js';
+import { REST_LABELS, nearestRest, nearestWater, restKind } from './colony-rest.js';
 import { createFishingUI } from './colony-fishing-ui.js';
-import { fishGenome } from './colony-fish.js';
-import { drawAlienFish } from './colony-fish-art.js';
+import { renderCompanionPanel } from './colony-companion-ui.js';
 import { PET, petAt } from './colony-pet.js';
 import { setupMusic } from './music.js';
 import { setupColonySound } from './colony-sound.js';
@@ -77,7 +76,7 @@ function colonyMenuHref(view='colony',next='/campaigns/'){
 function toast(message,error=false){clearTimeout(toastTimer);$('colony-toast').textContent=message;$('colony-toast').classList.toggle('error',error);$('colony-toast').hidden=false;toastTimer=setTimeout(()=>{$('colony-toast').hidden=true;},error?6500:3800);}
 function setConnection(connected){live=connected;$('connection-dot').classList.toggle('live',connected&&!snapshot?.room?.paused);$('colony-connection').textContent=ended?'Expedition saved':!connected?'Reconnecting…':snapshot?.room?.state==='reconnecting'?'Waiting for your host':snapshot?.room?.paused?'Taking a little break':'Together, growing';if(!connected){sound.reset();stopInput();}updateControls();}
 function stopInput(){keys.clear();touch.x=touch.y=0;lastInput='';void sendInput(true);}
-function markTool(){for(const b of document.querySelectorAll('[data-tool]'))b.setAttribute('aria-pressed',String(!(b.dataset.tool==='inspect'&&!atHome())&&(b.dataset.tool===mode||b.dataset.tool==='camp'&&['campfire','cinema'].includes(mode)||b.dataset.tool==='industry'&&industryKind(mode)||b.dataset.tool==='settlement'&&furnishingKind(mode))));}
+function markTool(){for(const b of document.querySelectorAll('[data-tool]'))b.setAttribute('aria-pressed',String(!(b.dataset.tool==='inspect'&&!atHome())&&(b.dataset.tool===mode||b.dataset.tool==='inspect'&&['bed','sprinkler'].includes(mode)||b.dataset.tool==='camp'&&['campfire','cinema'].includes(mode)||b.dataset.tool==='industry'&&industryKind(mode)||b.dataset.tool==='settlement'&&furnishingKind(mode))));}
 function setTool(next){
   if(!atHome()&&!['inspect','explore'].includes(next)){toast('Return home to tend or build in the settlement.');return;}
   if(!furnishingKind(next))furnishingMove=null;
@@ -219,8 +218,7 @@ function receive(value){
   $('garden-tool-label').textContent=atHome()?'Garden':'Home';
   $('tool-inspect').title=atHome()?'View your garden':'Return home to your garden and buildings';
   $('bed-count').textContent=atHome()?`${state.beds.length} / ${COLONY.bedLimit} beds · ${groundSummary(fullState()).conditioned} ground`:'Return to garden';
-  $('bed-cost').textContent=colonyBuildCost(fullState(),'bed')===0?'First bed free':`${COLONY.bedCost} materials`;
-  $('sprinkler-cost').textContent=`${COLONY.sprinklerCost} materials`;
+  $('companion-label').textContent=state.pet?state.pet.name:'Adopt a spider';
   $('shipment-count').textContent=state.shipment?'Shuttle away':state.shipments?`${state.shipments} deliveries`:'First delivery';
   for(const item of document.querySelectorAll('[data-milestone]')){const done=!!state.milestones?.[item.dataset.milestone];item.classList.toggle('done',done);item.querySelector('i').textContent=done?'✓':String([...item.parentNode.children].indexOf(item)+1);}
   // The frontier has moved once a live crop has raised any tile: the header asks for a seed until then.
@@ -281,10 +279,7 @@ function depart(next,{reason=null,seconds=1.2}={}){
 
 function updateControls(){
   const disabled=!canAct();for(const b of document.querySelectorAll('[data-colony-action]'))b.disabled=disabled||b.dataset.unavailable==='true';
-  $('tool-bed').disabled=!live||ended||busy||snapshot?.room?.paused||!!state&&(state.beds.length>=COLONY.bedLimit||state.materials<colonyBuildCost(fullState(),'bed'));
-  $('tool-sprinkler').disabled=!live||ended||busy||snapshot?.room?.paused||!!state&&(state.sprinklers.length>=COLONY.sprinklerLimit||state.materials<COLONY.sprinklerCost);
-  if(!atHome())for(const id of ['tool-bed','tool-sprinkler','tool-industry','tool-shipment','tool-camp','tool-settlement'])$(id).disabled=true;
-  else for(const id of ['tool-industry','tool-shipment','tool-camp','tool-settlement'])$(id).disabled=disabled;
+  for(const id of ['tool-industry','tool-shipment','tool-camp','tool-companion','tool-settlement'])$(id).disabled=!atHome()||disabled;
   $('tool-explore').disabled=disabled;
   $('tool-inspect').disabled=!atHome()&&disabled;
   for(const select of document.querySelectorAll('[data-camp-host]'))select.disabled=disabled||snapshot?.room?.ownerPilot!==snapshot?.me?.id;
@@ -297,15 +292,15 @@ function panelHeading(eyebrow,title){$('inspector-eyebrow').textContent=eyebrow;
 function renderPanel(){
   if(!state||!panel)return;
   const body=$('inspector-body');
-  // Never rebuild Camp under a half-typed companion name.
-  if(panel==='camp'&&document.activeElement?.id==='pet-name')return;
+  // Never rebuild the companion panel under a half-typed name.
+  if(panel==='companion'&&document.activeElement?.id==='pet-name')return;
   // A machine card is never rebuilt under a focused or pressed control: live
   // readouts and availability update in place instead (the catalog still re-renders).
   if(panel==='industry'&&selected&&body.dataset.industrySelected===String(selected)&&
       (body.contains(document.activeElement)&&['SELECT','BUTTON'].includes(document.activeElement.tagName)||body.querySelector(':active'))){
     updateIndustryLivePanel({body,state:fullState(),selectedId:selected,canAct:canAct()});return;
   }
-  const b=bed(),key=JSON.stringify([panel,selected,panel==='bed'?[b?.crop,b?.revision,Math.floor(b?.growth||0),Math.ceil(b?.water||0)]:null,state.beds.map(v=>[v.id,v.crop,bedReady(v),v.water>0]),state.ground?.revision,state.materials,state.storage,state.industry?.storage,state.shipments,Math.ceil(state.shipment?.remaining||0),busy,live,snapshot?.room?.paused,panel==='camp'?[state.environment,state.decorations,state.cinema?.revision,state.cinema?.playing,state.pet?.pets,state.pet?.fed,state.pet?.name,state.fishing?.treats]:null,panel==='industry'?industryPanelKey(fullState()):null,panel==='settlement'?[state.settlement?.revision,Math.floor(state.settlement?.deliveries?.[0]?.elapsed||0),settlementPreferences,state.decorations?.items?.length]:null,panel==='explore'?[state.regionId,state.exploration?.revision,(state.regionDiscoveries||[]).map(d=>Math.ceil(Math.hypot(d.x-snapshot.me.x,d.y-snapshot.me.y)*2))]:null]);
+  const b=bed(),key=JSON.stringify([panel,selected,panel==='bed'?[b?.crop,b?.revision,Math.floor(b?.growth||0),Math.ceil(b?.water||0)]:null,state.beds.map(v=>[v.id,v.crop,bedReady(v),v.water>0]),state.ground?.revision,state.materials,state.storage,state.industry?.storage,state.shipments,Math.ceil(state.shipment?.remaining||0),busy,live,snapshot?.room?.paused,panel==='camp'?[state.environment,state.decorations,state.cinema?.revision,state.cinema?.playing]:null,panel==='companion'?[!!state.pet,state.pet?.pets,state.pet?.fed,state.pet?.name,state.fishing?.treats,state.fishing?.catches?.length]:null,panel==='garden'?state.sprinklers.length:null,panel==='industry'?industryPanelKey(fullState()):null,panel==='settlement'?[state.settlement?.revision,Math.floor(state.settlement?.deliveries?.[0]?.elapsed||0),settlementPreferences,state.decorations?.items?.length]:null,panel==='explore'?[state.regionId,state.exploration?.revision,(state.regionDiscoveries||[]).map(d=>Math.ceil(Math.hypot(d.x-snapshot.me.x,d.y-snapshot.me.y)*2))]:null]);
   const panelKey=key+shipmentLeg();
   if(panelKey===renderKey)return;renderKey=panelKey;
   $('inspector').dataset.panel=panel;
@@ -321,8 +316,13 @@ function renderPanel(){
   }else if(panel==='garden'){
     panelHeading('EXPEDITION','Garden');
     body.append(groundReadout());
-    if(!state.beds.length){const button=document.createElement('button');button.className='primary-button wide';button.textContent='Place first bed · free';button.onclick=()=>setTool('bed');body.append(button);}
-    else{
+    // Beds and sprinklers are placed from here: the dock keeps one Garden button for both.
+    const bedCost=colonyBuildCost(fullState(),'bed'),build=document.createElement('div');build.className='action-pair garden-build';
+    const place=(id,text,next,unavailable,css='soft-button')=>{const b=document.createElement('button');b.id=id;b.type='button';b.className=css;b.textContent=text;b.dataset.colonyAction='garden';b.dataset.unavailable=String(unavailable);b.disabled=!canAct()||unavailable;b.onclick=()=>setTool(next);return b;};
+    build.append(place('place-bed',bedCost===0?'Place bed · free':`Place bed · ${bedCost}`,'bed',state.beds.length>=COLONY.bedLimit||state.materials<bedCost,state.beds.length?'soft-button':'primary-button'),
+      place('place-sprinkler',`Place sprinkler · ${COLONY.sprinklerCost}`,'sprinkler',state.sprinklers.length>=COLONY.sprinklerLimit||state.materials<COLONY.sprinklerCost));
+    body.append(build,textElement('p',`${state.beds.length} / ${COLONY.bedLimit} beds · ${state.sprinklers.length} / ${COLONY.sprinklerLimit} sprinklers · B places a bed`,'keyboard-note'));
+    if(state.beds.length){
       const list=document.createElement('div');list.className='bed-list';
       state.beds.forEach((item,index)=>{const crop=cropById(item.crop),row=document.createElement('button');row.className='bed-row';row.dataset.bedId=item.id;row.dataset.selectBed=item.id;const dot=document.createElement('span');dot.className='bed-dot';dot.style.setProperty('--crop-color',crop?.color||'#cdb38a');const label=document.createElement('span');label.append(textElement('strong',crop?.name||`Growing bed ${index+1}`),textElement('small',!crop?'Ready for a seed':bedReady(item)?'Ripe and waiting':item.water<=0?'Having a nap · needs water':'Growing happily'));row.append(dot,label);if(bedReady(item))row.append(textElement('span','HARVEST','ready-label'));row.onclick=()=>{selected=item.id;focusBed(item);showPanel('bed',item.id);};list.append(row);});body.append(list);
     }
@@ -384,19 +384,11 @@ function renderPanel(){
   }else if(panel==='camp'){
     panelHeading('SETTLEMENT LIFE','Camp');
     renderCampPanel({body,state,owner:snapshot.room?.ownerPilot===snapshot.me?.id,canAct:canAct(),act,pick:setTool,focus:focusBed,cinema});
-    const companion=document.createElement('div');companion.className='camp-companion';companion.id='camp-companion';
-    if(state.pet){companion.append(textElement('p',`${state.pet.name} · petted ${state.pet.pets} time${state.pet.pets===1?'':'s'} · fed ${state.pet.fed} fish`,'panel-copy'));
-      const form=document.createElement('form');form.className='pet-rename';form.id='pet-rename';const field=document.createElement('input');field.id='pet-name';field.type='text';field.maxLength=PET.nameLength*2;field.value=state.pet.name;field.setAttribute('aria-label','Companion name');field.autocomplete='off';field.spellcheck=false;
-      const rename=document.createElement('button');rename.type='submit';rename.id='pet-rename-button';rename.className='soft-button';rename.textContent='Rename';rename.disabled=!canAct();
-      form.onsubmit=event=>{event.preventDefault();field.blur();void act('rename-pet',{name:field.value});};form.append(field,rename);companion.append(form);}
-    else companion.append(actionButton('adopt-pet',`Adopt a companion · ${PET.cost} materials`,'adopt-pet',{},'soft-button wide',state.materials<PET.cost));
-    const creel=fishingSummary(state),recent=(state.fishing?.catches||[]).slice(-6).reverse();
-    const best=Object.entries(creel.record).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([id,len])=>`${catchName({species:id})} ${len} cm`).join(', ');
-    companion.append(textElement('p',creel.catches?`Warehouse · ${creel.treats} fish · ${Object.keys(creel.record).length} ${Object.keys(creel.record).length===1?'kind':'kinds'} caught · longest ${best}`:'Fish at the lake shore or a pond: walk up and press E. Every catch goes to the warehouse and is a treat for your companion.','fine'));
-    if(recent.some(entry=>entry.seed)){const gallery=document.createElement('div');gallery.className='creel-gallery';gallery.id='creel-gallery';for(const entry of recent.filter(e=>e.seed)){const figure=document.createElement('figure'),art=document.createElement('canvas');art.width=128;art.height=72;const genome=fishGenome(entry.seed,entry.planet);const context=art.getContext('2d');context.scale(2,2);drawAlienFish(context,genome,32,18,50,0,{swim:false});figure.title=`${genome.name} · ${entry.length} cm`;figure.append(art,textElement('figcaption',genome.name));gallery.append(figure);}companion.append(gallery);}
-    body.append(companion);
     if($('camp-sky'))$('camp-sky').open=!!skyOpen;
     if(document.querySelector('.camp-credits'))document.querySelector('.camp-credits').open=!!creditsOpen;
+  }else if(panel==='companion'){
+    panelHeading('COMPANION',state.pet?.name||'Adopt a spider');
+    renderCompanionPanel({body,state,canAct:canAct(),act,focus:focusBed});
   }else if(panel==='bed'){showPanel('garden');return;}
   if(focused&&document.getElementById(focused))document.getElementById(focused).focus({preventScroll:true});
   else if(selection)body.querySelector(`[data-plant="${selection}"]`)?.focus({preventScroll:true});
@@ -451,7 +443,10 @@ canvas.addEventListener('pointerup',event=>{
   const furnishing=settlementAt(state,Math.floor(p.x),Math.floor(p.y));
   const selectedMachine=industryAt(state,Math.floor(p.x),Math.floor(p.y));
   const selectedBed=state.beds.find(b=>Math.abs(p.x-(b.x+.5))<=1.5&&Math.abs(p.y-(b.y+.5))<=1.5);
-  if(furnishing){setTool('settlement');focusBed(furnishing);showPanel('settlement',furnishing.id);}
+  // The spider is small and stands above the ground: its body sits a little north of its feet.
+  const shownPet=petSmooth||state.pet;
+  if(shownPet&&Math.hypot(p.x-shownPet.x,p.y-(shownPet.y-.2))<.8){setTool('companion');showPanel('companion');}
+  else if(furnishing){setTool('settlement');focusBed(furnishing);showPanel('settlement',furnishing.id);}
   else if(selectedMachine){setTool('industry');focusBed(selectedMachine);showPanel('industry',selectedMachine.id);}
   else if(selectedBed){selected=selectedBed.id;focusBed(selectedBed);showPanel('bed',selected);}
   else if(Math.hypot(p.x-(state.pad.x+.5),p.y-(state.pad.y+.5))<2){mode='shipment';showPanel('shipment');}
@@ -467,12 +462,13 @@ $('colony-zoom-in').onclick=()=>zoom(1.18);$('colony-zoom-out').onclick=()=>zoom
 function recenter(){if(snapshot?.me){camera.x=snapshot.me.x;camera.y=snapshot.me.y;panFollow=true;}}
 $('colony-recenter').onclick=recenter;
 $('effects-toggle').onclick=()=>{reduced=!reduced;showEffects();try{localStorage.setItem('frontier-colony-reduced',reduced?'1':'0');}catch{/* Cosmetic preference only. */}toast(reduced?'Reduced animation: machines rest and the shuttle fades away instead of flying.':'Full animation: machines run and the shuttle flies.');};
-$('tool-inspect').onclick=()=>{if(!atHome()){void act('travel-region',{destination:'home'});return;}setTool('inspect');showPanel('garden');};$('tool-bed').onclick=()=>setTool('bed');$('tool-sprinkler').onclick=()=>setTool('sprinkler');$('tool-shipment').onclick=()=>{setTool('shipment');showPanel('shipment');};
+$('tool-inspect').onclick=()=>{if(!atHome()){void act('travel-region',{destination:'home'});return;}setTool('inspect');showPanel('garden');};$('tool-shipment').onclick=()=>{setTool('shipment');showPanel('shipment');};
 $('tool-settlement').onclick=()=>{setTool('settlement');selected=null;showPanel('settlement');};
 $('tool-explore').onclick=()=>{setTool('explore');selected=null;showPanel('explore');};
 $('exploration-return').onclick=()=>act('travel-region',{destination:'home'});
 $('exploration-record').onclick=()=>{const discovery=closestDiscovery(state,snapshot.me);if(discovery?.distance<=2.6)void act('discover-region',{discoveryId:discovery.id});else{setTool('explore');showPanel('explore',discovery?.id||null);}};
 $('tool-camp').onclick=()=>{setTool('camp');showPanel('camp');};
+$('tool-companion').onclick=()=>{setTool('companion');showPanel('companion');};
 $('tool-industry').onclick=()=>{setTool('industry');selected=null;showPanel('industry');};
 $('placement-rotate').onclick=rotateIndustry;
 $('collect-crate').onclick=()=>{const id=$('collect-crate').dataset.crate;if(id)void act('collect-crate',{crateId:id});};

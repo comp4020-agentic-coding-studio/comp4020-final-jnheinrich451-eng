@@ -116,16 +116,16 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   belts and sprinklers must read differently from idle ones; decoration motion
   and shuttle dust are browser-only and settle under reduced motion. See
   `docs/COLONY_LIFE_STAGE.md`.
-- Colony living: the settlement reads as production (Garden, Bed, Sprinkler,
-  Industry) and living (Camp, Furnish) by dock and catalogue habit, never by a
-  zoning rule. A worker may sit on a bench or rest pad, charge at a charging
-  post or brew at a kettle: E within 1.6 tiles, a clear tile in front of a post
-  or kettle, any movement or E stands it up where it entered or on the nearest
-  clear tile. Resting is per-person runtime state carried in the player record
-  (never the colony save), grants nothing and changes nothing in the garden.
-  Poses, cables, steam and lamp pulses are browser-only and settle under
-  reduced motion. Approved 8 November 2026 with fine-tuning deferred. See
-  `docs/COLONY_LIVING_STAGE.md`.
+- Colony living: the settlement reads as production (Garden, which places beds
+  and sprinklers, and Industry) and living (Camp, Companion, Furnish) by dock
+  and catalogue habit, never by a zoning rule. A worker may sit on a bench or
+  rest pad, charge at a charging post or brew at a kettle: E within 1.6 tiles, a
+  clear tile in front of a post or kettle, any movement or E stands it up where
+  it entered or on the nearest clear tile. Resting is per-person runtime state
+  carried in the player record (never the colony save), grants nothing and
+  changes nothing in the garden. Poses, cables, steam and lamp pulses are
+  browser-only and settle under reduced motion. Approved 8 November 2026 with
+  fine-tuning deferred. See `docs/COLONY_LIVING_STAGE.md`.
 - Colony warehouse: one 3 x 3 warehouse per expedition shows the shared
   reserve as stacked boxes (materials one side, products the other) without
   changing the numbers underneath, and its drone fetches every shuttle crate
@@ -139,7 +139,8 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   of lake water or a ready pond, with a deterministic 4 to 9 s bite from a hash
   of angler and cast count, a 3 s bite window and auto-recast; catches go to the
   warehouse and are the only treats. One furry mechanical spider per
-  expedition, adopted in Camp for 8 materials: shared saved state that follows
+  expedition, adopted for 8 materials from its own Companion dock button (author,
+  9 November 2026; Camp keeps fire, film and sky): shared saved state that follows
   its friend or the nearest worker at the worker's collision rules, sits beside
   a resting one, notices nearby beds and furnishings, and is petted or fed with
   E; no meters, no upkeep, no yield. The colony's function set is closed here;

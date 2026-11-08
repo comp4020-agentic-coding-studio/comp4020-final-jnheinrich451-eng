@@ -131,7 +131,8 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .garden-toolbar kbd { font-size: 7px; padding: 0 2px; margin-left: 2px; }
 .tool-icon { display: grid; place-items: center; color: #5b7350; width: 23px; flex-shrink: 0; }
 .tool-icon svg { width: 23px; height: 23px; }
-#tool-bed .tool-icon, #tool-shipment .tool-icon { color: #847149; }
+#tool-shipment .tool-icon { color: #847149; }
+#tool-companion .tool-icon { color: #76668c; }
 .sketch-stroke { opacity: .28; stroke-width: .8; }
 .control-hint { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #3f583d; white-space: nowrap; text-shadow: 0 1px 0 #ffffff70; }
 .control-hint span { margin: 0 6px; color: #617757; }
@@ -150,11 +151,17 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .parcel-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .parcel-list small { font-size: 9px; color: var(--muted); }
 .parcel-list input { width: 54px; min-height: 30px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 3px; background: #fffdf3; text-align: right; }
-/* Camp: name the companion. */
+/* Companion: its portrait beside its record. */
+.companion-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 6px; }
+.companion-portrait { width: 116px; height: 84px; border-radius: 4px; background: radial-gradient(ellipse at 50% 70%, #e9efd9 0, #f7f3e4 70%); }
+.companion-words .panel-copy { margin-bottom: 3px; color: var(--ink); font-weight: 500; }
+#pet-find { margin: 0 0 6px; }
+.garden-build { margin-bottom: 2px; }
+/* Companion: name it. */
 .pet-rename { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin: 4px 0 6px; }
 .pet-rename input { min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px; background: #fffdf3; font-size: 12px; }
 .pet-rename button { padding: 4px 12px; font-size: 11px; }
-/* Camp: the last catches, drawn from their saved seeds. */
+/* Companion: the last catches, drawn from their saved seeds. */
 .creel-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
 .creel-gallery figure { margin: 0; padding: 4px 3px 3px; border: 1px solid var(--line); border-radius: 4px; background: #fbf6e2; text-align: center; }
 .creel-gallery canvas { width: 64px; height: 36px; display: block; margin: 0 auto; }
@@ -263,7 +270,8 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
   .crop-symbol svg { width: 24px; height: 24px; }
   .growth-heading { font-size: 10px; }
   .water-status { font-size: 9px; }
-  .action-pair .soft-button { min-height: 40px; font-size: 11px; }
+  .action-pair .soft-button, .action-pair .primary-button { min-height: 40px; font-size: 11px; }
+  .companion-portrait { width: 88px; height: 64px; }
   .crop-utilities { margin-top: 2px; }
   .crop-utilities .quiet-button { min-height: 32px; font-size: 10px; }
   .seed-cards { gap: 5px; padding-bottom: 5px; }

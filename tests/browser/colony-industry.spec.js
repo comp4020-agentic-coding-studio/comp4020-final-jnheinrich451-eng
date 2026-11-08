@@ -125,7 +125,7 @@ test('phone controls build, rotate and recover a stalled processor without losin
     await expect(page.locator('#industry-status')).toHaveText('Needs power');
     await page.screenshot({ path: info.outputPath('colony-industry-processor-phone.png') });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const id of ['tool-inspect','tool-bed','tool-sprinkler','tool-industry','tool-shipment','tool-camp']) {
+    for (const id of ['tool-inspect','tool-industry','tool-shipment','tool-camp','tool-companion']) {
       const box = await page.locator(`#${id}`).boundingBox();
       expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390); expect(box.height).toBeGreaterThanOrEqual(40);
     }

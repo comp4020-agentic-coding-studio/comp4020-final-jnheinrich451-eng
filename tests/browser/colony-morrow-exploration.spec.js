@@ -64,7 +64,7 @@ test('Morrow survey travel keeps the shared garden, records a reachable discover
     await page.locator('#travel-blossom-grove').click();
     await expect.poll(async () => (await f.world()).me.regionId).toBe('blossom-grove');
     await expect(page.locator('#colony-planet')).toContainText('Blossom Grove');
-    await expect(page.locator('#tool-bed')).toBeDisabled();
+    await expect(page.locator('#tool-companion')).toBeDisabled();
     await expect(page.locator('#garden-tool-label')).toHaveText('Home');
     await expect(page.locator('#bed-count')).toHaveText('Return to garden');
     await expectToolbarTextContained(page);
@@ -158,7 +158,8 @@ test('phone survey map travels to Stillwater, supports held movement and offers 
     // Home in the toolbar is a direct return even with field notes closed.
     await page.locator('#tool-inspect').click();
     await expect.poll(async () => (await f.world()).me.regionId).toBe('home');
-    await expect(page.locator('#tool-bed')).toBeEnabled();
+    await expect(page.locator('#tool-companion')).toBeEnabled();
+    await expect(page.locator('#place-bed')).toBeVisible();
     await expect(page.locator('#inspector-title')).toHaveText('Garden');
     await expect(page.locator('#garden-tool-label')).toHaveText('Garden');
     expect((await f.world()).colony.settlement.items).toEqual(initial.colony.settlement.items);
