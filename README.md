@@ -1,35 +1,36 @@
 # Frontier: a foothold worth returning to
 
-Frontier is a cooperative overhead 2D war game for one to four friends. You land
-a robot on an alien planet, build a base, then take the planet with tanks, ships,
-aircraft, rail guns and orbital strikes. If you prefer peace, **Colonization** on
-the same account grows a garden world with no enemies and no ending.
+Frontier is a cooperative 2D war game for one to four friends: land a robot,
+build a base and conquer an alien planet with vehicles and orbital support.
+**Colonization** offers a separate peaceful garden world, with no enemies or ending.
 
 ## Start playing
 
 Open [the game](https://comp4020-final-jnheinrich451-eng.fly.dev/) and create an
-account. **Email account** sends a verification link to your own address. If you
-would rather not give one, **Demo account** takes any `@frontier.test` address and
-shows the link in a private inbox; nothing is sent. Choose **New Game**, pick a
-planet and enter. Place your support core and your robot lands. **WASD** moves,
-the mouse aims, **B** opens Deploy and **F1** lists the controls. **Colonization**
-on the same menu starts a peaceful expedition.
+**Email account** or **Demo account**. Email accounts verify through your inbox;
+Demo accepts any `@frontier.test` address and uses a private simulated inbox.
+Choose **New Game**, select a planet and place your support core. **WASD** moves,
+the mouse aims, **B** opens Deploy and **F1** lists controls. Choose
+**Colonization** for peaceful play.
 
-To add a second player, open **Room** and **Create invitation code**. They choose
-**Play as guest** in another browser and paste the code. To return later, use
-**Save and leave room**, then **Continue**.
+To invite a friend, open **Room** and **Create invitation code**. They choose
+**Play as guest** and enter the code. **Unregistered guests do not keep personal
+progress for a later visit.** Their contributions remain in the host's world.
+Guests can register and verify before leaving to keep their pilot. Account holders
+use **Save and leave room**, then **Continue**; returning teammates need the host online.
 
 ## What good means here
 
-Good means **a defeat always leaves a way back, and the way back costs something**.
-Your robot can die, but you can still find a way to fight back. Your ruins, your
-spending and the sites you conquered all stay.
+In War Zone, good means **defeat leaves a way back without undoing its
+consequences**. Robot recovery is free, but destroyed equipment, spent resources and
+conquered sites stay changed. Colonization offers peaceful lasting progress:
+neglect never removes what you built.
 
-With permanent death, one bad fight ends a long campaign. With free respawns,
-nothing you lose matters. Juul (2009) found that players who failed some and then
-finished a game rated it highest, and prefer to feel responsible for failing. The
-first result only neared significance (p=0.06), so I take it as a reason, not
-proof. It fits Frontier's warned attacks: a loss should feel like your own mistake.
+Permanent defeat would end a campaign; restoring everything would erase its
+consequences. Juul (2009) found that players who failed before finishing rated a
+game highest, although that result only neared significance (p=0.06). His finding
+that players prefer feeling responsible for failure also informs Frontier's
+warned attacks. These findings guide my design; they do not prove it enjoyable.
 
 Frontier is also small on purpose. Sloan (2020) writes that software freed from
 being "professional and scalable" becomes "a different activity altogether". A room
@@ -38,44 +39,39 @@ Helldivers 2 gave me the cooperative war, but I left out friendly fire.
 
 ## What is enforced
 
-These claims are rules in [CLAUDE.md](CLAUDE.md), and each has a check:
+These [CLAUDE.md](CLAUDE.md) rules have checks:
 
 | Claim | Check |
 | --- | --- |
-| No defeat ends a campaign: with no cores and no money, you still get a core, an HE tank and your robot | [Recovery](spec/logistics.test.ts#L141) |
-| Losses stay: ruins remain and conquest is permanent | [Ruins](spec/infrastructure-repair-ui.test.ts#L27), [conquest](spec/conquest.test.ts#L57) |
-| Bulwarks take damage only from explosives, magnetic weapons and gas; fire slows them, and they warn before striking | [Bulwarks](spec/bulwark.test.ts) |
+| Emergency recovery supplies a core, HE tank and robot even with no money | [Recovery](spec/logistics.test.ts#L141) |
+| Ruins remain and conquest is permanent | [Ruins](spec/infrastructure-repair-ui.test.ts#L27), [conquest](spec/conquest.test.ts#L57) |
+| Bulwarks take explosive, magnetic and gas damage; fire only slows them | [Bulwarks](spec/bulwark.test.ts) |
 | Friendly weapons never hurt your side | [Friendly damage](spec/vehicle-survival.test.ts#L10) |
-| Two people share one world, and it survives a restart | [Restart](spec/wreck-recovery-http.test.ts#L17) |
-| A colony never loses what it built, however long it is left | [Neglect](spec/colony-ground.test.ts#L235) |
-| Each account keeps three war campaigns and three peaceful expeditions | [Saves](spec/campaign-mode.test.ts#L113) |
+| Both players see construction, which survives restart | [Shared saves](spec/campaigns.test.ts#L266) |
+| Neglect never removes colony construction | [Neglect](spec/colony-ground.test.ts#L235) |
+| Each account can own three saves per mode | [Saves](spec/campaign-mode.test.ts#L113) |
 
 ## What is judged
 
-I judged these by playing each stage and correcting it:
+Through playing and correction, I judged whether:
 
-- Death feels like part of the loop, not a punishment.
-- The HUD reads in one second, and you learn by playing. Dead Space led me to put
-  information on the unit, not in corner panels.
-- The three planets and their transitions make arriving feel like an event.
-- Each weapon sounds like its own shot, from effects I generated and chose, and
-  each planet has its own music.
-- Two friends fight the same battle at the same moment.
+- Recovery makes another attempt inviting.
+- The HUD reads quickly; Dead Space inspired information on the unit.
+- Planet transitions make arriving feel like an event.
+- Generated effects fit each weapon, and music suits each planet.
 
-This is only my own judgement. I have no recorded test with outside players, and
-sustained four-player combat on Fly is unmeasured. In a local
-[latency test](tests/browser/multiplayer-latency.spec.js#L126), changes reached other
-players in under 0.2 s (median) and 0.55 s at worst, inside its one-second limit.
+These are my judgements, with no recorded independent playtest. Sustained
+four-player combat on Fly is unmeasured. Local [latency measurements](docs/HUD_AND_POLISH_STAGE.md#full-browser-suite)
+had medians below 0.2 s and a maximum of 0.554 s; they do not establish deployed latency.
 
 ## What I chose not to build
 
-- Friendly fire, and any loss that ends a campaign.
-- Large public servers: Fly gives one shared CPU and 256 MB, so a room holds four
-  and a planet 24 living enemies.
-- Per-shot costs and offline income.
-- Farms in the war: growing belongs to Colonization.
-- Isometric or 3D art: [Kenney's tank pack](https://kenney.nl/assets/top-down-tanks-remastered)
-  showed that overhead silhouettes stay readable.
+- Friendly fire, permanent defeat, per-shot costs or offline income.
+- Large public servers: within Fly's one shared CPU and 256 MB, rooms hold four
+  players and worlds cap active enemies plus reserved arrivals at 24.
+- Farms in combat; growing belongs to Colonization.
+- An angled combat view: [Kenney's tank pack](https://kenney.nl/assets/top-down-tanks-remastered)
+  informed its overhead silhouettes. Colonization uses an angled view for machinery.
 
 ## Sources
 

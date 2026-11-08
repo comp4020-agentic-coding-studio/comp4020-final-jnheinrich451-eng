@@ -1,23 +1,24 @@
 # Keep the target outside the conversation
 
-Generative agents turn a few words into detailed work. My position is that the
-detail they add drifts towards what is usual, and that this helps a designer with
-no target and harms one who has a target. Good practice therefore starts with
-knowing which case you are in. If you have a target, keep it where the agent cannot
-reword it: a sketch for form, a rule or test for behaviour, your own words for a sound.
+Generative agents turn a few words into detailed work. Familiar solutions can
+help when I lack a clear target, but can pull a defined target off course. My
+position is that a designer should preserve an unchanged reference against which
+to judge each interpretation: a sketch for form, a rule for behaviour, or their
+own words for a sound. This makes disagreement visible without freezing the design.
 
 ## The drift enters early
 
-Hintze et al. (2026) left image and caption models feeding each other for 700 runs
-and found "just 12 dominant motifs with commercially safe aesthetics". Their loops
-had no human, so they show a tendency, not what happens under direction. They
-attribute it only "likely" to training data, and tested no other cause.
+Hintze et al. (2026) ran 700 image-caption trajectories of 100 iterations and
+found 12 dominant motifs across their pooled results. They varied temperatures
+and model combinations, but did not isolate training-data bias as the cause.
+Their autonomous loops demonstrate convergence in that setting; they do not
+establish what happens when a person keeps directing the work.
 
-My first evidence is a game spacecraft, made with Codex and an image tool. I drew a
-scythe-shaped bow. The prompt Codex wrote asked for a "subtle swept
+My spacecraft provides a smaller, directed case. I drew a scythe-shaped bow.
+The prompt Codex wrote for the image tool asked for a "subtle swept
 upper bow ridge" and to "avoid an enormous blade fin", so my drawing was softened
 before any image existed. The first render was a smooth teardrop. Reviewing outputs
-is therefore not enough. A designer should also read what the agent told the tool.
+alone would miss where that change entered: the agent's translation of my reference.
 
 ![First sketch](docs/evidence/mycorrhizal-carrier/sketch-1-first.png)
 ![First render](docs/evidence/mycorrhizal-carrier/terraforming-carrier-concept-v1.png)
@@ -26,67 +27,69 @@ is therefore not enough. A designer should also read what the agent told the too
 
 ## Does the pull reach the person?
 
-Wadinambiarachchi et al. (2024) suggest it does: sixty students sketched chatbot
-avatars, and those using Midjourney copied more features from a supplied example
-than those without, though originality barely changed. I first disagreed, since
-that study tested inventing from nothing and I began with a drawing. But my feeling
-is weak evidence. METR's developers believed AI had sped them up by 20% when they took 19%
-longer (Becker et al., 2025). METR now calls that out of date, and its later data
-suggests a speed-up, with "only very weak evidence for the size of this increase"
-(Becker et al., 2026). The finding moved; the gap between belief and measurement is
-why I rely on dated sketches and prompts, not memory.
+Wadinambiarachchi et al. (2024) studied sixty students designing chatbot avatars
+from a brief and supplied example. Midjourney users repeated more example features
+than the other groups; originality fell only slightly. They were generating
+alternatives to an assigned example, while I was refining my own drawing. That
+difference limits the comparison, but does not establish that my target protected
+me from fixation.
+
+Confidence is weak evidence. METR's developers believed AI saved time while it
+made their tasks take 19% longer (Becker et al., 2025). Its later study suggested
+improvement, but participant and task selection made the estimate unreliable
+(Becker et al., 2026). I take the measurement lesson, not a timeless verdict on AI.
 
 ## The case against me
 
-The same record contradicts a simple version of my claim. For the final design
-sheet, the prompt asked for "ONE broad fat cargo shuttle". Two berths appeared, and
+The same spacecraft record challenges a rigid target. The final sheet's prompt
+asked for "ONE broad fat cargo shuttle". Two berths appeared, and
 Codex called them "erroneous" and asked for a fix. I saw two bays, left and right,
 judged that better and adopted it. A generated image changed my design, by accident.
 
-So a target is not a fixed answer. It is what lets a designer separate a useful
-surprise from drift. Schön (1983, as quoted in Keer, 2018) describes materials
-"continually talking back", and code does too: my anti-air tracers followed
-ballistic physics until I saw the frame rate break the salvo up, and replaced them
-with a lit firing line. Targets should change, but the designer should change them
-on purpose.
+Schön's materials are "continually talking back" (1983, as quoted in Keer, 2018).
+That account explains why preserving a reference need not mean enforcing it
+forever. It lets me distinguish a deliberate revision from a change I failed to
+notice. Fidelity and discovery can both matter, at different moments.
 
 ## The same split in sound
 
-Sound showed both halves without an image. Codex drafted short prompts for 52
-weapon effects ([generation record](soundeffect/GENERATION.md)), and ElevenLabs
-returned a burst where I wanted one machine-gun shot. I know what a tank sounds
-like, so I rewrote the vehicle prompts, and the record keeps them: "zero revving,
-zero acceleration", "zero doppler", "single isolated impact event with zero
-bounces". Each negation names a default the generator kept reaching for. In the
-carrier prompt the agent's negation softened my target; here mine defended it.
-The colony's cues went differently. The generator understood Codex's "small
-friendly robot pet" at once, and I kept its prompts almost as written. I have no
-target for how a mechanical spider purrs, so its convention became the design.
+Sound makes the distinction clearer. I wanted individual machine-gun shots and
+steady vehicle engines; generated bursts and revving missed those targets. My
+rewritten [prompts](soundeffect/GENERATION.md) specify "zero revving, zero
+acceleration" and "zero doppler". In the carrier prompt, the agent's exclusions
+softened my target; these exclusions defended it. For the colony's mechanical
+spider purr, I had no comparable reference and kept the proposed prompts almost
+unchanged. Familiar conventions supplied something I could judge. The useful
+question was which details I already cared about, rather than whether the whole
+task was creative or technical.
 
 ## With no target, convention is a loan
 
-The colony's economy went the same way. I know little about factory games: I named
-its machines, and Codex joined them into a production chain trading food against
-fuel. I could not have designed that, or judged it until it was built; playing it,
-I found the power chain "a dead loop", because making fuel needed power.
+The colony's economy exposed the cost of borrowing a design. I named machines;
+Codex connected them into a production chain. Playing it, I called the power
+startup "a dead loop". Manual loading could start it, but the interaction did not
+make that route clear. A working chain still needed a comprehensible route into it.
 
-Naur (1985) argued that a program's theory lives in its people, and that rebuilding
-it from documents alone is "strictly impossible". Goedecke (2026) adds that agents
-"can't retain theories of the codebase". If neither of us holds the theory, nobody
-does. An agent's convention is a useful loan, but the designer must learn enough to
-turn it into a target; I learned it only by playing what the loan built.
+Naur (1985) locates a program's theory in its programmers, with documentation
+secondary. Goedecke (2026) argues that agents can build theories while debugging;
+retaining them between runs is the difficulty. He also disputes Naur's strong
+position on reconstructing understanding from code. This separates two problems:
+how understanding is built, and how it survives a change of agent or programmer.
+My concern is continuity: someone must retain enough understanding to judge the
+next change. Documents support that responsibility; they do not discharge it.
 
 ## Where targets live
 
-Böckeler (2026) separates guides, which steer an agent "before it acts", from
-sensors, which "observe after the agent acts". My sketches worked as guides and my
-tests as sensors. Böckeler also warns: "Correctness is outside any sensor's remit
-if the human didn't clearly specify what they wanted in the first place." That
-answers the obvious objection that better models will remove the drift. They may
-drift less, but no model can check work against a target nobody stated.
+Böckeler (2026) connects guides that steer work with sensors that check its
+results. My sketches and tests served those different roles. Her warning about
+unstated requirements identifies a limit of evaluation: passing a check cannot
+settle an intention the check never captured. It does not establish whether
+better models will drift less.
 
-This is one designer's record of one project, and a skilled artist may need
-sketches less. Still, the practice is cheap: decide whether you hold a target, then store it outside the chat.
+This is one designer's project, not a controlled test of these theories. Its
+practical lesson is to preserve references, compare interpretations, and record
+why a target changes. That leaves room for surprise while keeping the designer
+responsible for deciding what the surprise means.
 
 ## References
 
@@ -96,13 +99,13 @@ Becker, J., Rush, N., Cunningham, T., Rein, D., & Mahamud, K. (2026, February 24
 
 Böckeler, B. (2026, April 2). [*Harness engineering for coding agent users*](https://martinfowler.com/articles/harness-engineering.html). martinfowler.com.
 
-Goedecke, S. (2026, April 3). [*Programming (with AI agents) as theory building*](https://seangoedecke.com/programming-with-ai-agents-as-theory-building/).
+Goedecke, S. (2026, April 3). [*Programming (with AI agents) as theory building*](https://www.seangoedecke.com/programming-with-ai-agents-as-theory-building/).
 
 Hintze, A., Proschinger Åström, F., & Schossau, J. (2026). Autonomous language-image generation loops converge to generic visual motifs. *Patterns, 7*(1), 101451. https://doi.org/10.1016/j.patter.2025.101451
 
 Keer, L. (2018, September 3). [*Book review: The reflective practitioner*](https://drossbucket.com/2018/09/03/book-review-the-reflective-practitioner/). drossbucket.
 
-Naur, P. (1985). Programming as theory building. *Microprocessing and Microprogramming, 15*, 253–261.
+Naur, P. (1985). [Programming as theory building](https://doi.org/10.1016/0165-6074(85)90032-8). *Microprocessing and Microprogramming, 15*(5), 253–261.
 
 Schön, D. A. (1983). *The reflective practitioner: How professionals think in action*. Basic Books.
 

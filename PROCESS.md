@@ -19,16 +19,16 @@ something playable before more discussion:
 on the supplied
 [`60ec68b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/60ec68b).
 Earlier stages were never committed separately.
-Codex later summarised my decisions from [GAME_IDEAS.md](GAME_IDEAS.md) into [GAME_DESIGN.md](GAME_DESIGN.md)
+Codex consolidated my [brainstorm](GAME_IDEAS.md) into [GAME_DESIGN.md](GAME_DESIGN.md)
 ([`45511ea`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/45511ea)),
 keeping agreed behaviour apart from proposals.
 
-My [definition of good](README.md#what-good-means-here) became: defeat leaves a
-way back, but recovery costs something. Juul's account of failure helped frame
-that choice; his limited evidence cannot establish that Frontier is enjoyable.
+My [definition of good](README.md#what-good-means-here) for War Zone became: defeat
+leaves a way back while losses still matter. Juul informed that choice; his
+limited evidence cannot establish that Frontier is enjoyable.
 Sloan's home-cooked software informed the small scale, although public accounts
-make this different from his family app. Colonization offers a separate peaceful
-experience, with its own saves.
+make this different from his family app. Colonization offers peaceful lasting
+progress, with separate saves and construction that survives neglect.
 
 ## Stack and trade-offs
 
@@ -42,7 +42,8 @@ runs in browsers; the server still owns combat outcomes. Each campaign has its o
 SQLite world. [ADR-001](docs/decisions/001-owner-present-campaigns.md) keeps rooms
 open only with their owner present, preventing friends from playing while the
 owner is away; [ADR-002](docs/decisions/002-identity-and-permissions.md) separates
-account owners from guests.
+account owners from guests. Unregistered guests lose personal progress when their
+visit ends; contributions remain in the host's world.
 
 ## How I worked
 
@@ -100,7 +101,7 @@ Audibility, matching the action and fitting the mix each needed separate review.
 
 The [HUD revision](docs/HUD_AND_POLISH_STAGE.md#remote-command-strip) began with
 a picture mock-up and my request to read it in one second. After using its
-vehicle panels, I made that goal concrete: left click attacks, right click moves,
+remote vehicle panels, I made that goal concrete: left click attacks, right click moves,
 and other commands use one word and one key. The graphite-and-gold redesign
 landed in
 [`5bbd038`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/5bbd038).
