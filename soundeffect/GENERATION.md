@@ -350,6 +350,18 @@ Implementation references: `public/colony-pet.js`, `public/colony-rest.js`,
 `public/colony-industry.js`, `public/colony-machinery.js`,
 `public/colony-shuttle-art.js`, and `public/colony-crates.js`.
 
+## Loudness calibration (9 November 2026)
+
+The author then asked to measure naturally uneven recordings and bring them onto
+one scale. All 119 active effects across both modes were measured in both Ogg and
+PCM form. Playback now uses fixed loudness-based gains instead of peak
+normalization, with shared targets for variation families and retained role
+volumes. The calibration changes metadata and playback only; all source and
+runtime audio bytes, existing prompt rows and the original supplied text remain
+unchanged. The [measurement and validation record](../docs/SOUND_LOUDNESS.md)
+links the per-file CSV, calibration hashes and independently remeasured results.
+Future asset preparation refreshes calibration automatically.
+
 ## Author-supplied short prompt and filename record
 
 The following block preserves the supplied text exactly. Short headings, punctuation, and proposed filenames are retained as supplied; no extra prompt prose has been added.

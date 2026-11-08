@@ -47,6 +47,7 @@ for(const payload of ['HE','INCENDIARY','GAS','BEAM'])for(const mobile of [false
   }
   if(!mobile&&payload==='HE'){await page.mouse.click(5,100);expect((await state()).logistics.orbital?.order).toBeFalsy();await page.mouse.move(point.x,point.y);}
   if(payload==='BEAM'){
+   await expect(page.locator('#orbital-rotate')).toBeHidden();
    await click(point.x,point.y);expect((await state()).logistics.orbital?.order).toBeFalsy();await expect(page.locator('#orbital-instructions')).toContainText('endpoint');
    if(!mobile)await page.mouse.move(point.x+8*point.tile,point.y);
   }
@@ -55,8 +56,10 @@ for(const payload of ['HE','INCENDIARY','GAS','BEAM'])for(const mobile of [false
   await expect(page.locator('#orbital-live')).toContainText('Commander');expect(calls).toBe(1);
   const committed=(await state()).logistics.orbital.order;expect(committed.payload).toBe(payload);if(['HE','INCENDIARY'].includes(payload))expect(committed.bearing).toBe(1);
   expect((await state()).combat.shells).toHaveLength(0);expect((await state()).logistics.supplies).toBe(payload==='HE'?1080:payload==='BEAM'?1020:1100);
+  // Committing hands the robot back: targeting closes and the bar returns to Combat.
+  await expect(page.locator('#orbital-panel')).toBeHidden();await expect(page.locator('#explore-mode')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#deployment-tray')).toBeHidden();
   await click(point.x,point.y);expect(calls).toBe(1);
-  await page.locator('#orbital-close').click();await page.reload();await expect(page.locator('#connection')).toContainText('live');await openFieldTool(page,'orbital-open');
+  await page.reload();await expect(page.locator('#connection')).toContainText('live');await openFieldTool(page,'orbital-open');
   await expect(page.locator('[data-orbital-payload="'+payload+'"]').first()).toHaveAttribute('aria-pressed','true');
   expect((await state()).logistics.orbital.order.target).toEqual(committed.target);if(payload==='BEAM')expect((await state()).logistics.orbital.order.end).toEqual(committed.end);
   if(['HE','INCENDIARY'].includes(payload))await expect(page.locator('#orbital-rotate')).toBeDisabled();
@@ -68,5 +71,28 @@ for(const payload of ['HE','INCENDIARY','GAS','BEAM'])for(const mobile of [false
   if(payload==='BEAM')expect((await state()).logistics.orbital.scars).toHaveLength(1);
   if(!mobile){await page.setViewportSize({width:1024,height:768});await expect(page.locator('#orbital-status')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('#orbital-panel')).toBeHidden();}
   expect(errors).toEqual([]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }finally{await context?.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-orbital-browser-'))throw Error('Bad test path');await rm(dir,{recursive:true,force:true});}
+});
+
+test('a committed strike hands the robot back, and its landing reopens Deploy',async({browser})=>{
+ test.setTimeout(55000);const dir=await mkdtemp(path.join(tmpdir(),'frontier-orbital-browser-'));let app=createApp({dataDir:dir,logSink:()=>{}}),context;await app.close();
+ const db=new DatabaseSync(path.join(dir,'world.sqlite')),token=randomUUID(),w={...createWorld(),version:2,width:128,height:96,terrain:Array(128*96).fill(2),sites:[]};
+ db.prepare("UPDATE meta SET value=? WHERE key='world'").run(JSON.stringify(w));db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Commander',15,15,0);db.prepare('INSERT INTO robot_states VALUES (?,?)').run('pilot',JSON.stringify({...freshLife(),deployed:true}));db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',10,10,99);db.close();app=createApp({dataDir:dir,logSink:()=>{}});
+ try{
+  await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;context=await browser.newContext({viewport:{width:1920,height:1080}});await context.addCookies([{name:'frontier',value:token,url}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
+  const state=()=>page.evaluate(async()=>{const {logistics,me}=await (await fetch('/api/world')).json();return {logistics,me};});
+  await page.locator('#build-mode').click();await page.locator('[data-force-tab="strike"]').click();
+  await page.locator('[data-orbital-payload="GAS"]').click();await expect(page.locator('#orbital-panel')).toBeVisible();
+  const point=await page.evaluate(()=>{const c=document.getElementById('world-canvas').getBoundingClientRect(),top=100,bottom=Math.max(top+120,innerHeight-190);return{x:c.left+c.width/2,y:c.top+(top+bottom)/2};});
+  await page.mouse.click(point.x,point.y);
+  await expect(page.locator('#orbital-live')).toContainText('Commander');
+  await expect(page.locator('#orbital-panel')).toBeHidden();await expect(page.locator('#explore-mode')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#deployment-tray')).toBeHidden();
+  await page.screenshot({path:'.local/orbital-handback-desktop.png'});
+  await expect.poll(async()=>(await state()).logistics.orbital.order.points.every(p=>p.landed),{timeout:25000,intervals:[250]}).toBe(true);
+  await expect(page.locator('#deployment-tray')).toBeVisible();
+  await expect(page.locator('[data-force-tab="strike"]')).toHaveAttribute('aria-selected','true');
+  await page.screenshot({path:'.local/orbital-landed-deploy-desktop.png'});
+  expect((await state()).me.body).toBe('robot');expect(errors).toEqual([]);
  }finally{await context?.close();await app.close();if(!path.resolve(dir).startsWith(path.resolve(tmpdir())+path.sep+'frontier-orbital-browser-'))throw Error('Bad test path');await rm(dir,{recursive:true,force:true});}
 });

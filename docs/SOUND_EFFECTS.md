@@ -15,7 +15,8 @@ browser audio. Bomb releases remain silent; their impacts sound. Sustained flame
 engines, rotors, monster calls and hive ambience are later stages.
 
 Help (?) contains separate effects on/off and volume controls, saved in this
-browser. Default effects volume is 55%; Apex retains its independent settings.
+browser. Default effects volume is 25% (the author's level, 9 November 2026; it was 55%),
+with music on at 5%; Apex retains its independent settings.
 A click, tap or key unlocks browser audio. Hidden tabs stop effects, and unavailable
 files show a retry message without blocking the game. Toggle effects off/on to retry.
 

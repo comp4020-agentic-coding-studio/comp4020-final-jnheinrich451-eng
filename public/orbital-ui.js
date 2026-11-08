@@ -8,9 +8,11 @@ const SHELLS={HE:{window:2,height:24,size:1,opacity:.26},INCENDIARY:{window:2,he
  HEAVY:{window:3,height:34,size:2.3,opacity:.42,linger:20000},BARRAGE:{window:1.8,height:24,size:.8,opacity:.2},CLUSTER:{window:2,height:24,size:1.2,opacity:.28}};
 const BURST=.55; // a cluster casing opens this long before its own impact
 
-export function orbitalUI({state,api,stop,notify,overview,reveal}){
+export function orbitalUI({state,api,stop,notify,overview,reveal,committed,landed}){
  const $=id=>document.getElementById(id),panel=$('orbital-panel');
  let busy=false,pending=null,payload='HE',bearing=0,target=null,end=null,beamStart=false,shownOrder=null;
+ // Our own committed order, until it lands.
+ let awaiting=null;
  document.querySelector('.battlefield').append(panel);panel.classList.remove('panel');panel.classList.add('orbital-aiming');
  const cards=[...document.querySelectorAll('[data-orbital-payload]')];
  const directional=()=>['HE','INCENDIARY','CLUSTER'].includes(payload);
@@ -23,6 +25,8 @@ export function orbitalUI({state,api,stop,notify,overview,reveal}){
   const {world,connected,paused}=state();if(!world)return;
   const s=orbitalState(world),order=s.order,executing=orbitalActive(s);
   if(executing&&shownOrder!==order.id){target={...order.target};end=order.end?{...order.end}:null;bearing=order.bearing;payload=order.payload||'HE';shownOrder=order.id;beamStart=false;}
+  // Landed means seen in flight and then finished; a later sequence without it means it never flew.
+  if(awaiting){if(executing&&order.id===awaiting.id)awaiting.seen=true;else if(awaiting.seen||s.sequence>=awaiting.sequence&&order?.id!==awaiting.id){const done=awaiting.seen?awaiting.payload:null;awaiting=null;if(done)landed?.(done);}}
   $('orbital-open').disabled=!allowed();
   for(const card of cards){const cost=ORBITAL_PAYLOADS[card.dataset.orbitalPayload].cost;card.querySelector('.asset-cost').textContent=cost+' ORB';card.classList.toggle('short',cost>(world.logistics?.supplies||0));card.disabled=!allowed()||busy||(executing&&card.dataset.orbitalPayload!==payload);card.setAttribute('aria-pressed',String(active()&&card.dataset.orbitalPayload===payload));}
   const label=executing?order.callerName+' / '+(order.age<order.delay?'INCOMING '+Math.ceil(order.delay-order.age)+'s':orbitalProfile(order).label.toUpperCase()+' / '+order.points.filter(p=>p.landed).length+' / '+order.points.length):s.cooldown>0?'RECOVERY / '+Math.ceil(s.cooldown)+'s':'READY';
@@ -60,7 +64,9 @@ export function orbitalUI({state,api,stop,notify,overview,reveal}){
  async function call(){
   if(!editable())return;const p=plan(),error=planError(p);if(error){notify(error);return;}
   pending ||= {orderId:crypto.randomUUID(),sequence:orbitalState(state().world).sequence+1,target:p.target,bearing:p.bearing,payload:p.payload,end:p.end};
-  busy=true;update();try{await api('orbital/strike',pending);pending=null;beamStart=false;notify('Orbital strike committed. The crew can see its countdown.');}catch(e){notify(e.message);if(/Orbital orders changed/.test(e.message))pending=null;}finally{busy=false;update();}
+  busy=true;update();try{const sent=pending;await api('orbital/strike',sent);pending=null;beamStart=false;
+   // Hand the robot back while it falls; landing offers the next strike.
+   awaiting={id:sent.orderId,sequence:sent.sequence,payload:sent.payload,seen:false};close();committed?.();notify('Orbital strike committed. The crew can see its countdown.');}catch(e){notify(e.message);if(/Orbital orders changed/.test(e.message))pending=null;}finally{busy=false;update();}
  }
  function pick(x,y){
   if(!active())return false;if(!editable()||orbitalState(state().world).cooldown>0)return true;

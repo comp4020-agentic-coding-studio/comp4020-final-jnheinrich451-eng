@@ -93,9 +93,9 @@ for (const phone of [false, true]) test(`the chat bar says only how to chat, and
     await expect(page.locator('#sound-quick')).toHaveAttribute('aria-pressed', 'false');
     await page.locator('#music-quick').click();
     await expect(page.locator('#music-toggle')).toHaveAttribute('aria-pressed', 'true');
-    // Never saved a volume: the music starts at the author's 3%.
-    expect(JSON.parse(await page.evaluate(() => localStorage.getItem('frontier-music'))).volume).toBe(.03);
-    await expect(page.locator('#music-volume')).toHaveValue('3');
+    // Never saved a volume: the music starts at the author's 5%.
+    expect(JSON.parse(await page.evaluate(() => localStorage.getItem('frontier-music'))).volume).toBe(.05);
+    await expect(page.locator('#music-volume')).toHaveValue('5');
   });
 });
 

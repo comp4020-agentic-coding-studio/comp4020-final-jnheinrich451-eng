@@ -99,7 +99,7 @@ import { anchoredCamera, gunFrame, gunTargets } from './gun-view.js';
 import { LOCATOR_MS, drawHealthRing, drawLocator, drawReloadArc, spineLights } from './unit-hud.js';
 import { HORIZON_CHUNKS, drawHorizon, horizonSea } from './map-horizon.js';
 import { TABS, ASSETS, assetByCard, assetsIn, orbitalPrice, factoryPrice, specRows } from './catalogue.js';
-import { BINDINGS, SCOPES, POINTER, keyOf } from './keymap.js';
+import { BINDINGS, SCOPES, POINTER, SCOPE_POINTER, keyOf } from './keymap.js';
 import { drawGraticule, drawScaleBar, telemetry } from './instruments.js';
 import { CombatEffects, drawCrawler } from './effects.js';
 import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
@@ -447,9 +447,15 @@ const bridges=bridgeUI({frame:b=>{
   camera.y=(b.from.y+b.to.y+1)*T/2+(height/2-(top+bottom)/2)/camera.zoom;following=false;
 },state:()=>({world,me,buildings,revision:stateReceived,players:groundPlayers().concat(groundEnemies()),truck:currentRecycler()}),api,notify,stop:()=>{stopFiring();}});
 const bombers=bomberUI({state:()=>({world,me,connected,players}),api,notify,stop:()=>{orbital.close();stopFiring();bridges.close();setMode('explore');},overview:()=>{following=false;camera={x:world.width*T/2,y:world.height*T/2,zoom:Math.min((width-24)/(world.width*T),(height-260)/(world.height*T))};if(width<650)camera.y+=height*.2/camera.zoom;}});
-const orbital=orbitalUI({state:()=>({world,me,combat,connected,paused:roomState?.paused}),api,notify,reveal:()=>{setForceTab('strike');},stop:()=>{bombers.close();bridges.close();toggleTray(false);stopFiring();path=[];setMode('explore');},overview:wasOpen=>{
+// The robot view's zoom while a strike is planned, restored when it is committed.
+let strikeZoom=null;
+const orbital=orbitalUI({state:()=>({world,me,combat,connected,paused:roomState?.paused}),api,notify,reveal:()=>{setForceTab('strike');},stop:()=>{bombers.close();bridges.close();toggleTray(false);stopFiring();path=[];setMode('explore');},
+committed:()=>{if(strikeZoom)camera.zoom=strikeZoom;strikeZoom=null;recenter();},
+// Our strike has landed: offer the next one, unless the player is busy with something else.
+landed:()=>{if(!alive()||me?.body!=='robot'||controlledGun()||mode!=='explore'||remoteSelecting||heldGun.size||heldPrimary.size||!$('deployment-tray').hidden||orbital.active()||bombers.active()||bridges.active()||!$('site-panel').hidden||document.querySelector('dialog[open]'))return;setForceTab('strike');toggleTray(true);},
+overview:wasOpen=>{
   if(wasOpen)return;
-  following=false;
+  strikeZoom??=camera.zoom;following=false;
   const top=100,bottom=Math.max(top+120,height-190);
   const regionWidth=Math.min(128,world.width),regionHeight=Math.min(96,world.height);
   const zoom=Math.min((width-24)/(regionWidth*T),(bottom-top)/(regionHeight*T));
@@ -2531,7 +2537,7 @@ function openKeys() {
     return [Object.assign(document.createElement('h2'), { textContent: title }), list];
   };
   const ordered = [...groups.entries()].sort(([a], [b]) => (a === 'global') - (b === 'global'));
-  $('keys-now').replaceChildren(...ordered.flatMap(([scope, list]) => section(SCOPES[scope], list.map(b => [b.label, b.text]))), ...section('Pointer and movement', POINTER));
+  $('keys-now').replaceChildren(...ordered.flatMap(([scope, list]) => section(SCOPES[scope], [...list.map(b => [b.label, b.text]), ...(SCOPE_POINTER[scope] || [])])), ...section('Pointer and movement', POINTER));
   if(isAA(currentTank()))$('keys-now').prepend(...section('AA vehicle', [['Hold LMB / Space','Alternating twin 35 mm / air and ground / fire while moving'],['RMB / J','Ground machine gun / raw cursor aim'],['AIR / LEAD','Separate tracking ring and lead marker; your mouse cursor never moves'],['White diamond','Actual turret bearing; allow time for the guns to turn'],['Park + E','Leave the stopped vehicle for automatic air and ground defense']]));
   $('keys-dialog').showModal();
   if (campaignId) roomRequest('pause', { paused: true }).catch(e => notify(e.message));

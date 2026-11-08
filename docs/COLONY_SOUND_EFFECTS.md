@@ -36,6 +36,10 @@ or decode retries the corresponding PCM WAV; a remaining error identifies the
 file and can be retried by toggling effects off/on. The mixer connects through
 its limiter to the actual audio destination.
 
+The author's later loudness request adds [measured calibration](SOUND_LOUDNESS.md)
+to every recording, replacing peak normalization and matching each variation
+family. The existing role volumes retain quiet machinery and stronger reactions.
+
 At most four continuous layers and sixteen total sources play together, with
 quiet machinery below reactions. One-shots keep their natural tails, subject to
 the bounded source budget and per-emitter limits. This initial balance still

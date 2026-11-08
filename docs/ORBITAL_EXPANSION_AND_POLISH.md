@@ -5,6 +5,20 @@ barrage, a longer cutting laser and three widely spaced cluster shells. The
 laser was explicitly confirmed as both a 72-tile maximum cut and 18 seconds of
 firing. The numbers below are initial playtest tuning, not final balance.
 
+## 9 November: handing back the robot
+
+The author asked for the robot back while a strike falls. They also asked for R on
+the cutting beam, then withdrew it the same morning once it was built: the beam's
+two clicks already choose any direction, so the beam keeps no R.
+
+Committing a strike now closes targeting: the bar returns to Combat, the camera
+returns to the robot at the zoom it had before planning, and the mouse aims and
+fires again. The countdown stays on screen. When the caller's own order has been
+seen in flight and finishes, Deploy reopens on the strike tab for the next shot,
+unless the player is holding fire, driving, operating a gun, in Remote, in another
+panel or a dialog. The next strike still waits for the shared recovery timer. This
+is presentation only: orders, costs and server checks are unchanged.
+
 ## Orbital roster additions
 
 | Strike | First playable behavior | ORB | Recovery after last impact |

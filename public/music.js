@@ -9,8 +9,8 @@ export function setupMusic() {
   const audio = document.createElement('audio');
   audio.id = 'background-music'; audio.loop = true; audio.preload = 'none';
   document.body.append(audio);
-  // The author's own listening level (9 November 2026); a saved choice still wins.
-  let enabled = true, volume = .03, activated = false, pending = null, failed = false;
+  // On at the author's 5% (9 November 2026); a saved choice still wins.
+  let enabled = true, volume = .05, activated = false, pending = null, failed = false;
   const quick = document.getElementById('music-quick');
   let track = null, revision = 0, syncRequested = false;
   try {

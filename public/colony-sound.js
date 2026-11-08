@@ -1,5 +1,7 @@
 import {ColonySoundEvents} from './colony-sound-events.js';
 import {COLONY_SOUND_PROFILES, COLONY_SOUND_FILES, createColonyVariantSelector} from './colony-sound-catalog.js';
+import {SOUND_LEVELS} from './audio/effects/colony/loudness.js';
+import {soundSampleScale} from './sound-level.js';
 
 // Colony projection keeps world X horizontal. Local fishing feedback stays
 // centered; machinery and pets attenuate around the currently viewed garden.
@@ -17,7 +19,7 @@ export function setupColonySound({listener, active}) {
   const events = new ColonySoundEvents(), variants = createColonyVariantSelector();
   const files = [...new Set(COLONY_SOUND_FILES)], buffers = new Map(), failures = new Map();
   const playing = new Set(), retiring = new Set(), loops = new Map(), groups = new Map();
-  let enabled = true, volume = .55, context = null, master = null, loading = null, failure = '';
+  let enabled = true, volume = .25, context = null, master = null, loading = null, failure = '';
   let epoch = null, time = -Infinity, region = null, sceneLoops = [], advancedAt = -Infinity, reel = null;
   try {
     const saved = JSON.parse(localStorage.getItem('frontier-sound') || 'null');
@@ -61,8 +63,7 @@ export function setupColonySound({listener, active}) {
         catch (cause) { throw new Error('decode failed (' + (cause.name || 'audio format') + ')'); }
         let peak = 0;
         for (let c = 0; c < buffer.numberOfChannels; c++) for (const value of buffer.getChannelData(c)) peak = Math.max(peak, Math.abs(value));
-        if (!peak) throw new Error('silent recording');
-        return {buffer, scale: .8 / peak};
+        return {buffer, scale: soundSampleScale(SOUND_LEVELS[candidate], peak)};
       } catch (cause) { error = new Error(candidate.split('/').pop() + ': ' + cause.message); }
     }
     throw error;

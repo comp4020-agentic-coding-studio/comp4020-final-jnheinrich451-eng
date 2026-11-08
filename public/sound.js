@@ -1,12 +1,14 @@
 import {SoundEvents, spatialSound} from './sound-events.js';
 import {WorldSoundEvents} from './world-sound-events.js';
 import {SOUND_PROFILES, SOUND_FILES} from './sound-catalog.js';
+import {SOUND_LEVELS} from './audio/effects/generated/loudness.js';
+import {soundSampleScale} from './sound-level.js';
 export {SOUND_FILES};
 
 export function setupSound({listener, active}) {
   const toggle=document.getElementById('sound-toggle'), slider=document.getElementById('sound-volume');
   const status=document.getElementById('sound-status'), events=new SoundEvents(), worldEvents=new WorldSoundEvents(), quick=document.getElementById('sound-quick');
-  let enabled=true, volume=.55, context=null, master=null, loading=null, failed=false, failureDetail='';
+  let enabled=true, volume=.25, context=null, master=null, loading=null, failed=false, failureDetail='';
   const files=[...new Set(Object.values(SOUND_FILES))];
   const buffers=new Map(), loadFailures=new Map(), playing=new Set(), retiring=new Set(), groups=new Map(), sustained=new Map(), loops=new Map();
   let loopEpoch=null, loopTime=-Infinity;
@@ -57,7 +59,7 @@ export function setupSound({listener, active}) {
         catch(error){throw new Error('decode failed ('+(error.name||'audio format')+')');}
         let peak=0;
         for(let c=0;c<buffer.numberOfChannels;c++)for(const value of buffer.getChannelData(c))peak=Math.max(peak,Math.abs(value));
-        return {buffer,scale:peak>0?.8/peak:1};
+        return {buffer,scale:soundSampleScale(SOUND_LEVELS[candidate],peak)};
       }catch(error){failure=new Error(candidate.split('/').pop()+': '+error.message);}
     }
     throw failure;

@@ -62,6 +62,10 @@ test('catalogue tabs, spec sheet and keyboard placement on desktop', async ({ br
     await expect(page.locator('#keys-dialog')).toBeVisible();
     await expect(page.locator('#keys-now')).toContainText('Deploy catalogue'); await expect(page.locator('#keys-now')).toContainText('Pointer and movement');
     await expect(page.locator('#keys-now')).not.toContainText('Toggle LMB: HE / Magnetic');
+    // Remote, strike and runway keys belong to their own state, not to Anywhere.
+    await expect(page.locator('#keys-now')).not.toContainText('Return a ship or helicopter home');
+    await expect(page.locator('#keys-now')).not.toContainText('Airbase: turn the double runway');
+    await expect(page.locator('#keys-now')).toContainText('Fuel jet on foot');
     await page.screenshot({ path: '.local/key-reference-desktop.png' });
     await page.keyboard.press('Escape'); await expect(page.locator('#keys-dialog')).toBeHidden();
     const zoom = await page.locator('#zoom-label').textContent();

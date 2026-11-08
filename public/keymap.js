@@ -5,7 +5,7 @@
 // WASD layout works on non-QWERTY keyboards; symbols keep their typed meaning.
 
 export const SCOPES = Object.freeze({
-  global: 'Anywhere', catalogue: 'Deploy catalogue', placing: 'Placing', combat: 'Weapons',
+  global: 'Anywhere', remote: 'Remote', strike: 'Orbital strike', catalogue: 'Deploy catalogue', placing: 'Placing', combat: 'Weapons',
   recycler: 'Recycler', tank: 'Tank', gun: 'Cannon / missile battery', ship: 'Ship', submarine: 'Submarine', aircraft: 'Aircraft',
 });
 
@@ -13,21 +13,21 @@ const bind = (id, keys, label, scope, text, extra = {}) => Object.freeze({ id, k
 
 export const BINDINGS = Object.freeze([
   // Vehicle seats and context keys come first: they override the global meaning.
-  bind('remote-air-rotate',['r'],'R','global','Remote: return a ship or helicopter home, or turn an aircraft approach'),
-  bind('remote-slot',['1','2','3','4'],'1–4','global','Remote: choose shells or bomber payload'),
-  bind('remote-ramp',['g'],'G','global','Remote: ship ramp at the nearest shore, or helicopter landing at the cursor'),
-  bind('remote-sling',['v'],'V','global','Remote helicopter: lift or drop a vehicle at the cursor'),
-  bind('remote-launch',['l'],'L','global','Remote carrier: launch its aircraft'),
-  bind('remote-turn',['t'],'T','global','Remote submarine: turn the strike area'),
-  bind('orbital-rotate', ['r'], 'R', 'global', 'Rotate orbital strike preview'),
-  bind('runway-turn', ['r'], 'R', 'global', 'Turn an airbase while placing it'),
+  bind('remote-air-rotate',['r'],'R','remote','Return a ship or helicopter home, or turn an aircraft approach'),
+  bind('remote-slot',['1','2','3','4'],'1–4','remote','Choose shells or bomber payload'),
+  bind('remote-ramp',['g'],'G','remote','Ship ramp at the nearest shore, or helicopter landing at the cursor'),
+  bind('remote-sling',['v'],'V','remote','Helicopter: lift or drop a vehicle at the cursor'),
+  bind('remote-launch',['l'],'L','remote','Carrier: launch its aircraft'),
+  bind('remote-turn',['t'],'T','remote','Submarine: turn the strike area'),
+  bind('orbital-rotate', ['r'], 'R', 'strike', 'Rotate walking HE, fire curtain or cluster line'),
+  bind('runway-turn', ['r'], 'R', 'placing', 'Airbase: turn the double runway'),
   bind('heli-sling',['v'],'V','aircraft','Helicopter sling: lift / set down vehicle'),
-  bind('orbital-open', ['v'], 'V', 'global', 'Aim selected orbital strike'),
+  bind('orbital-open', ['v'], 'V', 'global', 'Aim the selected orbital strike'),
   bind('bomber-open', ['h'], 'H', 'global', 'Aircraft support and landing orders'),
   bind('recycler-board', ['e'], 'E', 'recycler', 'Board or leave the recycler / bridge builder'),
   bind('station-open', ['e'], 'E', 'recycler', 'Open a nearby launch station on foot'),
   bind('builder-plan', ['g'], 'G', 'recycler', 'Bridge builder: plan a bridge'),
-  bind('recycler-launch', ['l'], 'L', 'recycler', 'Recycler beside a station: send cargo or open ground logistics'),
+  bind('recycler-launch', ['l'], 'L', 'recycler', 'Recycler beside a station: send its cargo'),
   bind('aircraft-board', ['e'], 'E', 'aircraft', 'Board, land helicopter on clear ground, or disembark'),
   bind('aircraft-space', [' '], 'Space', 'aircraft', 'Reserved while flying (bombs use LMB)'),
   bind('sub-depth', [' ', 'controlleft', 'controlright'], 'Ctrl / Space', 'submarine', 'Dive / surface'),
@@ -48,15 +48,15 @@ export const BINDINGS = Object.freeze([
   bind('ship-board', ['e'], 'E', 'ship', 'Board or leave the ship'),
   bind('tank-board', ['e'], 'E', 'tank', 'Board or leave the tank'),
   bind('place-confirm', ['enter'], 'Enter', 'placing', 'Confirm the selected site', { shift: false }),
-  bind('place-repeat', ['enter'], 'Shift+Enter', 'placing', 'Confirm and keep placing (sentry, rail)', { shift: true }),
+  bind('place-repeat', ['enter'], 'Shift+Enter', 'placing', 'Confirm and keep placing', { shift: true }),
   bind('chat', ['enter'], 'Enter', 'global', 'Open chat / send and close; empty sends close; Esc keeps draft'),
   bind('emote', ['q'], 'Q (hold)', 'global', 'Emote wheel: point, then release Q to send; Esc cancels'),
   bind('rail-shape', ['r'], 'R', 'placing', 'Rail: cycle shape'),
   bind('rail-length', ['t'], 'T', 'placing', 'Rail: toggle 1 / 5 tiles'),
-  bind('remote', ['f'], 'F', 'global', 'Select a cannon or missile launcher remotely'),
+  bind('remote', ['f'], 'F', 'global', 'Remote: order guns, ships and aircraft from the map'),
   bind('deploy', ['b'], 'B', 'global', 'Deploy catalogue'),
-  bind('secondary', ['j'], 'J (hold)', 'combat', 'Secondary weapon'),
-  bind('primary', [' '], 'Space', 'combat', 'Primary weapon'),
+  bind('secondary', ['j'], 'J (hold)', 'combat', 'Laser on foot; a vehicle\'s secondary weapon'),
+  bind('primary', [' '], 'Space', 'combat', 'Fuel jet on foot; a vehicle\'s main gun'),
   bind('back', ['escape'], 'Esc', 'global', 'Back / close current window; resume or open room menu'),
   bind('sub-rotate', ['r'], 'R', 'submarine', 'Rotate the strike area'),
   bind('recenter', ['c'], 'C', 'global', 'Recenter on yourself'),
@@ -66,7 +66,7 @@ export const BINDINGS = Object.freeze([
   bind('grid', ['g'], 'G', 'global', 'Toggle tile grid'),
   bind('logistics', ['l'], 'L', 'global', 'Logistics and supplies'),
   bind('planet-open', ['n'], 'N', 'global', 'Campaign globe'),
-  bind('overview', ['m'], 'M', 'global', 'Toggle survey overview'),
+  bind('overview', ['m'], 'M', 'global', 'Flat tactical overview'),
   bind('objective-next', ['o'], 'O', 'global', 'Locate next hostile site', { shift: false }),
   bind('objective-prev', ['o'], 'Shift+O', 'global', 'Locate previous hostile site', { shift: true }),
   bind('room', ['p'], 'P', 'global', 'Room menu (solo pauses)'),
@@ -83,10 +83,10 @@ export const POINTER = Object.freeze([
   ['Tank / utility driving', 'W forward, S reverse; A/D turn the hull; release to brake'],
   ['Recycler', 'Park near salvage to collect, beside a station to unload; the gold ring fills with your load'],
   ['Ship steering', 'Hold A/D to steer; release to centre rudder; W/S selects persistent throttle'],
-  ['Tank driving', 'World-direction steering; slower reverse; release to brake'],
   ['Mouse', 'Aim (gold crosshair = desired target)'],
-  ['LMB / Space', 'Primary weapon'],
-  ['RMB / J (hold)', 'Secondary weapon'],
+  ['LMB / Space', 'Fuel jet on foot; a vehicle\'s main gun'],
+  ['RMB / J (hold)', 'Laser on foot; a vehicle\'s secondary weapon'],
+  ['Wheel / pinch', 'Zoom at the pointer'],
   ['Middle-drag', 'Pan the map'],
 ]);
 
@@ -101,3 +101,10 @@ export function keyOf(event) {
 }
 
 export const bindingFor = id => BINDINGS.find(b => b.id === id);
+
+// Mouse rows for a contextual section, shown with its keys in the reference.
+export const SCOPE_POINTER = Object.freeze({
+  remote: [['LMB', 'Attack at the cursor'], ['RMB', 'Move there; on a free friendly dock, moor'], ['Esc / F', 'Leave Remote']],
+  strike: [['LMB / tap', 'Call the strike; the cutting beam takes a start, then an endpoint'], ['B', 'Back to the shelf to choose another'], ['Esc', 'Stop aiming']],
+  placing: [['LMB', 'Place with ORB'], ['RMB', 'Build with GND inside support'], ['Shift + click', 'Keep placing']],
+});

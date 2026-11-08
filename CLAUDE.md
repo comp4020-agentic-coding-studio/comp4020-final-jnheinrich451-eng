@@ -392,8 +392,8 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   joins/reconnects silently, discard stale/muted history, and bound simultaneous
   browser voices. Music/effects have independent saved controls; hidden tabs stop
   effects. A note and a bars switch beside the HUD menu (under the minimap on
-  phones) turn them on and off; volumes stay in the field guide, and music starts
-  at 3% until a player saves a level (author, 9 November 2026). The author's generated audio uses `public/sound-catalog.js`; treat
+  phones) turn them on and off; volumes stay in the field guide. Both start on,
+  music at 5% and effects at 25%, until a player saves a level (author, 9 November 2026). The author's generated audio uses `public/sound-catalog.js`; treat
   supplied shot clips as one-shot even when their filename says loop/burst.
   Flame/beam playback needs continuing confirmed firing, and projectile traces
   must never retrigger a discharge. Audio checks must measure nonzero samples in
@@ -415,6 +415,13 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   on reconnect or region changes. Keep four continuous layers within sixteen
   sources, stop on pause/hide/disconnect, and share saved effects controls across
   modes independently of music. See `docs/COLONY_SOUND_EFFECTS.md`.
+- Sound-effect calibration uses measured per-codec loudness gains, not peak
+  normalization. Preserve audio bytes and authored prompts; keep variant-family
+  targets together, existing role volumes and the decoded-peak guard. Recalibrate
+  after replacing recordings or changing catalogue gains, and run
+  `node scripts/measure-sound-effects.mjs --check`. The peak policy bounds a
+  single voice after role gain, before panning/mixing; final output still needs
+  native browser checks. See `docs/SOUND_LOUDNESS.md`.
 - Background music follows the saved planet and mode through one browser
   player: Caldera / Apex of Conquest, Sirocco / Crimson Vanguard, Vesper / Steel
   Wrought Ascent; Morrow / Twilight Over the Still Lake, Nacre / Harvest at Low
@@ -884,6 +891,11 @@ Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
 - Choosing an orbital strike closes Deploy for direct map targeting. B reopens
   the catalogue for reselection without spending; R rotates directional strikes
   and Esc exits targeting. Keep touch alternatives compact and the map visible.
+  The cutting beam has no R: its two clicks already set any direction. A committed
+  strike closes targeting and hands the robot back (Combat, camera and zoom on the
+  robot). When the caller's own strike has landed, Deploy reopens on the strike
+  tab, unless they are firing, driving, operating or in another panel (author,
+  9 November 2026; `docs/ORBITAL_EXPANSION_AND_POLISH.md`).
 - Orbital expansion: heavy bomb, seeded 15-second barrage and three spaced
   cluster shells with saved smaller impacts. New cutting beams allow 72 tiles
   over 18 seconds; accepted orders retain their saved profiles and timing.
@@ -910,7 +922,8 @@ Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
 - UI is presentation and input only: never alter server rules, prices or save
   formats from the UI. Add keys to `public/keymap.js` BINDINGS (precedence,
   labels, F1) and assets to `public/catalogue.js`; never reuse asset codes;
-  numeric shortcuts follow category order.
+  numeric shortcuts follow category order. A key that works in only one state
+  takes that state's scope, never `global`: F1 lists global keys everywhere.
 - Deploy is a shelf with one tile per item. With a mouse the ghost follows the
   cursor: LMB places with ORB, RMB builds with GND inside support, Shift keeps
   placing. Touch and the coordinate form keep an explicit confirm and both prices.
