@@ -7,6 +7,13 @@ and decided what needed changing. I wrote some instructional material myself;
 agents wrote nearly all the code and drafted most documents from our exchanges,
 including this one.
 
+> **Evidence shortcuts:** [Full guide](docs/evidence/README.md) ·
+> [Carrier sketches](docs/evidence/mycorrhizal-carrier/README.md) ·
+> [Ship/scene image–prompt pairs](output/video-frames/) ·
+> [Enemy image–prompt pairs](output/enemy-review/) ·
+> [Sound prompts](soundeffect/GENERATION.md) ·
+> [Test screenshots](docs/testing/evidence/) · [Stage records](docs/).
+
 ## From brief to direction
 
 The [brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/assessments/final-project/)
@@ -59,8 +66,7 @@ I reviewed a bounded proposal, let the agent implement and check it, then played
 and corrected the result. Codex and Claude Code worked in parallel on different
 parts of the game. Sharing a working tree required commits naming exact paths
 ([`489da0b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/489da0b)).
-The cases below examine selected corrections. The [evidence guide](docs/evidence/README.md)
-opens the wider collection of drawings, prompt/image pairs, audio and checks.
+The cases below follow selected corrections.
 
 ## Drawings made the visual instructions more precise
 
