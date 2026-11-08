@@ -59,25 +59,35 @@ I reviewed a bounded proposal, let the agent implement and check it, then played
 and corrected the result. Codex and Claude Code worked in parallel on different
 parts of the game. Sharing a working tree required commits naming exact paths
 ([`489da0b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-jnheinrich451-eng/commit/489da0b)).
-The cases below show why completing a stage still left work to do.
+The cases below examine selected corrections. The [evidence guide](docs/evidence/README.md)
+opens the wider collection of drawings, prompt/image pairs, audio and checks.
 
 ## Drawings made the visual instructions more precise
 
-For the [Iowa-style gunship](docs/SHIP_VISUAL_SCALE.md#iowa-silhouette-24-october-2026),
-I supplied a hull sketch and an overhead reference photograph. After the first
-pass, I requested a slimmer hull, longer bow and inboard secondary guns. Separate
-sketches then refined the main turrets and secondary mounts. Each review isolated
-one part of the design so its correction could be specific.
+The carrier's first render kept my greenhouse but flattened the sharp bow. My
+[second sketch](docs/evidence/mycorrhizal-carrier/sketch-2-scythe.png) and
+[Codex's revised prompt](output/video-frames/mycorrhizal-carrier-concept-v2-prompt.txt)
+made the scythe profile explicit in the [next render](docs/evidence/mycorrhizal-carrier/mycorrhizal-carrier-concept-v2.png).
+The [sequence](docs/evidence/mycorrhizal-carrier/README.md) preserves that correction
+and further attempts to open the shuttle bay.
+
+| My first sketch | First generated interpretation |
+| --- | --- |
+| ![Author's carrier sketch with a greenhouse and sharp bow](docs/evidence/mycorrhizal-carrier/sketch-1-first.png) | ![Generated carrier with a greenhouse and flattened bow](docs/evidence/mycorrhizal-carrier/terraforming-carrier-concept-v1.png) |
+
+[Read Codex's prompt for this render](output/video-frames/terraforming-carrier-concept-v1-prompt.txt).
+
+The [Iowa-style gunship](docs/SHIP_VISUAL_SCALE.md#iowa-silhouette-24-october-2026)
+likewise needed separate hull, turret and mount corrections. Isolating each part
+made review specific.
 
 The [rail MAC](docs/RAIL_WEAPONS_POLISH.md#electromagnetic-mac-appearance-25-october-2026)
-needed another kind of clarification: a ring turning around the barrel had been
-interpreted as a gear spinning in place. My labelled sketch clarified the ring,
-coils and cables. A drawing communicated geometry that a general style request
-left open; seeing it move exposed what the drawing alone had not settled.
+exposed a motion ambiguity: a ring turning around the barrel became a gear spinning
+in place. My labelled sketch clarified the geometry; seeing it move exposed what
+the drawing alone had not settled.
 
-Iteration also needed a stopping point. I started an intro video but stopped at
-one scene, now the [title loop](docs/OPENING_LOOP.md), because I judged the effect
-did not repay the time.
+I stopped the intro video at one scene, now the [title loop](docs/OPENING_LOOP.md),
+because further work did not repay the time.
 
 ## Audio needed listening as well as integration
 
@@ -87,7 +97,9 @@ Codex ([music record](docs/AUDIO_PLAN.md)). The exact music prompts are not
 recorded here. For effects, Codex inventoried weapons and proposed missing calibres;
 I generated and selected ElevenLabs recordings. Most needed two or three prompt
 revisions; the retained [generation history](soundeffect/GENERATION.md#origin-and-authorship)
-shows three for the machine gun and four for the railgun. Even then, a burst was
+shows three for the [machine gun](docs/evidence/sound-generation/elevenlabs-machine-gun-prompts.png)
+and four for the [railgun](docs/evidence/sound-generation/elevenlabs-railgun-prompts.png).
+Even then, a burst was
 wrong for individual machine-gun shots, so I supplied a single-shot replacement.
 
 Integration exposed a different problem: checks passed while I heard silence.
@@ -112,9 +124,10 @@ machine list
 but its panels felt "like an engineer file" and its power startup "a dead loop".
 Manual loading was intended to start the chain, but that was unclear in play.
 My [correction](docs/COLONY_INDUSTRY_STAGE.md#8-november-2026-one-card-one-job-a-charged-start)
-led to simpler cards, automatic recipe selection and a one-time starter power
-reserve. This required changing the interaction and starting conditions as well
-as the wording.
+led from the [earlier inspector](docs/testing/evidence/2026-11-02/colony-industry-processor-phone.png)
+to [simpler cards](docs/testing/evidence/2026-11-08/colony-card-phone.png), automatic
+recipe selection and a one-time starter power reserve: changes to interaction and
+starting conditions as well as wording.
 
 ## What became reusable
 

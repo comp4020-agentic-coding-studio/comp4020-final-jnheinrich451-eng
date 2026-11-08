@@ -1,13 +1,15 @@
 # MYCORRHIZAL carrier design evidence
 
-Source material for `research-note.md`: how one spacecraft went from the author's
-hand sketch to the four-view sheet behind the colony menu ship. These are records,
-not game assets, and the game loads nothing from this folder.
+Source material for [PROCESS.md](../../../PROCESS.md) and
+[research-note.md](../../../research-note.md): how one spacecraft went from the
+author's hand sketch to the four-view sheet behind the colony menu ship. These are
+records, not game assets, and the game loads nothing from this folder.
 
 The sketches are the author's. Codex wrote the prompts and ran the image tool, so
-the prompt wording is Codex's. Prompts stay beside the originals in
-`output/video-frames/`. PNGs there are not tracked, so the images here are exact
-copies. Times are file timestamps from the author's machine on 1 November 2026.
+the prompt wording is Codex's. Prompts and original generated PNGs are tracked in
+[output/video-frames](../../../output/video-frames/); the generated images here
+are exact copies. Times are file timestamps from the author's machine on
+1 November 2026. The [wider evidence guide](../README.md) covers other design work.
 
 | Step | Time | Author's input named in the prompt | Image | Prompt |
 | --- | --- | --- | --- | --- |
@@ -18,7 +20,7 @@ copies. Times are file timestamps from the author's machine on 1 November 2026.
 | v4 | 07:26 | Overhang and arm sketch | [Image](mycorrhizal-carrier-recessed-arms-v4.png) | [Prompt](../../../output/video-frames/mycorrhizal-carrier-recessed-arms-v4-prompt.txt) |
 | v5 | 08:05 | Open-bottom sketch | [Image](mycorrhizal-carrier-open-bottom-v5.png) | [Prompt](../../../output/video-frames/mycorrhizal-carrier-open-bottom-v5-prompt.txt) |
 | Four-view sheet | 23:19 | A selected version | [Image](mycorrhizal-white-gold-design-sheet-v1.png) | [Prompt](../../../output/video-frames/mycorrhizal-white-gold-design-sheet-v1-prompt.txt) |
-| Overhead ship | Not recorded here | None named | Not copied | [Prompt](../../../output/video-frames/mycorrhizal-white-gold-top-v1-prompt.txt) |
+| Overhead ship | Not recorded here | None named | [Image](../../../output/video-frames/mycorrhizal-white-gold-top-v1.png) | [Prompt](../../../output/video-frames/mycorrhizal-white-gold-top-v1-prompt.txt) |
 
 ## Limits of this record
 
