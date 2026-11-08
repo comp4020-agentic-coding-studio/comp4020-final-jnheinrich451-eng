@@ -3,6 +3,7 @@ import { hullMaximum } from './vehicle.js';
 import { largeHull, shipDimensions, shipArtScale } from './naval-scale.js';
 import { sandSeaAt, isSandSeaWorld, navalText } from './biome.js';
 ﻿import { hullHealth, VEHICLE, vehicleKind } from './vehicle.js';
+import { drawSwimmerBody } from './enemy-art.js';
 const seen=new Map();
 /** @param {object|null} [world] Saved world used only for biome presentation. */
 export function drawVehicleState(c,v,T,zoom,now,reduced,world=null) {
@@ -30,12 +31,10 @@ export function drawVehicleState(c,v,T,zoom,now,reduced,world=null) {
 /** @param {object|null} [world] Saved world used only for biome presentation. */
 export function drawSwimmer(c,e,time,T,reduced,hit=0,world=null) {
  c.save();c.translate(e.x*T,e.y*T);c.rotate(e.angle||0);
- const wave=reduced?0:Math.sin(time*8+e.id)*5;
  const sand=sandSeaAt(world,e.x,e.y);
- c.strokeStyle=sand?'#e6be7077':'#a3dcd277';c.lineWidth=2;c.beginPath();c.ellipse(0,9,23,11,0,0,Math.PI);c.stroke();
- if(sand){c.fillStyle='#b28a4755';for(const side of[-1,1]){c.beginPath();c.ellipse(side*14,18,11,6,side*.4,0,Math.PI*2);c.fill();}}
- c.fillStyle=hit?'#ffc7ae':e.burnUntil?'#614341':'#ae454e';
- c.beginPath();c.moveTo(0,-22);c.quadraticCurveTo(16,-16,13,7);c.lineTo(18+wave,24);c.lineTo(0,15);c.lineTo(-18-wave,24);c.lineTo(-13,7);c.quadraticCurveTo(-16,-16,0,-22);c.fill();
- c.fillStyle=sand?'#cfaa69':'#df7965';for(const side of [-1,1]){c.beginPath();c.moveTo(side*9,-9);c.lineTo(side*(26+wave),8);c.lineTo(side*8,6);c.fill();}
- c.fillStyle='#ffde9b';c.fillRect(-7,-16,4,5);c.fillRect(3,-16,4,5);c.restore();
+ // The wake (and dust on a sand sea) marks the surface it cuts; enemy-art.js draws the body.
+ c.strokeStyle=sand?'#e6be7077':'#a3dcd277';c.lineWidth=2;c.beginPath();c.ellipse(0,10,26,13,0,0,Math.PI);c.stroke();
+ if(sand){c.fillStyle='#b28a4755';for(const side of[-1,1]){c.beginPath();c.ellipse(side*16,20,11,6,side*.4,0,Math.PI*2);c.fill();}}
+ drawSwimmerBody(c,e,{time,pose:e.pose,hit,burning:!!e.burnUntil,reduced});
+ c.restore();
 }

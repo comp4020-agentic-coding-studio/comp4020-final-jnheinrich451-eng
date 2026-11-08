@@ -12,15 +12,20 @@ export const ENEMY_ROLES = Object.freeze({
   hunter: Object.freeze({ name: 'Hunter', hp: 60, speed: 2.6, penetration: 2,
     damage: SURVIVAL.damage, reach: SURVIVAL.reach, radius: SURVIVAL.strikeRadius,
     windup: SURVIVAL.windup, cooldown: SURVIVAL.cooldown }),
+  // Gas no longer kills a Breaker on contact: it wears it down and confuses it
+  // (author, 9 November 2026). Fire, fuel and guns still kill it as before.
   breaker: Object.freeze({ name: 'Breaker', hp: 180, speed: .95, penetration: 3,
-    damage: 50, reach: 1.3, radius: 1, windup: 1400, cooldown: 2200 }),
+    damage: 50, reach: 1.3, radius: 1, windup: 1400, cooldown: 2200, gasDps: 20, gasConfusion: 3000 }),
+  // Hazards still never kill a Bulwark on contact, lure it or turn it aside, but gas
+  // wears it down and fire (fields, their heat band and fuel pools) halves its speed
+  // without panic (author, 9 November 2026).
   bulwark: Object.freeze({ name: 'Bulwark', hp: 450, speed: .65, penetration: 3,
-    damage: 75, reach: 1.4, radius: 1.1, windup: 1800, cooldown: 2800, hazardImmune: true }),
+    damage: 75, reach: 1.4, radius: 1.1, windup: 1800, cooldown: 2800, hazardImmune: true, gasDps: 20, fireSlow: .5 }),
 });
 export const enemyProfile = enemy => ENEMY_ROLES[enemy.kind] || ENEMY_ROLES.hunter;
 export const heavyEnemy = enemy => ['breaker', 'bulwark', 'centipede'].includes(enemy.kind);
 export const canDamageEnemy = (enemy, weapon) => canWeaponTarget(enemy, weapon) &&
-  (!['bulwark', 'centipede'].includes(enemy.kind) || ['HE', 'MAGNETIC', 'MAC'].includes(weapon));
+  (!['bulwark', 'centipede'].includes(enemy.kind) || ['HE', 'MAGNETIC', 'MAC'].includes(weapon) || (enemy.kind === 'bulwark' && weapon === 'GAS'));
 export function newGroundEnemy(kind, id, point) {
   const role = kind !== 'skimmer' && Object.hasOwn(ENEMY_ROLES, kind) ? kind : 'hunter', profile = ENEMY_ROLES[role];
   return { id, kind: role, ...point, hp: profile.hp, maxHp: profile.hp, angle: 0, path: [], reroute: 0 };

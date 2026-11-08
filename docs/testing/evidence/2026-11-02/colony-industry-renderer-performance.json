@@ -1,0 +1,124 @@
+{
+  "scope": "Synthetic renderer-only Chrome probe; no app, save, networking or tick measurement. Baseline is exact art file immediately before industry edits with same synthetic state. Max fixture exercises caps; some synthetic overlaps are intentional.",
+  "browser": "155.0.8059.86",
+  "results": [
+    {
+      "name": "desktop-chain",
+      "width": 1440,
+      "height": 1000,
+      "dpr": 1,
+      "tile": 66,
+      "x": 35,
+      "y": 31,
+      "drawMs": {
+        "mean": 1.3870967741935485,
+        "p95": 1.7000000476837158,
+        "max": 3.299999952316284
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "phone-chain",
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "tile": 32,
+      "x": 34.5,
+      "y": 31,
+      "drawMs": {
+        "mean": 1.4258064541124529,
+        "p95": 1.9000000953674316,
+        "max": 2.5
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "desktop-ports",
+      "width": 1280,
+      "height": 900,
+      "dpr": 1,
+      "tile": 85,
+      "x": 35.5,
+      "y": 31,
+      "selected": "p1",
+      "drawMs": {
+        "mean": 1.264516124802251,
+        "p95": 1.8000000715255737,
+        "max": 3
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "desktop-ghost",
+      "width": 1280,
+      "height": 900,
+      "dpr": 1,
+      "tile": 72,
+      "x": 35.5,
+      "y": 31,
+      "ghost": true,
+      "drawMs": {
+        "mean": 1.4209677365518385,
+        "p95": 1.9000000953674316,
+        "max": 2.799999952316284
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "desktop-max-before",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 39,
+      "x": 35,
+      "y": 30,
+      "max": true,
+      "baseline": true,
+      "drawMs": {
+        "mean": 3.7370967740012753,
+        "p95": 5.399999976158142,
+        "max": 8.600000023841858
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "desktop-max-after",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 39,
+      "x": 35,
+      "y": 30,
+      "max": true,
+      "drawMs": {
+        "mean": 4.878225799529783,
+        "p95": 7,
+        "max": 8.300000071525574
+      },
+      "reducedStable": true,
+      "errors": []
+    },
+    {
+      "name": "phone-max-after",
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "tile": 29,
+      "x": 35,
+      "y": 30,
+      "max": true,
+      "drawMs": {
+        "mean": 3.909677417047562,
+        "p95": 5.299999952316284,
+        "max": 6.199999928474426
+      },
+      "reducedStable": true,
+      "errors": []
+    }
+  ]
+}

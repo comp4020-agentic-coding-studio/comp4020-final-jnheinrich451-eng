@@ -30,7 +30,7 @@ it.each(['EW','NS'])('saves exactly five %s rail floor tiles and retires the fin
   tickCargoPods(saved,3,128);expect(saved.cargoPods).toHaveLength(0);
   expect(saved.floors.sort((a:number,b:number)=>a-b)).toEqual(cells.map(c=>c.y*128+c.x).sort((a,b)=>a-b));
 });
-it.each([['helipad',45],['missile',80],['airbase',300],['outpost',20],['recycler',5]] as const)('matches every preview cell to the %s reservation', (kind,count)=>{
+it.each([['helipad',45],['missile',80],['airbase',360],['outpost',20],['recycler',5]] as const)('matches every preview cell to the %s reservation', (kind,count)=>{
   const p=cargoSite(kind,30,30)!;const cells=cargoCells(p);
   expect(cells).toHaveLength(count);expect(new Set(cells.map(c=>`${c.x}:${c.y}`)).size).toBe(count);
   for(let y=15;y<60;y++)for(let x=15;x<60;x++)expect(cargoContains(p,x+.5,y+.5)).toBe(cells.some(c=>c.x===x&&c.y===y));

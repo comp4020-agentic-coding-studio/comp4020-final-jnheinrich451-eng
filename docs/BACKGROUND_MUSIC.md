@@ -7,7 +7,9 @@ See its README for source provenance.
 
 The track loops during travel, construction and combat. Playback starts after a
 click, tap or key press, respecting browser autoplay restrictions. Help (?) has
-music on/off and volume controls near the top. The default is enabled at 25%.
+music on/off and volume controls near the top. The default is enabled at 3%, the
+author's own listening level, since 9 November 2026 (25% before); a saved level
+still wins. A note switch beside the HUD menu turns music on and off as well.
 Preferences persist in this browser, separately from campaign saves. Hidden tabs
 pause playback; returning resumes when browser policy permits. Playback failures
 show a retry instruction without blocking gameplay. There is one HTML audio

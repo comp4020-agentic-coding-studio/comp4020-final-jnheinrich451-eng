@@ -1,0 +1,4 @@
+# Separate from the game: this folder installs on its own, so Remotion never
+# reaches the root lockfile, CI or the Docker image.
+allowBuilds:
+  esbuild: true

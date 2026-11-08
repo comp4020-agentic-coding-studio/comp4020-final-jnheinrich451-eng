@@ -28,7 +28,8 @@ async function fixture(browser, mobile, run, reducedMotion = 'no-preference') {
       window.arrivalFrame = [];
       const fill = CanvasRenderingContext2D.prototype.fillRect;
       CanvasRenderingContext2D.prototype.fillRect = function(x, y, width, height) {
-        if (this.canvas.classList.contains('entry-scene') && x === 0 && y === 0 && width >= innerWidth && height >= innerHeight) window.arrivalFrame = [];
+        // A frame starts with a plain full clear; the descent's light grade fills the frame too, but blended.
+        if (this.canvas.classList.contains('entry-scene') && this.globalCompositeOperation === 'source-over' && x === 0 && y === 0 && width >= innerWidth && height >= innerHeight) window.arrivalFrame = [];
         return fill.apply(this, arguments);
       };
       const draw = CanvasRenderingContext2D.prototype.drawImage;

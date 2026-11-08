@@ -1,5 +1,5 @@
-import {SHIP,canSail,sailStep,rampClear,mooredDock,dockComplete} from './ship.js';
-import {shipDimensions,largeHull} from './naval-scale.js';
+import {SHIP,canSail,sailStep,rampClear,mooredDock,dockComplete,dockMooringRange} from './ship.js';
+import {shipDimensions,largeHull,largeDock} from './naval-scale.js';
 import {dockRecords} from './shipyard.js';
 import {stopShip,shipStopped} from './ship-motion.js';
 import {deckLocked} from './carrier.js';
@@ -25,6 +25,17 @@ export function remoteShipError(world,s){
  if(!s||!operational(s)||s.assemblyRemaining>0||world.logistics?.jobs?.[s.id])return 'Choose a completed, living ship.';
  if(s.occupant)return 'A pilot is at the helm.';
  return null;
+}
+// Any intact friendly dock takes a visitor, as any free runway does. The visit changes
+// no assignment: Return still means the ship's own dock.
+export function visitDockError(world,s,yard){
+ const error=remoteShipError(world,s);if(error)return error;
+ if(!yard||yard.dockDestroyed)return 'Choose an intact friendly dock.';
+ if(!dockComplete(yard))return 'Wait for that dock to finish unfolding.';
+ if(largeHull(s)&&!largeDock(yard))return 'This hull is too large for that berth.';
+ if(deckLocked(world,s))return 'Wait for carrier flight operations to finish.';
+ const range=dockMooringRange(yard),taken=o=>o.id!==s.id&&!o.destroyed&&(Math.hypot(o.x-yard.berthX,o.y-yard.berthY)<=range||o.remoteOrder?.kind==='dock'&&active(o.remoteOrder)&&o.remoteOrder.yardId===yard.id);
+ return (world.ships||[]).some(taken)?'That berth is taken. Choose a free dock.':null;
 }
 function turnClear(world,s,x,y,from,to){
  const d=angleDelta(from,to),steps=Math.ceil(Math.abs(d)/.12);
@@ -89,7 +100,7 @@ function cardinalRoute(world,s,goal,budget){
 }
 export function planNavalOrder(world,buildings,people,s,data){
  const error=remoteShipError(world,s);if(error)return {error};
- if(!['move','shore','bombard','stop','ramp','dock'].includes(data.action))return {error:'Choose Move, Shore, Return to dock, Bombard, Ramp or Stop.'};
+ if(!['move','shore','bombard','stop','ramp','dock'].includes(data.action))return {error:'Choose Move, Shore, Moor, Return to dock, Bombard, Ramp or Stop.'};
  if(s.kind==='submarine'&&['shore','bombard','ramp'].includes(data.action))return {error:'Submarines use Move, Return, depth controls and Missile strike.'};
  if(data.action==='stop')return {order:{kind:'stop',phase:'holding'}};
  if(data.action==='bombard'){
@@ -105,8 +116,9 @@ export function planNavalOrder(world,buildings,people,s,data){
  }
  if(deckLocked(world,s))return {error:'Wait for carrier flight operations to finish.'};
  if(data.action==='dock'){
-  const error=returnDockError(world,s);if(error)return {error};
-  const yard=homeDock(world,s),berth={x:yard.berthX,y:yard.berthY,angle:yard.dock.angle},goal={...berth};
+  const visit=data.dockId!==undefined,yard=visit?dockRecords(world).find(y=>y.id===data.dockId):homeDock(world,s);
+  const error=visit?visitDockError(world,s,yard):returnDockError(world,s);if(error)return {error};
+  const berth={x:yard.berthX,y:yard.berthY,angle:yard.dock.angle},goal={...berth};
   // Wide carriers touch the mathematical pier edge at the original centre.
   // Leave 0.25 tile of fender clearance, inside the existing 0.8 docking range,
   // so tiny physical steering corrections cannot wedge a corner into the pier.
@@ -114,7 +126,7 @@ export function planNavalOrder(world,buildings,people,s,data){
    const side=Math.sign((goal.x-yard.dock.x)*Math.cos(goal.angle)+(goal.y-yard.dock.y)*Math.sin(goal.angle));
    goal.x+=Math.cos(goal.angle)*side*.25;goal.y+=Math.sin(goal.angle)*side*.25;
   }
-  if(!canSail(world,s,goal.x,goal.y,goal.angle))return {error:'Home berth obstructed. Clear the water beside the dock first.'};
+  if(!canSail(world,s,goal.x,goal.y,goal.angle))return {error:'Berth obstructed. Clear the water beside the dock first.'};
   // Align in open water, then enter along the berth axis. No final broadside
   // turn through the pier, snapping, or collision exemption.
   let path=null;const routingShip={...s,routeTurnMargin:.2};
@@ -126,7 +138,7 @@ export function planNavalOrder(world,buildings,people,s,data){
    if(path)break;if(!pointValid(world,p)||!legClear(world,s,p,goal,goal.angle))continue;
    const route=shipRoute(world,routingShip,p);if(route)path=[...route,{...goal,reverse:p.direction>0}];
   }
-  if(!path)return {error:'No clear approach to the home dock. Move into nearby open water or clear the approach, then return again.'};
+  if(!path)return {error:'No clear approach to that dock. Move into nearby open water or clear the approach, then try again.'};
   return {order:{kind:'dock',phase:'moving',yardId:yard.id,berth,target:goal,path,index:0,blocked:0,reason:null}};
  }
  if(data.action==='ramp'){
@@ -155,9 +167,9 @@ export function tickNavalOrder(world,buildings,people,s,dt,fire){
  const o=s.remoteOrder;if(!active(o))return false;
  if(remoteShipError(world,s)){o.phase='cancelled';o.reason='Ship lost, unavailable or boarded.';stopShip(s);return true;}
  if(o.kind==='dock'){
-  const yard=homeDock(world,s);
-  if(!yard||yard.id!==o.yardId||yard.dockDestroyed||!dockComplete(yard)||Math.hypot(yard.berthX-o.berth.x,yard.berthY-o.berth.y)>.01||Math.abs(angleDelta(yard.dock.angle,o.berth.angle))>.01){
-   stopShip(s);o.phase='blocked';o.reason='Home dock unavailable. Review the dock and assign Return again.';return true;
+  const yard=dockRecords(world).find(y=>y.id===o.yardId);
+  if(!yard||yard.dockDestroyed||!dockComplete(yard)||Math.hypot(yard.berthX-o.berth.x,yard.berthY-o.berth.y)>.01||Math.abs(angleDelta(yard.dock.angle,o.berth.angle))>.01){
+   stopShip(s);o.phase='blocked';o.reason='Dock unavailable. Review the dock and give the order again.';return true;
   }
  }
  if(o.kind==='bombard'){
@@ -177,8 +189,8 @@ export function tickNavalOrder(world,buildings,people,s,dt,fire){
  if(!next){
   stopShip(s);o.phase='holding';o.path=[];
   if(o.kind==='dock'){
-   const yard=homeDock(world,s);
-   if(mooredDock(world,s)===yard?.dock){o.phase='docked';o.reason='Home berth reached. Dock services ready.';}
+   const yard=dockRecords(world).find(y=>y.id===o.yardId);
+   if(mooredDock(world,s)===yard?.dock){o.phase='docked';o.reason='Berth reached. Dock services ready.';}
    else{o.phase='blocked';o.reason='Berth alignment incomplete. Clear the approach and return again.';}
   }
   if(o.kind==='shore'){

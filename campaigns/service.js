@@ -7,7 +7,10 @@ import { COLONY_PLANETS } from '../public/colony-planets.js';
 
 const digest = text => createHash('sha256').update(text).digest('hex');
 const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
-export const ROOM_LIMIT = 4, ACTIVE_LIMIT = 2, RECONNECT_MS = 30000;
+// SAVE_LIMIT is per mode: three war-zone campaigns and three peaceful expeditions
+// per account (author's request, 8 November 2026). Only open rooms use memory, and
+// ACTIVE_LIMIT caps those; colony saves are tens of kilobytes on disk.
+export const ROOM_LIMIT = 4, ACTIVE_LIMIT = 2, SAVE_LIMIT = 3, RECONNECT_MS = 30000;
 const modeOf = record => record?.mode === 'colonization' ? 'colonization' : 'combat';
 const campaignPath = record => `${modeOf(record) === 'colonization' ? '/colony/' : '/'}?campaign=${record.id}`;
 
@@ -100,18 +103,18 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     rooms.set(record.id, room); lifecycle('campaign.opened', room, 'owner_entered');
     return room;
   }
-  function expireGuest(visit, room) {
+  function expireGuest(visit, room, message) {
     db.prepare('INSERT OR IGNORE INTO campaign_abandoned VALUES (?,?)').run(visit.campaignId, visit.pilotId);
     db.prepare('DELETE FROM campaign_members WHERE campaign_id=? AND identity_id=? AND account_id IS NULL').run(visit.campaignId, visit.actor.id);
-    room.runtime.abandon(visit.pilotId);
+    room.runtime.abandon(visit.pilotId, message);
   }
-  function closeRoom(id, message = 'The owner closed this room. Progress is saved.') {
+  function closeRoom(id, message = 'The host closed this room. Progress is saved.') {
     const room = rooms.get(id);
     if (!room) return closing.get(id) || Promise.resolve();
     room.state = 'closed'; rooms.delete(id);
     for (const visit of occupants(id)) {
       visits.delete(visit.actor.id);
-      if (!visit.actor.accountId) expireGuest(visit, room);
+      if (!visit.actor.accountId) expireGuest(visit, room, message);
       else room.runtime.endPlayerAccess(visit.pilotId, message);
     }
     db.prepare('DELETE FROM campaign_invites WHERE campaign_id=?').run(id);
@@ -155,7 +158,9 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     }
     audit.bind({ campaignId: room.record.id }); audit.actor(actor, membership.pilot_id);
     if (!existing) audit.emit('participant.joined', { ...audit.context(), ...roomCounts(room.record.id), cause: 'visit_admitted' });
-    return { next: campaignPath(room.record), room: view(room) };
+    // A colony admission also names the garden's light, so the menu's descent lands in it.
+    const light = modeOf(room.record) === 'colonization' && typeof room.runtime.light === 'function' ? room.runtime.light() : null;
+    return { next: campaignPath(room.record), room: view(room), planet: room.record.template, ...(light ? { light } : {}) };
   }
   async function handle(action, req, res) {
     const actor = legacy.identity(req, res);
@@ -168,7 +173,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       return { identity: { name: actor.name, kind: actor.kind }, active: visit?.campaignId || null,
         activeMode: visit ? modeOf(rooms.get(visit.campaignId)?.record) : null,
         campaigns: rows.map(c => ({ id: c.id, name: c.name, template: c.template, mode: modeOf(c), owner: owns(c, actor), open: !!rooms.get(c.id)?.ownerConnected, canDelete: deletable(c, actor) })),
-        planets: PLANETS, colonyPlanets: COLONY_PLANETS, roomLimit: ROOM_LIMIT, activeLimit: ACTIVE_LIMIT };
+        planets: PLANETS, colonyPlanets: COLONY_PLANETS, roomLimit: ROOM_LIMIT, activeLimit: ACTIVE_LIMIT, saveLimit: SAVE_LIMIT };
     }
     if (req.method !== 'POST') fail('Method not allowed.', 405);
     const expected = process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).origin : `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
@@ -191,7 +196,9 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
       if (!allowedPlanets.some(planet => planet.id === template)) fail('Choose an available planet template for this mode.', 400);
       const name = typeof data.name === 'string' ? data.name.trim() : '';
       if (!name || name.length > 48 || /[\x00-\x1f]/.test(name)) fail('Choose a campaign name of 1–48 characters.', 400);
-      if (db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE owner_id=?').get(actor.accountId).n >= 3) fail('This prototype allows three saved campaigns per account.');
+      // Counted the way modeOf reads a save: only 'colonization' is peaceful.
+      const sameMode = db.prepare("SELECT COUNT(*) AS n FROM campaigns WHERE owner_id=? AND (mode='colonization')=?").get(actor.accountId, mode === 'colonization' ? 1 : 0).n;
+      if (sameMode >= SAVE_LIMIT) fail(mode === 'colonization' ? 'Each account keeps three peaceful expeditions. Delete one to start another.' : 'Each account keeps three war-zone campaigns. Delete one to start another.');
       // Deleted saves retain private recovery files, so their tombstones still
       // consume the global storage allowance even though they free an owner slot.
       if (db.prepare('SELECT (SELECT COUNT(*) FROM campaigns)+(SELECT COUNT(*) FROM campaign_deleted) AS n').get().n >= 1000) fail('The saved campaign limit has been reached.', 503);
@@ -324,7 +331,7 @@ export function createCampaigns({ dataDir, legacy, createRuntime, audit }) {
     }
   }
   const timer = setInterval(() => {
-    for (const room of rooms.values()) if (!room.ownerConnected && Date.now() >= room.deadline) void closeRoom(room.record.id, 'Owner reconnect grace expired. Progress is saved.').catch(console.error);
+    for (const room of rooms.values()) if (!room.ownerConnected && Date.now() >= room.deadline) void closeRoom(room.record.id, 'The host did not return. Progress is saved.').catch(console.error);
     for (const visit of visits.values()) {
       const validAccount = !visit.actor.accountId || legacy.accounts.sessionByHash(visit.credential);
       if (!validAccount || !visit.connections.size && Date.now() >= visit.deadline) void leave(visit.actor.id).catch(console.error);

@@ -57,7 +57,7 @@ I judged these by playing each stage and correcting it:
 
 This is only my own judgement. I have no recorded test with outside players, and
 sustained four-player combat on Fly is unmeasured. In a local
-[latency test](tests/browser/multiplayer-latency.spec.js#L125), changes reached other
+[latency test](tests/browser/multiplayer-latency.spec.js#L126), changes reached other
 players in under 0.2 s (median) and 0.55 s at worst, inside its one-second limit.
 
 ## What I chose not to build

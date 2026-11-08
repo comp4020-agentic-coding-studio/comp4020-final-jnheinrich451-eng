@@ -7,12 +7,14 @@ export async function checkMusic(browser,mobile=false){
   await context.addCookies([{name:'frontier',value:f.tokens[0],url:f.url}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(f.url+'/?legacy=1');await expect(page.locator('#connection')).toContainText('live');
+  await expect(page.locator('#background-music')).toHaveAttribute('src','/audio/Apex_Of_Conquest.mp3');
+  await expect(page.locator('#music-track')).toContainText('Apex of Conquest');
   expect(await page.locator('#background-music').evaluate(a=>a.paused)).toBe(true);
   await page.locator('#hud-menu-button').click().then(()=>page.locator('#help-button').click());
   await expect.poll(()=>page.locator('#background-music').evaluate(a=>!a.paused&&a.currentTime>0)).toBe(true);
   await expect.poll(()=>page.locator('#background-music').evaluate(a=>Number.isFinite(a.duration))).toBe(true);
   const meta=await page.locator('#background-music').evaluate(a=>({duration:a.duration,loop:a.loop,volume:a.volume}));
-  expect(meta.duration).toBeGreaterThan(30);expect(meta.loop).toBe(true);expect(meta.volume).toBe(.25);
+  expect(meta.duration).toBeGreaterThan(30);expect(meta.loop).toBe(true);expect(meta.volume).toBe(.03);
   const response=await context.request.get(f.url+'/audio/Apex_Of_Conquest.mp3');
   expect(response.headers()['content-type']).toBe('audio/mpeg');expect((await response.body()).length).toBe(4255518);
   if(!mobile)console.log('Decoded MP3',await page.evaluate(async()=>{

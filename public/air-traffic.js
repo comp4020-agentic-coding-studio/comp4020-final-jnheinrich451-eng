@@ -2,15 +2,16 @@ import { fieldLandingPoint, fieldLandingError } from './helicopter-landing.js';
 import { shipStopped } from './ship-motion.js';
 import { HELI, isHelipad, isHelicopter, airSize, compatibleAirfield, heliParking } from './helicopter.js';
 import { carrierFields, carrierReady, isCarrier, aircraftHolders, deckRoleTaken } from './carrier.js';
+import { runwayPoint, runwayStrips } from './runway.js';
 // Called through: carrier.js may still be loading in the module cycle.
 export const airRecords=world=>aircraftHolders(world);
-// Each carrier exposes two deck fields (spots), each with its own runway.
-export const airfields=world=>[...(world.airbases||[]),...(world.ships||[]).filter(isCarrier).flatMap(carrierFields)];
+// Each carrier exposes two deck fields (spots), each with its own runway; so does a double airbase.
+export const airfields=world=>[...(world.airbases||[]).flatMap(runwayStrips),...(world.ships||[]).filter(isCarrier).flatMap(carrierFields)];
 // Aircraft records retain their save identity. baseId is a movable destination.
 export const liveAircraft = p => !!p && !['destroyed','vacant'].includes(p.state);
-export const operationalAirbase = (world,b) => !!b && !b.destroyed && !world.logistics?.jobs?.[b.id] && (!b.carrier||carrierReady(b.carrier));
+export const operationalAirbase = (world,b) => !!b && !b.destroyed && !world.logistics?.jobs?.[b.parent||b.id] && (!b.carrier||carrierReady(b.carrier));
 export const fleetCount = (world,kind='bomber') => airRecords(world).filter(b=>liveAircraft(b.aircraft)&&isHelicopter(b.aircraft)===isHelicopter({kind})).length;
-export const fleetCapacity = (world,kind='bomber') => airfields(world).filter(b=>operationalAirbase(world,b)&&compatibleAirfield(b,{kind})).length;
+export const fleetCapacity = (world,kind='bomber') => airfields(world).filter(b=>!b.spare&&operationalAirbase(world,b)&&compatibleAirfield(b,{kind})).length;
 export const reservesRunway = p => liveAircraft(p) && (p.mission?.kind==='transport'&&p.mission.action==='return'&&p.mission.phase==='moving' || !p.fieldLanding&&(['parked','delivering','takeoff','landing'].includes(p.state)||p.mission?.phase==='return'));
 export function runwayAvailable(world,base,plane){
  return operationalAirbase(world,base) && (!plane||compatibleAirfield(base,plane)) && (!base.carrier||shipStopped(base.carrier)&&!(plane&&deckRoleTaken(world,base.carrier,plane))) && !airRecords(world).some(b=>b.aircraft.id!==plane?.id && b.aircraft.baseId===base.id && reservesRunway(b.aircraft));
@@ -23,9 +24,10 @@ export function flightBase(world,record){
  record.wrecks ||= [];
  return {...destination,aircraft:record.aircraft,wrecks:record.wrecks};
 }
+const touchdownDistance=(b,p)=>{const point=isHelipad(b)?{x:b.x+1.5,y:b.y+1.5}:runwayPoint(b,2,7.5);return Math.hypot(point.x-p.x,point.y-p.y);};
 export function freeAirbase(world,p,preferredId){
  const free=airfields(world).filter(b=>runwayAvailable(world,b,p));
- return free.find(b=>b.id===preferredId)||free.sort((a,b)=>Math.hypot(a.x+(isHelipad(a)?1.5:2)-p.x,a.y+(isHelipad(a)?1.5:7.5)-p.y)-Math.hypot(b.x+(isHelipad(b)?1.5:2)-p.x,b.y+(isHelipad(b)?1.5:7.5)-p.y))[0];
+ return free.find(b=>b.id===preferredId)||free.sort((a,b)=>touchdownDistance(a,p)-touchdownDistance(b,p))[0];
 }
 export function reserveLanding(world,p,id){
  const base=id?airfields(world).find(b=>b.id===id):freeAirbase(world,p,p.baseId);
@@ -33,6 +35,7 @@ export function reserveLanding(world,p,id){
  p.baseId=base.id;return null;
 }
 export function deliveryError(world,base,kind=isHelipad(base)?'helicopter':'bomber'){
+ if(base?.spare)return 'The second runway only takes visitors. Order aircraft on the first.';
  if(!compatibleAirfield(base,{kind}))return 'Helicopters need a helipad; fixed-wing aircraft need a runway.';
  if(!operationalAirbase(world,base))return 'Use a completed intact airbase or deploy a new one.';
  if(base.carrier&&!shipStopped(base.carrier))return 'Stop the carrier before requesting aircraft.';
@@ -56,7 +59,7 @@ export function newAircraftError(world, base, owner, kind=isHelipad(base)?'helic
 }
 // Clicking a carrier selects the deck spot that can accept this aircraft kind.
 export function deliveryBaseAt(world, point, kind) {
- const hits=airfields(world).filter(b=>!b.destroyed).filter(b => b.carrier
+ const hits=airfields(world).filter(b=>!b.destroyed&&!b.spare).filter(b => b.carrier
   ? Math.hypot(point.x + .5 - b.carrier.x, point.y + .5 - b.carrier.y) <= 3
   : point.x >= b.x && point.x < b.x + airSize(b).width && point.y >= b.y && point.y < b.y + airSize(b).height);
  return hits.find(b=>!b.carrier||!parkedRecord(world,b)&&!(kind&&deckRoleTaken(world,b.carrier,{kind})))||hits[0];

@@ -1,5 +1,10 @@
 # Weapon sound effects
 
+The palette below is the original 23 October stage. On 8 November 2026 it was
+replaced locally by [the author's generated weapon recordings](WAR_ZONE_GENERATED_AUDIO.md),
+including finite flame/beam playback and enemy attacks. The current mapping is in
+`public/sound-catalog.js`; this earlier stage remains as implementation history.
+
 23 October 2026. Implemented and checked locally; not deployed by this stage.
 
 ## Playable scope

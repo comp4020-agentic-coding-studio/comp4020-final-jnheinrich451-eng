@@ -5,7 +5,7 @@ import { canDamageEnemy } from './enemy-profiles.js';
 import { isAirEnemy, isGroundEnemy } from './target-domain.js';
 import { airRaycast } from './aa-vehicle.js';
 
-export const GUARD = Object.freeze({ searchInterval: .5, flameEnter: 4.5, tolerance: Math.PI / 90 });
+export const GUARD = Object.freeze({ searchInterval: .5, flameEnter: 7, tolerance: Math.PI / 90 });
 export function guardStep(robot, state, enemies, world, buildings, dt) {
   if (!robot.guarding || robot.life !== 'active' || robot.health <= 0 || robot.deploying) { state.targetId = null; state.weapon = null; state.search = 0; return null; }
   const distance = e => Math.hypot(e.x - robot.x, e.y - robot.y);

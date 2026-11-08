@@ -5,7 +5,9 @@ the ground, assign bomber strikes, and recall to a different free friendly
 runway. E still boards a parked aircraft. This is the airport foundation for
 the later carrier; it does not implement the carrier itself.
 
-Each operational airbase contributes one fleet slot and one parking slot.
+Each operational airbase contributes one fleet slot and one parking slot. A base
+built since 2 November 2026 has a second strip for visitors, which adds parking and
+no fleet slot ([Join arrival and runways](JOIN_ARRIVAL_AND_RUNWAYS.md)).
 Aircraft in flight and orbital delivery count against fleet capacity. Cruise
 does not permit extra production. A landing reservation prevents two aircraft
 claiming one runway. Empty airbases can be deployed, including by the same owner.

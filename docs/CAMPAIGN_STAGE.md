@@ -1,5 +1,32 @@
 # Next stage: owned campaigns and saved return
 
+## 8 November 2026: three saves per mode
+
+The author asked for six saves per account if resources allow: three for the war
+zone and three for colonization. Each account now owns up to three war-zone
+campaigns and three peaceful expeditions (`SAVE_LIMIT` in `campaigns/service.js`,
+counted per mode the way `modeOf` reads a save). A full war zone never blocks a
+new expedition, and deleting a save frees a slot in its own mode only. Joined
+campaigns still use no slots. The lobby shows the count for the mode on screen,
+for example "2 / 3 war-zone saves". This supersedes the shared three-save quota
+recorded below and in the colonization stage records.
+
+Resources, measured locally on an isolated server (not on Fly):
+
+- Memory does not depend on the number of saves. Only open rooms run, and
+  `ACTIVE_LIMIT` keeps that at two process-wide.
+- A fresh combat save is 0.8 MB (Caldera) to 1.5 MB (Vesper) of world data, plus
+  one-time migration backups on its first open: 5.5 MB and 14.7 MB respectively
+  (eleven copies). Reopening adds nothing. A fresh colony save is 37 KB.
+- So the worst case per account is still about three combat saves, around 48 MB;
+  the three new slots are colony-only and add tens of kilobytes each, growing
+  with play.
+
+Still open: the 1 GB Fly volume holds only about 60 to 160 fresh combat saves,
+far fewer than the 1,000-save global cap, and most of each combat save is backups
+of a world nobody has played yet. Skipping backups for an untouched save would
+need its own decision, because migrations must back up populated saves first.
+
 ## 30 October 2026: owner save deletion
 
 Continue now provides Delete for owned saves. Select Delete to reveal the world

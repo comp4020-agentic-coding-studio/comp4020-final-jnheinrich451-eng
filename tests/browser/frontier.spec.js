@@ -38,14 +38,15 @@ for (const mobile of [false, true]) test(`robot guard, curved railway and expand
     const deployed = await post(page, 'artillery', { x: 68, y: 19 }); expect(deployed.status).toBe(201); const gun = deployed.data.gun;
     // Orbital cargo arrives in a crate and unfolds; the cannon cannot be operated until its job completes.
     await expect.poll(async () => !!(await serverState(page, url)).logistics.jobs[gun.id], { timeout: 20000 }).toBe(false);
-    await positionRobot(30, 11);
+    // Beyond the fuel jet's 7.5 tiles (9 November 2026) from every drill crawler, so the guard opens with the laser.
+    await positionRobot(35, 11);
     expect((await post(page, 'artillery/control', { id: gun.id })).status).toBe(200);
     await expect(page.locator('#artillery-guard')).toContainText('Robot guarding');
     await page.evaluate(() => { window.guardShots = []; window.guardEvents = new EventSource('/api/events'); window.guardEvents.onmessage = e => { for (const s of JSON.parse(e.data).combat.shots) if (!window.guardShots.some(old => old.id === s.id)) window.guardShots.push(s); }; });
     expect((await post(page, 'drill', {})).status).toBe(200);
     await expect.poll(() => page.evaluate(id => window.guardShots.some(s => s.owner === id && s.weapon === 'LASER'), initial.me.id), { timeout: 8000 }).toBe(true);
     await expect.poll(async () => (await state(page)).combat.status, { timeout: 10000 }).toBe('cleared');
-    expect((await state(page)).me.x).toBeCloseTo(30.5); expect((await state(peer)).players.find(p => p.id === initial.me.id).guarding).toBe(true);
+    expect((await state(page)).me.x).toBeCloseTo(35.5); expect((await state(peer)).players.find(p => p.id === initial.me.id).guarding).toBe(true);
     await page.screenshot({ path: `docs/previews/guard-${mobile ? 'mobile' : 'desktop'}.png` });
     expect((await post(page, 'artillery/control', { id: gun.id, release: true })).status).toBe(200);
     await expect.poll(async () => (await state(page)).me.guarding).toBe(false);

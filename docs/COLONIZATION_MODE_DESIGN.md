@@ -9,13 +9,30 @@ This records the agreed setting and longer-term design. The author subsequently
 approved implementation with a warm, cute appearance. The bounded standalone
 first stage is implemented locally; [the stage record](COLONIZATION_STAGE.md)
 describes its actual rules and validation. Details below beyond that stage remain
-proposals, including automatic tending, wider settlement and a combat-save handoff.
+proposals. The later industry stage implements automatic harvest/replanting;
+wider settlement remains planned. The original combat-save handoff is withdrawn
+by the author's 2 November clarification below.
 
 The later [industry and completion proposal](COLONY_INDUSTRY_PROPOSAL.md)
 explores conveyors, processing, bio-power, charging and recoverable pressure
-after the author's 2 November review. It is a proposal, not implemented rules.
+after the author's 2 November review. Its implementation update and
+[industry stage](COLONY_INDUSTRY_STAGE.md) distinguish playable machinery from
+remaining proposals.
 Current civilian destinations are Morrow, Nacre and Aurelia; the original planet
 table below is historical and superseded by the HUD/planets stage.
+
+The author's later [casual expansion direction](COLONY_CASUAL_EXPANSION.md)
+adds planet-specific exploration, machinery that moves only while working, and
+war-support logistics inside the colony's own fiction and save. Colonization
+must not connect to any Frontier combat save. This replaces the earlier optional
+campaign handoff and the earlier exclusion of war support as a narrative purpose.
+
+The 4 November [ground stage](COLONY_GROUND_STAGE.md) gives the mode its spine:
+tiles carry a conditioning level, crops condition the ground around their bed,
+construction needs conditioned ground, and untended ground slowly returns to
+wild. Its roadmap (planet soils, the body at the frontier, industry consumers,
+the freight-link ending) supersedes the loosely connected feature list below
+as the order in which later work should be judged.
 
 ## Confirmed direction
 
@@ -26,9 +43,9 @@ table below is historical and superseded by the HUD/planets stage.
   human presence and connect the world to humanity's network.
 - Orbital delivery, facilities, vehicles and remote operation can carry into
   this setting where they serve cultivation and settlement.
-- This is separate from fighting. The earlier suggestion of gardens alongside
-  active battles, enemy-damaged watering machines and farming rewards feeding
-  the war economy is superseded.
+- Surface play remains separate from fighting. The colony may support distant
+  human war efforts through its own supply requests and shipments. Those results
+  stay in its colony save; no military campaign is read, imported or modified.
 
 The premise develops the agriculture and industry expedition already described
 in [the original game ideas](../GAME_IDEAS.md). Combat retains its own campaign
@@ -59,24 +76,16 @@ is the expedition's mission rather than a recurring life-support emergency.
 
 ## Entry and campaign separation
 
-Two entry routes fit the setting; standalone entry ships first:
+Standalone Colonization is the entry route. Choose a planet whose conquest
+happened in the setting before this expedition and start a peaceful save without
+having to finish a combat campaign personally. Invitations identify that colony
+save and mode; teammates join the expedition together.
 
-| Route | Proposed behavior |
-| --- | --- |
-| Standalone Colonization (first stage) | Choose a planet whose conquest happened before this expedition. Start a new peaceful save without having to finish a combat campaign personally. |
-| After a combat campaign | An optional expedition handoff creates a separate colonization save based on the secured world's geography. The completed combat save remains available. |
-
-Build standalone entry first, then evaluate the handoff once the
-peaceful loop works. Neither route switches an active multiplayer battle into
-another mode. Invitations identify a particular save and mode; teammates join
-that expedition together.
-
-For a later handoff, CONQUERED alone is insufficient: today's combat ending can
-leave survivors and committed attacks. Define eligibility as conquest plus
-resolved survivor cleanup and no pending damaging effects, then take a stable
-snapshot. Preserve the source save. Carrying over former roads, docks, bases or
-ruins needs an explicit allowlist; do not inherit armed AI, ammunition orders,
-military balances or ongoing combat timers.
+The author explicitly excludes connection to Frontier combat saves. The former
+post-combat handoff proposal is withdrawn: no terrain import, save conversion,
+shared resources, live combat-state reads or military campaign writes. The
+shared account registry does not make the saves interdependent. War-support
+requests, shipments and narrative acknowledgements belong entirely to the colony.
 
 Colonization gets its own objectives, resource ledger and room state. Existing
 save limits remain unchanged in the first stage: three owned slots shared across
@@ -187,8 +196,8 @@ behavior appropriate to a peaceful shared settlement.
 2. **Useful automation:** nutrient processing, tending robots, replanting,
    packing and bounded queues. Add projects and decorative rewards.
 3. **Planet development:** more species, climate shelters, transport between
-   outposts and the network-connection milestone. Evaluate optional handoff from
-   a completed combat campaign separately.
+   outposts and the network-connection milestone. Add colony-owned civilian and
+   military supply requests without any combat-save handoff or connection.
 
 The first stage succeeds if a player can see growth, enjoy a harvest and use its
 reward to improve the next cycle, with no need to fight or maintain a daily

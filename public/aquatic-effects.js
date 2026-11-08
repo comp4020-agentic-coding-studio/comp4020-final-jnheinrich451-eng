@@ -1,14 +1,6 @@
 import {AQUATIC,isSpitter} from './aquatic-profile.js';
 const TAU=Math.PI*2;
 const oval=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,TAU);c.fill();};
-export function drawAquaticBody(c,site,time,reduced){
- const dead=site.state==='conquered',pulse=dead||reduced?1:1+Math.sin(time/450)*.05;
- oval(c,0,.1,1.55,1.3,dead?'#293b3c':'#254b48');oval(c,0,0,1.22,1.05,dead?'#454842':'#566044');
- for(let i=0;i<7;i++){const a=i*TAU/7,x=Math.cos(a)*.82,y=Math.sin(a)*.7;oval(c,x,y,.4*pulse,.32*pulse,dead?'#44433e':'#8c8a55');oval(c,x-.05,y-.06,.25,.18,dead?'#30362f':'#bad585');oval(c,x+.02,y+.07,.13,.09,'#283d36');}
- oval(c,0,0,.55,.52,'#344138');oval(c,0,0,.35,.32,dead?'#24312d':'#b0ce72');
- for(const x of [-.6,0,.6]){oval(c,x,.9,.24,.2,'#283e3e');oval(c,x,.9,.14,.09,dead?'#394a46':'#c4d8a0');}
- if(!dead&&time-site.hitAt<300){c.globalAlpha=.25;oval(c,0,0,1.2,1,'#f7e1b9');c.globalAlpha=1;}
-}
 export function drawBileSpitter(c,e,time,T,reduced,hit=0){
  c.save();c.translate(e.x*T,e.y*T);c.rotate(e.angle||0);c.scale(T,T);
  const pulse=reduced?1:1+Math.sin(time*4+e.id)*.04;

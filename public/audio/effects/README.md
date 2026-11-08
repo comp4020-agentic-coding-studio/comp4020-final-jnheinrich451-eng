@@ -1,5 +1,9 @@
 # First weapon sound palette
 
+Historical palette, replaced in the current game by the author's
+[generated recordings](generated/README.md). The CC0 notices here apply to these
+older Kenney files, not to the generated collection.
+
 Unmodified source files, renamed for runtime use. Kenney CC0 notices are included
 alongside them. Source packs remain in the ignored local assets directory.
 

@@ -1,4 +1,5 @@
 import { MODIFIER, convertedCells, conversionStrength } from './modifier.js';
+import { paintedSurfaces } from './ground-art.js';
 const TAU = Math.PI * 2, caches = new WeakMap();
 const noise = (x, y) => {
   let n = Math.imul(x, 73856093) ^ Math.imul(y, 19349663);
@@ -51,38 +52,23 @@ export function drawConvertedGround(c, world, tile, time, reduced) {
         g.strokeStyle = '#332535'; g.lineWidth = 2; g.stroke(); g.strokeStyle = '#b1797666'; g.lineWidth = .7; g.stroke();
       }
       g.restore();
-      // Remove coating from water/rock/floor while preserving a smooth land edge.
-      g.globalCompositeOperation = 'destination-in'; g.fillStyle = '#fff'; g.beginPath();
+      // Keep the coating on dry ground only, following the painted coast and ridge
+      // edges, with a round clearing at each rock so the obstacle stays easy to see.
+      // The mask is sampled at 8 px a tile and smoothed up; the coating is soft anyway.
+      const fine = 8, drawn = paintedSurfaces(world, x, y, side, fine), mask = document.createElement('canvas');
+      mask.width = mask.height = side * fine;
+      const m = mask.getContext('2d'), image = m.createImageData(mask.width, mask.height);
+      for (let i = 0; i < drawn.length; i++) image.data[i * 4 + 3] = drawn[i] === 0 ? 255 : 0;
+      m.putImageData(image, 0, 0); m.globalCompositeOperation = 'destination-out';
       for (let cy = y; cy < y + side; cy++) for (let cx = x; cx < x + side; cx++) {
-        if (cx < 0 || cy < 0 || cx >= world.width || cy >= world.height) continue;
-        if ([1, 2].includes(world.terrain[cy * world.width + cx])) g.rect((cx - x) * scale, (cy - y) * scale, scale, scale);
+        const kind = cx < 0 || cy < 0 || cx >= world.width || cy >= world.height ? 0 : world.terrain[cy * world.width + cx];
+        if (kind === 4) m.fillRect((cx - x) * fine, (cy - y) * fine, fine, fine);
+        if (kind === 3) { m.beginPath(); m.arc((cx - x + .5) * fine, (cy - y + .52) * fine, fine * .48, 0, TAU); m.fill(); }
       }
-      g.fill(); g.globalCompositeOperation = 'source-over';
+      g.globalCompositeOperation = 'destination-in'; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(mask, 0, 0, side * scale, side * scale); g.globalCompositeOperation = 'source-over';
       layer = { canvas, x, y, side }; cache.set(site.id, layer);
     }
     c.save(); c.globalAlpha = strength; c.drawImage(layer.canvas, layer.x * tile, layer.y * tile, layer.side * tile, layer.side * tile); c.restore();
-  }
-}
-
-// Broad low rosette with swollen translucent pods: distinct from the tall scanner
-// and the mortar's curved barrel. Coordinates are in tiles.
-export function drawModifierBody(c, site, time, reduced) {
-  const dead = site.state === 'conquered', pulse = dead || reduced ? 1 : 1 + Math.sin(time / 850) * .045;
-  c.fillStyle = dead ? '#302632' : '#302736'; c.beginPath(); c.ellipse(0, .1, 1.45, 1.14, 0, 0, TAU); c.fill();
-  for (let i = 0; i < 7; i++) {
-    const a = i * TAU / 7, r = .72, x = Math.cos(a) * r, y = Math.sin(a) * r;
-    c.save(); c.translate(x, y); c.rotate(a);
-    const g = c.createLinearGradient(-.35, -.45, .5, .4);
-    g.addColorStop(0, dead ? '#675348' : '#be8872'); g.addColorStop(.35, dead ? '#513b46' : '#9a536a'); g.addColorStop(1, '#362937');
-    c.fillStyle = g; c.strokeStyle = '#332430'; c.lineWidth = .09;
-    c.beginPath(); c.ellipse(0, 0, .53 * pulse, (dead ? .23 : .39) * pulse, 0, 0, TAU); c.fill(); c.stroke();
-    c.strokeStyle = dead ? '#77575c' : '#e3b28b66'; c.lineWidth = .035;
-    c.beginPath(); c.moveTo(-.35, -.12); c.quadraticCurveTo(0, -.3, .32, -.1); c.stroke();
-    c.fillStyle = '#32222e'; c.beginPath(); c.ellipse(.14, .09, .06, .13, -.4, 0, TAU); c.fill(); c.restore();
-  }
-  c.fillStyle = dead ? '#231f28' : '#8e697b'; c.beginPath(); c.arc(0, 0, .48 * pulse, 0, TAU); c.fill();
-  c.fillStyle = '#241b2d'; c.beginPath(); c.ellipse(0, .04, .19, dead ? .09 : .29, -.25, 0, TAU); c.fill();
-  if (!dead) for (let i = 0; i < 5; i++) {
-    const a = i * TAU / 5; c.fillStyle = '#dab899'; c.beginPath(); c.ellipse(Math.cos(a) * .29, Math.sin(a) * .29, .06, .1, a, 0, TAU); c.fill();
   }
 }

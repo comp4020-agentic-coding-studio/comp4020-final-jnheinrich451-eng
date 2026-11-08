@@ -1,9 +1,44 @@
 # Intro video brief - conversational draft
 
-Status: proposal, 2026-10-01. Nothing here is built. The video is optional
-polish on top of the course requirements, so the game remains playable without it.
+Status, 2026-11-01: two silent preview clips exist locally. They are not wired
+into the game, and Acts 2 and 4 are not built. The video is optional polish on
+top of the course requirements, so the game remains playable without it.
 Fill in the "Your answer" lines in English or Chinese. "Use your default"
 accepts the proposal written above that line.
+
+## Current state
+
+| Clip | Shots | Method | Preview | Review |
+| --- | --- | --- | --- | --- |
+| Act 1, wake-up | 1a-1c, 10 s | 2.5D shader over the helmet image pairs | `output/video-tests/act1-wake-preview-v1.mp4` | Author: good |
+| Orbit | 3a, 10 s | 2.5D layers, pods and shells drawn in code | `output/video-tests/act3-orbit-preview-v2.mp4` | Waiting for author |
+
+Both are 1920 x 1080 at 30 fps, with no sound yet.
+
+**Plan change proposed (2026-11-02).** The author asked about prompts, key frames
+and generated video. The proposal is a mix: Acts 2 and 4 become clips from a video
+generator, each guided by key frames, and Remotion assembles the film. Act 1 and
+the orbit shot stay in code. If the two tests in `docs/INTRO_VIDEO_PROMPTS.md`
+pass, this replaces question 28 and shot list v4, and the cutouts requested for 2.5D
+are no longer needed. Until then, v4 stays the current plan.
+
+**Playback decision (author, 2026-11-01).** The video plays when the user enters
+the game. Pressing any key shows a skip prompt, and pressing again within 3
+seconds confirms the skip. It is not built yet. Two points are open:
+
+- Browsers block sound on autoplay until the user has clicked or pressed
+  something on the page, so the first visit needs a "press to start" step, or
+  the video starts muted.
+- Should it play on every visit, or only the first visit from a browser?
+
+**Conflict decision (author, 2026-11-01).** Where earlier answers and the newest
+images disagree, the images win.
+
+**Rebuilding.** In `video/`: `pnpm install`, then `pnpm layers` (needs Python
+with opencv-python and numpy, and the images in `output/video-frames/`), then
+`pnpm exec remotion render Act1Wake out/act1.mp4`. `pnpm studio` opens a live
+preview. The folder has its own install, so the game's install, CI and Docker
+image never load Remotion.
 
 ## How it would be made
 
@@ -219,70 +254,75 @@ Style note: "pure scientific" is read as realistic, hard sci-fi. One hard
 sunlight, true black space, black shadows, a thin bright atmosphere edge and
 believable scale. Clean rendered look, not photoreal.
 
-## Shot list v3 (2026-10-24, from your flow)
+## Shot list v4 (2026-11-01, from the images)
 
-This replaces the earlier shot list. The old table is in git history (commit
-423058c). Times are proposals. Items marked (assumed) are my guesses where the
-flow leaves a gap.
+The concept images are now the plan (author, 2026-11-01). Where your earlier flow
+and an image differ, this list follows the image. Shot list v3 is in git history.
+Times are proposals, and items marked (assumed) are my guesses.
 
-### Act 1: wake-up (0-10 s)
+**Method.** 2.5D worked well and keeps the images' look, so Acts 2 and 4 are
+proposed as 2.5D too (question 28). The Method column assumes that.
 
-| # | Time | Camera | What happens | Light / colour | Sound |
-| --- | --- | --- | --- | --- | --- |
-| 1a | 0-3 s | Fixed, facing the front of the closed dark helmet | Black. Small indicator lights blink on, one by one | Black, scattered small lights | Electronic beeps |
-| 1b | 3-6 s | Same | A red light path cascades outward from the capsule through the whole ship. The helmet's own lights come on and the radiators vibrate: the head is online | Red wave, helmet lights | Data chatter, radiator hum. No voice |
-| 1c | 6-10 s | Slow pull back | The ship wakes up in the dark around the capsule | Red, more lights joining | Engines bursting into life, pistons, belts: the factory is heard before it is seen |
-
-### Act 2: factory (10-34 s)
+### Act 1: wake-up (0-10 s), built, author approved
 
 | # | Time | Camera | What happens | Light / colour | Sound |
 | --- | --- | --- | --- | --- | --- |
-| 2a | 10-12 s | Passes through the wall | Cutaway through the wall: steel plates, chips, cables, tubes | Cold metal, cyan data lights | Muffled machinery |
-| 2b | 12-17 s | Wide, slow push down the hall | Six production lines, three on each side. A huge furnace glows at the far end. Tanks, jets and ships come out of it along the lines | Orange furnace glow against cold steel | Furnace roar, conveyor rumble |
-| 2c | 17-22 s | Tracking beside the lines | Each finished vehicle is sealed into a drop pod sized to fit. Mechanical arms sort the pods into launcher crates | Same | Servos, metal clanks |
-| 2d | 22-25 s | Looking down | Crates load, and pods fire down through the belly toward the planet | Planet light from below | Launch thumps |
-| 2e | 25-27 s | Flies forward into the furnace | White-hot flash, coming out in the shell factory | White-orange flash | Roar swells, then cuts |
-| 2f | 27-31 s | Tracking one ~500 mm shell | Along the line, passed from arm to arm, loaded into the orbital cannon's breech | Cold steel, red warning lights | Clanks, breech slam |
-| 2g | 31-34 s | Following the shell out | The cannon fires. The shell dives into the atmosphere, its nose wrapped in re-entry flame | Muzzle flash, then flame glow | Gun blast, then see question 18 |
+| 1a | 0-3 s | Fixed, facing the helmet | Black. Small indicator lights blink on, one by one | Black, scattered small lights | Electronic beeps |
+| 1b | 3-6 s | Same | The helmet strips light up. A red wave spreads outward across the wall and the radiators tremble: the head is online | Red wave, helmet lights | Data chatter, radiator hum. No voice |
+| 1c | 6-10 s | Slow pull back to the wide wall | The rest of the wall wakes up, with engine thumps shaking the frame | Red and amber LEDs on dark steel | Engines, pistons, belts: the factory is heard before it is seen |
 
-### Act 3: orbit (34-41 s)
+### Act 2: factory (10-29 s), from scene-02-foundry-v1.png
+
+| # | Time | Camera | What happens | Light / colour | Method |
+| --- | --- | --- | --- | --- | --- |
+| 2a | 10-12 s | Pushes into the wall | Rushes into a dark gap in the wall, then opens into the hall | Dark, then furnace light | Zoom and dark transition |
+| 2b | 12-18 s | High and wide, slow push down the hall | Furnace mouths glow at the far end. Lanes carry jets, the armed craft and tanks toward the camera | Orange furnace glow, cold grey steel, amber safety lights | Vehicle cutouts move along their lanes over an empty hall |
+| 2c | 18-22 s | Same push | Sealed crates move along the lanes. A gantry carries one over the floor shaft | Same | Crate and gantry cutouts |
+| 2d | 22-25 s | Same push | The crate drops into the shaft, and crates fall away through the floor on thrusters | Thruster flame from below | Flame drawn in code |
+| 2e | 25-29 s | Pans right to the shell rows | Tall shells stand in rows beside the lanes, and one is carried out toward the guns (assumed) | Cold steel, red warning lights | Pan across the same image, then cut to the orbit shot |
+
+The separate shell factory, the flight through the furnace and the six-line
+layout are dropped: scene 02 shows the shells in the same hall.
+
+### Act 3: orbit (29-39 s), built
 
 | # | Time | Camera | What happens | Light / colour | Sound |
 | --- | --- | --- | --- | --- | --- |
-| 3a | 34-41 s | Very wide, slow drift | The ship holds orbit, CUCULIDAE on its hull. The planet fills the bottom of the frame, with a thin bright atmosphere edge scattering white light. The sun is a tiny, intensely bright white dot far away. Dozens of pods fall toward the planet with flame tails | One hard white light, black shadows | See question 18 |
+| 3a | 29-39 s | Fixed, no zoom | The Cuculidae coasts slowly right at one constant speed, engines dark. Three pods eject under the hull and fall under gravity, keeping the ship's drift. Their flames grow with the fall. The under-hull cannons fire alternating twin salvos, and the shells streak away and burn up at the top of the atmosphere. The last frame matches scene 03 | Hard sunlight from the upper right, blue atmosphere edge | See question 18 |
 
-### Act 4: ground (41-52 s)
+This shot now carries the cannon fire, so the old shot 2g is merged into it. The
+sun stays large and bright as in scene 03, not the tiny dot from the earlier flow.
 
-| # | Time | Camera | What happens | Light / colour | Sound |
+### Act 4: ground (39-50 s), from scene-04-robot-deployment-v1.png
+
+| # | Time | Camera | What happens | Light / colour | Method |
 | --- | --- | --- | --- | --- | --- |
-| 4a | 41-44 s | Ground level, looking up at the sky | A pod streaks down and slams in just behind the camera. The camera shakes and dust rolls over the lens | Daylight, dust | Rising whistle, huge impact |
-| 4b | 44-48 s | The camera turns as the dust clears (assumed) | The support core unfolds and builds itself up, the same way as in the game | Dust haze | Hydraulics, metal locking into place |
-| 4c | 48-52 s | Low, facing the robot | The robot already stands in its pod. Its optic lights red, and it takes one heavy step right onto the camera. Black | Red optic, then black | Servo whine, one heavy footstep, silence |
+| 4a | 39-42 s | In the blue grass, looking up | A pod streaks down and hits in front of the camera. The frame shakes and dust covers the lens | Daylight, blue trees, dust | Pod and dust drawn in code over the empty landscape |
+| 4b | 42-46 s | Same | The dust clears on the opened pod. Its tower rises behind the robot (assumed) | Dust haze clearing | Tower cutout slides up. The walls are already open when the dust clears |
+| 4c | 46-50 s | Same | The robot stands in the centre cell, dark. Its red slit lights, and it takes one heavy step right onto the camera. Black | Red slit, then black | Lit and unlit pair, then the robot cutout looms toward the camera |
 
-Total: about 52 s.
+Total: about 50 s.
 
-16. **Length.** This flow runs about 52 s, against the earlier 20-30 s. Keep
-    the full length, or trim it? If trimming, which part goes first?
+16. **Length.** This list runs about 50 s. Keep it, or trim it?
     Your answer:
 
-17. **Ground order.** Which pod lands just behind the camera: the core's or the
-    robot's? If it is the core's, the camera has to turn around to see it
-    unfold (assumed in 4b).
+17. Closed by question 22: one pod, landing in front of the camera.
+
+18. **Sound in space.** Real space is silent. For the orbit shot, use silence or
+    just a very low drone, including for the cannons, then let the ground impact
+    hit loud? Proposal: yes. It fits "pure scientific" and makes the landing hit
+    harder.
     Your answer:
 
-18. **Sound in space.** Real space is silent. For the cannon shot and the orbit
-    shot, cut to silence or just a very low drone, then let the ground impact
-    hit loud? Proposal: yes. It fits "pure scientific" and makes the landing
-    hit harder.
-    Your answer:
+19. Closed by scene 02: the lanes carry jets, the armed craft and tanks.
 
-19. **The six lines.** What does each line make? Proposal: two for tanks, two
-    for aircraft, two for ships.
-    Your answer:
+20. Closed by scene 04: the landing view shows no crater, so the shells fall
+    somewhere else on the planet.
 
-20. **The shell's job.** Does the shell clear the landing site, like an orbital
-    strike in the game, so the ground scene shows a smoking crater nearby?
-    Which shell type: HE, incendiary or gas?
+28. **Acts 2 and 4 in 2.5D.** Proposal: yes, instead of building 3D models. It
+    matches your images far better and is much quicker to build. The limits are
+    that the camera moves less, and the crate walls and pod walls cannot visibly
+    fold, so those moves are hidden by a cut or by dust.
     Your answer:
 
 Your changes:
@@ -325,14 +365,14 @@ image. Minor models are seen briefly or far away, so a line of words is enough.
 
 | Model | Shots | Weight | Reference so far | Your notes |
 | --- | --- | --- | --- | --- |
-| Robot | 4c | Hero | Robot.png and act4-landing.png (they differ, see question 21) | |
-| Helmet and capsule room | 1a-1c | Hero | act1-helmet-wall.png | |
-| Ship exterior | 3a | Hero | act3-orbit-drop.png (replaces the ship design proposal) | |
-| Factory hall and furnace | 2b-2e | Hero | act2-factory-hall.png | |
-| Support core | 4b | Hero | act4-landing.png plus the in-game core | |
-| Orbital cannon | 2f-2g | Medium | None | |
+| Robot | 4c | Hero | scene-04-robot-deployment-v1.png | |
+| Helmet and capsule room | 1a-1c | Hero | scene-01 v2 and the expanded pair, each with a lights-off copy | |
+| Ship exterior | 3a | Hero | cuculidae-design-sheet-v1.png and scene-03-cuculidae-descent-v1.png | |
+| Factory hall and furnace | 2b-2e | Hero | scene-02-foundry-v1.png | |
+| Support core | 4b | Hero | scene-04-robot-deployment-v1.png plus the in-game core | |
+| Orbital cannon | 2f-2g | Medium | Under-hull cannons in the design sheet | |
 | Shell (~500 mm) | 2f-2g | Medium | Shell rows in act2-factory-hall.png | |
-| Planet Caldera | 2d, 3a | Medium | act3-orbit-drop.png | |
+| Planet Caldera | 2d, 3a | Medium | scene-03-cuculidae-descent-v1.png | |
 | Drop pods and launcher crates | 2c-2d, 3a, 4a-4c | Medium | act2 and act3: dark armoured crates with thrusters | |
 | Mechanical arms | 2c, 2f | Minor | act2-factory-hall.png | |
 | Tank, jet, ship | 2b-2c | Minor | act2-factory-hall.png | |
@@ -413,63 +453,98 @@ perfect fit) and 3a (the ship drifts while crates fall with animated trails).
 Use 3D where things move: the 2a wall pass, the factory tracking in 2c-2g, and
 the robot in Act 4.
 
-What 2.5D needs from you:
+### Material check (2026-11-01)
 
-- **Bigger images, only for the 2.5D shots:** act1 (helmet) and act3 (orbit).
-  Ideally 3840 x 2160, at least 2560 x 1440, and kept at 16:9. act2 and act4
-  are only references for 3D building, so their current size is fine.
-  - act1: the shot starts zoomed in on the helmet. At the current size, the
-    helmet is enlarged about 1.5x and looks soft. At 3840 x 2160 it stays sharp.
-  - act3: the image is narrower than the 1920-pixel-wide video, so it is
-    enlarged even with no zoom.
-- **act3 layers (optional):** the ship alone on a transparent background, and
-  the planet and space without the ship. The ship can then drift against the
-  planet. Without layers, the whole picture zooms slowly.
-- **act1 lights-off copy (optional):** the same picture with *every* light off:
-  helmet strips, cable glows and all the small background LEDs. The room should
-  be dim, with the metal shapes faintly visible, not pure black. The video
-  switches each light on by revealing the lit image in that spot, so the two
-  versions must line up exactly. Check by flipping between them: only the
-  lights should change. If they are upscaled, upscale both with the same tool.
-  If your tool cannot keep the alignment, skip this copy. Starting from pure
-  black, I can extract the lights from the lit image in code. The difference is
-  that the room cannot be faintly visible before the lights come on.
+Files are in `output/video-frames/`. This corrects the earlier request for
+3840 x 2160 images: enlarging a file adds pixels but no detail, so what counts
+is how much real detail an image holds.
+
+**Helmet pair** (`scene-01-head-container-expanded-3840x2160-v1.png` and its
+lights-off copy):
+
+- Alignment: at most 0.4 pixels of drift across the 4K frame.
+- Lights: every LED and strip is off. The red lines down the centre stay red but
+  no longer glow, so they read as painted cables. The red wash on the top of the
+  helmet stays, as your prompt asked.
+- Exposure: the off image is brighter than the lit one (about 10-25% in the
+  areas measured). A tone match in code removes most of that.
+- The outer 1-pixel border is partly transparent. It gets trimmed.
+- The off image keeps normal exposure instead of the dim room requested earlier.
+  This works better, because code can darken it to any level.
+- A still test of the light wave works: `output/video-tests/act1-wave-test.png`.
+  Motion is not tested yet.
+
+**Detail limit.** Both 3840 x 2160 files are bicubic enlargements of 1672 x 941
+images, as their prompt files say. The helmet holds about 220 x 320 pixels of
+real detail. In `scene-01-head-container-v2.png` the same helmet holds 339 x 498.
+With the helmet at 85% of frame height, v2 is clearly crisper (compare
+`act1-closeup-v2.png` and `act1-closeup-expanded.png` in `output/video-tests/`).
+
+**Act 1 method.** It starts close on v2, using
+`scene-01-head-container-close-lights-off-v1.png` as its lights-off pair, then
+blends into the expanded pair during the pull back. Both pairs are split into a
+wall layer and a layer per light, so each light switches on separately.
+The wide image is about 29% brighter over the same wall, so it is tone-matched
+to the close image.
+
+### Orbit shot: how the layers are used
+
+- `scene-03-background-plate-v1.png` is the background. It lines up with the
+  scene to within about half a pixel.
+- `cuculidae-sunlit-cutout-v1.png` is the ship. The generator enlarged it, so it
+  is scaled to 72% and placed by matching it against
+  `scene-03-cuculidae-armed-v1.png`. It keeps the scene's sunlight and sits
+  cleanly on the plate.
+- One pod is cut from scene 03. Pods, flames and sparks are drawn in code because
+  they have to move.
+- The camera and planet stay still. The ship's speed is constant, because its
+  engines are dark.
+- Each pod's release time is worked back from its position in scene 03, so the
+  last frame lands on that composition.
+- Pods fall behind the ship layer, so they slide out from under the hull.
+- `cuculidae-design-sheet-v1.png` is not a layer, because its views are flat and
+  evenly lit. It remains the reference for the ship's design and for any 3D
+  close-up of the cannons.
 
 21. **Robot design.** Robot.png is gunmetal, with dome shoulders and a single
     triangular optic. act4 is yellow, with a visor head. The game's robot is
     yellow with a red optic. Proposal: Robot.png's skeletal body and head with
     the game's yellow armour plates. Or use act4 as it is.
-    Your answer:
+    Your answer: Settled by scene 04 (2026-11-01): the slim yellow robot over a dark
+    skeleton, with one narrow red slit, matching the game. Robot.png is retired.
 
 22. **One pod instead of two.** In act4 the robot stands inside the opened core,
     like in the game. Proposal: only the core pod lands. It streaks down over
     the camera and hits in front of it, and dust covers the lens. As the dust
     clears, the core is unfolding and its tower rises. The robot inside lights
     its optic and steps onto the camera. This also settles question 17.
-    Your answer:
+    Your answer: Settled by scene 04: one pod, and the robot stands in its central
+    cell. Question 17 is closed.
 
 23. **Ground colour.** Blue grass and trees (act4), or the game's green grass,
     so the cut from the video into the game matches?
-    Your answer:
+    Your answer: Following scene 04: blue. The game's Caldera is now painted blue
+    too (`public/caldera-art.js`), so this is no longer a conflict.
 
 24. **Factory.** One big furnace (your flow) or four (act2)? The centre craft
     looks like a spacecraft, but the game has no spacecraft unit. Should it be a
     game unit instead (bomber, helicopter, AC-130-style gunship)? Should naval
     ships appear? A battleship would dwarf the crates.
-    Your answer:
+    Your answer: Following scene 02: a furnace wall with several mouths, and the
+    centre craft stands for the ship lane.
 
 25. **Shell line.** act2 already shows shells in the same hall. Keep the flight
     through the furnace into a separate shell factory, or pan across to the
     shell line in this hall? Panning means one fewer environment to build.
-    Your answer:
+    Your answer: Following scene 02: pan to the shell line in the same hall.
 
 26. **The body in the upper left of act3.** The game's entry scene has Caldera,
     Vesper and one decorative moon. Is this Vesper, or the moon?
-    Your answer:
+    Your answer: The scene 03 prompt calls it a smaller distant planet.
 
 27. **Image source.** Which tool or process made these images? The portfolio
     should record where each image came from.
-    Your answer:
+    Your answer: Recorded in the `*-prompt.txt` file beside each image.
 
 ## References (optional)
 

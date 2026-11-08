@@ -1,0 +1,6 @@
+Concept direction from user, 08 November 2026. Not implemented in gameplay.
+Twin Laser: six walking legs, no arms, two camera-like biological lens barrels, separate left and right dorsal radiator banks.
+Heavy Laser: six thicker walking legs, one larger lens barrel as in the second sketch, thicker connected dorsal radiators.
+User requested 2.5 times in-game size for Heavy. Working interpretation: 2.5x overall linear length and width relative to Twin Laser; this is an art-scale proposal, not a collision or balance change. Isolated concept illustrations are framed independently and are not a shared-scale comparison.
+Both concepts use original anatomy from the user's sketches. No reference images from the mentioned franchise were used.
+Generated with the built-in image generator. Full prompts are saved alongside images.

@@ -26,7 +26,7 @@ async function fixture(browser, mobile, run) {
       const sources = new WeakMap();
       const fill = CanvasRenderingContext2D.prototype.fillRect;
       CanvasRenderingContext2D.prototype.fillRect = function(x, y, width, height) {
-        if (this.canvas.classList.contains('entry-scene') && x === 0 && y === 0 && width >= innerWidth && height >= innerHeight) {
+        if (this.canvas.classList.contains('entry-scene') && this.globalCompositeOperation === 'source-over' && x === 0 && y === 0 && width >= innerWidth && height >= innerHeight) {
           frame = { planets: [], ships: [], view: document.body.dataset.entryView, planet: document.body.dataset.entryPlanet }; window.voyageFrames.push(frame);
           if (window.voyageFrames.length > 700) window.voyageFrames.shift();
         }
@@ -92,6 +92,9 @@ for (const mobile of [false, true]) test(`civilian system entry and smooth plane
     await page.locator('#colonization-game').click();
     await expect(body).toHaveAttribute('data-entry-wormhole', 'collapse');
     await expect(body).toHaveAttribute('data-entry-wormhole-direction', 'gold');
+    // The gravitational lens needs WebGL2; elsewhere the earlier 2D iris runs.
+    const webgl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
+    await expect(body).toHaveAttribute('data-entry-wormhole-lens', webgl ? 'gl' : '2d');
     const goldStarted = await page.evaluate(() => performance.now());
     await page.waitForFunction(start => performance.now() - start > 350, goldStarted);
     await page.screenshot({ path: info.outputPath(`system-return-${label}-gold-collapse-early.png`) });
@@ -297,5 +300,41 @@ test('civilian transitions cancel on Back and never replay on reload or reduced 
     await page.locator('#war-zone').click();
     await expect(body).toHaveAttribute('data-entry-view', 'menu');
     await noTransition(page);
+  });
+});
+
+test('the branch lens falls back to the 2D iris without WebGL2 or after a GL failure', async ({ browser }, info) => {
+  test.setTimeout(60000);
+  await fixture(browser, false, async ({ base, page }) => {
+    const body = page.locator('body');
+    await page.goto(base + '/campaigns/');
+    await expect(body).toHaveAttribute('data-scene-ready', 'canvas');
+    // A GL failure mid-transition finishes on the 2D iris; nothing reaches the page.
+    await page.evaluate(() => {
+      const draw = WebGL2RenderingContext.prototype.drawArrays;
+      let frames = 0;
+      WebGL2RenderingContext.prototype.drawArrays = function() {
+        if (++frames === 6) { WebGL2RenderingContext.prototype.drawArrays = draw; throw new Error('Isolated lens failure'); }
+        return draw.apply(this, arguments);
+      };
+    });
+    await page.locator('#colonization-game').click();
+    await expect(body).toHaveAttribute('data-entry-wormhole-lens', '2d');
+    await expect.poll(() => body.getAttribute('data-entry-wormhole'), { timeout: 6000 }).toBeNull();
+    await warmReady(page);
+    // Without WebGL2 the earlier iris runs from the first frame, stars intact.
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(kind, ...rest) { return kind === 'webgl2' ? null : original.call(this, kind, ...rest); };
+    });
+    await page.reload();
+    await warmReady(page); await noTransition(page);
+    await page.locator('#war-zone').click();
+    await expect(body).toHaveAttribute('data-entry-wormhole-lens', '2d');
+    await page.waitForFunction(() => document.body.dataset.entryWormhole === 'converge');
+    expect(await visibleOuterStars(page)).toBeGreaterThan(5);
+    await page.screenshot({ path: info.outputPath('system-return-desktop-2d-fallback-converge.png') });
+    await expect.poll(() => body.getAttribute('data-entry-wormhole'), { timeout: 6000 }).toBeNull();
+    await expect(body).toHaveAttribute('data-entry-theme', 'combat-blue');
   });
 });

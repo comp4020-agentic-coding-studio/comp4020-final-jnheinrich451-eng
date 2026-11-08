@@ -96,10 +96,13 @@ for (const mobile of [false, true]) test(`peaceful gardening through real contro
       await expect.poll(async () => (await snapshot()).colony.storage.sundrop).toBe(2);
       await page.locator('#tool-shipment').click();
       await page.locator('#ship-cargo').click();
-      await expect(page.locator('.shipment-summary').first()).toContainText('Shuttle in flight');
-      await expect.poll(async () => (await snapshot()).colony.shipments, { timeout: 12000 }).toBe(1);
-      await expect(page.locator('#materials-count')).toHaveText('44');
-      expect((await snapshot()).colony.decorations.pennant).toBe(true);
+      await expect(page.locator('.shipment-summary').first()).toContainText(/Loading harvest|Departing for MYCORRHIZAL/);
+      await expect.poll(async () => (await snapshot()).colony.shipments, { timeout: 20000 }).toBe(1);
+      // The reward lands as crates beside the pad; materials rise only when a crate is collected.
+      await expect(page.locator('#materials-count')).toHaveText('28');
+      const delivered=(await snapshot()).colony;
+      expect(delivered.materials+delivered.crates.reduce((total,crate)=>total+crate.materials,0)).toBe(44);
+      expect(delivered.decorations.pennant).toBe(true);
       await page.screenshot({ path: info.outputPath('garden-delivery.png'), fullPage: true });
 
       // Pausing must keep its live connection and Resume control after the
@@ -127,7 +130,8 @@ for (const mobile of [false, true]) test(`peaceful gardening through real contro
       await page.reload();
       await expect(page.locator('#colony-loading')).toBeHidden();
       const returned = await snapshot();
-      expect(returned.colony).toMatchObject({ materials: 44, shipments: 1, milestones: { firstPlant: true, firstHarvest: true, firstShipment: true } });
+      expect(returned.colony.materials+returned.colony.crates.reduce((total,crate)=>total+crate.materials,0)).toBe(44);
+      expect(returned.colony).toMatchObject({ materials: 28, shipments: 1, milestones: { firstPlant: true, firstHarvest: true, firstShipment: true } });
       expect(returned.colony.sprinklers).toHaveLength(1);
     }
     expect(errors).toEqual([]);

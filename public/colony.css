@@ -70,6 +70,8 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .view-tools button { width: 30px; height: 36px; display: grid; place-items: center; background: transparent; border-radius: 3px; }
 .view-tools svg { width: 17px; height: 17px; }
 .view-tools button[aria-pressed=true] { background: #d8e1ce99; }
+/* Reduced animation must read as on at a glance: it stills machines and grounds the shuttle. */
+#effects-toggle[aria-pressed=true] { background: #f1dfa6; color: #5a4310; box-shadow: inset 0 0 0 1px #b8913a; }
 
 /* The active tool unfolds directly from the same bottom dock. */
 .inspector, .room-panel, #colony-help-dialog { color: var(--ink); background: var(--paper); backdrop-filter: blur(10px); border: 1px solid var(--line); box-shadow: var(--shadow); scrollbar-width: thin; scrollbar-color: #9aa78d transparent; }
@@ -124,8 +126,8 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .colony-game-inspecting .garden-toolbar { border-top: 1px solid #6d805a30; border-radius: 0 0 5px 5px; }
 .garden-toolbar button { flex: 1; display: flex; align-items: center; gap: 9px; min-width: 0; padding: 5px 10px; border: 0; border-radius: 3px; background: transparent; text-align: left; }
 .garden-toolbar button[aria-pressed=true] { background: #cdd9bc66; }
-.garden-toolbar button > span:last-child { font-size: 11px; font-weight: 500; white-space: nowrap; }
-.garden-toolbar small { display: block; font-size: 8px; color: var(--muted); font-weight: 400; margin-top: 3px; }
+.garden-toolbar button > span:last-child { min-width: 0; max-width: 100%; font-size: 11px; line-height: 1.2; font-weight: 500; white-space: normal; overflow-wrap: anywhere; }
+.garden-toolbar small { display: block; font-size: 8px; line-height: 1.2; color: var(--muted); font-weight: 400; margin-top: 3px; }
 .garden-toolbar kbd { font-size: 7px; padding: 0 2px; margin-left: 2px; }
 .tool-icon { display: grid; place-items: center; color: #5b7350; width: 23px; flex-shrink: 0; }
 .tool-icon svg { width: 23px; height: 23px; }
@@ -140,9 +142,52 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .placement-note .quiet-button { position: absolute; right: 14px; top: 10px; font-size: 10px; }
 .toast { position: absolute; top: 87px; left: 50%; transform: translateX(-50%); padding: 8px 13px; background: #f8f9edeb; border: 1px solid var(--line); border-radius: 3px; color: #39573c; font-size: 10px; line-height: 1.45; text-align: center; max-width: min(410px, calc(100% - 28px)); z-index: 10; pointer-events: none; }
 .toast.error { color: #793b29; background: #f7eee1f2; border-color: #ad7c5d88; }
+.collect-crate { position: absolute; top: 124px; left: 50%; transform: translateX(-50%); z-index: 4; font-size: 11px; padding: 6px 12px; }
+.collect-crate kbd { margin-left: 4px; }
+/* The orbital parcel: one number per cargo, all of it by default. */
+.storage-list.parcel-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+.parcel-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto 54px; align-items: center; gap: 6px; min-width: 0; }
+.parcel-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parcel-list small { font-size: 9px; color: var(--muted); }
+.parcel-list input { width: 54px; min-height: 30px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 3px; background: #fffdf3; text-align: right; }
+/* Camp: name the companion. */
+.pet-rename { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin: 4px 0 6px; }
+.pet-rename input { min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px; background: #fffdf3; font-size: 12px; }
+.pet-rename button { padding: 4px 12px; font-size: 11px; }
+/* Camp: the last catches, drawn from their saved seeds. */
+.creel-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+.creel-gallery figure { margin: 0; padding: 4px 3px 3px; border: 1px solid var(--line); border-radius: 4px; background: #fbf6e2; text-align: center; }
+.creel-gallery canvas { width: 64px; height: 36px; display: block; margin: 0 auto; }
+.creel-gallery figcaption { font-size: 8px; line-height: 1.25; color: var(--muted); }
+/* The reel fight: a water track with the catch ring, the fish and a progress bar. */
+.fish-fight { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); z-index: 6; width: 150px; padding: 10px 10px 9px; display: grid; gap: 7px; justify-items: center; background: #f8f9edee; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.fish-fight canvas { width: 112px; height: 250px; display: block; }
+.fish-fight button { width: 100%; min-height: 40px; font-size: 12px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.fish-fight button.held { background: #b8893c; color: #fffbea; }
+.fish-fight-hint { font-size: 9px; line-height: 1.4; color: var(--muted); text-align: center; }
+/* The catch card: gold rays, a red burst and the fish (author's sketch, 8 November 2026). */
+.catch-card { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); z-index: 12; width: min(360px, calc(100% - 28px)); padding: 14px 16px 13px; display: grid; gap: 6px; justify-items: center; text-align: center; border: 3px solid #7fa7b4; border-radius: 10px; box-shadow: 0 10px 34px #3b2f1240; background: repeating-linear-gradient(118deg, #f3cf6b 0 16px, #f7dc8c 16px 32px); animation: catch-in .35s ease-out; }
+.catch-card[data-rarity="2"] { border-color: #8d6cc8; }
+.catch-card[data-rarity="3"] { border-color: #c9493a; box-shadow: 0 0 0 3px #f6dc8c, 0 10px 34px #6b2a1450; }
+.catch-art { position: relative; width: 100%; aspect-ratio: 200 / 124; }
+.catch-burst { position: absolute; inset: 0; width: 100%; height: 100%; }
+.catch-burst polygon { fill: #fff3cfcc; stroke: #c9332b; stroke-width: 3.2; stroke-linejoin: round; }
+.catch-art canvas { position: absolute; inset: 8% 6%; width: 88%; height: 84%; }
+.catch-title { font: 600 17px/1.25 var(--drawn); color: #4a2f12; }
+.catch-detail { font-size: 11px; color: #5d4524; }
+.catch-card button { margin-top: 3px; padding: 6px 16px; font-size: 11px; background: #fbf3d6; }
+@keyframes catch-in { from { transform: translate(-50%, -46%) scale(.86); opacity: 0; } }
+.reduced-motion .catch-card { animation: none; }
 .room-panel { position: absolute; top: 87px; right: max(16px, calc((100% - 1130px) / 2)); width: 290px; max-height: calc(100dvh - 120px); overflow: auto; padding: 16px; border-radius: 4px; z-index: 7; }
 .room-panel .inspector-heading > div { display: block; }
 .room-panel h2 { margin-top: 4px; }
+.music-settings { min-width: 0; margin: 14px 0; padding: 10px; border: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.music-settings legend { font-size: 11px; color: var(--muted); padding: 0 4px; }
+.music-settings button { min-height: 44px; }
+.music-settings button[aria-pressed="true"] { background: #dce4d4; }
+.music-settings label { font-size: 11px; }
+.music-settings input { min-width: 60px; width: 60px; min-height: 44px; flex: 1; accent-color: var(--sage); }
+.music-settings p { flex-basis: 100%; }
 .crew-list { list-style: none; padding: 0; margin: 8px 0 12px; display: grid; }
 .crew-list li { padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 11px; display: flex; align-items: center; gap: 8px; }
 .crew-list li:before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #708a5c; }
@@ -158,10 +203,21 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .guide-controls dd { margin: 0; color: #3d593f; }
 .guide-note { color: var(--muted); font-size: 10px; line-height: 1.6; margin-top: 8px; }
 .loading-screen { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #f2f5e9; color: #405b42; text-align: center; padding: 24px; }
-.loading-mark { width: 74px; height: 74px; color: #778865; }
+.loading-mark { width: 74px; height: 74px; color: #c8ad6e; }
+/* Entry, leaving and a closed room all pass through black, as the menu's descent ends.
+   The words wait three seconds, so a quick load is only a dark pause. */
+.loading-screen { background: #000; color: #efe6cc; }
+.loading-screen.waiting > * { opacity: 0; animation: colony-words .6s ease 3s forwards; }
+.reduced-motion .loading-screen.waiting > * { opacity: 1; }
+@keyframes colony-words { to { opacity: 1; } }
+.colony-fade { position: absolute; inset: 0; z-index: 19; background: #000; pointer-events: none; animation-fill-mode: both; }
+.colony-fade.fade-in { animation-name: colony-fade-in; animation-timing-function: ease-out; }
+.colony-fade.fade-out { animation-name: colony-fade-out; animation-timing-function: ease-in; }
+@keyframes colony-fade-in { from { opacity: 1; } to { opacity: 0; } }
+@keyframes colony-fade-out { from { opacity: 0; } to { opacity: 1; } }
 .loading-screen h2 { font: 600 26px/1.5 var(--drawn); }
-.loading-screen p { font-size: 12px; color: var(--muted); }
-.loading-screen a { font-size: 11px; margin-top: 10px; }
+.loading-screen p { font-size: 12px; color: #bdb59f; }
+.loading-screen a { font-size: 11px; margin-top: 10px; color: #e9cf86; }
 .paused-ribbon { color: #886a3b; }
 .state-pill { font-size: 9px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 2px; color: #536b47; }
 
@@ -236,6 +292,10 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
   .placement-note span { font-size: 9px; padding-right: 65px; }
   .placement-note .quiet-button { right: 12px; top: 8px; font-size: 9px; }
   .guide-controls div { grid-template-columns: 112px 1fr; }
+  .fish-fight { right: 10px; top: auto; bottom: calc(var(--dock-bottom) + var(--dock-height) + 12px); transform: none; width: 118px; padding: 8px; gap: 5px; }
+  .fish-fight canvas { width: 92px; height: 196px; }
+  .fish-fight-hint { display: none; }
+  .catch-title { font-size: 15px; }
 }
 @media (max-width: 360px) {
   .colony-brand { font-size: 8px; }
@@ -263,8 +323,67 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
   .header-main, .header-secondary { gap: 8px; }
   .welcome-card { width: 150px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after { animation: none !important; transition: none !important; }
+/* The header switch, not the system setting, reduces interface motion. */
+.reduced-motion *, .reduced-motion *:before, .reduced-motion *:after { animation: none !important; transition: none !important; }
+.expanded-expedition { --dock-width: 690px; }
+.inspector[data-panel=settlement], .inspector[data-panel=explore] { max-height: min(445px, calc(100dvh - 205px)); }
+.settlement-tabs, .furnishing-filters, .furnishing-finishes { display: flex; align-items: center; gap: 6px; }
+.settlement-tabs { border-bottom: 1px solid var(--line); margin: -2px 0 10px; }
+.settlement-tabs button { flex: 1; min-height: 36px; }
+.settlement-tabs button[aria-pressed=true] { color: var(--ink); box-shadow: inset 0 -2px #8b9e7d; }
+.furnishing-filters { flex-wrap: wrap; margin-bottom: 8px; }
+.furnishing-filters button { padding: 5px 10px; min-height: 32px; border-radius: 14px; font-size: 10px; }
+.furnishing-filters button[aria-pressed=true] { background: #d6e0c8; color: #314b37; }
+.furnishing-finishes { justify-content: flex-end; margin: 4px 0 10px; }
+.finish-swatch { font-size: 9px; padding: 5px 9px; border-radius: 12px; border: 1px solid #9caa9555; min-height: 28px; }
+.finish-swatch[data-finish=ivory] { background: #edece0; }.finish-swatch[data-finish=sage] { background: #b3c8ae; }.finish-swatch[data-finish=violet] { background: #c3b5cb; }
+.finish-swatch[aria-pressed=true] { outline: 1px solid #63745c; outline-offset: 2px; }
+.furnishing-catalogue { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.furnishing-card { background: #f9fbf0a6; border: 1px solid #879b7340; border-radius: 5px; padding: 2px 8px 10px; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.furnishing-card:hover:not(:disabled) { background: #fffef2; border-color: #829976; }
+.furnishing-card strong { font-size: 11px; font-weight: 500; }
+.furnishing-card small { font-size: 9px; padding-top: 4px; }
+.furnishing-thumb { width: min(140px,100%); height: auto; display: block; }
+.furnishing-guidance { font-size: 10px; line-height: 1.5; color: var(--muted); margin: 10px 0 2px; }
+.settlement-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
+.settlement-items summary, .field-journal summary { cursor: pointer; font-size: 11px; padding: 9px 0; }
+.settlement-delivery { padding: 8px 10px; background: #e8dfc580; border-left: 2px solid #b59e62; margin-bottom: 10px; font-size: 10px; display: flex; justify-content: space-between; gap: 8px; }
+.settlement-delivery strong { font-weight: 500; white-space: nowrap; }
+.furnishing-detail { display: flex; align-items: center; gap: 15px; }
+.furnishing-detail .furnishing-thumb { width: 130px; flex-shrink: 0; }
+.delivery-status { font-size: 11px; color: #8b7143; padding-bottom: 6px; }
+.settlement-project { padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; margin-top: 7px; background: #fafbf18c; }
+.settlement-project > strong { font-size: 12px; font-weight: 500; }
+.settlement-project .fine { margin: 4px 0 8px; }
+.settlement-project button { margin-top: 5px; font-size: 10px; }
+.region-map { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+.region-card { padding: 0 0 11px; border: 1px solid #8b9d774f; border-radius: 4px; background: #fafaf0b3; overflow: hidden; text-align: left; }
+.region-card[aria-current=true] { opacity: 1; border-color: #77916b; box-shadow: inset 0 -2px #8fa583; }
+.region-card-art { display: block; background: #e4ebd6; }.region-card-art svg { width: 100%; height: auto; }
+.region-card strong, .region-card small { display: block; padding: 0 9px; }.region-card strong { font-size: 11px; margin-top: 7px; font-weight: 500; }.region-card small { font-size: 8px; margin-top: 5px; color: var(--muted); }
+.discovery-list { display: grid; gap: 7px; }.discovery-card { border: 1px solid var(--line); padding: 9px 12px; border-radius: 4px; }.discovery-card.selected { border-color: #a48c57; background: #f8efcf44; }
+.discovery-card > strong { font-size: 12px; font-weight: 500; }.discovery-card p { margin-top: 5px; line-height: 1.45; }
+.discovery-controls { display: flex; justify-content: space-between; gap: 6px; align-items: center; margin-top: 5px; }.discovery-controls button { font-size: 10px; min-height: 34px; }
+.field-journal { border-top: 1px solid var(--line); margin-top: 10px; }.journal-entry { padding: 7px 0; }.journal-entry strong { font-size: 11px; font-weight: 500; }.journal-entry p { line-height: 1.5; margin-top: 3px; }
+.region-arrival { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); width: min(360px,90%); text-align: center; padding: 20px; background: #f4f6e9ed; border: 1px solid var(--line); border-radius: 5px; pointer-events: none; z-index: 7; box-shadow: var(--shadow); animation: region-arrive 1.6s ease both; }
+.region-arrival span { font-size: 8px; letter-spacing: 1.5px; color: var(--muted); }.region-arrival strong { display: block; font: 22px/1.6 var(--drawn); margin: 4px 0; }.region-arrival small { color: var(--muted); font-size: 10px; }
+@keyframes region-arrive { 0% { opacity:0; margin-top:8px; } 20%,75% { opacity:1; margin-top:0; } 100% { opacity:0; } }
+.exploration-hint { position: absolute; right: 20px; bottom: 110px; width: 172px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 9px; background: #f4f7e7d9; border: 1px solid var(--line); border-radius: 4px; z-index: 4; }
+.exploration-hint span { font-size: 10px; text-align: center; }
+/* One column: both buttons share its width, height and centred label. */
+.exploration-hint button { width: 100%; min-height: 40px; margin: 0; font-size: 11px; text-align: center; justify-content: center; }
+@media (max-width: 760px) {
+  .expanded-expedition { --dock-width: calc(100% - 20px); }
+  .expanded-expedition .garden-toolbar button > span:last-child { font-size: 8px; }
+  .inspector[data-panel=settlement], .inspector[data-panel=explore] { max-height: min(345px, calc(100dvh - 215px)); }
+  .furnishing-catalogue { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }.furnishing-thumb { width: 110px; }
+  .furnishing-filters { gap: 3px; }.furnishing-filters button { padding: 5px 7px; min-height: 36px; }
+  .settlement-tabs button { min-height: 40px; }.finish-swatch { min-height: 32px; }.furnishing-card strong { font-size: 10px; }.furnishing-card small { font-size: 8px; }
+  .region-map { gap: 5px; }.region-card strong { font-size: 9px; padding-inline: 6px; }.region-card small { font-size: 7px; padding-inline: 6px; }
+  .discovery-controls button { min-height: 40px; font-size: 9px; }.furnishing-detail .furnishing-thumb { width: 95px; }
+  .colony-exploring .colony-touch-pad { display: grid; z-index: 5; }
+  .colony-exploring.colony-game-inspecting .colony-touch-pad { bottom: calc(var(--dock-bottom) + var(--dock-height) + var(--nearby-panel-height, 345px) + 8px); }
+  .exploration-hint { right: 12px; bottom: 100px; max-width: 185px; }.colony-game-inspecting .exploration-hint { display: none; }
 }
 .camp-items { display: grid; gap: 5px; margin: 8px 0; }
 .camp-item { display: flex; align-items: center; gap: 5px; }
@@ -281,7 +400,60 @@ kbd { font: 8px 'IBM Plex Mono', monospace; padding: 1px 3px; border: 1px solid 
 .camp-sky .action-pair > label { flex: 1; min-width: 0; }
 .camp-sky select { display: block; width: 100%; margin-top: 4px; }
 .inspector[data-panel=camp] { max-height: min(390px, calc(100dvh - 210px)); }
+.garden-toolbar button { gap: 6px; padding-inline: 6px; }
+.garden-toolbar button > span:last-child { font-size: 10px; }
+.garden-toolbar .tool-icon, .garden-toolbar .tool-icon svg { width: 21px; }
+.garden-toolbar small { font-size: 7px; }
+.placement-buttons { position: absolute; right: 14px; top: 8px; display: flex; flex-direction: column; align-items: flex-end; }
+.placement-note .placement-buttons .quiet-button { position: static; min-height: 28px; padding: 4px 0 4px 8px; }
+.industry-placement { min-height: 82px; }
+.industry-placement #placement-reason { padding-right: 110px; }
+.inspector[data-panel=industry] { max-height: min(390px, calc(100dvh - 210px)); }
+.industry-power { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0 8px; font-size: 10px; color: var(--muted); }
+.industry-power strong { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ground-readout { border-bottom: 1px solid var(--line); margin-bottom: 7px; }
+.industry-catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.industry-build { display: flex; align-items: center; gap: 9px; padding: 9px; min-width: 0; text-align: left; background: #fbfcf3b8; border: 1px solid #b8c9b697; border-radius: 4px; color: var(--ink); transition: background .15s, border-color .15s; }
+.industry-build:hover:not(:disabled) { background: #fdfef6; border-color: #819b74; }
+.industry-build:disabled { opacity: .5; }
+.industry-icon { flex-shrink: 0; width: 29px; height: 32px; color: #789074; }
+.industry-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linejoin: round; stroke-linecap: round; }
+.industry-build-copy { min-width: 0; }
+.industry-build-copy strong { font-size: 11px; font-weight: 500; display: block; }
+.industry-build-copy small { display: block; font-size: 9px; margin-top: 3px; line-height: 1.35; color: var(--muted); }
+.industry-guidance { font-size: 10px; line-height: 1.5; color: var(--muted); margin: 9px 0 6px; }
+.industry-machines { font-size: 10px; margin: 7px 0; }
+.industry-machines summary { cursor: pointer; padding: 6px 0; }
+.industry-machine-link { display: block; width: 100%; padding: 8px 3px; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 10px; }
+.industry-reserve { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10px; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
+.industry-reserve .quiet-button { min-height: 32px; font-size: 10px; padding: 5px 0; }
+.industry-status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.industry-status-row .quiet-button { font-size: 10px; padding: 4px 0; min-height: 28px; }
+.industry-status { font-size: 11px; font-weight: 500; text-align: right; color: #617854; }
+.industry-ports { margin: 4px 0 8px; font-size: 9px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.industry-field { display: block; font-size: 10px; min-width: 0; }
+.industry-field select { display: block; width: 100%; min-width: 0; margin: 4px 0 7px; font-size: 10px; }
+.industry-line { margin: 6px 0 2px; font-size: 10px; line-height: 1.5; color: var(--ink); }
+.industry-hint { margin: 2px 0 6px; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.colony-placing .colony-touch-pad { display: none; }
+.industry-controls { display: flex; gap: 6px; margin-top: 8px; }
+.industry-controls .soft-button, .industry-controls .quiet-button { flex: 1; padding: 7px; min-height: 36px; font-size: 10px; white-space: nowrap; }
 @media (max-width: 760px) {
   .inspector[data-panel=camp] { max-height: min(320px, calc(100dvh - 210px)); }
   .camp-item > button { font-size: 10px; }
+  .inspector[data-panel=industry] { max-height: min(330px, calc(100dvh - 210px)); }
+  .garden-toolbar button { gap: 3px; padding-inline: 2px; }
+  .garden-toolbar button > span:last-child { font-size: 9px; }
+  .industry-build { gap: 6px; padding: 8px 6px; }
+  .industry-icon { width: 23px; height: 28px; }
+  .industry-build-copy strong { font-size: 10px; }
+  .industry-build-copy small { font-size: 8px; }
+  .industry-guidance { font-size: 9px; }
+  .industry-field select { padding-inline: 5px; }
+  .industry-reserve { gap: 6px; font-size: 9px; }
+  .industry-reserve .quiet-button { font-size: 9px; }
+  .placement-buttons { right: 12px; }
+}
+@media (max-width: 360px) {
+  .expanded-expedition { --dock-height: 68px; }
 }

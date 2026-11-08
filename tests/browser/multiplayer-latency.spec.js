@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { skipArrival } from './room-helper.js';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -60,7 +61,7 @@ test('two then four participants display shared construction and conquest prompt
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context);
       const code = (await post(owner, '/api/campaigns/invite', { id })).code;
       const peer = await context.newPage(); pages.push(peer); peer.on('pageerror', e => errors.push(e.message));
-      await peer.goto(base); await peer.locator('#guest').click(); await peer.locator('#join input').fill(code); await peer.locator('#join button').click();
+      await peer.goto(base); await peer.locator('#guest').click(); await peer.locator('#join input').fill(code); await peer.locator('#join button').click(); await skipArrival(peer);
       await expect(peer.locator('#connection')).toContainText('live');
       await post(context, `/api/campaign-world/${id}/cores`, { x: [24, 48, 64][pages.length - 2], y: 18 });
       await expect.poll(async () => (await (await context.request.get(base + `/api/campaign-world/${id}/world`)).json()).me.deploying, { timeout: 8000 }).toBe(false);

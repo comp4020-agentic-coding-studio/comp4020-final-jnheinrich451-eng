@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom } from './room-helper.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -80,7 +81,7 @@ for (const mobile of [false, true]) test(`settlement shared checklist and perman
     expect((await state()).world.terrain).toEqual(terrain);
     expect(logs.filter(e => e.event === 'objective.conquered' && members.some(s => s.id === e.targetId) && e.saved)).toHaveLength(3);
     await post(owner, '/api/campaigns/leave', {});
-    await expect(page).toHaveURL(/\/campaigns\//); await expect(peer).toHaveURL(/\/campaigns\//);
+    await leaveClosedRoom(page, peer);
     await Promise.all([page.goto('about:blank'), peer.goto('about:blank')]); await app.close();
     app = createApp({ dataDir: dir, logSink: line => logs.push(JSON.parse(line)) });
     await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));

@@ -1,0 +1,130 @@
+{
+  "capturedAt": "2026-11-02T08:59:00.395Z",
+  "browser": "155.0.8059.86",
+  "scope": "Synthetic local headless Chrome renderer.draw measurement only. Excludes app UI, server simulation, networking, media decoding and snapshot cloning. Phone means a desktop Chrome viewport/DPR emulation, not physical phone hardware. No FPS or hosted capacity claim.",
+  "fixture": "88 instances of all 22 actual catalogue furnishing types, including one delivery. Synthetic placement and flattened ground are for rendering coverage, not a legal player-built layout or progression/economy test. Representative machinery work phases are advanced outside the timed renderer call. Terrain and artwork caches are warmed; new snapshot objects are supplied every seventh frame.",
+  "sources": {
+    "colony-art.js": "7c0d207583577a3893d9a7bf3ca73903045c8aa6466672d912f4713f6d381411",
+    "colony-settlement-art.js": "f9a0af3f6bf5f8cbb95430a4bb6c3150e04d87dd76c38857b213f7514b066aed",
+    "colony-industry-art.js": "d26eff5d9ebb38a3ff641656f4fc90a69f8af12e9e6c9c98613d72a39d737f9a",
+    "colony-machinery.js": "563ffb405256d8f451a20fe72dcde01485ac334476b8ee9ebf8f30d5b3bd1407"
+  },
+  "results": [
+    {
+      "name": "desktop-populated-day",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 36,
+      "x": 36,
+      "y": 28,
+      "lighting": "day",
+      "counts": {
+        "furnishings": 88,
+        "readyFurnishings": 87,
+        "distinctFurnishingTypes": 22,
+        "furnishingsPassingCulling": 88,
+        "beds": 6,
+        "sprinklers": 4,
+        "machines": 6,
+        "belts": 24,
+        "workers": 4,
+        "activeDeliveries": 1
+      },
+      "warmupFrames": 30,
+      "sampleFrames": 180,
+      "drawMs": {
+        "mean": 3.777,
+        "p95": 5.2
+      },
+      "errors": []
+    },
+    {
+      "name": "desktop-populated-night",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1,
+      "tile": 36,
+      "x": 36,
+      "y": 28,
+      "lighting": "night",
+      "counts": {
+        "furnishings": 88,
+        "readyFurnishings": 87,
+        "distinctFurnishingTypes": 22,
+        "furnishingsPassingCulling": 88,
+        "beds": 6,
+        "sprinklers": 4,
+        "machines": 6,
+        "belts": 24,
+        "workers": 4,
+        "activeDeliveries": 1
+      },
+      "warmupFrames": 30,
+      "sampleFrames": 180,
+      "drawMs": {
+        "mean": 3.871,
+        "p95": 5.5
+      },
+      "errors": []
+    },
+    {
+      "name": "phone-populated-close",
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "tile": 29,
+      "x": 36,
+      "y": 28,
+      "lighting": "night",
+      "counts": {
+        "furnishings": 88,
+        "readyFurnishings": 87,
+        "distinctFurnishingTypes": 22,
+        "furnishingsPassingCulling": 72,
+        "beds": 6,
+        "sprinklers": 4,
+        "machines": 6,
+        "belts": 24,
+        "workers": 4,
+        "activeDeliveries": 1
+      },
+      "warmupFrames": 30,
+      "sampleFrames": 180,
+      "drawMs": {
+        "mean": 2.962,
+        "p95": 4.2
+      },
+      "errors": []
+    },
+    {
+      "name": "phone-populated-overview",
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "tile": 14,
+      "x": 36,
+      "y": 28,
+      "lighting": "day",
+      "counts": {
+        "furnishings": 88,
+        "readyFurnishings": 87,
+        "distinctFurnishingTypes": 22,
+        "furnishingsPassingCulling": 88,
+        "beds": 6,
+        "sprinklers": 4,
+        "machines": 6,
+        "belts": 24,
+        "workers": 4,
+        "activeDeliveries": 1
+      },
+      "warmupFrames": 30,
+      "sampleFrames": 180,
+      "drawMs": {
+        "mean": 3.509,
+        "p95": 5.2
+      },
+      "errors": []
+    }
+  ]
+}

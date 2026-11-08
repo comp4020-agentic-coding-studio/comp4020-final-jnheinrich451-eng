@@ -1,5 +1,6 @@
 import { CoreEffects } from './core-effects.js';
 import { POD } from './pod.js';
+import { capsuleDescent } from './reentry-art.js';
 import { constructionCores } from './construction.js';
 
 const clamp=n=>Math.max(0,Math.min(1,n));
@@ -35,9 +36,9 @@ export class ConstructionEffects extends CoreEffects {
     c.strokeStyle='#dabf78';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);
     c.strokeRect(-size*T/2,-size*T/2,size*T,size*T);c.setLineDash([]);
     if(t<POD.impact){
-      const fall=1-(t/POD.impact)**2;
       c.fillStyle='#11272b55';c.beginPath();c.ellipse(0,0,T*.65,T*.45,0,0,Math.PI*2);c.fill();
-      if(!reduced){c.translate(fall*4*T,-fall*7*T);c.strokeStyle='#ffc07999';c.lineWidth=.14*T;c.beginPath();c.moveTo(0,0);c.lineTo(fall*T,-fall*2*T);c.stroke();c.scale(1+fall*.6,1+fall*.6);}
+      const pose=capsuleDescent(c,T,{id:'build:'+(point.id??point.x+','+point.y),x:point.x,y:point.y,s:t/POD.impact,duration:POD.impact,height:8,body:1.5,grow:.6},reduced);
+      if(!reduced){c.translate(pose.x*T,pose.y*T);c.scale(1+pose.a*.6,1+pose.a*.6);}
       this.box(c,0);
     }else{
       const open=smooth((t-POD.unfold)/POD.panelDuration),edge=Math.min(size*.46,.85)*T;

@@ -1,16 +1,22 @@
 import { EMOTES, emotePoint } from './emotes.js';
 
+// The Enter key's own mark, drawn in the HUD's line style.
+const ENTER = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5v7a3 3 0 0 1-3 3H6"/><path d="M10 11l-4 4 4 4"/></svg>';
+
 export function communicationUI({ api, available, stop, focus, draftKey }) {
   const host = document.querySelector('.battlefield');
+  // One bar with a gold edge, like the mission bar: it says how to chat and nothing else (author, 9 November 2026).
+  const touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
   const panel = document.createElement('section'); panel.className = 'communication'; panel.setAttribute('aria-label', 'Room communication');
   panel.innerHTML = `<div class="chat-history" id="chat-history" hidden><ol id="chat-messages" role="log" aria-label="Room messages" aria-live="polite" aria-relevant="additions"></ol></div>
-    <form id="chat-form" hidden><label for="chat-input">Room chat</label><input id="chat-input" type="text" maxlength="280" autocomplete="off" placeholder="Message your crew..." enterkeyhint="send"><button type="submit">Send</button><button id="chat-cancel" type="button" aria-label="Close chat and keep draft">Esc</button><small>Enter sends / Esc keeps draft</small></form>
+    <form id="chat-form" class="chat-bar" hidden><label for="chat-input" class="chat-label">Room chat</label><input id="chat-input" type="text" maxlength="280" autocomplete="off" placeholder="Message your crew" enterkeyhint="send"><button type="submit" class="chat-enter" aria-label="Send">${ENTER}</button></form>
+    <button id="chat-prompt" class="chat-bar chat-prompt" type="button" aria-controls="chat-form" aria-expanded="false"><span>${touch ? 'Tap to chat' : 'Press Enter to chat'}</span><span class="chat-enter">${ENTER}</span></button>
     <p id="chat-status" role="status" hidden></p><div class="communication-buttons"><button id="chat-open" type="button" aria-controls="chat-form" aria-expanded="false">Chat <kbd>Enter</kbd></button><button id="chat-history-toggle" type="button" aria-controls="chat-history" aria-expanded="false" aria-label="Show chat history">History</button><button id="emote-open" type="button" aria-controls="emote-wheel" aria-expanded="false">Emote <kbd>Q</kbd></button></div>`;
   const cover = document.createElement('div'); cover.className = 'emote-cover'; cover.hidden = true;
   cover.innerHTML = '<div id="emote-wheel" role="group" aria-label="Emote wheel"><div class="emote-center"><strong id="emote-choice">Emotes</strong><small>Point / release Q<br>or tap a choice</small><button id="emote-cancel" type="button">Cancel / Esc</button></div></div>';
   host.append(panel, cover);
   const $ = id => document.getElementById(id), form = $('chat-form'), input = $('chat-input'), history = $('chat-history'), list = $('chat-messages');
-  let typing = false, expanded = false, wheelMode = null, chosen = -1, epoch = null, messages = [], bubbles = [], sending = false, retry = null, fade;
+  let typing = false, armed = false, expanded = false, wheelMode = null, chosen = -1, epoch = null, messages = [], bubbles = [], sending = false, retry = null, fade;
   const images = EMOTES.map(e => { const image = new Image(); image.src = '/emotes/' + e.image; return image; });
   let loadedDraftKey;
   function loadDraft() {
@@ -65,12 +71,17 @@ export function communicationUI({ api, available, stop, focus, draftKey }) {
     if (changed) renderMessages();
   }
   function closeChat(refocus = true) {
-    saveDraft(); typing = false; host.classList.remove('chat-typing'); form.hidden = true; $('chat-open').setAttribute('aria-expanded', 'false'); showHistory(); fitKeyboard(); if (refocus) focus();
+    saveDraft(); typing = false; armed = false; host.classList.remove('chat-typing'); form.hidden = true; $('chat-prompt').hidden = false;
+    for (const id of ['chat-open', 'chat-prompt']) $(id).setAttribute('aria-expanded', 'false');
+    showHistory(); fitKeyboard(); if (refocus) focus();
   }
   function openChat() {
     if (!available()) { status('Connect to an active room to chat.'); return; }
-    loadDraft(); closeWheel(false); stop(true); typing = true; host.classList.add('chat-typing'); form.hidden = false; status(''); fitKeyboard();
-    $('chat-open').setAttribute('aria-expanded', 'true'); showHistory(); input.focus({preventScroll:true});
+    loadDraft(); closeWheel(false); stop(true); typing = true; host.classList.add('chat-typing'); form.hidden = false; $('chat-prompt').hidden = true; status(''); fitKeyboard();
+    for (const id of ['chat-open', 'chat-prompt']) $(id).setAttribute('aria-expanded', 'true');
+    showHistory(); input.focus({preventScroll:true});
+    // The click that opened chat is still on its way; only a later one outside closes it.
+    setTimeout(() => { armed = typing; });
   }
   async function submit() {
     const text = input.value;
@@ -118,7 +129,10 @@ export function communicationUI({ api, available, stop, focus, draftKey }) {
   });
   cover.addEventListener('pointerdown', event => { if (event.target === cover) closeWheel(); });
   $('emote-cancel').onclick = () => closeWheel(); $('emote-open').onclick = () => openWheel('tap');
-  $('chat-open').onclick = () => typing ? closeChat() : openChat(); $('chat-cancel').onclick = () => closeChat();
+  $('chat-open').onclick = () => typing ? closeChat() : openChat(); $('chat-prompt').onclick = () => openChat();
+  // A click or tap outside the bar closes chat and keeps the draft, as Esc does; phones have no Esc.
+  // Click, not pointerdown, so the press itself still meets closed combat input and fires nothing.
+  document.addEventListener('click', event => { if (armed && !form.contains(event.target)) closeChat(); });
   $('chat-history-toggle').onclick = () => { expanded = !expanded; showHistory(); };
   input.addEventListener('input', saveDraft);
   form.addEventListener('submit', event => { event.preventDefault(); void submit(); });

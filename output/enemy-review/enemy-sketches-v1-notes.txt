@@ -1,0 +1,32 @@
+Enemy sketches v1, 9 November 2026. Review material only; not wired into the game.
+
+Source: the seven concept renders in this folder (hunter v1, breaker v2, berserker v2,
+twin laser v1, heavy laser v1, siege centipede v1, swimmer v1), simplified by hand into
+the game's flat Canvas style. No image generator was used for the sketches.
+
+Files
+- enemy-sketches.js: one draw function per creature, in the game's convention
+  (pixels at zoom 1, 48 px per tile, origin at the body centre, front toward -y).
+- render-sketches.mjs: renders the review sheets (run from the repo root:
+  node output/enemy-review/render-sketches.mjs).
+- sketch-sheet-v1.png: each concept beside its sketch, with the features kept.
+- sketch-battlefield-v1.png: current art and the sketches at zoom 1 on Caldera, Vesper
+  and Sirocco ground, plus Caldera at zoom 0.6, with the robot and hit circles for scale.
+
+Assumptions and open questions for the author
+- Berserker is drawn as the replacement for the Bulwark drawing. The in-game kind and
+  its labels (BULWARK / HE + MAG) are unchanged.
+- The Heavy laser is shown at 2.5 times the Twin laser's width, as requested. All
+  crawlers share a 0.38-tile hit circle, so at that size most of the visible body
+  (barrel, legs) would not take hits. Keeping the art near today's size, or enlarging
+  the hit circle (a server and balance change), is the author's decision.
+- The Hunter changes from six legs to four legs and two clamps, as in the concept.
+  Presentation only.
+- The centipede's flower maw reaches about 0.75 tile past the head's collision circle;
+  today's mandibles already reach past it. Plates stay inside the eight circles.
+- Slate Berserker on Caldera's blue meadow is the weakest contrast of the set; it still
+  reads by outline and shadow.
+
+Not yet sketched: dead, burning/fleeing and hit-flash states beyond a simple hit colour.
+Barrels on both laser classes sit in a group that turns about the neck, so aim can stay
+independent of the body as in drawLensCrawler.

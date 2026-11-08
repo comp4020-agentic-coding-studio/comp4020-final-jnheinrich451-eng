@@ -1,0 +1,29 @@
+Hostile facility sketches v1, 9 November 2026. Review material only; not wired into the game.
+
+No concept references: the author asked Claude to improve the facilities in its own
+judgement ("if you think you can improve? Here no reference"). The design reuses the
+new creatures' language (public/enemy-art.js): flat shapes, dark under-strokes,
+burgundy tissue, pale bone edges, the laser family's plum chitin and teal apertures,
+the Breaker's gold armour, and acid green kept for bile and poison.
+
+Files
+- facility-sketches.js: a shared rooted bed plus one body per facility, in pixels around
+  the 3 x 3 site centre (48 px a tile, aim angle 0 = up), reading the saved site state the
+  game already sends (sensor mode and bearing, alarm, mortar aim/charge/firedAt, laser and
+  flak phases, hive hp and hitAt).
+- render-facilities.mjs: renders the sheets (node output/enemy-review/render-facilities.mjs).
+- facility-sheet-v1.png: today's art beside each sketch in idle, active and conquered states.
+- facility-battlefield-v1.png: one compound at zoom 1 and 0.6 with the robot for scale.
+
+Kept from today's game, unchanged by the sketches
+- Danger warnings: scan ring and sensor beam, alarm ring, lance charging ring and beam,
+  flak and acid impact warnings, poison vent fields, reinforcement INCOMING markers.
+- Labels, health bars, territory shading, compound root connections, salvage rules.
+- Site footprints and collision (the 3 x 3 site); bodies stay within about 1.5 tiles,
+  roots reach about 2 tiles as today.
+
+Needs wiring on approval
+- Blight root: open the bud from the centipede emergence warning for that root
+  (combat.encounters.centipedes), which drawConquest does not receive today.
+- Lance tower: start the visible beam at the drawn aperture, as done for the lens enemies.
+- Air contaminator: hidden inside its own opaque fog while hostile, by design.

@@ -1,23 +1,5 @@
 import { ANTI_AIR } from './anti-air.js';
 const TAU = Math.PI * 2;
-export function drawAntiAirBody(c, site) {
-  const dead = site.state === 'conquered';
-  c.fillStyle = dead ? '#41323c' : '#552f4b';
-  c.beginPath(); c.ellipse(0, 0, 1.3, 1.1, 0, 0, TAU); c.fill();
-  for (let i = 0; i < 8; i++) {
-    c.save(); c.rotate(i * TAU / 8); c.fillStyle = dead ? '#665052' : '#a16d79';
-    c.beginPath(); c.moveTo(.3, -.25); c.lineTo(1.45, -.12); c.lineTo(1.05, .34); c.closePath(); c.fill(); c.restore();
-  }
-  c.save(); c.rotate(site.aa?.angle || 0);
-  for (const x of [-.65, 0, .65]) {
-    c.strokeStyle = '#322637'; c.lineWidth = .36; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(x, .55); c.quadraticCurveTo(x * .6, -.4, x, -1.25); c.stroke();
-    c.strokeStyle = dead ? '#735a5d' : '#b68a8a'; c.lineWidth = .19; c.stroke();
-    c.fillStyle = dead ? '#271f30' : site.aa?.phase === 'charging' ? '#ffdda0' : '#d179c4';
-    c.beginPath(); c.ellipse(x, -1.22, .2, .15, 0, 0, TAU); c.fill();
-  }
-  c.restore();
-}
 export function drawFlak(c, sites, shells, time, T, zoom, reduced) {
   const pending = sites.filter(s => s.state === 'hostile').flatMap(s => s.aa?.queue || []);
   for (const p of [...pending, ...shells]) {

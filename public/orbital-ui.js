@@ -1,5 +1,12 @@
 import {ORBITAL_PAYLOADS,orbitalProfile,orbitalImpactProfile,orbitalHazard,orbitalState,orbitalActive,orbitalPlan,orbitalError} from './orbital.js';
 import {fieldCapacityError} from './hazards.js';
+import {descentPose,drawDescentHead,entryOffset,noteDescent} from './reentry-art.js';
+
+// Strike shells re-enter along the planet's orbital track and stay hypersonic to
+// the ground: no braking, plasma all the way down. Windows end at saved impacts.
+const SHELLS={HE:{window:2,height:24,size:1,opacity:.26},INCENDIARY:{window:2,height:24,size:.9,opacity:.24},GAS:{window:2,height:24,size:.9,opacity:.22},
+ HEAVY:{window:3,height:34,size:2.3,opacity:.42,linger:20000},BARRAGE:{window:1.8,height:24,size:.8,opacity:.2},CLUSTER:{window:2,height:24,size:1.2,opacity:.28}};
+const BURST=.55; // a cluster casing opens this long before its own impact
 
 export function orbitalUI({state,api,stop,notify,overview,reveal}){
  const $=id=>document.getElementById(id),panel=$('orbital-panel');
@@ -75,13 +82,21 @@ export function orbitalUI({state,api,stop,notify,overview,reveal}){
   if(beam){
    c.globalAlpha=.2;c.lineWidth=profile.radius*2*T;c.beginPath();c.moveTo(o.target.x*T,o.target.y*T);c.lineTo(o.end.x*T,o.end.y*T);c.stroke();c.globalAlpha=1;c.lineWidth=1.3/zoom;
    if(executing&&age>=o.delay){const t=Math.min(1,(age-o.delay)/profile.duration),x=(o.target.x+(o.end.x-o.target.x)*t)*T,y=(o.target.y+(o.end.y-o.target.y)*t)*T;
-    for(const [width,color] of reduced?[[2,'#fff2c7']]:[[14,'#ff482c22'],[6,'#ff673f99'],[2,'#fff9df']]){c.strokeStyle=color;c.lineWidth=width/zoom;c.beginPath();c.moveTo(x-2*T,y-20*T);c.lineTo(x,y);c.stroke();}
+    // The beam is invisible in vacuum: it shows where air scatters it, so the
+    // column brightens toward the ground. It comes down the planet's orbital track.
+    const up=entryOffset(40),sx=x+up.x*T,sy=y+up.y*T;
+    if(!reduced)noteDescent(o.id+':cut',{type:'cut',x:o.target.x,y:o.target.y,to:o.end,elapsed:age-o.delay,duration:profile.duration,linger:16000,preroll:0});
+    for(const [width,red,green,blue,alpha] of reduced?[[2,255,242,199,1]]:[[14,255,72,44,.16],[6,255,103,63,.6],[2,255,249,223,1]]){
+     const shade=c.createLinearGradient(x,y,sx,sy);shade.addColorStop(0,`rgba(${red},${green},${blue},${alpha})`);shade.addColorStop(.3,`rgba(${red},${green},${blue},${alpha*.45})`);shade.addColorStop(1,`rgba(${red},${green},${blue},${alpha*.06})`);
+     c.strokeStyle=shade;c.lineWidth=width/zoom;c.beginPath();c.moveTo(sx,sy);c.lineTo(x,y);c.stroke();
+    }
     c.fillStyle='#fff0b9';c.beginPath();c.arc(x,y,(reduced?3:5)/zoom,0,Math.PI*2);c.fill();c.strokeStyle=profile.color;c.lineWidth=1.3/zoom;
    }
   }
   if(o.payload==='BARRAGE'){c.globalAlpha=.7;c.setLineDash([7/zoom,5/zoom]);c.beginPath();c.arc(o.target.x*T,o.target.y*T,(profile.spread+profile.radius)*T,0,Math.PI*2);c.stroke();c.setLineDash([]);}
   for(const p of beam?[o.target,o.end]:o.points){if(p.landed)continue;const radius=orbitalImpactProfile(o,p).radius;c.globalAlpha=executing ? .5 : o.payload==='BARRAGE'||p.stage==='bomblet'?.3:.8;c.setLineDash([4/zoom,4/zoom]);c.beginPath();c.arc(p.x*T,p.y*T,radius*T,0,Math.PI*2);c.stroke();
    const until=o.delay+p.offset-age;c.setLineDash([]);
+   if(!beam&&executing&&until>=0&&!reduced){drawShell(c,o,p,until,age,T);continue;}
    if(!beam&&executing&&until>=0&&until<(p.stage==='bomblet'?.45:1.1)){
     c.globalAlpha=1;c.strokeStyle='#fff3c8';c.lineWidth=(reduced?2:o.payload==='HEAVY'?6:3)/zoom;c.beginPath();
     if(p.stage==='bomblet'){
@@ -94,6 +109,35 @@ export function orbitalUI({state,api,stop,notify,overview,reveal}){
   const first=o.target,last=beam?o.end:o.payload==='CLUSTER'?o.points.findLast(p=>p.stage==='parent'):o.payload==='HE'?o.points.at(-2):o.points.at(-1);c.globalAlpha=1;c.fillStyle=profile.color;
   if(['HE','INCENDIARY','CLUSTER','BEAM'].includes(o.payload)){c.setLineDash([7/zoom,5/zoom]);c.beginPath();c.moveTo(first.x*T,first.y*T);c.lineTo(last.x*T,last.y*T);c.stroke();c.setLineDash([]);c.save();c.translate(last.x*T,last.y*T);c.rotate(Math.atan2(last.y-first.y,last.x-first.x)+Math.PI/2);c.beginPath();c.moveTo(0,-12/zoom);c.lineTo(-5/zoom,0);c.lineTo(5/zoom,0);c.closePath();c.fill();c.restore();}
   c.fillText(executing?`${profile.label.toUpperCase()} / ${o.callerName}`:profile.label.toUpperCase(),first.x*T,(first.y-profile.radius-1)*T);c.restore();
+ }
+ function drawShell(c,o,p,until,age,T){
+  const spec=SHELLS[o.payload]||SHELLS.HE,id=o.id+':'+o.points.indexOf(p),offset=entryOffset(spec.height);
+  c.save();c.globalAlpha=1;c.translate(p.x*T,p.y*T);
+  if(p.stage==='bomblet'){
+   // Bomblets leave the opened casing high up and spread to their own points.
+   const parent=o.points.find(q=>q.stage==='parent'&&q.row===p.row);
+   if(parent){
+    const opened=o.delay+parent.offset-BURST,duration=o.delay+p.offset-opened,since=age-opened;
+    if(since>=0){
+     const casing=descentPose('shell',1-BURST/spec.window,offset),from={x:parent.x+casing.x-p.x,y:parent.y+casing.y-p.y};
+     noteDescent(id,{x:p.x,y:p.y,offset:from,curve:'shell',elapsed:since,duration,size:.45,opacity:.18,preroll:0});
+     drawDescentHead(c,descentPose('shell',Math.min(1,since/duration),from),T,.45);
+    }
+   }
+   c.restore();return;
+  }
+  if(until<=spec.window){
+   const s=1-until/spec.window;
+   noteDescent(id,{x:p.x,y:p.y,offset,curve:'shell',elapsed:s*spec.window,duration:spec.window,size:spec.size,opacity:spec.opacity,linger:spec.linger});
+   drawDescentHead(c,descentPose('shell',s,offset),T,spec.size);
+   const opening=age-(o.delay+p.offset-BURST);
+   if(o.payload==='CLUSTER'&&opening>=0&&opening<.35){
+    const casing=descentPose('shell',1-BURST/spec.window,offset),r=T*(.6+opening*5),flash=c.createRadialGradient(casing.x*T,casing.y*T,0,casing.x*T,casing.y*T,r);
+    flash.addColorStop(0,`rgba(255,248,226,${.9*(1-opening/.35)})`);flash.addColorStop(1,'rgba(255,170,90,0)');
+    c.globalCompositeOperation='lighter';c.fillStyle=flash;c.fillRect(casing.x*T-r,casing.y*T-r,r*2,r*2);
+   }
+  }
+  c.restore();
  }
  return {active,update,open,close,pick,aim,rotate,draw,drawGround};
 }

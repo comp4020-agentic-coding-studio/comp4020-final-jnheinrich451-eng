@@ -1,5 +1,53 @@
 # Frontier game design harness
 
+## 2 November 2026: first Morrow settlement and exploration expansion
+
+The author approves orbital placement, animated material deliveries and a first
+planet redesign. The [Morrow stage](docs/COLONY_MORROW_EXPANSION_STAGE.md) adds
+22 furnishings, move/rotate/store/undo, four settlement projects, two saved
+exploration regions and six discoveries with themed gifts. Construction and
+material shuttles animate their work; Morrow sprinklers and shared industry
+mechanisms stop when idle. Existing home terrain is preserved, co-op explorers
+can occupy different regions, and colony resources remain separate from combat
+saves. Implemented locally; supply commissions and other planets remain later
+stages.
+
+## 2 November 2026: exploration, working machinery and colony war support
+
+The author welcomes planet-specific content, asks for world expansion to support
+exploration, and requires machinery to move while working and remain still when
+idle. The [expanded casual plan](docs/COLONY_CASUAL_EXPANSION.md) proposes a
+persistent home with connected exploration regions and an explicit machine
+work/idle animation pass. The colony can supply the war effort through its own
+orders and fiction, but must not connect to Frontier combat saves. This withdraws
+the older optional campaign handoff. These are plan updates, not implementation.
+
+## 2 November 2026: broader casual colonization research
+
+The author asks for comparable casual gameplay, a broader colony experience
+and extensive decoration using Frontier's own art. The
+[casual expansion proposal](docs/COLONY_CASUAL_EXPANSION.md) compares official
+game references and recommends expressive building, discovery and settlement
+projects around the existing garden and industry. It connects the earlier
+fishing, cabin and mechanical-spider ideas. This is a researched proposal;
+the new catalogue, editor, discoveries and projects are not implemented.
+
+## 2 November 2026: first colony production chain
+
+The author approves conveyors, food processors and bio-power. The
+[industry stage](docs/COLONY_INDUSTRY_STAGE.md) adds local cargo buffers,
+directional belts, powered harvest outlets, three recipes, shared power and
+provision exports. Crops can start generators directly; manual gardening remains
+the recovery route. Full destinations stop safely, and dismantling returns
+materials plus cargo. First industry initialization is additive and backed up;
+established gardens and terrain remain. The compact Industry inspector fits the
+existing desktop/phone dock.
+
+The author also requests a later intelligent, furry mechanical spider pet.
+The [companion record](docs/COLONY_MECHANICAL_SPIDER_PET.md) preserves that idea
+and the exploration/sensing world it needs. No pet, robot battery or commissioning
+goal is implemented in this production stage.
+
 ## 2 November 2026: walk-up colony bed inspection
 
 The author wants relaxed inspection by walking onto or near a growing bed.
@@ -102,8 +150,9 @@ The author then approved implementation with a warm, cute presentation. The
 entry, separate peaceful saves, three crops, watering, sprinklers and orbital
 sample deliveries. Its compact surveyed district uses the chosen planet's
 palette; it is not a clone of a military map. Combat saves remain intact.
-Automation, wider settlement development and an optional post-campaign handoff
-remain future stages. Local implementation and checks do not establish deployment.
+Automation was deferred in this first stage and is now implemented in the later
+industry stage. Wider settlement development remains planned. Local
+implementation and checks do not establish deployment.
 
 ### Colony visual direction after the first review
 
@@ -193,7 +242,8 @@ in the [island pressure stage](docs/ISLAND_PRESSURE_STAGE.md).
 ## 30 October 2026: save management and floating lobby feedback
 
 Continue lets an owner delete a closed save after confirming its name, freeing
-one of the three owned slots. Active rooms must be saved and left first; joined
+a slot in that save's mode (three war-zone and three peaceful slots per account
+since 8 November 2026). Active rooms must be saved and left first; joined
 worlds cannot be deleted by members. Private files remain recovery archives,
 with no player restore command. Lobby notices float without a box or layout
 space. Details are in [campaign save management](docs/CAMPAIGN_STAGE.md) and

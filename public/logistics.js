@@ -2,6 +2,7 @@ import { ORBITAL } from './orbital.js';
 import { isStartingCore } from './starting-core.js';
 import { POD, CARGO_POD_DURATION } from './pod.js';
 import { dockRecords } from './shipyard.js';
+import { hangarBox } from './runway.js';
 // All balance values for the first conquest economy live here. Server-owned;
 // clients use the same quotes for presentation, never to grant resources.
 export const ECONOMY = Object.freeze({ initial: 1200, reserve: 250, capacity: 2000, income: 2,
@@ -103,7 +104,7 @@ export function facilityTargets(world, buildings = [], includeDestroyed = false)
   for (const c of world.cores || []) add(c,'core',c.x+1.5,c.y+1.5,3,3);
   for (const b of buildings) if (!b.coreId) add(b,'sentry',b.x+.5,b.y+.5,1,1);
   for (const g of world.artillery || []) add(g,g.kind==='missile'?'missile':'artillery',g.x+(g.kind==='missile'?2:.5),g.y+(g.kind==='missile'?2:.5),g.kind==='missile'?4:3,g.kind==='missile'?4:3);
-  for (const b of world.airbases || []) add(b,'airbase',b.x+(b.kind==='helipad'?1.5:5),b.y+(b.kind==='helipad'?1.5:2.5),b.kind==='helipad'?3:2,3);
+  for (const b of world.airbases || []) { const box=b.kind==='helipad'?{x:b.x+1.5,y:b.y+1.5,w:3,h:3}:hangarBox(b); add(b,'airbase',box.x,box.y,box.w,box.h); }
   for (const s of dockRecords(world)) {
     // A hull loss does not destroy its dock; a dock loss does not sink its ship.
     if (!s.dockDestroyed) {

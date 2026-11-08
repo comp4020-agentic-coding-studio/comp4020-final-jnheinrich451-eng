@@ -60,6 +60,9 @@ it('keeps a free first bed available after spending the starter kit on sprinkler
   expect(state.materials).toBe(4); expect(colonyBuildCost(state, 'bed')).toBe(COLONY.bedCost);
   const bed = grow(state); colonyAction(state, actor, 'harvest', { bedId: bed.id });
   colonyAction(state, actor, 'ship'); tickColony(state, COLONY.shipmentDuration);
+  // The reward waits in crates beside the pad until a worker collects them.
+  expect(state.materials).toBe(4);
+  for (const crate of [...(state as any).crates]) colonyAction(state, { id: 'gardener', x: crate.x + .5, y: crate.y + .5 } as any, 'collect-crate', { crateId: crate.id });
   expect(state.materials).toBeGreaterThan(COLONY.bedCost);
 });
 
@@ -76,9 +79,12 @@ it('rejects invalid or unaffordable placement before charging or reserving an id
   expect(state).toEqual(before);
 });
 
-it('checks every footprint tile, including terrain and the surveyed boundary', () => {
+it('checks every footprint tile, including terrain, conditioned ground and the camp survey boundary', () => {
   const state = createColony();
-  expect(colonyPlacementError(state, 'bed', 22, 28)).toContain('whole footprint');
+  // Beds and sprinklers are bounded by conditioned ground now; only camp props keep the survey radius.
+  expect(colonyPlacementError(state, 'bed', 22, 28)).toBe('Grow a crop nearby to condition this ground first.');
+  expect(colonyPlacementError(state, 'campfire', 21, 28)).toContain('whole footprint');
+  expect(colonyPlacementError(state, 'campfire', 22, 28)).toContain('condition this ground');
   state.world.terrain[27 * state.world.width + 30] = 0;
   expect(colonyPlacementError(state, 'bed', 31, 28)).toContain('firm ground');
   expect(colonyPlacementError(state, 'sprinkler', 31, 28)).toBeNull();
@@ -137,8 +143,9 @@ it('preserves progress across serialization and ignores invalid elapsed duration
 
 it('waters only nearby beds and yields identical growth for long and short irrigation ticks', () => {
   const state = createColony();
-  for (const x of [30, 25]) {
-    colonyAction(state, actor, 'build-bed', { x, y: 33 });
+  // Both beds sit on the conditioned starting clearing: (30,33) is 5 tiles from the sprinkler, (36,22) is 11 away.
+  for (const [x, y] of [[30, 33], [36, 22]]) {
+    colonyAction(state, actor, 'build-bed', { x, y });
     colonyAction(state, actor, 'plant', { bedId: state.beds.at(-1)!.id, crop: 'cloudmelon' });
   }
   colonyAction(state, actor, 'build-sprinkler', { x: 35, y: 33 });
@@ -208,9 +215,11 @@ it('reserves a shipment once and completes its reward once across a mid-flight r
   expect(() => colonyAction(state, other, 'ship')).toThrow('already carrying');
   expect(state).toEqual(sent);
   tickColony(state, 3); const restored = copy(state);
-  tickColony(restored, 5);
+  tickColony(restored, COLONY.shipmentDuration - 3);
   expect(restored.shipment).toBeNull(); expect(restored.shipments).toBe(1);
-  expect(restored.materials).toBe(beforeMaterials + COLONY.shipmentReward);
+  // The reward lands as crates beside the pad; materials rise only when they are collected.
+  expect(restored.materials).toBe(beforeMaterials);
+  expect((restored as any).crates.reduce((sum: number, crate: any) => sum + crate.materials, 0)).toBe(COLONY.shipmentReward);
   expect(restored.decorations.pennant).toBe(true); expect(restored.milestones.firstShipment).toBe(true);
   const delivered = copy(restored); tickColony(restored, 1000);
   expect(restored.materials).toBe(delivered.materials); expect(restored.shipments).toBe(1);
@@ -226,7 +235,8 @@ it('ships every crop variety and never consumes insufficient or unknown sample c
   const state = createColony(); state.storage.moonberry = 2;
   colonyAction(state, actor, 'ship'); expect(state.shipment?.cargo).toEqual({ moonberry: 2 });
   const empty = createColony(), before = copy(empty);
-  expect(() => colonyAction(empty, actor, 'ship')).toThrow('two matching crops');
+  expect(() => colonyAction(empty, actor, 'ship')).toThrow('fill a parcel');
+  expect(() => colonyAction(empty, actor, 'ship', { crop: 'moonberry' })).toThrow('two matching crops');
   expect(() => colonyAction(empty, actor, 'ship', { crop: 'prototype' })).toThrow();
   expect(empty).toEqual(before);
 });
@@ -273,4 +283,23 @@ describe('peaceful robot movement', () => {
     for (const [dx, dy, dt] of [[NaN, 0, .1], [1, 0, Infinity], [1, 0, -1], [1, 0, 2], [0, 0, .1]]) expect(stepColonyRobot(state, robot, dx, dy, dt)).toBe(false);
     expect(robot).toEqual(before);
   });
+});
+
+it('sends everything by default, or the chosen amount of each cargo, at 8 materials a crop and 12 a provision', () => {
+  const stocked = () => { const state: any = createColony(); state.storage.sundrop = 5; state.storage.moonberry = 3; state.industry = { version: 1, machines: [], belts: [], storage: { provisions: 4, biomass: 2 }, energy: 0, starter: true }; return state; };
+  const all = stocked();
+  expect(colonyAction(all, actor, 'ship').message).toBe('Parcel launched with 12 items. The shuttle will return with 112 materials.');
+  expect(all.shipment).toMatchObject({ cargo: { sundrop: 5, moonberry: 3, provisions: 4 }, reward: 5 * 8 + 3 * 8 + 4 * 12, duration: COLONY.shipmentDuration });
+  expect(all.storage).toMatchObject({ sundrop: 0, moonberry: 0 }); expect(all.industry.storage).toEqual({ provisions: 0, biomass: 2 });
+  const some = stocked();
+  colonyAction(some, actor, 'ship', { cargo: { sundrop: 1, moonberry: 0, provisions: 2 } });
+  expect(some.shipment).toMatchObject({ cargo: { sundrop: 1, provisions: 2 }, reward: 8 + 24 });
+  expect(some.storage.sundrop).toBe(4); expect(some.industry.storage.provisions).toBe(2);
+  for (const cargo of [{ sundrop: 6 }, { sundrop: -1 }, { sundrop: 1.5 }, { biomass: 1 }, { prototype: 1 }, [], null, 'all', { sundrop: 0 }]) {
+    const state = stocked(), before = copy(state);
+    expect(() => colonyAction(state, actor, 'ship', { cargo })).toThrow();
+    expect(state).toEqual(before);
+  }
+  tickColony(some, COLONY.shipmentDuration);
+  expect(some.shipment).toBeNull(); expect(some.crates.reduce((total: number, crate: any) => total + crate.materials, 0) + some.materials - stocked().materials).toBe(32);
 });

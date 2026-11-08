@@ -2,7 +2,7 @@
 // still come from saved terrain; nothing here decides movement, cover or placement.
 const hash = (x, y, salt = 0) => { let n = Math.imul(x + 311, 374761393) ^ Math.imul(y + 977, 668265263) ^ Math.imul(salt + 13, 2147483647); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 const smooth = t => t * t * (3 - 2 * t);
-function valueNoise(x, y, salt) {
+export function valueNoise(x, y, salt) {
   const ix = Math.floor(x), iy = Math.floor(y), u = smooth(x - ix), v = smooth(y - iy), at = (a, b) => hash(a, b, salt);
   return (at(ix, iy) * (1 - u) + at(ix + 1, iy) * u) * (1 - v) + (at(ix, iy + 1) * (1 - u) + at(ix + 1, iy + 1) * u) * v;
 }
@@ -18,30 +18,25 @@ export const CALDERA = Object.freeze({ deep: '#0d2233', shallow: '#1f5468', ripp
 export function calderaColor(x, y, kind) {
   return [CALDERA.deep, CALDERA.sand, land(stretch(meadow(x, y))), CALDERA.rock, CALDERA.floor][kind] || CALDERA.deep;
 }
-export function drawCalderaLand(c, x, y, T, kind) {
-  const px = x * T, py = y * T, cell = T / 4;
-  if (kind === 1) {
-    c.fillStyle = CALDERA.sand; c.fillRect(px, py, T, T);
-    for (let i = 0; i < 14; i++) { c.fillStyle = hash(x, y, 40 + i) > .5 ? '#ffffff30' : '#7f92a026'; c.fillRect(px + hash(x, y, 60 + i) * T, py + hash(x, y, 80 + i) * T, 2, 2); }
-    return;
-  }
-  // Small soft cells stop the tile grid showing through the drifts.
-  for (let v = 0; v < 4; v++) for (let u = 0; u < 4; u++) {
-    const shade = stretch(meadow(x + (u + .5) / 4, y + (v + .5) / 4)) + (hash(x * 4 + u, y * 4 + v, 3) - .5) * .09;
-    c.fillStyle = land(Math.max(0, Math.min(1, shade))); c.fillRect(px + u * cell, py + v * cell, cell + .5, cell + .5);
-  }
-  // Short tufts leaning every way, so the grass never reads as falling rain.
+// The meadow drift as a continuous colour, for the smooth ground in ground-art.js.
+const LAND_RGB = [LAND.low, LAND.mid, LAND.high].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+export function calderaGround(x, y, out) {
+  const shade = stretch(meadow(x, y)), [a, b] = shade < .5 ? [LAND_RGB[0], LAND_RGB[1]] : [LAND_RGB[1], LAND_RGB[2]], t = shade < .5 ? shade * 2 : (shade - .5) * 2;
+  for (let i = 0; i < 3; i++) out[i] = a[i] + (b[i] - a[i]) * t;
+}
+// Short tufts leaning every way, so the grass never reads as falling rain. `edges`
+// marks sides that meet sand or water (1 west, 2 east, 4 north, 8 south): tufts keep
+// back from them, so the blended shore band stays bare.
+export function drawCalderaTufts(c, x, y, T, edges = 0) {
+  const px = x * T, py = y * T;
   c.lineWidth = 1.2; c.lineCap = 'round';
   for (let i = 0; i < 9; i++) {
-    const bx = px + hash(x, y, 100 + i) * T, by = py + hash(x, y, 120 + i) * T, lean = hash(x, y, 140 + i) * Math.PI * 2, long = 3 + hash(x, y, 180 + i) * 3;
+    const fx = hash(x, y, 100 + i), fy = hash(x, y, 120 + i);
+    if ((edges & 1 && fx < .35) || (edges & 2 && fx > .65) || (edges & 4 && fy < .35) || (edges & 8 && fy > .65)) continue;
+    const bx = px + fx * T, by = py + fy * T, lean = hash(x, y, 140 + i) * Math.PI * 2, long = 3 + hash(x, y, 180 + i) * 3;
     c.strokeStyle = hash(x, y, 160 + i) > .5 ? LAND.blade + '30' : LAND.stem + '70';
     c.beginPath(); c.moveTo(bx, by); c.lineTo(bx + Math.cos(lean) * long, by + Math.sin(lean) * long); c.stroke();
   }
-}
-export function drawCalderaRock(c, x, y, T) {
-  const px = x * T, py = y * T;
-  c.fillStyle = CALDERA.rock; c.beginPath(); c.moveTo(px + 5, py + 22); c.lineTo(px + 16, py + 8); c.lineTo(px + 35, py + 11); c.lineTo(px + 43, py + 29); c.lineTo(px + 32, py + 41); c.lineTo(px + 10, py + 38); c.closePath(); c.fill();
-  c.strokeStyle = '#aab8cc60'; c.lineWidth = 2; c.beginPath(); c.moveTo(px + 12, py + 20); c.lineTo(px + 20, py + 13); c.lineTo(px + 34, py + 15); c.stroke();
 }
 // Blue trees gather in groves rather than an even scatter. Cosmetic, so kept small
 // enough that walking past one never reads as walking through a wall.

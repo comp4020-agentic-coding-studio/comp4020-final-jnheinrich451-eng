@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom } from './room-helper.js';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -66,7 +67,7 @@ for (const mobile of [false, true]) test(`shared alert station, HE conquest and 
     await expect(page.locator('#combat-status')).toContainText('Region conquered');
     await page.screenshot({ path: info.outputPath('station-conquered.png') });
     const completedAt = (await state(owner)).combat.sites[0].conqueredAt;
-    await post(owner, '/api/campaigns/leave', {}); await expect(page).toHaveURL(/\/campaigns\//); await expect(peer).toHaveURL(/\/campaigns\//);
+    await post(owner, '/api/campaigns/leave', {}); await leaveClosedRoom(page, peer);
     await Promise.all([page.goto('about:blank'), peer.goto('about:blank')]);
     await app.close(); app = createApp({ dataDir: dir }); await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));
     await post(owner, '/api/campaigns/enter', { id }); await page.goto(base + '/?campaign=' + id);

@@ -1,0 +1,219 @@
+{
+  "scope": "Isolated renderer; synthetic garden; local Chrome; no real saves or runtime.",
+  "results": [
+    {
+      "phone": false,
+      "lighting": "sunrise",
+      "weather": "clear",
+      "mean": 1.1519999980926514,
+      "p95": 1.5,
+      "environment": {
+        "phase": 0.26,
+        "hour": 6.24,
+        "daylight": 0.20575467756721477,
+        "warmth": 0.894736842105263,
+        "night": 0.7942453224327852,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "sunrise",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": false,
+      "lighting": "day",
+      "weather": "clear",
+      "mean": 1.0386666679382324,
+      "p95": 1.399999976158142,
+      "environment": {
+        "phase": 0.5,
+        "hour": 12,
+        "daylight": 1,
+        "warmth": 0,
+        "night": 0,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "day",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": false,
+      "lighting": "sunset",
+      "weather": "clear",
+      "mean": 1.0226666657129924,
+      "p95": 1.5,
+      "environment": {
+        "phase": 0.74,
+        "hour": 17.759999999999998,
+        "daylight": 0.2057546775672149,
+        "warmth": 0.894736842105263,
+        "night": 0.7942453224327851,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "sunset",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": false,
+      "lighting": "night",
+      "weather": "clear",
+      "mean": 0.9946666685740153,
+      "p95": 1.2999999523162842,
+      "environment": {
+        "phase": 0.02,
+        "hour": 0.48,
+        "daylight": 0,
+        "warmth": 0,
+        "night": 1,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "night",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": false,
+      "lighting": "night",
+      "weather": "rain",
+      "mean": 1.0640000009536743,
+      "p95": 1.3000000715255737,
+      "environment": {
+        "phase": 0.02,
+        "hour": 0.48,
+        "daylight": 0,
+        "warmth": 0,
+        "night": 1,
+        "weather": "rain",
+        "rain": 1,
+        "cloud": 0.9,
+        "wind": 0.76,
+        "lightingPreset": "night",
+        "weatherPreset": "rain"
+      }
+    },
+    {
+      "phone": false,
+      "reduced": {
+        "identical": true
+      },
+      "errors": []
+    },
+    {
+      "phone": true,
+      "lighting": "sunrise",
+      "weather": "clear",
+      "mean": 1.1893333339691161,
+      "p95": 1.5,
+      "environment": {
+        "phase": 0.26,
+        "hour": 6.24,
+        "daylight": 0.20575467756721477,
+        "warmth": 0.894736842105263,
+        "night": 0.7942453224327852,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "sunrise",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": true,
+      "lighting": "day",
+      "weather": "clear",
+      "mean": 1.0720000012715658,
+      "p95": 1.3000000715255737,
+      "environment": {
+        "phase": 0.5,
+        "hour": 12,
+        "daylight": 1,
+        "warmth": 0,
+        "night": 0,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "day",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": true,
+      "lighting": "sunset",
+      "weather": "clear",
+      "mean": 1.0799999968210856,
+      "p95": 1.5,
+      "environment": {
+        "phase": 0.74,
+        "hour": 17.759999999999998,
+        "daylight": 0.2057546775672149,
+        "warmth": 0.894736842105263,
+        "night": 0.7942453224327851,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "sunset",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": true,
+      "lighting": "night",
+      "weather": "clear",
+      "mean": 1.0573333311080932,
+      "p95": 1.3000000715255737,
+      "environment": {
+        "phase": 0.02,
+        "hour": 0.48,
+        "daylight": 0,
+        "warmth": 0,
+        "night": 1,
+        "weather": "clear",
+        "rain": 0,
+        "cloud": 0,
+        "wind": 0.22,
+        "lightingPreset": "night",
+        "weatherPreset": "clear"
+      }
+    },
+    {
+      "phone": true,
+      "lighting": "night",
+      "weather": "rain",
+      "mean": 1.1213333304723103,
+      "p95": 1.4000000953674316,
+      "environment": {
+        "phase": 0.02,
+        "hour": 0.48,
+        "daylight": 0,
+        "warmth": 0,
+        "night": 1,
+        "weather": "rain",
+        "rain": 1,
+        "cloud": 0.9,
+        "wind": 0.76,
+        "lightingPreset": "night",
+        "weatherPreset": "rain"
+      }
+    },
+    {
+      "phone": true,
+      "reduced": {
+        "identical": true
+      },
+      "errors": []
+    }
+  ]
+}

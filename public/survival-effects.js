@@ -1,14 +1,17 @@
 import { SURVIVAL } from './survival.js';
+import { altitude, capsuleDescent } from './reentry-art.js';
 
 export function drawReplacement(c, player, tile, elapsed, reduced) {
   const progress = Math.max(0, Math.min(1, 1 - (player.recovery - elapsed) / SURVIVAL.arrival));
-  const drop = Math.max(0, 1 - progress / .8), x = player.x * tile, y = player.y * tile;
+  const s = Math.min(1, progress / .8), drop = altitude('pod', s), x = player.x * tile, y = player.y * tile;
   c.save(); c.translate(x, y);
   c.strokeStyle = '#c6eddb'; c.lineWidth = 2; c.setLineDash([5, 5]);
   c.beginPath(); c.arc(0, 0, 25, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
   c.fillStyle = '#142e3266'; c.beginPath(); c.ellipse(0, 3, 13 + drop * 12, 10 + drop * 7, 0, 0, Math.PI * 2); c.fill();
-  c.translate(reduced ? 0 : -drop * 90, reduced ? 0 : -drop * 150); c.scale(1 + drop * .6, 1 + drop * .6);
-  if (!reduced && drop > 0) { c.strokeStyle = '#ffbb7277'; c.lineWidth = 6; c.beginPath(); c.moveTo(-3, -17); c.lineTo(-18, -52); c.stroke(); }
+  // Re-entry along the same orbital track as every other arrival on this planet.
+  const pose = s < 1 ? capsuleDescent(c, tile, { id: 'recovery:' + player.id, x: player.x, y: player.y, s, duration: SURVIVAL.arrival * .8, height: 8, body: .35, grow: .6 }, reduced) : null;
+  if (!reduced && pose) c.translate(pose.x * tile, pose.y * tile);
+  c.scale(1 + drop * .6, 1 + drop * .6);
   c.fillStyle = '#43565b'; c.fillRect(-14, -18, 28, 36); c.strokeStyle = '#d5c7a1'; c.strokeRect(-10, -15, 20, 30);
   c.fillStyle = '#dcb67d'; c.fillRect(-4, -12, 8, 21); c.fillStyle = '#a6e2d7'; c.fillRect(-3, -13, 6, 4);
   c.restore();

@@ -74,3 +74,12 @@ it('resets teleports and runtime changes, removes departed workers and caps nois
   receiveColonyPlayers(rendered, [], 900);
   expect(rendered.size).toBe(0);
 });
+
+it('carries a worker activity into the rendered player when it sits or fishes without moving far', () => {
+  const rendered = new Map();
+  receiveColonyPlayers(rendered, [{ id: 'w', name: 'Wren', x: 36.5, y: 31.5, angle: 0, activity: null }], 0);
+  receiveColonyPlayers(rendered, [{ id: 'w', name: 'Wren', x: 38, y: 31.5, angle: Math.PI, activity: { kind: 'sit', itemId: 'f-bench', since: 3 } }], 250);
+  expect(rendered.get('w').activity).toEqual({ kind: 'sit', itemId: 'f-bench', since: 3 });
+  receiveColonyPlayers(rendered, [{ id: 'w', name: 'Wren', x: 36.5, y: 31.5, angle: 0 }], 500);
+  expect(rendered.get('w').activity).toBeNull();
+});

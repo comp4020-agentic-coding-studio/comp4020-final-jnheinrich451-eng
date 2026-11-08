@@ -1,0 +1,13 @@
+{
+  "expansionFrames": 108,
+  "expansionRasterVersions": 8,
+  "expansionPixelSamples": 8,
+  "lastVisibleSampleAgeMs": 52.200000047683716,
+  "sphereIdentityPreserved": true,
+  "snapshotResolutionMatches": true,
+  "geometryDelta": 0.0002725983349591843,
+  "handoffPixelDelta": 0,
+  "ordinaryPixelStepMax": 0.1344014241210503,
+  "ordinarySampleCount": 6,
+  "handoffFrameGapMs": 7
+}

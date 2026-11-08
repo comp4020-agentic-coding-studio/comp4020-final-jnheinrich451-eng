@@ -328,6 +328,66 @@ planet and up to 32 ms on this machine. Phones will be slower. It is left as it 
 Run the whole suite before a deploy: comparing only the specs a stage touched missed
 all 12 of the failures above.
 
+## Chat bar, sound switches and menu fades (9 November 2026)
+
+The author found the chat box ugly and drew its replacement: one bar with a bar down
+its left side, the words "Press Enter to chat" and the Enter mark, and nothing else,
+with no reminder that Esc closes it ("they will find out"). They asked for music and
+effects switches beside the menu at the top, on and off only, a music note and a set
+of bars, and for the music to start at the level in their own screenshot. They also
+asked for the Esc menu's Account settings to fade in and out ("simple is okay").
+
+- Chat (`public/communication-ui.js`): the bar copies the mission bar, a panel with a
+  gold left edge. Closed, it reads "Press Enter to chat" ("Tap to chat" on a touch
+  screen) with the Enter mark, and a click opens it. Open, it holds the text field
+  and the Enter mark, which sends; the field keeps its label for screen readers only.
+  The Room chat heading, the Send and Esc buttons and the "Enter sends / Esc keeps
+  draft" line are gone. Esc still closes and keeps the draft. Without the Esc button
+  a phone needed another way out, so a click or tap outside the bar now closes it and
+  keeps the draft too. It listens for the click, not the press, so the press itself
+  still meets closed combat input and fires nothing, and the click that opened chat
+  is ignored. The chat rules themselves (Enter, empty Enter, IME, drafts) are
+  unchanged.
+- Switches (`public/index.html`, `public/hud.css`, `public/music.js`,
+  `public/sound.js`): a note and four bars, each 36 px like the menu button. They
+  sit left of the menu on a desktop. On a phone, a column under the menu met the
+  landing banners, so they sit side by side under the minimap, which keeps the
+  mission bar its width. Each press works the field guide's own on/off control,
+  so the saved choice, the browser's sound unlock and the status lines stay one
+  piece of logic. Off reads grey with a slash. The volume sliders stay in the field
+  guide.
+- Music level: the author's screenshot puts the music slider's thumb 8 px past the
+  start of 262 px of travel, about 3% (the effects slider sat near 29%, which was not
+  asked for and is unchanged at 55%). Music now starts at 3%, up from 25%, in both
+  the war zone and the colony. A level a player has saved still wins.
+- Esc menu (`public/style.css`): the room menu fades in and out over 0.2 s, with its
+  dim. Account settings, a link inside it, now leaves through a plain 0.5 s fade to
+  black (no zoom), with the menu still open so a solo room stays paused as before. It
+  then sets the opening loop's hand-off flag, so the account page fades in from black
+  (`docs/OPENING_LOOP.md`). The account page's Return to battlefield fades to black
+  in turn, into the game page's own black cover. A page brought back by the browser's
+  Back button never stays black. Reduced motion skips the fades.
+
+Checks: the new `tests/browser/hud-chat-audio.spec.js` covers the bar's words, mark and
+edge, opening it, a click outside keeping the draft, Esc, both switches driving and
+saving the field guide's controls, their positions on a desktop and a phone, the 3%
+default, and the menu and Account settings fades. The fades are read from every
+drawn frame, not from separate polls. Its first phone run failed: in orbit the
+phone's landing sheet covers the chat bar, so the test now puts the sheet away
+first; the bar shows once it is closed. A run of 11 affected spec files (chat,
+music, sound, HUD, island, conquest, accounts, opening, rooms and this spec) on the
+E-cores then passed 39 of 42. Two failures were `tests/helpers/music-check.js`
+still expecting the old 25% default; it now expects 3%. The third was real:
+`tests/browser/island.spec.js` taps the battlefield at 265, 495 on a phone to aim,
+and while driving the phone's chat sits higher, so the 280 px bar took the tap and
+opened chat. On a phone the closed bar is now only as wide as its words. The
+island, music, chat and HUD specs then passed 17 of 17 with no retries. The full
+suite was not run. Evidence: [chat open, desktop](testing/evidence/2026-11-09/chat-bar-open-desktop.png),
+[switches, desktop](testing/evidence/2026-11-09/hud-switches-desktop.png),
+[switches and chat, phone](testing/evidence/2026-11-09/hud-switches-phone.png),
+[account page arriving](testing/evidence/2026-11-09/account-arrival.png). The author
+has not played it yet.
+
 ## Recorded for later
 
 After playing, the author wants the shipyard process simplified and the airbase
@@ -337,6 +397,8 @@ Codex is building the colonization mode in parallel in the same working tree.
 The author wants the alert station's logic redesigned, together with Bulwarks taking
 damage only from HE, which makes other shell types useless against them. This is a
 later stage and is not part of this work. The armor-model conflict stays open.
+On 9 November 2026 the author decided the Bulwark part: gas now wears Bulwarks down
+and fire slows them (see `docs/FUEL_STREAM_STAGE.md`). The alert station is still to come.
 
 Known issue, not new: a long full-size carrier route takes about 0.7 seconds of
 server time on the author's desktop. It runs on the server's main thread and freezes

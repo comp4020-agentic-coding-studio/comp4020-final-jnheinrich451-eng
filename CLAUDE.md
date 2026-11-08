@@ -39,8 +39,9 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   ship develops a secured planet for human society. Do not merge farms into
   active combat or its economy. The approved standalone first stage is recorded
   in `docs/COLONIZATION_STAGE.md`: a separate mode/runtime/save, relaxed growing,
-  shared harvests and orbital sample deliveries. Further automation and a
-  post-conquest handoff remain proposals; never convert existing combat saves.
+  shared harvests and orbital sample deliveries. The approved industry stage
+  adds automation and power below. A post-conquest handoff remains a proposal;
+  never convert existing combat saves.
 - Colony art shares Frontier's human machinery identity. The author's first
   review retains the warm environment but calls for unified robot/facility
   construction, a dedicated menu/save branch and MYCORRHIZAL shuttle arrival.
@@ -81,13 +82,115 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   smaller phone inspector. The separate Colonization menu browses peaceful saves;
   Combat Continue browses combat saves. Morrow, Nacre and Aurelia use stable
   civilian IDs and shared globe/surface palettes. Preserve legacy colony worlds
-  and their saved terrain; never admit civilian IDs into combat. The shared
-  three-save quota is unchanged. See `docs/COLONIZATION_HUD_AND_PLANETS.md`.
+  and their saved terrain; never admit civilian IDs into combat. See
+  `docs/COLONIZATION_HUD_AND_PLANETS.md`. Each account owns three war-zone
+  campaigns and three peaceful expeditions; a deletion frees only its own mode's
+  slot and joined saves use none (author, 8 November 2026; evidence in
+  `docs/CAMPAIGN_STAGE.md`).
+- Furnish and Explore open on Morrow, Nacre and Aurelia alike (author, 9 November
+  2026). Each world has its own two regions of three discoveries, each gifting an
+  item from the shared catalogue; Morrow's regions generate exactly as before.
+  Legacy expeditions on older templates keep neither. Planet-specific furnishings
+  remain a proposal. See `docs/COLONY_MORROW_EXPANSION_STAGE.md`.
 - Colony bed information follows the local worker on approach. Automatic
   inspection never pans the camera or tends crops. Keep neighboring selections
   stable, respect explicit tools and manual inspection, and honor dismissal until
   leaving/re-entering. Phone movement stays available above an automatic panel.
   See `docs/COLONY_NEARBY_INSPECTION.md`.
+- Colony ground is the mode's spine: every home tile carries a conditioning
+  level, live crops condition the ground around their bed, all construction
+  needs fully conditioned ground, and untended ground slowly reverts. The
+  starting clearing never reverts and nothing built is ever removed. Conditioned
+  ground, not the survey radius, bounds beds and sprinklers. Ground uses active
+  room time in whole steps; a pre-ground save is backed up and initialized
+  additively on open. The colony has no ending: the author's design is a
+  building-and-nurturing game players hang around in and shape into a warm
+  home, so no finish line, win state or freight-link ending (rejected 4
+  November 2026). See `docs/COLONY_GROUND_STAGE.md`; later layers (planet
+  soils, the body at the frontier, industry consumers) are proposals there.
+- Colony life: a returning shuttle unloads its reward as material crates beside
+  the pad (four materials each; what cannot land is credited at once, never
+  lost). A worker collects by walking up and pressing E, or a crate collector
+  gathers crates within seven tiles for one power each. Crates block
+  construction until collected and never block walking. Working machines,
+  belts and sprinklers must read differently from idle ones; decoration motion
+  and shuttle dust are browser-only and settle under reduced motion. See
+  `docs/COLONY_LIFE_STAGE.md`.
+- Colony living: the settlement reads as production (Garden, Bed, Sprinkler,
+  Industry) and living (Camp, Furnish) by dock and catalogue habit, never by a
+  zoning rule. A worker may sit on a bench or rest pad, charge at a charging
+  post or brew at a kettle: E within 1.6 tiles, a clear tile in front of a post
+  or kettle, any movement or E stands it up where it entered or on the nearest
+  clear tile. Resting is per-person runtime state carried in the player record
+  (never the colony save), grants nothing and changes nothing in the garden.
+  Poses, cables, steam and lamp pulses are browser-only and settle under
+  reduced motion. Approved 8 November 2026 with fine-tuning deferred. See
+  `docs/COLONY_LIVING_STAGE.md`.
+- Colony warehouse: one 3 x 3 warehouse per expedition shows the shared
+  reserve as stacked boxes (materials one side, products the other) without
+  changing the numbers underneath, and its drone fetches every shuttle crate
+  in the district for free on a saved, pausable flight. Hand collection keeps
+  precedence until a crate hangs from the drone. Conveyors and crate
+  collectors are hidden from the catalogue, not removed: saved ones keep
+  working and the server still accepts them. Agreed order after this stage:
+  pet and fishing, then refinement of maps, UI and art (8 November 2026). See
+  `docs/COLONY_WAREHOUSE_STAGE.md`.
+- Colony companion and fishing: fishing is an activity cast within 1.6 tiles
+  of lake water or a ready pond, with a deterministic 4 to 9 s bite from a hash
+  of angler and cast count, a 3 s bite window and auto-recast; catches go to the
+  warehouse and are the only treats. One furry mechanical spider per
+  expedition, adopted in Camp for 8 materials: shared saved state that follows
+  its friend or the nearest worker at the worker's collision rules, sits beside
+  a resting one, notices nearby beds and furnishings, and is petted or fed with
+  E; no meters, no upkeep, no yield. The colony's function set is closed here;
+  what follows is refinement (8 November 2026). See `docs/COLONY_COMPANION_STAGE.md`.
+- Colony polish (author's brief, 8 November 2026): the shuttle departs still,
+  on belly thrusters, lifts, pitches nose up, lights its main engine and flies
+  out of view, then returns by a nose-up flare and hover landing, all from the
+  saved shipment fraction; a trip is 14 s. The orbital post sends everything by
+  default with one number per cargo (8 materials a crop, 12 a provision). Every
+  build prints: one white-and-gold pod and frame for all objects, on the saved
+  clock (`builtAt`, or a furnishing's delivery); printing never delays use.
+  E on a bite hooks a fish into a hold-to-lift ring fight that the server
+  replays from the recorded holds (`simulateStruggle`, arithmetic only) to
+  decide the catch. Fish are seeded feature combinations in each world's
+  colours; a catch shows the gold card and goes to the warehouse (the
+  companion's treats; a full warehouse releases it). A bench seats its worker
+  on the seat, facing out from the turned backrest. Reduced effects fade the
+  parked shuttle away and back instead of flying it. The processor, bio plant,
+  harvest outlet and sprinkler loop their moving parts when working, calmly
+  when idle, and hold still when disabled or reduced. Any crew member may
+  rename the companion (1 to 18 characters, cleaned). Full animation is the
+  colony default whatever the system setting; only the header reduce switch
+  (saved per browser, gold when on, says what it changed) reduces it,
+  interface transitions included (author, 8 November 2026). Colony
+  transitions pass through black: the garden fades in from it, Save and return
+  fades out with the camera rising and no reason, and a room that ends fades
+  away, names its reason on black and returns to the Continue menu, which keeps
+  it. The menu's descent is graded by the garden's own light from the admission
+  reply (night blue, dusk gold, rain); the war-zone dive stays daylit. See
+  `docs/COLONY_POLISH_STAGE.md`.
+- Colony industry uses real bounded local inventories and directional belts.
+  Authoritative active room time drives production, fuel and transport; pausing
+  freezes all of them. Keep manual gardening and raw-crop fuel/export as recovery
+  routes. Dismantling preserves cargo and construction cost, refusing atomically
+  if shared storage cannot hold recovery. First industry initialization must be
+  additive and backed up; never reset established terrain or gardens. Industry
+  tools take priority over nearby-bed inspection. Machines may cover the
+  arrival tile: the runtime seats an arriving worker on the nearest open tile,
+  and the walking-route check starts there too. An outlet or processor hands
+  cargo straight into a machine standing on its output cell whose IN port sits
+  on it, so a processor fits against an outlet without a belt (author
+  correction, 4 November 2026). Shared power starts at 48 once per save
+  (flag `starter`; an older industry save is granted once on its next tick),
+  the processor cooks whichever crop it holds most of with no recipe setting,
+  and a machine card is three lines and at most three plain buttons: Load picks
+  the best cargo itself, with no dropdowns or inventory tables (author
+  correction, 8 November 2026). A free OUT cell hands cargo to the shared
+  reserve; a belt or machine on it keeps priority. Rotate skips directions
+  that point an outlet into its bed. Power stays one shared reserve: cables
+  and power areas were rejected on 8 November 2026. Robot batteries and the
+  mechanical spider pet remain future designs. See `docs/COLONY_INDUSTRY_STAGE.md`.
 - Colony entry uses the middle overhead view of the white-and-gold MYCORRHIZAL
   sheet with two bow shuttles. The resting heading is 15 degrees right of up;
   planet arrows turn, accelerate, exchange worlds, decelerate and settle.
@@ -97,11 +200,15 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   its original display size with three blue, flickering aft exhausts; shuttles
   retain wind-only atmospheric flight.
   The colony system keeps dark space and visible stars, with thin haze lit by
-  golden sunlight; the author rejected a dense pale fog wash. An inward-moving
-  lensing rim covers a full-size planet while stars remain visible: gold entering
-  Colonization, blue returning through War Zone. Only branch changes use this
-  effect. The revealed planet shares the live scene's rotation/lighting clock
-  and backing resolution so the final handoff cannot jump from a stale image.
+  golden sunlight; the author rejected a dense pale fog wash. Branch changes pass
+  through a gravitational lens (author request, 9 November 2026; awaiting
+  playtest): the planet bends into an Einstein ring around a wormhole mouth,
+  aberration draws the whole sky into it, and the destination expands from the
+  throat while stars stay visible. The ring and glow are gold entering
+  Colonization and blue returning through War Zone; lensing stays achromatic.
+  WebGL2 renders it; without WebGL2 the earlier 2D iris runs. Only branch changes
+  use this effect. The revealed planet shares the live scene's rotation/lighting
+  clock and backing resolution so the final handoff cannot jump from a stale image.
   New and Continue start on Morrow from the colony menu; legacy peaceful
   saves group under the three civilian worlds without terrain migration. See
   `docs/COLONY_LENSING_TRANSITION.md`. Admission gates one shuttle's controlled
@@ -227,7 +334,12 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   Escape preserves the unsent draft. IME composition must not send. Enter keeps
   placement-confirm precedence; Q holds the emote wheel and B remains Deploy.
   Chat/emote delivery is room-local and ephemeral; never replay old bubbles or
-  log chat contents. See `docs/CHAT_EMOTES_AND_SOUND_PLAN.md`.
+  log chat contents. Chat is one bar with a gold left edge: closed it reads
+  "Press Enter to chat" ("Tap to chat" on touch) with the Enter mark; open it
+  holds only the field and that mark, which sends. No heading, Send/Esc buttons
+  or Esc hint (the author's chosen exception to the no-instruction rule); a click
+  or tap outside closes it and keeps the draft (author, 9 November 2026). See
+  `docs/CHAT_EMOTES_AND_SOUND_PLAN.md` and `docs/HUD_AND_POLISH_STAGE.md`.
 
 **Presentation and assets**
 - Entry art is browser-only. Keep its sky phase and camera continuous through
@@ -240,10 +352,14 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   in one frame beneath the flash, and the world left stays behind the ship.
   Entering a campaign plays the drop-pod dive, then the game fades in from black.
   The pod releases only after the server admits the player, and a refusal pulls
-  the camera back. Any input skips it; Return, refresh and Join do not play it; a
+  the camera back. Any input skips it; Return and refresh do not play it; a
   hidden tab or stopped animation never holds up entry. Pause/reduced motion
   settles directly. The dive shows daylit ground whatever the sun is doing. See
-  `docs/ENTRY_VISUAL_DESIGN.md`.
+  `docs/ENTRY_VISUAL_DESIGN.md`. Join's admission reply names the host's planet: that
+  world swings forward, the ship arrives as a line from beyond the frame that
+  contracts into the hull, then the same drop runs. Colony joins enter directly. The
+  pod is the design sheet's TOP view seen straight down, inside a gold ring within a
+  red one. See `docs/JOIN_ARRIVAL_AND_RUNWAYS.md`.
   Keep entry movement display-paced; cache slow surface shading separately so
   resource savings do not impose a low frame rate on zooms and planet exchanges.
   A flight holds its first surface sample and never reshades a globe in the zoom.
@@ -256,6 +372,13 @@ in `spec/`, or must be labelled as judged, with how they were judged.
   Lobby status feedback floats without a box or layout space. Routine success
   notices expire; errors remain readable. Save deletion uses an explicit named
   confirmation with Cancel/Escape before the server request.
+- Opening loop (author, 8 November 2026): the scene-04 idle loop is a title screen
+  in front of `/`, `/campaigns/` and `/login/`, once per tab session. It waits for
+  any key, click or tap (not lone modifiers or browser shortcuts), with a shining
+  gold "Press any key to skip" line ("Tap to skip" on touch). It then blacks out:
+  a redirect waits for and keeps the black, so the next page fades in from it.
+  Reduced motion shows the still frame and keeps the gate. Automated browsers
+  skip it. It is presentation only. See `docs/OPENING_LOOP.md`.
 - In-game HUD: `docs/HUD_AND_POLISH_STAGE.md`. It must read in one second. One
   graphite and gold interface on every planet; blue stays for ORB and actual aim,
   and each planet's colour lives in its terrain. Information belongs on the unit
@@ -267,9 +390,59 @@ in `spec/`, or must be labelled as judged, with how they were judged.
 - Weapon audio follows confirmed combat events, never input attempts. Baseline
   joins/reconnects silently, discard stale/muted history, and bound simultaneous
   browser voices. Music/effects have independent saved controls; hidden tabs stop
-  effects. See `docs/SOUND_EFFECTS.md`.
+  effects. A note and a bars switch beside the HUD menu (under the minimap on
+  phones) turn them on and off; volumes stay in the field guide, and music starts
+  at 3% until a player saves a level (author, 9 November 2026). The author's generated audio uses `public/sound-catalog.js`; treat
+  supplied shot clips as one-shot even when their filename says loop/burst.
+  Flame/beam playback needs continuing confirmed firing, and projectile traces
+  must never retrigger a discharge. Audio checks must measure nonzero samples in
+  the final speaker-output path; decoding and starting a source alone do not
+  prove audible output. See `docs/WAR_ZONE_GENERATED_AUDIO.md` and
+  the earlier `docs/SOUND_EFFECTS.md`.
+- Deployment and vehicle audio follows accepted world snapshots. Pod impacts
+  and individual panel contacts are one-shots; only explicitly designated engine,
+  movement and servo beds loop. Keep at most six continuous layers within the
+  shared sixteen-source budget. Engine gain/pan follows actual operation and
+  motion; parked/destroyed machinery stops, stale snapshots expire, and mute,
+  pause, hidden tabs and disconnects clean up every source. Preserve supplied
+  prompts and source WAVs, including documented filename/content mismatches.
+- Colony activity audio uses its own catalogue and runtime exports; preserve
+  supplied prompts and WAVs. Alternate the two spider footsteps on audible
+  strides, randomly choose among supplied one-shot takes without immediate
+  repeats, and loop only designated continuous beds. Follow accepted activity
+  state, actual useful work and loaded cargo transfers; do not replay history
+  on reconnect or region changes. Keep four continuous layers within sixteen
+  sources, stop on pause/hide/disconnect, and share saved effects controls across
+  modes independently of music. See `docs/COLONY_SOUND_EFFECTS.md`.
+- Background music follows the saved planet and mode through one browser
+  player: Caldera / Apex of Conquest, Sirocco / Crimson Vanguard, Vesper / Steel
+  Wrought Ascent; Morrow / Twilight Over the Still Lake, Nacre / Harvest at Low
+  Tide, Aurelia / Sun Drenched Sanctuary (author request, 9 November 2026;
+  colony pairings chosen by Codex). Keep one saved music preference across modes,
+  independent of weapon effects and cinema audio. Start after a gesture, pause
+  hidden tabs, and retain the track position through snapshots and Morrow region
+  changes. Colony controls belong in Crew. See `docs/AUDIO_PLAN.md`.
 - Pure overhead 2D with square tiles; no isometric battlefield assets. Biological
   art is mildly unpleasant, overhead and readable; final textures remain open.
+- Enemy art (`public/enemy-art.js`) simplifies the author's concepts into flat
+  overhead creatures. Poses follow saved state (attack windup and strike, laser
+  phase and cooldown, blocked hits) and rendered travel, never animation time;
+  kinds, hit circles and labels are unchanged. The armored enemy keeps the name
+  Bulwark (wearing the Berserker concept art) and Heavy laser art stays near its
+  hit footprint, not 2.5x (author, 9 November 2026). Hostile facilities share
+  that language (`public/facility-art.js`) and follow saved site state the same
+  way; their warnings, labels, footprints and collision are unchanged, and the
+  visible lance beam starts at the drawn tip. See `docs/ENEMY_ART_STAGE.md`.
+- Re-entry (`public/reentry-art.js`; author request, 9 November 2026; awaiting
+  playtest): every orbital arrival and strike shell comes down one orbital track
+  per planet, posed from its saved countdown and exactly on its saved point at
+  its saved impact. Capsules (pods, crates, capsules, the robot pod) brake: their
+  plasma dies, retro rockets light the ground and blow dust before contact.
+  Shells stay hypersonic to impact. Smoke is browser-only, keyed by id on the
+  server clock (frozen in pause), lingers 14 s (heavy 20 s) drifting in the
+  shared wind under facilities and units, and is capped at 48 trails. Reduced
+  effects drop plasma and smoke. The menu dive is separate. See
+  `docs/ORBITAL_REENTRY_STAGE.md`.
 - Source `assets/` tracks only the selected evidence in `assets/used-assets.json`;
   all other local library files stay ignored. Keep original source licenses and
   distinguish active use, preparation dependencies and historical media. Track
@@ -297,7 +470,14 @@ Details: `docs/ACCOUNT_DESIGN.md`, `docs/ENTRY_AND_CAMPAIGNS.md`,
 - Authentication changes need save-retention, token-replay, inbox-isolation and
   live-control checks.
 - Email/Demo accounts may host; unregistered guests may only join. Owner exit
-  saves, closes the room and returns members to the lobby; invited accounts keep
+  saves, closes the room and returns members to the lobby with its reason shown in a
+  dialog and kept in the lobby; leaving by choice shows nothing. Leaving passes
+  through black, as in the colony: the view zooms out while the battlefield fades,
+  and a closed room's battlefield fades behind its dialog (author's request, 9
+  November 2026; see `docs/JOIN_ARRIVAL_AND_RUNWAYS.md`). The Esc room menu
+  fades in and out; its Account settings fades the battlefield to black and the
+  account page fades in, and Return to battlefield fades back out (author's
+  request, 9 November 2026; `docs/HUD_AND_POLISH_STAGE.md`). Invited accounts keep
   membership. Departing guests' construction persists and the host may manage it.
   Guest visits survive refresh/disconnect for 30 s; owner loss freezes the room
   for 30 s. Solo pause resumes, with a warning, when a teammate joins.
@@ -387,10 +567,11 @@ Details: `docs/CONSTRUCTION_LOGISTICS.md`, `docs/SUPPORT_NETWORK_STAGE.md`,
 - Ground claws and acid damage facilities through armor; do not claim every enemy
   weapon was extended.
 - Orbital cargo arrives in a metal crate, unfolds and deploys; new crates reserve
-  their payload-sized four-wall cross, then leave saved walkable flooring. Never
+  their payload-sized four-wall cross (a double airbase opens its two long walls),
+  then leave saved walkable flooring. Never
   draw construction drones for orbital cargo; local builds keep drone workers.
   No individual worker or electricity simulation.
-- Keep the original core layout, runway dimensions, air delivery aprons and the
+- Keep the original core layout, each strip's 6 x 10 runway, air delivery aprons and the
   3×5 dock navigation footprint; tank pods are five tiles and roll out one east.
   Existing facilities are not retrofitted.
 - Recyclers: one saved seat (E boards/exits, WASD drives, parking collects or
@@ -420,6 +601,14 @@ Details: `docs/CORE_DEPLOYMENT.md`, `docs/ROBOT_COMBAT_DESIGN.md`,
   occupied footprints reserved until complete; flooring affects server collision.
   Limit: one core per scout and eight per world.
 - Robot: held LMB/Space fuel jet, held RMB/J laser, labelled touch buttons;
+  the jet reaches 7.5 tiles and heavy fuel keeps 8 (author, 9 November 2026). The
+  jet is drawn from the server's packets as burning liquid, slim to thick and bent
+  like a hose by a swinging nozzle; its splash and smoke are browser-only and never
+  read as a fire field (`docs/FUEL_STREAM_STAGE.md`). A fuel packet that ends on
+  land without hitting an enemy leaves a burning pool for 4 s: one per tile (renewed,
+  never stacked), 12 per shooter and 48 in the world, apart from the field caps,
+  saved with combat. Hunters and Breakers touching one burn and flee as from the
+  laser; Bulwarks slow; routing ignores pools. The robot has an
   aim-facing body turning at 540°/s with world-direction movement. Weapons stop
   at rocks and solid structures. Health persists; disabled bodies cannot move,
   fire or build. Recovery uses a selected friendly core's clear area with
@@ -497,11 +686,17 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   cursor: gold is desired, pale blue is actual. It stows 6 s after release unless
   its own volley flies. Save pose, not aim; old saves load stowed and never take
   the rail cannon's default elevation.
-- Fields: lethal contact, exact gas capacity, fire-first priority, friendly
-  immunity, simulation-time expiry; gas has no timer. Active plus incoming fields
-  share count caps and the area budget (216 tiles per barrage; 512 total / 256 per
-  type). Selection shares reload and cannot alter in-flight ammunition. Test field
-  accounting and routing before changing sizes, caps or monster numbers.
+- Fields: lethal contact (Hunters; Breakers in fire), exact gas capacity,
+  fire-first priority, friendly immunity, simulation-time expiry; gas has no timer.
+  Active plus incoming fields share count caps and the area budget (216 tiles per
+  barrage; 512 total / 256 per type). Selection shares reload and cannot alter
+  in-flight ammunition. Test field accounting and routing before changing sizes,
+  caps or monster numbers.
+- Fire, gas and smoke drift with one cosmetic wind per world (`public/wind.js`),
+  derived from the world id and the server clock so every client sees the same; it
+  moves nothing in the game. Flames sway and burn down over a field's time; gas
+  spreads to its full bound within 1.5 s while its dashed boundary shows the full
+  area from the first frame (author, 9 November 2026).
 - Distant battery/submarine aim clamps the whole rectangle along its bearing, and
   tank distant aim clamps travel to weapon range while keeping the actual turret
   bearing; preview and server agree and keep minimum-range and other fire gates.
@@ -510,7 +705,8 @@ Details: `docs/RAIL_ARTILLERY_DESIGN.md`, `docs/CANNON_CONTROLS.md`,
   and pinch zoom at the pointer. The bottom facility manual replaces body controls
   until exit. Ships and aircraft keep the global Remote view.
 - Remote panels are a command strip: one word, one key, in the dock's language.
-  LMB attacks and RMB moves. R returns a ship or helicopter home; on aircraft it
+  LMB attacks and RMB moves; RMB on a free friendly dock moors a ship there without
+  changing its home. R returns a ship or helicopter home; on aircraft it
   turns the approach, because attack runs relocate by themselves. G deploys a
   ship's ramp at the nearest shore or lands a helicopter, V lifts or drops a
   slung vehicle, T turns a submarine's strike area, L launches from a carrier.
@@ -593,6 +789,9 @@ Details: `docs/AIR_FORCE.md`, `docs/AIR_TRAFFIC.md`, `docs/AUTOMATIC_BOMBER.md`,
   with exclusive runway reservations. Fleet counts include aircraft in flight and
   delivery; empty airbases are allowed within the four-base campaign cap. A free
   runway is not permission to manufacture another aircraft.
+- New airbases are 6 x 20 (R turns them): two strips, one health pool, one aircraft.
+  The second strip is a visitors' landing field, never a production or fleet slot.
+  Older bases keep one strip. See `docs/JOIN_ARRIVAL_AND_RUNWAYS.md`.
 - Airbase placement is empty; separate jet and bomber cards choose an existing
   empty owned runway with server new-only admission. Keep the first free orbital
   bomber distinct from local production.
@@ -630,9 +829,16 @@ Details: `docs/CONQUEST_STAGE.md`, `docs/MORTAR_OUTPOST.md`,
 - Seeded compounds: generated once per save from a versioned manifest; unsafe
   slots are skipped permanently; never reroll or refill. Finite initial guards with
   saved roles under the shared 24 cap; only crowns call Hunter reinforcements.
-- Roles: Hunters and Breakers are vulnerable to fire and gas. Bulwarks are
-  damaged only by HE/explosives and Magnetic, ignore heat and gas lures, and obey
-  terrain and windups. Mobile lenses are aircraft specialists with normal ground
+- Roles (author, 9 November 2026; `docs/FUEL_STREAM_STAGE.md`): fire, fuel and
+  gas kill Hunters on contact, and a gas kill spends one of the cloud's count.
+  Breakers still die to fire and fuel, but gas wears them down at 20 hp/s and
+  confuses them (target dropped, slow wandering) while inside and 3 s after.
+  Bulwarks take HE/explosives, Magnetic, the MAC and now gas at 20 hp/s. They are
+  never lured, never turned aside by fire and never panic, but fire fields, their
+  heat band and fuel pools halve their speed. A cloud spends a kill on a Breaker or
+  Bulwark only when it dies of the gas inside it. Status shows on the unit (gas
+  bubbles, confusion stars, slowed chevrons). Bulwarks obey terrain and windups.
+  The centipede and skimmers stay hazard-immune. Mobile lenses are aircraft specialists with normal ground
   vulnerability; their elevated beams never hit parked aircraft or ground units.
 - Automatic bullet/fuel guards prefer damageable targets; keep truthful
   blocked-hit feedback.
@@ -690,6 +896,16 @@ Details: `docs/PLANET_EXPANSION.md`, `docs/GUARD_CURVES_EXPANSION.md`,
   canvases, so the battlefield reloads on `contextrestored`. Caldera is painted
   blue grass, silver shores and blue trees from fixed tile positions
   (`public/caldera-art.js`); colours only, and its trees stay cosmetic.
+- War-zone ground, water and ridges are painted by `public/ground-art.js` from
+  the saved terrain, mountain and water masks only, in code (no texture images).
+  Coasts and ridge outlines are smoothed but held within 0.35 tiles of the saved
+  edge, and every tile centre shows its saved surface; never let art hide a
+  one-tile island, river or rock. Chunks snap to device pixels (no seams) and
+  build within a frame budget behind the overview image. No per-pixel grain: it
+  made full-screen PNG screenshots take half a second to encode, pausing the page
+  past the 700 ms input lease, and a lapsed lease stops a ship and clears its
+  throttle. Rocks must stay easy to see, because they block movement and weapons.
+  See `docs/TERRAIN_TEXTURE_STAGE.md`.
 - UI is presentation and input only: never alter server rules, prices or save
   formats from the UI. Add keys to `public/keymap.js` BINDINGS (precedence,
   labels, F1) and assets to `public/catalogue.js`; never reuse asset codes;

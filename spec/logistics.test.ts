@@ -21,13 +21,13 @@ const flat=():any=>({...createWorld(),version:2,width:128,height:96,terrain:Arra
 const core={id:'friendly',owner:'b',x:36,y:28,elapsed:4.5};
 it('requires a whole land footprint within completed friendly support and allows extending it with a ready factory',()=>{
   const w=flat();w.cores=[core];
-  expect(constructionError(w,'airbase',48,32)).toBeNull();
+  expect(constructionError(w,'airbase',48,22)).toBeNull();
   expect(constructionError(w,'airbase',58,28)).toContain('whole facility');
   expect(constructionError(w,'airbase',88,60)).toBeTruthy();
   w.cores=[{...core,elapsed:4}];expect(constructionError(w,'missile',42,38)).toBeTruthy();
   w.cores=[];w.logistics.facilities=[{id:'f',kind:'factory',x:65,y:40,remaining:1}];
-  expect(constructionError(w,'airbase',70,45)).toBeTruthy();w.logistics.facilities[0].remaining=0;
-  expect(constructionError(w,'airbase',70,45)).toBeNull();
+  expect(constructionError(w,'airbase',70,38)).toBeTruthy();w.logistics.facilities[0].remaining=0;
+  expect(constructionError(w,'airbase',70,38)).toBeNull();
   expect(constructionError(w,'tank',110,70)).toBeTruthy();expect(constructionError(w,'sentry',110,70)).toBeTruthy();
   expect(canStand(w,[],65.5,40.5)).toBe(false);
 });

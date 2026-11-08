@@ -1,0 +1,6 @@
+Use case: precise-object-edit / style-transfer.
+Asset type: separate transparent overhead cargo-shuttle sprite.
+Reference image1: MYCORRHIZAL white-and-gold design sheet, to match the metal/colors and the little white cargo shuttle visible at the upper side bay and the pair in the bottom front view.
+Reference image2: existing standalone cargo shuttle, to preserve its actual simple design and cargo.
+Make a single DIRECT TOP-DOWN / ORTHOGRAPHIC OVERHEAD view of this cargo shuttle, nose pointing RIGHT, suitable next to the middle TOP ship view from image1. White ivory rounded wedge hull, narrow gold trim, graphite seams, dark cockpit at its right pointed nose, two small maneuvering nacelles aft, and the existing green, amber and white freight crates strapped in neat rows on the upper cargo deck. Preserve the compact practical freighter identity. It is about 2.5 to 3 times longer than wide. Both sides visible symmetrically from directly above, not a three-quarter or side view.
+One shuttle only centered snugly in landscape canvas with small transparent margin, full hull visible. Genuine alpha background. No crane arms, carrier, pipes hanging off, ropes, flames, wind, people, ground, shadows outside the craft, labels or text. Do not add a large wing or weapons. Crisp readable game sprite retaining the mechanical detail of the supplied references.

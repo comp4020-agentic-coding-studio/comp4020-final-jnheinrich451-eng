@@ -8,10 +8,11 @@ const robot = () => ({ id: 'robot', x: 20.5, y: 10.5, health: 100, life: 'active
 it('guards in place, selects laser at distance and fuel nearby with boundary hysteresis', () => {
   const p = robot(), state: any = {}, world = field(), e = { id: 1, x: 28.5, y: 10.5, hp: 60 };
   expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('LASER');
-  e.x = 25.2; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('LASER');
-  e.x = 24.9; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('FLAME');
-  e.x = 25.2; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('FLAME');
-  e.x = 25.6; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('LASER');
+  // Fuel reaches 7.5 tiles (9 November 2026); the guard switches to it inside 7 and back to laser beyond 7.5.
+  e.x = 27.7; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('LASER');
+  e.x = 27.4; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('FLAME');
+  e.x = 27.7; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('FLAME');
+  e.x = 28.1; expect(guardStep(p, state, [e], world, [], .1)?.weapon).toBe('LASER');
   expect([p.x, p.y]).toEqual([20.5, 10.5]);
 });
 it('obstacles and turret alignment prevent shots, and control release or death stops guarding', () => {
@@ -27,7 +28,7 @@ it('obstacles and turret alignment prevent shots, and control release or death s
 });
 it('guard fire uses ordinary damage and cooldowns and emits no new shots after handoff', () => {
   const world = field(), combat = createCombat(world); combat.start([]);
-  const e = combat.snapshot().enemies[0], p = { ...robot(), x: e.x + 8, y: e.y, turret: -Math.PI / 2, angle: -Math.PI / 2 };
+  const e = combat.snapshot().enemies[0], p = { ...robot(), x: e.x + 11, y: e.y, turret: -Math.PI / 2, angle: -Math.PI / 2 };
   combat.tick(.1, [], [p]);
   const first = combat.snapshot().shots.find(s => s.owner === p.id);
   expect(first?.weapon).toBe('LASER'); expect(combat.snapshot().enemies.some(e => e.hp < 60)).toBe(true);

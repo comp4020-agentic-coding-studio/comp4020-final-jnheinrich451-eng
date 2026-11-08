@@ -159,9 +159,41 @@ export function paintColonyVessels(ctx, images, carrier, state, alpha = 1, optio
   paintSprite(ctx, images.shuttle, COLONY_SPRITES.shuttle, shuttle, alpha);
 }
 
-export function paintColonyAtmosphere(ctx, { width, height, state, time, clouds, ground, shuttle, palette }) {
+// The garden's own light (from the admission reply) over the descent: moonlit blue
+// by night, gold at dawn and dusk, greyer under cloud and rain. Without it the
+// descent keeps its original daylit veil.
+export function descentGrade(light) {
+  if (!light) return { day: 1, night: 0, warm: 0, grey: 0, veil: 'rgba(218,237,231,.47)', streaks: .46, rain: 0 };
+  // Dawn and dusk sit low on daylight, so warmth holds back the night tint: golden hour
+  // reads gold and only true night turns deep blue.
+  const day = clamp(Number(light.daylight) || 0), horizon = clamp(Number(light.warmth) || 0);
+  const night = (1 - day) * (1 - .7 * horizon), warm = horizon * (.6 + .4 * day);
+  const grey = clamp(Math.max(Number(light.cloud) || 0, Number(light.rain) || 0)), rain = clamp(Number(light.rain) || 0);
+  // Veil colour: mint by day, greyer when overcast, gold at the horizon hours, deep blue at night.
+  const tint = [mix(mix(218, 206, grey), 255, warm * .8), mix(mix(237, 212, grey), 214, warm * .8), mix(mix(231, 214, grey), 150, warm * .8)];
+  const veil = tint.map((value, i) => Math.round(mix(value, [34, 48, 88][i], night)));
+  return { day, night, warm, grey, rain, streaks: .46 * (.35 + .65 * day), veil: `rgba(${veil.join(',')},${(.3 + .1 * grey + .05 * night).toFixed(3)})` };
+}
+
+/** Darken and warm the whole descent frame, shuttle included, once it is in the air. */
+export function gradeColonyDescent(ctx, { width, height, state, light }) {
+  const air = smooth((state?.dive || 0) / .36);
+  if (!air || !light) return;
+  const grade = descentGrade(light);
+  ctx.save(); ctx.globalCompositeOperation = 'multiply';
+  if (grade.night > .01) { ctx.globalAlpha = air * grade.night * .86; ctx.fillStyle = '#2b3a66'; ctx.fillRect(0, 0, width, height); }
+  if (grade.warm > .01) { ctx.globalAlpha = air * grade.warm * .42; ctx.fillStyle = '#f2a465'; ctx.fillRect(0, 0, width, height); }
+  if (grade.grey > .01) { ctx.globalAlpha = air * grade.grey * .16; ctx.fillStyle = '#9aa3a6'; ctx.fillRect(0, 0, width, height); }
+  // Faint moonlight keeps the night ground readable rather than black.
+  ctx.globalCompositeOperation = 'screen';
+  if (grade.night > .01) { ctx.globalAlpha = air * grade.night * .08; ctx.fillStyle = '#9fb8e6'; ctx.fillRect(0, 0, width, height); }
+  ctx.restore();
+}
+
+export function paintColonyAtmosphere(ctx, { width, height, state, time, clouds, ground, shuttle, palette, light = null }) {
   const air = smooth(state.dive / .36);
   if (!air) return;
+  const grade = descentGrade(light);
   ctx.save(); ctx.globalAlpha = air;
   ctx.fillStyle = palette?.water || '#70a7a5'; ctx.fillRect(0, 0, width, height);
   if (ground) {
@@ -170,15 +202,24 @@ export function paintColonyAtmosphere(ctx, { width, height, state, time, clouds,
     const w = ground.width * scale, h = ground.height * scale;
     ctx.drawImage(ground, -w * .24 - state.dive * width * .11, -h * .28 - state.dive * height * .07, w, h);
   }
-  ctx.fillStyle = 'rgba(218,237,231,.47)'; ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = grade.veil; ctx.fillRect(0, 0, width, height);
   if (clouds) for (let i = 0; i < 9; i++) {
     const cycle = (i * .137 + time * .000035 * (1 + i % 3 * .12)) % 1;
     const size = width * (.40 + i % 3 * .16), x = width * (1.35 - cycle * 1.85), y = height * ((i * .233) % 1);
     ctx.globalAlpha = air * (.22 + i % 3 * .09);
     ctx.drawImage(clouds, x - size / 2, y - size / 4, size, size * .5);
   }
+  // Rain in the garden falls through the descent too: fixed slanted streaks, no simulation.
+  if (grade.rain > .05) {
+    ctx.save(); ctx.globalAlpha = air * grade.rain * .38; ctx.strokeStyle = '#dfeaf2'; ctx.lineWidth = 1;
+    for (let i = 0; i < 46; i++) {
+      const fall = (i * .217 + time * .0011 * (1 + i % 4 * .15)) % 1, x = width * ((i * .379) % 1), y = height * (fall * 1.2 - .1);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - height * .012, y + height * .05); ctx.stroke();
+    }
+    ctx.restore();
+  }
   // A fixed small ribbon set expresses moving air; no projectile or particle simulation.
-  ctx.globalAlpha = air * .46; ctx.translate(shuttle.x, shuttle.y); ctx.rotate(shuttle.angle);
+  ctx.globalAlpha = air * grade.streaks; ctx.translate(shuttle.x, shuttle.y); ctx.rotate(shuttle.angle);
   ctx.strokeStyle = '#efffff'; ctx.lineWidth = 1.2;
   for (let i = 0; i < 12; i++) {
     const phase = (time * .00027 + i * .173) % 1;

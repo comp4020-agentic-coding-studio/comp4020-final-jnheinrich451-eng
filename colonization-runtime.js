@@ -1,12 +1,17 @@
 import http from 'node:http';
 import path from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync, unlinkSync, renameSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
 import { createColony, colonyAction, tickColony, stepColonyRobot, colonyCanStand } from './public/colonization.js';
+import { isRegionAction, regionAction, regionView, regionWorld } from './public/colony-regions.js';
+import { createGround } from './public/colony-ground.js';
+import { activityView, isRestAction, restAction, restValid, standUp, tickActivity } from './public/colony-rest.js';
+import { tickPet } from './public/colony-pet.js';
+import { arrivalLight } from './public/colony-ambience.js';
 
 const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
-const record = person => ({ id: person.id, name: person.name, x: person.x, y: person.y, angle: person.angle || 0 });
+const record = person => ({ id: person.id, name: person.name, x: person.x, y: person.y, angle: person.angle || 0, regionId: person.regionId || 'home', activity: activityView(person) });
 
 // A peaceful runtime: no combat world, enemy scheduler, weapon endpoint or SUP ledger.
 // Campaign identity, invitations and owner lifecycle remain enforced by the registry.
@@ -31,6 +36,16 @@ export function createColonizationRuntime(dataDir, options) {
   const runtimeId = randomUUID(), audit = options.audit;
   let closed = false, storageFailed = false, revision = 0, lastTick = performance.now(), lastSave = lastTick, lastBroadcast = lastTick, growthElapsed = 0;
   const frozen = () => closed || storageFailed || options.frozen();
+  // Load-time additive migration: an old garden gains ground conditioning once,
+  // behind its own backup, before any stream or timer can run. A save that
+  // already has ground is never re-initialised.
+  // Unlike an order-time backup, a refusal here would close the expedition, so an
+  // unreadable or foreign backup file is moved aside and the live pre-ground
+  // garden, itself the exact state to preserve, is snapshotted afresh.
+  if (!state.ground) {
+    try { additiveBackup('colony-before-ground-v1.sqlite', garden => !garden.ground, { replaceInvalid: true }); state.ground = createGround(state); checkpoint(); }
+    catch (error) { db.close(); throw error; }
+  }
 
   function checkpoint() {
     if (closed) return;
@@ -42,15 +57,64 @@ export function createColonizationRuntime(dataDir, options) {
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     lastSave = performance.now();
   }
+  /**
+   * One additive migration point per stage: preserve the exact old garden
+   * before its first change. An existing backup is validated rather than
+   * trusted (a restored garden may already carry one). VACUUM INTO is SQLite's
+   * consistent snapshot, including committed WAL contents; it stays
+   * synchronous with the caller so no timer or second order can race it.
+   * Only the final name is published after SQLite finishes: a partial
+   * snapshot cannot be trusted on retry even when cleanup fails.
+   * @param {string} fileName @param {(garden: any) => boolean} validate
+   */
+  function additiveBackup(fileName, validate, { replaceInvalid = false } = {}) {
+    const backup = path.join(dataDir, fileName), stage = /^colony-before-(\w+)-v1\.sqlite$/.exec(fileName)?.[1];
+    if (existsSync(backup)) {
+      let previous = null;
+      try {
+        previous = new DatabaseSync(backup, { readOnly: true });
+        const row = previous.prepare("SELECT value FROM meta WHERE key='colony-v1'").get();
+        const garden = row && JSON.parse(row.value);
+        if (!garden || garden.mode !== 'colonization' || garden.template !== state.template || !validate(garden)
+          || previous.prepare('PRAGMA quick_check').get().quick_check !== 'ok') throw Error(`Invalid pre-${stage} backup.`);
+        return;
+      } catch (error) {
+        if (!replaceInvalid) throw error;
+      } finally { previous?.close(); }
+      // Never delete: the file is kept beside the save under a name no code reads.
+      renameSync(backup, path.join(dataDir, `${fileName.replace(/\.sqlite$/, '')}-invalid-${randomUUID()}.sqlite`));
+    }
+    checkpoint();
+    const pending = path.join(dataDir, `${fileName.replace(/\.sqlite$/, '')}-${randomUUID()}.pending.sqlite`);
+    try { db.prepare('VACUUM INTO ?').run(pending); renameSync(pending, backup); }
+    catch (error) { try { if (existsSync(pending)) unlinkSync(pending); } catch { /* retain original error */ } throw error; }
+  }
+  // The home district's collision check, for choosing where a worker rests or stands.
+  const homeStand = garden => (x, y) => colonyCanStand(regionView(garden, 'home'), x, y);
+  function safePosition(next, person) {
+    if (!regionWorld(next, person.regionId || 'home')) person.regionId = 'home';
+    const view = regionView(next, person.regionId || 'home');
+    if (colonyCanStand(view, person.x, person.y)) return;
+    const spawn = view.world.spawn;
+    if (colonyCanStand(view, spawn.x, spawn.y)) { person.x = spawn.x; person.y = spawn.y; return; }
+    // Old saves can contain a changed spawn neighbourhood. Find nearby firm
+    // ground without moving, removing or regenerating any saved construction.
+    for (let radius = 1; radius <= 8; radius++) for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+      const x = Math.floor(spawn.x) + dx + .5, y = Math.floor(spawn.y) + dy + .5;
+      if (colonyCanStand(view, x, y)) { person.x = x; person.y = y; return; }
+    }
+    fail('No safe landing point is available in that region.');
+  }
   function personFor(req) {
     const actor = req.campaignIdentity;
     if (!actor || !options.authorized(req)) fail('Enter this expedition through the campaign menu.', 403);
     let person = people.get(actor.id);
     if (!person) {
       const saved = db.prepare('SELECT value FROM gardeners WHERE id=?').get(actor.id);
-      person = { ...state.world.spawn, angle: 0, ...(saved ? JSON.parse(saved.value) : {}), id: actor.id, name: actor.name,
+      person = { ...state.world.spawn, angle: 0, regionId: 'home', ...(saved ? JSON.parse(saved.value) : {}), id: actor.id, name: actor.name,
         input: { x: 0, y: 0 }, inputUntil: 0, seq: -1 };
-      if (!colonyCanStand(state, person.x, person.y)) Object.assign(person, state.world.spawn);
+      safePosition(state, person);
       writePerson.run(person.id, JSON.stringify(record(person)));
       people.set(person.id, person);
     }
@@ -58,16 +122,21 @@ export function createColonizationRuntime(dataDir, options) {
     return person;
   }
   function snapshot(person, includeWorld = false) {
-    const { world, ...colony } = state;
+    const regionId = person.regionId || 'home';
+    const { world, ...colony } = regionView(state, regionId);
+    const crew = [...people.values()].filter(p => streams.get(p.id)?.size).map(record);
     return { mode: 'colonization', build: options.clientBuild, clientBuild: options.clientBuild, runtimeId, revision,
-      ...(includeWorld ? { world } : {}), colony, me: record(person),
-      players: [...people.values()].filter(p => streams.get(p.id)?.size).map(record),
+      ...(includeWorld ? { world: { ...world, regionId } } : {}), colony, me: record(person),
+      players: crew.filter(p => p.regionId === regionId), crew,
       room: { ...options.roomView(), ...(storageFailed ? { paused: true, notice: 'Saving is unavailable. The expedition is paused; your last saved garden is retained.' } : {}) } };
   }
   function writeSnapshot(res, person, includeWorld = false) {
     if (res.destroyed || res.writableEnded) return false;
     if (res.writableLength > 128 * 1024) { res.destroy(); return false; }
-    res.write(`data: ${JSON.stringify(snapshot(person, includeWorld))}\n\n`);
+    const currentWorld = regionWorld(state, person.regionId || 'home');
+    const worldKey = `${person.regionId || 'home'}:${currentWorld.id}:${currentWorld.version}`;
+    res.write(`data: ${JSON.stringify(snapshot(person, includeWorld || res.colonyWorldKey !== worldKey))}\n\n`);
+    res.colonyWorldKey = worldKey;
     return true;
   }
   function broadcast() {
@@ -156,9 +225,12 @@ export function createColonizationRuntime(dataDir, options) {
       if (!streams.get(person.id)?.size) fail('Reconnect to your expedition before sending orders.');
       rate(person.id, url.pathname === '/api/input');
       if (url.pathname === '/api/input') {
+        if ((data.regionId ?? 'home') !== (person.regionId || 'home')) fail('Your location changed. Refresh this region before moving.');
         if (![data.x, data.y].every(Number.isFinite) || Math.abs(data.x) > 1 || Math.abs(data.y) > 1 || !Number.isSafeInteger(data.seq) || data.seq < 0) fail('Choose a valid movement direction.', 400);
         if (data.seq > person.seq) {
           person.seq = data.seq; person.input = { x: data.x, y: data.y }; person.inputUntil = performance.now() + 450;
+          // Any movement stands the worker up; a seat is left where it was entered.
+          if (person.activity && (data.x || data.y)) { standUp(person, homeStand(state)); safePosition(state, person); }
         }
         return json(res, 200, { ok: true });
       }
@@ -170,18 +242,30 @@ export function createColonizationRuntime(dataDir, options) {
         if (old.fingerprint !== fingerprint) fail('That request identifier belongs to a different order.');
         return json(res, 200, { ...JSON.parse(old.value), replayed: true });
       }
+      if ((data.regionId ?? 'home') !== (person.regionId || 'home')) fail('Your location changed. Refresh this region before acting.');
+      if (!isRegionAction(data.action) && (person.regionId || 'home') !== 'home') fail('Return to the home garden to use its equipment and furnishings.');
       const next = structuredClone(state);
-      const result = { ...colonyAction(next, { ...record(person), isHost: options.roomView().ownerPilot === person.id,
-        players: [...people.values()].map(record) }, data.action, data), saved: true };
+      const nextPerson = { ...person, input: { ...person.input } };
+      const result = { ...(isRegionAction(data.action) ? regionAction(next, nextPerson, data.action, data)
+        : isRestAction(data.action) ? restAction(next, nextPerson, data.action, data, homeStand(next))
+        : colonyAction(next, { ...record(person), isHost: options.roomView().ownerPilot === person.id,
+          players: [...people.values()].filter(p => (p.regionId || 'home') === 'home').map(record) }, data.action, data)), saved: true };
+      if (nextPerson.regionId !== person.regionId) { safePosition(next, nextPerson); nextPerson.input = { x: 0, y: 0 }; nextPerson.inputUntil = 0; }
+      if ((!state.exploration && next.exploration) || (!state.settlement && next.settlement)) additiveBackup('colony-before-expansion-v1.sqlite', garden => Array.isArray(garden.world?.terrain));
+      if (!state.industry && next.industry) additiveBackup('colony-before-industry-v1.sqlite', garden => !garden.industry);
       db.exec('BEGIN IMMEDIATE');
       try {
         writeState.run(JSON.stringify(next));
+        // Travel and its terrain/progress/receipt are one durable transaction.
+        // A dropped response can never repeat a discovery reward or a journey.
+        if (isRegionAction(data.action) || isRestAction(data.action)) writePerson.run(nextPerson.id, JSON.stringify(record(nextPerson)));
         db.prepare('INSERT INTO receipts VALUES (?,?,?,?)').run(person.id, data.requestId, fingerprint, JSON.stringify(result));
         db.prepare('DELETE FROM receipts WHERE pilot_id=? AND rowid NOT IN (SELECT rowid FROM receipts WHERE pilot_id=? ORDER BY rowid DESC LIMIT 128)').run(person.id, person.id);
         db.exec('COMMIT');
       } catch (error) { db.exec('ROLLBACK'); throw error; }
       state = next;
-      audit.bind({ command: data.action, targetId: data.bedId, x: data.x, y: data.y, saved: true });
+      if (isRegionAction(data.action) || isRestAction(data.action)) Object.assign(person, nextPerson);
+      audit.bind({ command: data.action, targetId: result.targetId || data.machineId || data.bedId, x: data.x, y: data.y, saved: true });
       audit.emit('colony.order', { ...audit.context(), outcome: 'accepted' });
       broadcast(); return json(res, 200, result);
     } catch (error) {
@@ -201,9 +285,12 @@ export function createColonizationRuntime(dataDir, options) {
     }
     try {
       for (const p of people.values()) if (streams.has(p.id)) {
+        // A resting worker holds its spot until it moves or its furnishing is stored or moved.
+        if (p.activity) { if (!restValid(state, p)) { standUp(p, homeStand(state)); safePosition(state, p); } else tickActivity(state, p, dt); continue; }
         const input = p.inputUntil > now ? p.input : { x: 0, y: 0 };
-        stepColonyRobot(state, p, input.x, input.y, dt);
+        stepColonyRobot(regionView(state, p.regionId || 'home'), p, input.x, input.y, dt);
       }
+      if (state.pet) tickPet(regionView(state, 'home'), [...people.values()].filter(p => streams.has(p.id)).map(record), dt);
       growthElapsed += dt;
       if (growthElapsed >= .25) { tickColony(state, growthElapsed); growthElapsed = 0; }
       if (now - lastSave >= 1000) checkpoint();
@@ -226,5 +313,7 @@ export function createColonizationRuntime(dataDir, options) {
     }
   }
   return { server, db, checkpoint, broadcast, stopInputs, endPlayerAccess, abandon,
+    // The garden's current light for the admission reply; it tints the menu's descent only.
+    light: () => arrivalLight(state),
     connected: id => !!streams.get(id)?.size, close: () => closing ??= closeOnce() };
 }

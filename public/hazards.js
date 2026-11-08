@@ -4,6 +4,29 @@ import { enemyProfile } from './enemy-profiles.js';
 import { isAirEnemy } from './target-domain.js';
 
 export const FIELD_LIMIT = 12, TYPE_LIMIT = 9, ENEMY_RADIUS = .38;
+// Fuel pools: where a fuel packet ends on land without hitting an enemy it leaves a
+// small burning pool (author, 9 November 2026). One per tile (a new packet renews it),
+// at most 12 per shooter and 48 in the world, separate from the artillery field caps.
+// Hunters and Breakers that touch one burn and flee as from the laser; Bulwarks slow.
+export const FUEL_POOL = Object.freeze({ radius: .45, duration: 4000, perOwner: 12, max: 48 });
+export function placePool(pools, pool) {
+  const same = pools.find(p => Math.floor(p.x) === Math.floor(pool.x) && Math.floor(p.y) === Math.floor(pool.y));
+  if (same) { Object.assign(same, { until: pool.until, owner: pool.owner, heavy: same.heavy || pool.heavy }); return pools; }
+  let next = [...pools, pool];
+  const oldest = list => list.reduce((a, b) => (b.at < a.at ? b : a));
+  const mine = next.filter(p => p.owner === pool.owner);
+  if (mine.length > FUEL_POOL.perOwner) { const drop = oldest(mine); next = next.filter(p => p !== drop); }
+  if (next.length > FUEL_POOL.max) { const drop = oldest(next); next = next.filter(p => p !== drop); }
+  return next;
+}
+export const poolContact = (pools, enemy, now) => enemy.hp <= 0 || isAirEnemy(enemy) ? null
+  : pools.find(p => p.until > now && Math.hypot(p.x - enemy.x, p.y - enemy.y) <= FUEL_POOL.radius + ENEMY_RADIUS) || null;
+// Gas wears down the units it does not kill on contact (Breakers, Bulwarks). A cloud
+// spends one of its kills only when such a unit dies of the gas inside it.
+export function gasExposure(fields, enemy) {
+  if (enemy.hp <= 0 || isAirEnemy(enemy) || !enemyProfile(enemy).gasDps) return null;
+  return fields.find(f => f.weapon === 'GAS' && f.capacity > 0 && insideField(f, enemy.x, enemy.y)) || null;
+}
 export const FIELD_AREA_LIMIT = 512, TYPE_AREA_LIMIT = 256;
 export const rectangleDistance = (r, x, y) => Math.hypot(Math.max(r.x - x, 0, x - r.x - r.width), Math.max(r.y - y, 0, y - r.y - r.height));
 export const activeSectors = field => (field.sectors || []).filter(s => field.weapon === 'INCENDIARY' ? s.remaining > 0 : field.capacity > 0);
@@ -34,13 +57,17 @@ export function contactField(fields, enemy) {
   if (enemy.hp <= 0 || isAirEnemy(enemy) || enemyProfile(enemy).hazardImmune) return null;
   const fire = fields.find(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, enemy.x, enemy.y));
   if (fire) return fire;
+  if (enemyProfile(enemy).gasDps) return null;
   const gas = fields.find(f => f.weapon === 'GAS' && f.capacity > 0 && insideField(f, enemy.x, enemy.y));
   if (gas) gas.capacity--;
   return gas || null;
 }
 export const fireBlocked = fields => (x, y) => fields.some(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, x, y, ENEMY_RADIUS + .72));
-export function heatSpeed(fields, enemy) {
-  if (isAirEnemy(enemy) || enemyProfile(enemy).hazardImmune) return 1;
+export function heatSpeed(fields, enemy, pools = [], now = 0) {
+  if (isAirEnemy(enemy)) return 1;
+  const slow = enemyProfile(enemy).fireSlow;
+  if (slow) return fields.some(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, enemy.x, enemy.y, ENEMY_RADIUS + ARTILLERY_SHELLS.INCENDIARY.heatBand)) || poolContact(pools, enemy, now) ? slow : 1;
+  if (enemyProfile(enemy).hazardImmune) return 1;
   return fields.some(f => f.weapon === 'INCENDIARY' && f.remaining > 0 && insideField(f, enemy.x, enemy.y, ENEMY_RADIUS + ARTILLERY_SHELLS.INCENDIARY.heatBand)) ? ARTILLERY_SHELLS.INCENDIARY.slow : 1;
 }
 export function lureRoute(world, buildings, enemy, fields, blocked, route = findPath) {

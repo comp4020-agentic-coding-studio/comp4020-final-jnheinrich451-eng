@@ -38,10 +38,30 @@ it('moves more slowly than hunters and gives only designated siege heavies infra
   expect(landTarget({ ...unit, kind: 'hunter' }, [facility], 0)).toBeUndefined();
 });
 
-it.each(['INCENDIARY', 'GAS'])('preserves lethal %s contact against a full-health breaker and charges gas once', weapon => {
+it('preserves lethal INCENDIARY contact against a full-health breaker', () => {
   const { combat } = field(), e = combat.snapshot().enemies[0];
-  expect(combat.lob({ id: 'gun', x: e.x - 8, y: e.y }, e.x, e.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, weapon)).toBeNull();
+  expect(combat.lob({ id: 'gun', x: e.x - 8, y: e.y }, e.x, e.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, 'INCENDIARY')).toBeNull();
   combat.tick(.01, []); expect(combat.snapshot().enemies).toHaveLength(0);
   expect(combat.snapshot().kills).toBe(1);
-  if (weapon === 'GAS') expect(combat.snapshot().fields[0].capacity).toBe(5);
+});
+// 9 November 2026: gas wears a Breaker down (20 hp/s) and confuses it instead of
+// killing it on contact; the cloud spends a kill only when it dies of the gas inside.
+it('wears a breaker down in gas, confuses it, and spends the cloud only on a gas death', () => {
+  const { combat } = field(), e = combat.snapshot().enemies[0];
+  expect(combat.lob({ id: 'gun', x: e.x - 8, y: e.y }, e.x, e.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, 'GAS')).toBeNull();
+  combat.tick(.01, []);
+  const initial = combat.snapshot().fields[0].initialCapacity;
+  for (let i = 0; i < 10; i++) combat.tick(.1, []);
+  const worn = combat.snapshot().enemies[0];
+  expect(worn.hp).toBeGreaterThan(155); expect(worn.hp).toBeLessThan(165);
+  expect(worn.confusedUntil).toBeGreaterThan(combat.snapshot().time);
+  expect(worn.attack ?? null).toBeNull();
+  expect(combat.snapshot().fields[0].capacity).toBe(initial);
+  const weak = field(); weak.combat.snapshot();
+  const saved = weak.combat.checkpoint(); saved.enemies[0].hp = 3;
+  const dying = createCombat(weak.world, saved), d = dying.snapshot().enemies[0];
+  expect(dying.lob({ id: 'gun', x: d.x - 8, y: d.y }, d.x, d.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, 'GAS')).toBeNull();
+  for (let i = 0; i < 4; i++) dying.tick(.1, []);
+  expect(dying.snapshot().enemies).toHaveLength(0); expect(dying.snapshot().kills).toBe(1);
+  expect(dying.snapshot().fields[0].capacity).toBe(dying.snapshot().fields[0].initialCapacity - 1);
 });

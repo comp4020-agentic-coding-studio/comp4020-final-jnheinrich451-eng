@@ -13,7 +13,7 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
  test.setTimeout(40000);
  const dataDir=await mkdtemp(path.join(tmpdir(),'frontier-jet-browser-'));let app=createApp({dataDir,logSink:()=>{}}),context,other;
  await app.close();const db=new DatabaseSync(path.join(dataDir,'world.sqlite')),world=expandWorld(createWorld()),token=randomUUID();world.terrain.fill(2);world.bridges=[];
- db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',54.6,60.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',63,60,4.5);db.close();app=createApp({dataDir,logSink:()=>{}});
+ db.prepare('UPDATE meta SET value=? WHERE key=?').run(JSON.stringify(world),'world');db.prepare('INSERT INTO scouts VALUES (?,?,?,?,?,?)').run(token,'pilot','Pilot',60.6,56.5,0);db.prepare('INSERT INTO cores VALUES (?,?,?,?,?)').run('core','pilot',72,60,4.5);db.close();app=createApp({dataDir,logSink:()=>{}});
  try{
   await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const port=app.server.address().port,url=`http://127.0.0.1:${port}`;
   context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1920,height:1080},isMobile:mobile,hasTouch:mobile});other=await browser.newContext();await context.addCookies([{name:'frontier',value:token,url}]);
@@ -25,8 +25,8 @@ for(const mobile of [false,true])test(`orbital jet delivery, held autocannon and
   await page.waitForTimeout(1600);await page.screenshot({path:`.local/jet-delivery-${mobile?'mobile':'desktop'}.png`});
   await expect.poll(async()=>(await plane()).state,{timeout:20000}).toBe('parked');
   // The delivery crate reserves the ground around the airbase, so the robot starts clear of it and walks to the gate once the crate has become flooring.
-  await page.locator('#world-canvas').focus();let walk=null;if(mobile){walk=await page.locator('[data-direction="up"]').boundingBox();await page.mouse.move(walk.x+walk.width/2,walk.y+walk.height/2);await page.mouse.down();}else await page.keyboard.down('w');
-  await expect(page.locator('#aircraft-interact')).toBeEnabled();if(mobile)await page.mouse.up();else await page.keyboard.up('w');
+  await page.locator('#world-canvas').focus();let walk=null;if(mobile){walk=await page.locator('[data-direction="left"]').boundingBox();await page.mouse.move(walk.x+walk.width/2,walk.y+walk.height/2);await page.mouse.down();}else await page.keyboard.down('a');
+  await expect(page.locator('#aircraft-interact')).toBeEnabled();if(mobile)await page.mouse.up();else await page.keyboard.up('a');
   await page.locator('#aircraft-interact').click();
   await expect(page.locator('#aircraft-controls')).toHaveAttribute('aria-label','Attack jet controls');await expect.poll(async()=>(await plane()).state,{timeout:4000}).toBe('flying');
   if(mobile){const b=await page.locator('#flight-fire').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);}else await page.mouse.move(960,400);

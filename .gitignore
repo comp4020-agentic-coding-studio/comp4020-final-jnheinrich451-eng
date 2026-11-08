@@ -53,11 +53,8 @@ dist/
 test-results/
 playwright-report/
 
-# Generated concept images and test renders stay local (the folder is large).
-# The *-prompt.txt files beside them stay tracked as provenance evidence.
-/output/**/*.png
-/output/**/*.mp4
-/output/**/*.webm
+# Generated concept images, test renders and their *-prompt.txt files are
+# tracked as provenance evidence (author's decision, 9 November 2026).
 
 # Intro video workspace: derived layers and renders are rebuilt, not tracked.
 /video/public/layers/

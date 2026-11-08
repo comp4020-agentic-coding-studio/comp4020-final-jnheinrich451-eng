@@ -63,3 +63,15 @@ it('flamethrower sentries fire outside their own footprint and kill without expl
   for(let i=0;i<150;i++){c.tick(.1,[b]);fuel ||= c.snapshot().jets.some(j=>j.owner===b.id && j.weapon==='HEAVY_FLAME');}
   expect(fuel).toBe(true);expect(c.snapshot().kills).toBeGreaterThan(0);expect(c.snapshot().marks.some(m=>m.kind==='crater')).toBe(false);
 });
+it('sends the robot fuel jet 7.5 tiles along the line it was fired on, and keeps heavy fuel at 8 (9 November 2026)', () => {
+  expect(FLAME.range).toBe(7.5); expect(HEAVY_FLAME.range).toBe(8);
+  const w = world(), c = createCombat(w), p = { id: 'robot', x: 10.5, y: 10.5, turret: Math.PI / 2, life: 'active', body: 'robot' };
+  expect(c.shoot(p, 30, 10.5, 'FLAME')).toBeNull();
+  expect(c.snapshot().jets[0].remaining).toBe(7.5);
+  // The nozzle turning away does not move a packet already fired.
+  p.turret = 0;
+  let farthest = 0;
+  for (let i = 0; i < 9; i++) { c.tick(.1, []); for (const j of c.snapshot().jets) { farthest = Math.max(farthest, j.x - p.x); expect(j.y).toBeCloseTo(10.5); } }
+  expect(farthest).toBeGreaterThanOrEqual(7 - 1e-6);
+  expect(c.snapshot().jets).toEqual([]);
+});

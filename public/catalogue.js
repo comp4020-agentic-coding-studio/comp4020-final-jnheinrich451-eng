@@ -11,6 +11,7 @@ import { SHIP } from './ship.js';
 import { NAVAL_GUN } from './ship-armament.js';
 import { SUBMARINE } from './submarine.js';
 import { AIR } from './aircraft.js';
+import { RUNWAY } from './runway.js';
 import { JET } from './attack-jet.js';
 import { CORE } from './core.js';
 import { SENTRY_TURRET } from './turret.js';
@@ -64,7 +65,7 @@ export const ASSETS = Object.freeze([
   { code: 'N-03', tab: 'navy', card: 'transport-card', kind: 'vessel', cost: 'transport', name: 'Armored transport', footprint: '4.5 x 10 hull / bow ramp', specs: [['Cargo','One tank, recycler or builder'],['Weapons','Stern triple turret + port/starboard side guns'],['Transfer','Drive onto ramp / K drive off']], limit:'1 per dock' },
   { code:'N-04',tab:'navy',card:'carrier-card',kind: 'vessel',cost:'carrier',name:'Aircraft carrier',footprint:'6 x 12 hull / one flight deck',specs:[['Aircraft','One shared fleet and parking slot'],['Defence','Port/starboard side guns'],['Service',CARRIER.supplies+' GND aboard / refill at dock']],limit:'1 per dock' },
   { code:'N-05',tab:'navy',card:'dock-card',kind:'ship',cost:'shipyard',name:'Empty dock',footprint:'7 x 1 shore / 7 x 12 pier',specs:[['Role','One ship slot; build or exchange separately'],['Site','Click shore or nearby ocean; preview snaps to coast'],['Berth','8 x 14 reserved / clear departure water'],['Older docks','Retain their original smaller hulls']],limit:'4 per scout / 8 per campaign' },
-  { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Empty airbase', footprint: `${AIR.width} × ${AIR.height}`,
+  { code: 'A-01', tab: 'air', card: 'airbase-card', kind: 'airbase', cost: 'airbase', hp: 'airbase', name: 'Empty airbase', footprint: `${RUNWAY.width} × ${RUNWAY.length * 2}`,
     specs: [['Role', 'Runway, aircraft parking and service'], ['Aircraft', 'Order separately after construction']] },
   { code: 'A-02', tab: 'air', card: 'attack-jet-card', kind: 'aircraft', aircraftKind: 'attack-jet', cost: 'aircraft', name: 'Attack jet', footprint: 'Existing free runway',
     specs: [['Autocannon', 'Unlimited / cooldown'], ['Delivery', 'Select a runway on the map']], placement: 'Your completed, empty airbase or carrier' },

@@ -1,4 +1,5 @@
 import { airSize, isHelipad } from './helicopter.js';
+import { hangarAt } from './runway.js';
 // Pure geometry shared by movement, construction, ray tests and presentation.
 import { isCurve, isCompact, curveBounds, insideBounds } from './track.js';
 // Hostile machinery has its own geometry; it never rewrites terrain cells.
@@ -45,7 +46,7 @@ export const artilleryBlocks = (world, x, y) => world.artillery?.some(g => g.kin
 export const railCorridor = (world, x, y) => world.rails?.some(r => isCurve(r) ? insideBounds(curveBounds(r), x, y) : isCompact(r) ? r.x === x && r.y === y : r.shape === 'EW' ? r.x === x && Math.abs(r.y - y) <= 1 : r.y === y && Math.abs(r.x - x) <= 1);
 
 export const airbaseAt=(world,x,y)=>world.airbases?.some(b=>!b.destroyed&&x>=b.x&&x<b.x+airSize(b).width&&y>=b.y&&y<b.y+airSize(b).height)||false;
-export const hangarBlocks=(world,x,y)=>world.airbases?.some(b=>!b.destroyed&&!isHelipad(b)&&x>=b.x+4&&x<b.x+6&&y>=b.y+1&&y<b.y+4)||false;
+export const hangarBlocks=(world,x,y)=>world.airbases?.some(b=>!b.destroyed&&!isHelipad(b)&&hangarAt(b,x,y))||false;
 
 export const fieldHelicopterBlocks=(world,x,y,radius=0)=>world.airbases?.some(b=>{
   const p=b.aircraft,q=p?.fieldLanding;

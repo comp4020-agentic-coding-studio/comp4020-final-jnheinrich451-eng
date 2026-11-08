@@ -1,8 +1,20 @@
 import { COLONY, cropById, bedReady } from './colonization.js';
-import { COLONY_DEPTH, projectColonyPoint, colonyScreenToWorld, colonyWorldToScreen, colonyVisibleBounds } from './colony-view.js';
+import { COLONY_DEPTH, COLONY_HEIGHT, projectColonyPoint, colonyScreenToWorld, colonyWorldToScreen, colonyVisibleBounds } from './colony-view.js';
 import { drawColonyRobot } from './colony-robot.js';
 import { colonyPlanetById } from './colony-planets.js';
 import { drawCampfireBase, drawCampfire, drawCinemaBase, drawCinema, createColonyAtmosphere } from './colony-ambience-art.js';
+import { INDUSTRY_ART_BOUNDS, isIndustryArt, drawIndustryBase, drawIndustryMotion, drawIndustryDrone, industryBeltInputs, drawIndustryBeltBase, drawIndustryBeltCargo, drawIndustryPorts, drawIndustryPlacement } from './colony-industry-art.js';
+import { SETTLEMENT, settlementDefinition, settlementItems, settlementCells, settlementSize } from './colony-settlement.js';
+import { drawSettlementBase, drawSettlementLights, drawSettlementMotion, settlementArtBounds } from './colony-settlement-art.js';
+import { crateItems, nearestCrate, dronePose, carrier } from './colony-crates.js';
+import { drawColonyPet } from './colony-pet-art.js';
+import { drawShuttle } from './colony-shuttle-art.js';
+import { fishGenome } from './colony-fish.js';
+import { PRINT, printPose, printReveal, drawPrintRig, drawPrintScan } from './colony-print-art.js';
+import { INDUSTRY, industryMotion } from './colony-industry.js';
+import { sprinklerMotion } from './colony-machinery.js';
+import { drawRegionDiscovery, drawRegionLanding } from './colony-exploration-art.js';
+import { GROUND, LAND_KINDS, decodeGround } from './colony-ground.js';
 
 const TAU = Math.PI * 2;
 const hash = (x,y,salt=0) => { const n=Math.sin(x*127.1+y*311.7+salt*73.3)*43758.5453;return n-Math.floor(n); };
@@ -80,6 +92,59 @@ function terrainCache(world){
     if(nacre&&hash(x,y,27)>.77&&[[0,-1],[1,0],[0,1],[-1,0]].some(([dx,dy])=>kindAt(x+dx,y+dy))){ellipse(c,x+.48,y+.52,.23,.15,'#a5c8b6',.2);line(c,[[x+.48,y+.52],[x+.66,y+.44]],'#719e9888',.02);blossom(c,x+.43,y+.46,.08,'#e1c7d4');}
   }
   return buffer;
+}
+// Conditioned ground is a static human layer under everything else: one 16 px
+// tile raster per saved revision, tinted from the planet's own palette. Wild
+// land reads rough and cool, made ground pale and furrowed, and the frontier
+// between them is a stepped two-tone edge. A second raster shades every tile
+// that cannot take construction while the player is placing something.
+const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
+const groundTileCount=cells=>typeof cells==='string'?cells.split(' ').reduce((n,token)=>{const m=/^\d+:(\d+)$/.exec(token);return m?n+Number(m[1]):n;},0):0;
+function groundCache(world,levels){
+  const tile=16,full=GROUND.levels,p=palette(world.template),layer=document.createElement('canvas'),wild=document.createElement('canvas');
+  layer.width=wild.width=world.width*tile;layer.height=wild.height=world.height*tile;
+  const c=layer.getContext('2d'),m=wild.getContext('2d');
+  const loam=mix(mix(rgb(p.dark),rgb(p.shore),.5),rgb('#e8d8b6'),.6),furrow=mix(loam,rgb(p.dark),.45),rough=mix(rgb(p.dark),rgb('#3b5446'),.55),warm=rgb('#d9a66b');
+  const land=i=>LAND_KINDS.includes(world.terrain[i]);
+  const inside=(x,y)=>x>=0&&y>=0&&x<world.width&&y<world.height;
+  const at=(x,y)=>inside(x,y)?levels[y*world.width+x]:full;
+  for(let y=0;y<world.height;y++)for(let x=0;x<world.width;x++){
+    const i=y*world.width+x;if(!land(i))continue;
+    const level=levels[i],t=level/full,px=x*tile,py=y*tile;
+    if(level<full){m.fillStyle='rgba(22,36,30,.34)';m.fillRect(px,py,tile,tile);}
+    if(!level){
+      // Wild: a cool rough wash and sparse dark tufts, so the untouched planet looks untouched.
+      c.fillStyle=rgba(rough,.17);c.fillRect(px,py,tile,tile);
+      const n=hash(x,y,41);
+      if(n>.42){c.fillStyle=rgba(rough,.62);const tx=px+2+Math.floor(hash(x,y,42)*9),ty=py+3+Math.floor(hash(x,y,43)*8);c.fillRect(tx,ty,2,3);c.fillRect(tx+3,ty-1,1,3);if(n>.78)c.fillRect(tx-2,ty+1,1,2);}
+      continue;
+    }
+    if(level<full){
+      // Growing: the tint warms and strengthens level by level toward the frontier.
+      c.fillStyle=rgba(mix(mix(rough,loam,t),warm,(1-t)*.55),.30+t*.40);c.fillRect(px,py,tile,tile);
+      c.fillStyle=rgba(warm,.30);for(let k=0;k<level;k++)c.fillRect(px+2+(k%4)*3,py+3+Math.floor(k/4)*4,2,2);
+      continue;
+    }
+    // Made ground: a clear pale loam with faint furrows.
+    c.fillStyle=rgba(loam,.62);c.fillRect(px,py,tile,tile);
+    c.fillStyle=rgba(furrow,.22);for(let k=3;k<tile;k+=5)c.fillRect(px,py+k,tile,1);
+    c.fillStyle='#fff8e634';c.fillRect(px+1+Math.floor(hash(x,y,44)*8),py+1,3,1);
+  }
+  // The frontier: a pale lip on the made side and a darker seam on the lower side.
+  for(let y=0;y<world.height;y++)for(let x=0;x<world.width;x++){
+    const i=y*world.width+x;if(!land(i)||levels[i]<full)continue;
+    const px=x*tile,py=y*tile;
+    for(const[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){
+      if(at(x+dx,y+dy)>=full||!inside(x+dx,y+dy)||!land((y+dy)*world.width+x+dx))continue;
+      c.fillStyle='#fff6dfcc';
+      if(dy<0)c.fillRect(px,py,tile,2);else if(dy>0)c.fillRect(px,py+tile-2,tile,2);else if(dx<0)c.fillRect(px,py,2,tile);else c.fillRect(px+tile-2,py,2,tile);
+      c.fillStyle='#2f4a3a66';
+      if(dy<0)c.fillRect(px,py-1,tile,1);else if(dy>0)c.fillRect(px,py+tile,tile,1);else if(dx<0)c.fillRect(px-1,py,1,tile);else c.fillRect(px+tile,py,1,tile);
+    }
+  }
+  return {layer,wild};
 }
 // Each new destination has its own local vegetation silhouette as well as color.
 function colonyPlant(c,x,y,p,time,template){
@@ -220,17 +285,50 @@ function drawSprinklerBase(c,s){
   line3(c,[[x+.025,y+.005,.32],[x+.025,y+.005,.64]],metal.white,.085);
   const[rx,ry]=pt(x+.055,y+.015,.75);ellipse(c,rx,ry,.13,.08,metal.dark);ellipse(c,rx-.015,ry-.02,.095,.052,metal.violet);
 }
-function drawSprinkler(c,s,time,reduced){
-  const x=s.x+.5,y=s.y+.5;
-  const a=reduced?.35:time*.7,dx=Math.cos(a)*.34,dy=Math.sin(a)*.34;
+// A cardboard material crate: tan box, tape stripe and a shipping label, drawn at a tile centre.
+function drawCrate(c,x,y,z=0){
+  const hx=.33,hy=.27,h=.42;
+  groundEllipse(c,x+.06,y+.10,hx*1.2/(1+z*.6),hy*1.1/(1+z*.6),'#4f66552b');
+  machineBox(c,x,y,hx,hy,z,h,'#d9bf92',.05);
+  line3(c,[[x,y-hy,z+h+.006],[x,y+hy,z+h+.006]],'#c39a63',.07);
+  line3(c,[[x,y+hy+.006,z+h],[x,y+hy+.006,z]],'#c39a63',.07);
+  poly3(c,[[x-hx*.62,y+hy+.008,z+h*.66],[x-hx*.14,y+hy+.008,z+h*.66],[x-hx*.14,y+hy+.008,z+h*.30],[x-hx*.62,y+hy+.008,z+h*.30]],'#f3f1e6',metal.ink,.012);
+  line3(c,[[x-hx*.52,y+hy+.01,z+h*.50],[x-hx*.24,y+hy+.01,z+h*.50]],'#8d9a95',.02);
+}
+// Browser-only swing memory for the drive arm: its kick eases in and out over
+// a fraction of a second of room time when a burst starts or ends instead of
+// snapping. Keyed by sprinkler id; nothing here is saved or sent.
+const sprinklerSwings=new Map();
+/** @param {any} s @param {number} time @param {boolean} active */
+function sprinklerSwing(s,time,active){
+  const t=Number(time)||0,id=String(s.id);let swing=sprinklerSwings.get(id);
+  if(!swing){swing={time:t,amount:active?1:0};sprinklerSwings.set(id,swing);}
+  const dt=Math.max(0,Math.min(.1,t-swing.time));swing.time=t;swing.amount+=((active?1:0)-swing.amount)*(1-Math.exp(-dt*5));
+  return swing.amount;
+}
+// The head turns with the saved watering angle. A slow sweep on the shared
+// room clock rides on top, so an idle head keeps watch over its beds and never
+// jumps when a burst starts or ends. The drive arm above the head kicks at
+// about 2 Hz while it waters and only rocks gently while idle. Reduced motion
+// settles both.
+function drawSprinkler(c,s,time,reduced,colony){
+  const x=s.x+.5,y=s.y+.5,hx=x+.055,hy=y+.015;
+  const motion=sprinklerMotion(colony,s,time,reduced),a=motion.phase+(reduced?0:Math.sin(time*TAU/7)*.22),dx=Math.cos(a)*.34,dy=Math.sin(a)*.34;
   for(const sign of[-1,1]){
-    const mx=x+.055+sign*dx*.56,my=y+.015+sign*dy*.56,ex=x+.055+sign*dx,ey=y+.015+sign*dy;
-    line3(c,[[x+.055,y+.015,.78],[mx,my,.90],[ex,ey,.84]],metal.dark,.095);
+    const mx=hx+sign*dx*.56,my=hy+sign*dy*.56,ex=hx+sign*dx,ey=hy+sign*dy;
+    line3(c,[[hx,hy,.78],[mx,my,.90],[ex,ey,.84]],metal.dark,.095);
     line3(c,[[x+.04,y+.01,.81],[mx-.013,my-.008,.93],[ex-.012,ey-.008,.87]],metal.white,.056);
     const[jx,jy]=pt(mx,my,.91);ellipse(c,jx,jy,.052,.046,metal.dark);ellipse(c,jx-.008,jy-.008,.025,.021,metal.shade);
     const[nx,ny]=pt(ex,ey,.84);ellipse(c,nx,ny,.066,.045,metal.gold);
   }
-  if(!reduced)for(const sign of[-1,1]){
+  const kick=reduced?0:sprinklerSwing(s,time,motion.active)*Math.sin(time*TAU*2.1)*.6+Math.sin(time*TAU/3.5)*.12,b=a+Math.PI/2+kick,ux=Math.cos(b),uy=Math.sin(b);
+  line3(c,[[hx,hy,.80],[hx,hy,.99]],metal.joint,.06);
+  line3(c,[[hx-ux*.10,hy-uy*.10,.99],[hx+ux*.25,hy+uy*.25,1.0]],metal.joint,.058);
+  line3(c,[[hx-ux*.09-.008,hy-uy*.09-.006,1.005],[hx+ux*.24-.008,hy+uy*.24-.006,1.015]],metal.white,.03);
+  const[wx,wy]=pt(hx-ux*.10,hy-uy*.10,.99);ellipse(c,wx,wy,.04,.033,metal.dark);
+  const[sx,sy]=pt(hx+ux*.27,hy+uy*.27,1.0);ellipse(c,sx,sy,.05,.038,metal.violet);ellipse(c,sx-.012,sy-.01,.02,.014,'#e6e0f2');
+  const[px,py]=pt(hx,hy,1.0);ellipse(c,px,py,.03,.025,metal.gold);
+  if(!reduced&&motion.active)for(const sign of[-1,1]){
     // Droplets retain their launch bearing while the nozzle keeps sweeping.
     // A faint arc makes the irrigation legible even at the phone's small scale.
     const arc=[];
@@ -265,41 +363,17 @@ function drawPadBase(c,pad){
   for(const dx of[-.91,.91]){frontPanel(c,x+dx,y+1.47,.075,.45,.08,metal.violet,.018);line3(c,[[x+dx-.12,y+1.48,.12],[x+dx+.12,y+1.48,.12]],metal.shade,.018);}
   poly3(c,[[x-.20,y-1.39,.14],[x+.20,y-1.39,.14],[x+.20,y-1.30,.14],[x-.20,y-1.30,.14]],metal.gold,null);
 }
-function drawShuttle(c,pad,colony,time,reduced){
-  const x=pad.x+.5,y=pad.y+.5,active=colony.shipment,phase=active?1-active.remaining/active.duration:0;
-  // The earned pennant belongs to the pad, including while the shuttle is away.
-  if(colony.decorations?.pennant){const[px,py]=pt(x+1.60,y+.70,.83);line3(c,[[x+1.60,y+.70,0],[x+1.60,y+.70,1.25]],metal.dark,.035);polygon(c,[[px,py-.24],[px+.48,py-.12],[px,py+.04]],'#cfad6f',null);}
-  // Height is projected: a distant orthographic object never changes its scale.
-  const lift=active&&!reduced?(phase<.28?phase/.28*6:phase>.74?(1-phase)/.26*6:6):0;if(active&&!reduced&&phase>.28&&phase<.74)return;
-  groundEllipse(c,x+.12,y+.16,Math.max(.2,1.25-lift*.10),Math.max(.15,.67-lift*.06),'#4f66552b');const z=.36+lift;
-  if(lift>0&&!reduced)for(const dx of[-.75,.58]){const[px,py]=pt(x+dx,y+.34,z-.22);ellipse(c,px,py,.09,.21+Math.sin(time*17)*.025,'#e9c488aa');ellipse(c,px,py,.035,.15,'#fff7dd');}
-  for(const dx of[-.86,.58])for(const dy of[-.41,.48]){line3(c,[[x+dx,y+dy,z],[x+dx+.06,y+dy,.12+lift]],metal.dark,.055);line3(c,[[x+dx-.10,y+dy,.12+lift],[x+dx+.17,y+dy,.12+lift]],'#687a77',.07);}
-  const hull=[[-1.23,-.43],[-.92,-.60],[.56,-.60],[1.15,-.35],[1.31,.09],[1.14,.39],[.63,.56],[-1.12,.56],[-1.27,.32]];poly3(c,hull.map(([dx,dy])=>[x+dx,y+dy,z]),metal.shade,metal.ink,.028);
-  poly3(c,[[x-1.12,y+.56,z],[x+.63,y+.56,z],[x+1.14,y+.39,z],[x+.99,y+.39,z+.47],[x+.49,y+.47,z+.47],[x-1.07,y+.47,z+.47]],metal.white,metal.ink,.027);
-  const roof=[[-1.12,-.38],[-.91,-.49],[.49,-.49],[.99,-.28],[1.13,.04],[.99,.39],[.49,.47],[-1.07,.47]];poly3(c,roof.map(([dx,dy])=>[x+dx,y+dy,z+.47]),'#f5f5e9',metal.ink,.024);
-  poly3(c,[[x+.69,y-.30,z+.49],[x+.96,y-.19,z+.49],[x+1.07,y+.04,z+.49],[x+.95,y+.18,z+.49],[x+.69,y+.19,z+.49]],'#648b8f',metal.ink,.018);line3(c,[[x+.84,y-.23,z+.50],[x+.88,y+.17,z+.50]],'#bfdad2',.018);
-  poly3(c,[[x-.91,y-.34,z+.49],[x+.26,y-.34,z+.49],[x+.26,y+.31,z+.49],[x-.91,y+.31,z+.49]],'#617b72',metal.ink,.020);
-  for(const[dx,dy,color]of[[-.65,-.12,'#a7b488'],[-.24,-.12,'#b39b6a'],[-.65,.18,'#c5bb96'],[-.20,.18,'#8caa88']]){poly3(c,[[x+dx-.15,y+dy-.12,z+.51],[x+dx+.15,y+dy-.12,z+.51],[x+dx+.15,y+dy+.12,z+.51],[x+dx-.15,y+dy+.12,z+.51]],color,metal.ink,.016);line3(c,[[x+dx,y+dy-.12,z+.52],[x+dx,y+dy+.12,z+.52]],'#f3e7be',.020);}
-  machineBox(c,x-.33,y-.43,.64,.055,z+.49,.035,metal.white,.025);
-  line3(c,[[x-.97,y+.34,z+.50],[x+.31,y+.34,z+.50]],metal.light,.035);
-  for(const dx of[-.58,.20])frontPanel(c,x+dx,y+.565,z+.12,.65,.25,metal.white,.045);
-  frontPanel(c,x-.89,y+.575,z+.15,.16,.20,metal.violet,.025);
-  line3(c,[[x-1.05,y+.575,z+.08],[x+.60,y+.575,z+.08]],metal.dark,.045);
-  line3(c,[[x+.57,y+.51,z+.18],[x+.86,y+.44,z+.18]],metal.gold,.035);
-  for(const dy of[-.26,.26]){const[px,py]=pt(x-1.20,y+dy,z+.22);ellipse(c,px,py,.105,.11,metal.dark);ellipse(c,px-.012,py-.012,.077,.081,metal.shade);ellipse(c,px,py,.052,.063,metal.joint);ellipse(c,px,py,.026,.035,metal.violet);}
-}
-
 export function createColonyRenderer(canvas){
-  const c=canvas.getContext('2d');let cachedWorld=null,terrain=null,scenery=[],w=0,h=0,dpr=1,previousColony=null;const celebrations=[];
+  const c=canvas.getContext('2d');let cachedWorld=null,terrain=null,scenery=[],w=0,h=0,dpr=1,previousColony=null,groundKey='',groundLayer=null;const celebrations=[];
   const atmosphere=createColonyAtmosphere();
   // Fixed machinery does not change with snapshots or camera movement. Rasterize
   // each visual state once at the current display scale; retain only that scale.
   const machinery=new Map();let machineryScale=0,machineryFontReady=false;
-  function machine(key,x,y,paint,alpha=1){
+  function machine(key,x,y,paint,alpha=1,customBounds=null){
     let sprite=machinery.get(key);
     if(!sprite){
       const image=document.createElement('canvas'),scale=machineryScale;
-      const bounds={bed:[-1.3,-1.1,3.7,3],pad:[-1.3,-1.1,3.7,3],hub:[-1.4,-2,3,3.2],shuttle:[-1.3,-1.1,4.1,2.6],sprinkler:[-.1,-.2,1.3,1.3],campfire:[-.15,-.25,1.3,1.3],cinema:[-1.10,-1.65,3.25,2.65]}[key.split(':')[0]];
+      const bounds=customBounds||{bed:[-1.3,-1.1,3.7,3],pad:[-1.3,-1.1,3.7,3],hub:[-1.4,-2,3,3.2],shuttle:[-1.3,-1.1,4.1,2.6],sprinkler:[-.1,-.2,1.3,1.3],campfire:[-.15,-.25,1.3,1.3],cinema:[-1.10,-1.65,3.25,2.65],...INDUSTRY_ART_BOUNDS}[key.split(':')[0]];
       const[left,top,width,height]=bounds;
       image.width=Math.ceil(width*scale);image.height=Math.ceil(height*scale);
       const context=image.getContext('2d');context.setTransform(scale,0,0,scale,-left*scale,-top*scale);
@@ -310,7 +384,7 @@ export function createColonyRenderer(canvas){
     c.drawImage(sprite.image,x+sprite.left,y*COLONY_DEPTH+sprite.top,sprite.image.width/machineryScale,sprite.image.height/machineryScale);
   }
   function resize(){w=canvas.clientWidth;h=canvas.clientHeight;dpr=Math.min(2,devicePixelRatio||1);if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}}
-  function draw({world,colony,players=[],me,camera,selected=null,placement=null,time=0,reduced=false,environment=null,ambientTime=colony?.time||0,movie=null}){
+  function draw({world,colony,pet=null,players=[],me,camera,selected=null,industrySelected=null,furnishingSelected=null,discoverySelected=null,placement=null,time=0,reduced=false,environment=null,ambientTime=colony?.time||0,movie=null}){
     resize();c.setTransform(dpr,0,0,dpr,0,0);const colors=palette(world?.template);c.fillStyle=colors.water;c.fillRect(0,0,w,h);if(!world||!colony)return;
     if(previousColony!==colony){if(previousColony&&!reduced){for(const b of colony.beds){const before=previousColony.beds.find(old=>old.id===b.id);if(before&&bedReady(before)&&b.harvests>before.harvests)celebrations.push({x:b.x+.5,y:b.y+.5,time,color:cropById(before.crop)?.color||'#e8c381'});}if(colony.shipments>previousColony.shipments)celebrations.push({x:colony.pad.x+.5,y:colony.pad.y+.5,time,color:'#d2ad6d'});}previousColony=colony;if(celebrations.length>8)celebrations.splice(0,celebrations.length-8);}
     // Terrain is immutable; acknowledged snapshots may have a new object identity.
@@ -318,53 +392,126 @@ export function createColonyRenderer(canvas){
       cachedWorld=world;terrain=terrainCache(world);scenery=[];
       for(let y=0;y<world.height;y++)for(let x=0;x<world.width;x++){
         const kind=world.terrain[y*world.width+x];
-        if(kind===3||((kind===1||kind===2)&&hash(x,y,11)>.945))scenery.push({x,y,kind});
+        if(kind===3||((kind===1||kind===2)&&hash(x,y,11)>(world.regionId==='blossom-grove'?.90:world.regionId==='lake-basin'?.97:.945)))scenery.push({x,y,kind});
       }
     }
     const tile=camera.tile,fontReady=document.fonts?.check('10px "IBM Plex Mono"')??true;
     if(machineryScale!==tile*dpr||machineryFontReady!==fontReady){machinery.clear();machineryScale=tile*dpr;machineryFontReady=fontReady;}
     c.save();c.translate(w/2-camera.x*tile,h/2-camera.y*tile*COLONY_DEPTH);c.scale(tile,tile);c.drawImage(terrain,0,0,world.width,world.height*COLONY_DEPTH);
+    // Only the home district carries ground. A fresh snapshot object with the same
+    // saved revision reuses the raster; remote regions receive no overlay.
+    const ground=(colony.regionId||'home')==='home'?colony.ground:null;
+    if(ground){const key=`${ground.revision}:${world.id}:${world.template}`;if(groundKey!==key){groundKey=key;groundLayer=groundTileCount(ground.cells)===world.width*world.height?groundCache(world,decodeGround(ground.cells,world.width*world.height)):null;}if(groundLayer){c.drawImage(groundLayer.layer,0,0,world.width,world.height*COLONY_DEPTH);if(placement)c.drawImage(groundLayer.wild,0,0,world.width,world.height*COLONY_DEPTH);}}
     const bounds=colonyVisibleBounds(camera,w,h,4),left=Math.max(0,bounds.left),right=Math.min(world.width,bounds.right),top=Math.max(0,bounds.top),bottom=Math.min(world.height,bounds.bottom);
-    const items=colony.decorations?.items||[],objects=[],selectedBed=colony.beds.find(b=>b.id===selected),attention=[...players,...(selectedBed?[{x:selectedBed.x+.5,y:selectedBed.y+.5}]:[])];
+    const items=colony.decorations?.items||[],industry=colony.industry,industryMachines=industry?.machines||[],belts=industry?.belts||[],beltInputs=industryBeltInputs(colony),objects=[],selectedBed=colony.beds.find(b=>b.id===selected),attention=[...players,...(selectedBed?[{x:selectedBed.x+.5,y:selectedBed.y+.5}]:[])];
+    const selectedIndustry=industryMachines.find(m=>m.id===industrySelected)||belts.find(b=>b.id===industrySelected);
+    const furnishings=settlementItems(colony),furnishedCells=new Set(furnishings.flatMap(item=>settlementCells(item)).map(p=>`${p.x}:${p.y}`));
     const fades=(x,y,width,height)=>attention.some(p=>Math.abs(p.x-x)<width&&p.y<y+.40&&p.y>y-height);const object=(y,draw)=>objects.push({y,draw});
     const visible=(x,y,radius=2,height=3)=>x+radius>=left&&x-radius<=right&&y+radius>=top&&y-height<=bottom;
+    // One print rig for every new build (author's brief, 8 November 2026): a pod lands, opens a
+    // printer frame over the footprint, prints the finished art from the ground up and leaves.
+    // It runs on the saved room clock (builtAt, or a furnishing's delivery) and never delays use.
+    const printOf=(builtAt,duration=PRINT.seconds,readyAt=duration)=>Number.isFinite(builtAt)?printPose(ambientTime-builtAt,duration,readyAt):null;
+    const heightOf=bounds=>Math.max(.15,Math.min(2.6,-bounds[1]/COLONY_HEIGHT*.9));
+    const printed=(footprint,pose,paint)=>{
+      drawPrintRig(c,footprint,pose,time,reduced,'back');
+      if(pose.progress>=1)paint();
+      else if(pose.progress>0){const r=printReveal(footprint,pose.progress);c.save();c.beginPath();c.rect(r.left,r.edge,r.right-r.left,r.bottom-r.edge);c.clip();paint();c.restore();drawPrintScan(c,footprint,pose,time,reduced);}
+      drawPrintRig(c,footprint,pose,time,reduced,'front');
+    };
+    // A queued furnishing waits as a dashed footprint until its pod arrives.
+    const awaiting=(x,y,width,height)=>{c.save();c.strokeStyle='#f8f4dccc';c.lineWidth=.04;c.setLineDash([.14,.11]);c.beginPath();c.roundRect(x+.08,(y+.08)*COLONY_DEPTH,width-.16,(height-.16)*COLONY_DEPTH,.08);c.stroke();c.restore();};
+    const delivery=colony.settlement?.deliveries?.[0];
     // Tall scenery shares depth order with machines and people.
     for(const{x,y,kind}of scenery){
       if(x<left||x>=right||y<top||y>=bottom)continue;
       if(kind===3){object(y+.8,()=>drawRock(c,x+.5,y+.5));continue;}
-      const nearHub=Math.hypot(x-colony.hub.x,y-colony.hub.y)<3,occupied=colony.beds.some(b=>Math.abs(b.x-x)<=2&&Math.abs(b.y-y)<=2)||Math.hypot(x-colony.pad.x,y-colony.pad.y)<3||items.some(item=>Math.abs(item.x-x)<(item.kind==='cinema'?2:1)&&Math.abs(item.y-y)<1.5);
-      if(!nearHub&&!occupied)object(y+.58,()=>{c.save();if(fades(x+.5,y+.5,.75,1.8))c.globalAlpha=.38;wildPlant(c,x+.5,y+.5,colors,reduced?0:time,world.template);c.restore();});
+      const nearHub=Math.hypot(x-colony.hub.x,y-colony.hub.y)<3,occupied=colony.beds.some(b=>Math.abs(b.x-x)<=2&&Math.abs(b.y-y)<=2)||Math.hypot(x-colony.pad.x,y-colony.pad.y)<3||items.some(item=>Math.abs(item.x-x)<(item.kind==='cinema'?2:1)&&Math.abs(item.y-y)<1.5)||industryMachines.some(m=>x>=m.x-1&&x<m.x+(m.kind==='outlet'?2:3)&&y>=m.y-1&&y<m.y+(m.kind==='outlet'?2:3))||belts.some(b=>b.x===x&&b.y===y);
+      if(!nearHub&&!occupied&&!furnishedCells.has(`${x}:${y}`)&&!(colony.regionDiscoveries||[]).some(d=>Math.hypot(d.x-x-.5,d.y-y-.5)<1.6))object(y+.58,()=>{c.save();if(fades(x+.5,y+.5,.75,1.8))c.globalAlpha=.38;wildPlant(c,x+.5,y+.5,colors,reduced?0:time,world.template);c.restore();});
     }
     for(let i=0;i<8;i++){const x=colony.hub.x+1.55+i*.67,y=colony.hub.y+1.25+Math.sin(i*.5)*.22;groundEllipse(c,x,y,.21,.14,'#dce0c4');}
-    if(placement){c.save();c.strokeStyle='#f8fff277';c.lineWidth=.035;c.setLineDash([.12,.17]);c.beginPath();c.ellipse(colony.hub.x,colony.hub.y*COLONY_DEPTH,COLONY.surveyRadius,COLONY.surveyRadius*COLONY_DEPTH,0,0,TAU);c.stroke();c.restore();}
+    // Beds and sprinklers are bounded by conditioned ground; industry, camp and furnishings keep a fixed radius and show its ring.
+    if(placement&&(settlementDefinition(placement.kind)||isIndustryArt(placement.kind)||placement.kind==='campfire'||placement.kind==='cinema')){const radius=settlementDefinition(placement.kind)?SETTLEMENT.radius:COLONY.surveyRadius;c.save();c.strokeStyle='#f8fff277';c.lineWidth=.035;c.setLineDash([.12,.17]);c.beginPath();c.ellipse(colony.hub.x,colony.hub.y*COLONY_DEPTH,radius,radius*COLONY_DEPTH,0,0,TAU);c.stroke();c.restore();}
+    drawRegionLanding(c,world);
+    for(const item of furnishings){
+      const size=settlementSize(item.kind,item.dir),spec=settlementDefinition(item.kind);if(!visible(item.x,item.y,Math.max(size.width,size.height),4))continue;
+      const live=delivery&&delivery.itemId===item.id?printPose(Math.min(delivery.duration,delivery.elapsed+Math.max(0,ambientTime-(colony.time||0))),delivery.duration,SETTLEMENT.assemblySeconds):null;
+      if(live){const finished={...item,status:'ready'};object(item.y+size.height-.05,()=>printed({x:item.x,y:item.y,w:size.width,h:size.height,z:heightOf(settlementArtBounds(finished))},live,()=>machine(`furnishing:${item.kind}:${item.dir}:${item.variant}:ready:1`,item.x,item.y,context=>drawSettlementBase(context,{...finished,x:0,y:0}),1,settlementArtBounds(finished))));continue;}
+      if(item.status!=='ready'){awaiting(item.x,item.y,size.width,size.height);continue;}
+      const drawItem=()=>{const fade=item.status==='ready'&&spec.solid&&!players.some(p=>p.activity?.itemId===item.id)&&fades(item.x+size.width/2,item.y+size.height/2,size.width/2,2)? .43:1;machine(`furnishing:${item.kind}:${item.dir}:${item.variant}:${item.status}:${fade}`,item.x,item.y,context=>drawSettlementBase(context,{...item,x:0,y:0}),fade,settlementArtBounds(item));const inUse=players.some(p=>p.activity?.itemId===item.id);if(fade<1){c.save();c.globalAlpha=fade;drawSettlementMotion(c,item,ambientTime,reduced,environment||0,inUse);c.restore();}else drawSettlementMotion(c,item,ambientTime,reduced,environment||0,inUse);};
+      if(!spec.solid||item.status!=='ready')drawItem();else object(item.y+size.height-.05,drawItem);
+      if(item.id===furnishingSelected){c.save();c.strokeStyle='#ad955c';c.lineWidth=.05;c.setLineDash([.14,.1]);c.strokeRect(item.x,item.y*COLONY_DEPTH,size.width,size.height*COLONY_DEPTH);c.restore();}
+    }
+    for(const discovery of colony.regionDiscoveries||[])if(visible(discovery.x,discovery.y,2,4))object(discovery.y+.65,()=>drawRegionDiscovery(c,discovery,{known:colony.exploration?.discoveries?.includes(discovery.id),selected:discovery.id===discoverySelected,near:me&&Math.hypot(me.x-discovery.x,me.y-discovery.y)<3.5,time:ambientTime,reduced}));
     // Low floors draw first. Individual crops never hide a walking robot under a slab.
+    for(const b of belts)if(visible(b.x,b.y,1,1)){
+      const input=beltInputs.get(b.id),pose=printOf(b.builtAt);
+      if(pose){object(b.y+1,()=>printed({x:b.x,y:b.y,w:1,h:1,z:.25},pose,()=>machine(`belt:${b.dir}:${input}`,b.x,b.y,context=>drawIndustryBeltBase(context,{...b,x:0,y:0},input))));continue;}
+      machine(`belt:${b.dir}:${input}`,b.x,b.y,context=>drawIndustryBeltBase(context,{...b,x:0,y:0},input));
+      drawIndustryBeltCargo(c,colony,b,input,ambientTime,reduced);
+    }
     if(visible(colony.pad.x,colony.pad.y))machine('pad',colony.pad.x,colony.pad.y,context=>drawPadBase(context,{x:0,y:0}));
     for(const b of colony.beds){
       if(!visible(b.x,b.y))continue;
-      const wet=b.water>0,chosen=selected===b.id;
-      machine(`bed:${wet}:${chosen}`,b.x,b.y,context=>drawBedBase(context,{x:0,y:0,water:wet?1:0},chosen));
+      const wet=b.water>0,chosen=selected===b.id,pose=printOf(b.builtAt),paintBed=()=>machine(`bed:${wet}:${chosen}`,b.x,b.y,context=>drawBedBase(context,{x:0,y:0,water:wet?1:0},chosen));
+      if(pose)object(b.y+2,()=>printed({x:b.x-1,y:b.y-1,w:3,h:3,z:.4},pose,paintBed));else paintBed();
       if(b.crop)for(let row=0;row<3;row++)for(let col=0;col<3;col++){const x=b.x+.5+(col-1)*.77,y=b.y+.5+(row-1)*.77;object(y+.02,()=>{c.save();if(players.some(p=>Math.hypot(p.x-x,p.y-y)<.48))c.globalAlpha=.48;drawCrop(c,b.crop,x,y,b.growth,time,row*3+col+b.x,bedReady(b),reduced);c.restore();});}if(b.crop)object(b.y+1.82,()=>drawBedSign(c,b));
     }
-    for(const s of colony.sprinklers)if(visible(s.x,s.y,4))object(s.y+.53,()=>{machine('sprinkler',s.x,s.y,context=>drawSprinklerBase(context,{x:0,y:0}));drawSprinkler(c,s,time,reduced);});
+    for(const s of colony.sprinklers)if(visible(s.x,s.y,4))object(s.y+.53,()=>{const pose=printOf(s.builtAt);if(pose){printed({x:s.x,y:s.y,w:1,h:1,z:.9},pose,()=>machine('sprinkler',s.x,s.y,context=>drawSprinklerBase(context,{x:0,y:0})));return;}machine('sprinkler',s.x,s.y,context=>drawSprinklerBase(context,{x:0,y:0}));drawSprinkler(c,s,ambientTime,reduced,colony);});
+    const self=players.find(p=>p.id===me?.id),nearest=self?nearestCrate(colony,self.x,self.y):null;
+    for(const crate of crateItems(colony))if(visible(crate.x,crate.y,2,3))object(crate.y+.62,()=>{
+      if(carrier(colony,crate.id))return;// drawn hanging from the drone
+      const cx=crate.x+.5,cy=crate.y+.5,age=ambientTime-(crate.placedAt||0),collector=industryMachines.find(m=>m.kind==='collector'&&m.task?.crateId===crate.id);
+      let x=cx,y=cy,z=0;
+      if(collector){const phase=industryMotion(colony,collector,ambientTime,reduced).phase;if(phase>.5){const t=(phase-.5)*2,tx=collector.x+1,ty=collector.y+1;x=cx+(tx-cx)*t;y=cy+(ty-cy)*t;z=.9*Math.sin(t*Math.PI);}}
+      else if(!reduced&&age>=0&&age<1){const px=colony.pad.x+.5,py=colony.pad.y+.5;x=px+(cx-px)*age;y=py+(cy-py)*age;z=1.3*(1-age)+Math.sin(age*Math.PI)*.7;}
+      if(nearest&&nearest.id===crate.id){c.save();c.strokeStyle='#d6b45f';c.lineWidth=.045;c.setLineDash([.12,.1]);c.beginPath();c.ellipse(cx,cy*COLONY_DEPTH,.62,.62*COLONY_DEPTH,0,0,TAU);c.stroke();c.restore();}
+      if(x===cx&&y===cy&&z===0)machine('crate',crate.x,crate.y,context=>drawCrate(context,.5,.5,0),1,[-.3,-.7,1.6,1.9]);else drawCrate(c,x,y,z);
+      if(nearest&&nearest.id===crate.id){const[lx,ly]=pt(cx,cy,.95);c.font='.24px "IBM Plex Sans",sans-serif';c.textAlign='center';c.fillStyle='#4c6656';c.fillText('Collect',lx,ly);}
+    });
     for(const item of items)if(visible(item.x,item.y,item.kind==='cinema'?2:1,4))object(item.y+.57,()=>{
+      const pose=printOf(item.builtAt);
+      if(pose){const cinema=item.kind==='cinema';printed(cinema?{x:item.x-1,y:item.y,w:3,h:1,z:1.9}:{x:item.x,y:item.y,w:1,h:1,z:.5},pose,()=>cinema?machine('cinema',item.x,item.y,context=>drawCinemaBase(context,{x:0,y:0})):machine('campfire',item.x,item.y,context=>drawCampfireBase(context,{x:0,y:0})));return;}
       if(item.kind==='campfire'){machine('campfire',item.x,item.y,context=>drawCampfireBase(context,{x:0,y:0}));drawCampfire(c,item,ambientTime,reduced);}
       else if(item.kind==='cinema'){machine('cinema',item.x,item.y,context=>drawCinemaBase(context,{x:0,y:0}));drawCinema(c,item,movie);}
     });
+    const stock=['sundrop','moonberry','cloudmelon'].reduce((sum,id)=>sum+(colony.storage?.[id]||0),0)+(colony.industry?.storage?.provisions||0)+(colony.industry?.storage?.biomass||0)+(colony.fishing?.treats||0);
+    const stacks={materials:Math.min(9,Math.ceil((colony.materials||0)/8)),products:Math.min(9,Math.ceil(stock/4))};
+    for(const m of industryMachines)if(visible(m.x,m.y,3,4)){
+      const size=INDUSTRY.kinds[m.kind]?.size||(m.kind==='outlet'?1:2);
+      object(m.y+size-.12,()=>{
+        const fade=fades(m.x+size/2,m.y+size/2,size*.50,size*.70),alpha=fade?.48:1;
+        const key=m.kind==='warehouse'?`warehouse:${m.dir}:${fade}:${stacks.materials}:${stacks.products}`:`${m.kind}:${m.dir}:${fade}`;
+        const pose=printOf(m.builtAt),paint=()=>machine(key,m.x,m.y,context=>drawIndustryBase(context,{...m,x:0,y:0,...(m.kind==='warehouse'?{stacks}:{})}),alpha);
+        if(pose){printed({x:m.x,y:m.y,w:size,h:size,z:heightOf(INDUSTRY_ART_BOUNDS[m.kind]||[0,-1])},pose,paint);return;}
+        paint();
+        c.save();c.globalAlpha=alpha;drawIndustryMotion(c,colony,m,ambientTime,reduced);c.restore();
+      });
+      if(m.kind==='warehouse'){const pose=dronePose(colony,m,ambientTime,reduced);if(pose)object(pose.y+pose.z*.2+.3,()=>drawIndustryDrone(c,pose.x,pose.y,pose.z,pose.carrying,ambientTime,reduced));}
+    }
+    if(selectedIndustry)drawIndustryPorts(c,selectedIndustry);
     if(visible(colony.hub.x,colony.hub.y))object(colony.hub.y+1.02,()=>{const fade=fades(colony.hub.x,colony.hub.y,1.25,2.2);machine(`hub:${fade}`,colony.hub.x,colony.hub.y,context=>drawHub(context,{x:0,y:0}),fade?.42:1);});
-    if(visible(colony.pad.x,colony.pad.y,2,6))object(colony.pad.y+1.05,()=>{
+    if(visible(colony.pad.x,colony.pad.y,2,6)||(colony.shipment&&!reduced))object(colony.pad.y+1.05,()=>{
       const fade=fades(colony.pad.x+.5,colony.pad.y+.5,1.4,1.4);
-      if(!colony.shipment||reduced)machine(`shuttle:${fade}:${!!colony.decorations?.pennant}`,colony.pad.x,colony.pad.y,context=>drawShuttle(context,{x:0,y:0},colony,time,reduced),fade?.55:1);
-      else{c.save();if(fade)c.globalAlpha=.55;drawShuttle(c,colony.pad,colony,time,reduced);c.restore();}
+      if(!colony.shipment)machine(`shuttle:${fade}:${!!colony.decorations?.pennant}`,colony.pad.x,colony.pad.y,context=>drawShuttle(context,{x:0,y:0},colony,time,reduced),fade?.55:1);
+      else{c.save();if(fade)c.globalAlpha=.55;drawShuttle(c,colony.pad,colony,ambientTime,reduced);c.restore();}
     });
-    for(const p of players)if(visible(p.x,p.y))object(p.y+.20,()=>drawColonyRobot(c,p,time,p.id===me?.id,reduced));objects.sort((a,b)=>a.y-b.y);for(const entry of objects)entry.draw();
+    const companion=pet||colony.pet;if(companion&&visible(companion.x,companion.y))object(companion.y+.18,()=>drawColonyPet(c,companion,time,reduced));
+    const seatOf=p=>p.activity?.kind==='sit'?settlementItems(colony).find(item=>item.id===p.activity.itemId):null;
+    for(const p of players)if(visible(p.x,p.y)){const seat=seatOf(p),size=seat&&settlementSize(seat.kind,seat.dir);object(seat?seat.y+size.height-.04:p.y+.20,()=>{const fight=p.activity?.fight,worker=fight?.seed?{...p,activity:{...p.activity,fight:{...fight,colors:fishGenome(fight.seed,colony.template).colors}}}:p;drawColonyRobot(c,seat?{...worker,seatHeight:seat.kind==='bench'?.46:.05}:worker,time,p.id===me?.id,reduced);});}objects.sort((a,b)=>a.y-b.y);for(const entry of objects)entry.draw();
     if(!reduced){for(let i=0;i<3;i++){const t=time*.32+i*TAU/3,x=colony.hub.x+Math.sin(t)*5.4,y=colony.hub.y+Math.cos(t*.7+i)*4.6,[px,py]=pt(x,y,.6),wing=.035+Math.abs(Math.sin(time*13+i))*.055;ellipse(c,px-wing,py,wing,.045,i===1?'#eee9c6':'#e2b9a4',-.3);ellipse(c,px+wing,py,wing,.045,i===1?'#eee9c6':'#e2b9a4',.3);}for(let i=celebrations.length-1;i>=0;i--){const effect=celebrations[i],age=time-effect.time;if(age>1.8){celebrations.splice(i,1);continue;}c.globalAlpha=Math.max(0,1-age/1.8);for(let j=0;j<12;j++){const a=j*TAU/12,speed=.7+hash(j,i)*.8,[px,py]=pt(effect.x+Math.cos(a)*age*speed,effect.y+Math.sin(a)*age*speed,age*.8);ellipse(c,px,py,.045,.075,j%3?effect.color:'#fff4ce',a+age*2);}c.globalAlpha=1;}}
     if(placement&&Number.isFinite(placement.x)){
+      if(settlementDefinition(placement.kind)){const size=settlementSize(placement.kind,placement.dir||0);c.save();c.globalAlpha=placement.error?.25:.65;drawSettlementBase(c,{...placement,status:'ready',variant:placement.variant||'ivory'});drawSettlementMotion(c,{...placement,status:'ready',variant:placement.variant||'ivory'},0,true);c.restore();c.strokeStyle=placement.error?'#bb7559':'#fff8db';c.lineWidth=.055;c.strokeRect(placement.x,placement.y*COLONY_DEPTH,size.width,size.height*COLONY_DEPTH);}
+      else if(isIndustryArt(placement.kind))drawIndustryPlacement(c,placement);
+      else{
       const size=placement.kind==='bed'||placement.kind==='cinema'?3:1,depth=placement.kind==='bed'?3:1,x=placement.x+.5,y=placement.y+.5,valid=!placement.error;
       if(placement.kind==='sprinkler'){groundEllipse(c,x,y,COLONY.sprinklerRadius,COLONY.sprinklerRadius,valid?'#eaf8e329':'#ebbeab20');c.strokeStyle=valid?'#f6fff0aa':'#b58470';c.lineWidth=.03;c.setLineDash([.12,.15]);c.beginPath();c.ellipse(x,y*COLONY_DEPTH,COLONY.sprinklerRadius,COLONY.sprinklerRadius*COLONY_DEPTH,0,0,TAU);c.stroke();c.setLineDash([]);}
       const[px,py]=pt(x-size/2,y-depth/2);rounded(c,px,py,size,depth*COLONY_DEPTH,.10,valid?'#eff9e35c':'#edc3ac63',valid?'#fffef0':'#b6745e',.055);c.font='.23px "IBM Plex Sans",sans-serif';c.textAlign='center';c.fillStyle=valid?'#4c6656':'#905c4c';c.fillText(valid?'Place here':'Blocked',x,py-.19);
+      }
     }
     c.restore();const glow=c.createRadialGradient(w*.2,h*.1,0,w*.5,h*.5,Math.max(w,h)*.8);glow.addColorStop(0,'#fff8db0a');glow.addColorStop(.65,'#fff4cd00');glow.addColorStop(1,'#6a805b0a');c.fillStyle=glow;c.fillRect(0,0,w,h);
     atmosphere(c,{width:w,height:h,camera,environment,time:ambientTime,reduced,items,hub:colony.hub,movie,world});
+    c.save();c.translate(w/2-camera.x*tile,h/2-camera.y*tile*COLONY_DEPTH);c.scale(tile,tile);for(const item of furnishings)if(visible(item.x,item.y,4,4))drawSettlementLights(c,item,environment||0);c.restore();
   }
   return {draw,resize,screenToWorld:(x,y,camera)=>{resize();return colonyScreenToWorld(x,y,camera,w,h);},worldToScreen:(point,camera)=>{resize();return colonyWorldToScreen(point,camera,w,h);}};
 }

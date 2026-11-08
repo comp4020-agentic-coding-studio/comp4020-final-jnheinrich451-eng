@@ -20,6 +20,7 @@ export const BINDINGS = Object.freeze([
   bind('remote-launch',['l'],'L','global','Remote carrier: launch its aircraft'),
   bind('remote-turn',['t'],'T','global','Remote submarine: turn the strike area'),
   bind('orbital-rotate', ['r'], 'R', 'global', 'Rotate orbital strike preview'),
+  bind('runway-turn', ['r'], 'R', 'global', 'Turn an airbase while placing it'),
   bind('heli-sling',['v'],'V','aircraft','Helicopter sling: lift / set down vehicle'),
   bind('orbital-open', ['v'], 'V', 'global', 'Aim selected orbital strike'),
   bind('bomber-open', ['h'], 'H', 'global', 'Aircraft support and landing orders'),

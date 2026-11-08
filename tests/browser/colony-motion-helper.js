@@ -1,8 +1,10 @@
 import { expect } from '@playwright/test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../../server.js';
+import { createColony } from '../../public/colonization.js';
 
 // Observe the actual app-to-renderer boundary without a production debug API.
 // The real renderer still runs. EventSource observation never edits a packet.
@@ -40,7 +42,7 @@ export function createColonyRenderer(canvas) {
   });
 }
 
-export async function colonyFixture(browser, { reduced = false, viewport = { width: 1920, height: 1080 }, baselineSource } = {}) {
+export async function colonyFixture(browser, { reduced = false, viewport = { width: 1920, height: 1080 }, baselineSource, seedColony, template = 'morrow-v1' } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'frontier-colony-motion-'));
   const app = createApp({ dataDir: dir, logSink: () => {} });
   const contexts = [], errors = [];
@@ -52,6 +54,8 @@ export async function colonyFixture(browser, { reduced = false, viewport = { wid
   };
   const account = async name => {
     const context = await browser.newContext({ viewport, reducedMotion: reduced ? 'reduce' : 'no-preference' }); contexts.push(context);
+    // The colony ignores the system setting; a reduced run presses its header switch once, before the first load.
+    if (reduced) await context.addInitScript(() => { try { if (localStorage.getItem('frontier-colony-reduced') === null) localStorage.setItem('frontier-colony-reduced', '1'); } catch { /* storage is optional */ } });
     const credentials = { name, email: `${name.toLowerCase()}@frontier.test`, password: 'disposable colony motion password 123!', kind: 'demo' };
     await post(context, '/api/auth/register', credentials);
     const inbox = await (await context.request.get(base + '/api/auth/inbox')).json();
@@ -67,7 +71,19 @@ export async function colonyFixture(browser, { reduced = false, viewport = { wid
     return page;
   };
   const owner = await account('Aster');
-  const campaign = await post(owner, '/api/campaigns/create', { name: 'Motion fixture', mode: 'colonization', template: 'morrow-v1' });
+  const campaign = await post(owner, '/api/campaigns/create', { name: 'Motion fixture', mode: 'colonization', template });
+  // Optional mid-game checkpoint for isolated integration tests. The runtime has
+  // not opened yet, and this directory was newly allocated by this fixture.
+  if (seedColony) {
+    const colony = createColony(template); seedColony(colony);
+    const campaignDir = path.join(dir, 'campaigns', campaign.id);
+    await mkdir(campaignDir, { recursive: true });
+    const db = new DatabaseSync(path.join(campaignDir, 'colony.sqlite'));
+    try {
+      db.exec('CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)');
+      db.prepare('INSERT INTO meta VALUES (?,?)').run('colony-v1', JSON.stringify(colony));
+    } finally { db.close(); }
+  }
   const entered = await post(owner, '/api/campaigns/enter', { id: campaign.id });
   const page = await open(owner);
   return { page, owner, campaign, errors, account, open, post,

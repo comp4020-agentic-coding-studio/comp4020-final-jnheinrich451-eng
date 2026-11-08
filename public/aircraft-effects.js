@@ -9,12 +9,16 @@ import { ConstructionEffects } from './construction-effects.js';
 import { drawRuinedAirfield } from './facility-ruins.js';
 let droneArt;
 import { POD } from './pod.js';
+import { capsuleDescent } from './reentry-art.js';
+import { doubleRunway, runwayStrips } from './runway.js';
 import { bomberPayload, payloadProfile, bomberDive } from './bomber-payloads.js';
 
 export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  if(b.destroyed&&!ghost)return drawRuinedAirfield(c,b,T,zoom,isHelipad(b));
  if(isHelipad(b))return drawHelipad(c,b,T,zoom,ghost,valid);
- c.save();c.translate(b.x*T,b.y*T);if(ghost)c.globalAlpha*=.65;
+ // Each strip is a whole runway with its own hangar. A turned base draws the same strip a quarter turn left.
+ if(doubleRunway(b)){for(const strip of runwayStrips(b))drawAirbase(c,{...strip,runways:1},T,zoom,ghost,valid);return;}
+ c.save();if(b.turned){c.translate(b.x*T,(b.y+AIR.width)*T);c.rotate(-Math.PI/2);}else c.translate(b.x*T,b.y*T);if(ghost)c.globalAlpha*=.65;
  c.fillStyle='#506460';c.fillRect(0,0,AIR.width*T,AIR.height*T);c.strokeStyle=ghost?(valid?'#f4d18b':'#ef867d'):'#b8bfa7';c.lineWidth=2/zoom;c.strokeRect(0,0,AIR.width*T,AIR.height*T);
  c.fillStyle='#293f45';c.fillRect(.5*T,.5*T,3*T,9*T);c.strokeStyle='#dbd6b4';c.lineWidth=.06*T;c.strokeRect(.7*T,.7*T,2.6*T,8.6*T);
  c.setLineDash([.6*T,.5*T]);c.beginPath();c.moveTo(2*T,T);c.lineTo(2*T,9*T);c.stroke();c.setLineDash([]);
@@ -23,7 +27,7 @@ export function drawAirbase(c,b,T,zoom,ghost=false,valid=true){
  c.fillStyle='#233b40';c.fillRect(4*T,T,2*T,3*T);c.fillStyle='#758b8b';c.fillRect(4.1*T,1.1*T,1.8*T,2.8*T);
  c.strokeStyle='#b8c6bb';for(let y=1.3;y<3.8;y+=.35){c.beginPath();c.moveTo(4.1*T,y*T);c.lineTo(5.9*T,y*T);c.stroke();}
  c.fillStyle='#96aa98';c.fillRect(4*T,6*T,2*T,3.5*T);c.fillStyle='#f2d693';c.beginPath();c.arc(5.5*T,8.5*T,.27*T,0,Math.PI*2);c.fill();
- c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText('AIRBASE / '+(!b.aircraft||['destroyed','vacant'].includes(b.aircraft.state)?'FREE RUNWAY':aircraftName(b.aircraft).toUpperCase()),0,-7/zoom);c.restore();
+ c.restore();c.font=`bold ${10/zoom}px monospace`;c.fillStyle='#e8dfbd';c.fillText((b.spare?'VISITORS / ':'AIRBASE / ')+(!b.aircraft||['destroyed','vacant'].includes(b.aircraft.state)?'FREE RUNWAY':aircraftName(b.aircraft).toUpperCase()),b.x*T,b.y*T-7/zoom);
 }
 export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false,firing=0,clock=0){
  if(!p||['destroyed','vacant'].includes(p.state))return;
@@ -34,10 +38,12 @@ export function drawAircraft(c,p,T,zoom,mine,age=0,reduced=false,firing=0,clock=
   c.save();c.fillStyle='#edcd83';c.font=`bold ${11/zoom}px monospace`;c.textAlign='center';c.fillText('ASSEMBLING '+Math.ceil(p.remaining)+'s',p.x*T,(p.y-2)*T);c.restore();return;
  }
  if(p.state==='delivering'){
-  const time=POD.duration-p.remaining,fall=Math.max(0,1-time/POD.impact),open=Math.max(0,Math.min(1,(time-POD.unfold)/POD.panelDuration));
+  const time=POD.duration-p.remaining,open=Math.max(0,Math.min(1,(time-POD.unfold)/POD.panelDuration));
   c.save();c.translate(p.x*T,p.y*T);c.strokeStyle='#edd496';c.lineWidth=1/zoom;c.setLineDash([5/zoom,5/zoom]);c.strokeRect(-2*T,-2*T,4*T,4*T);c.setLineDash([]);
   c.fillStyle='#172b3555';c.beginPath();c.ellipse(0,0,T,T*.5,0,0,Math.PI*2);c.fill();
-  if(!reduced)c.translate(fall*5*T,-fall*9*T);
+  // Re-entry along the planet's orbital track, braking to a retro-rocket touchdown.
+  const pose=time<POD.impact?capsuleDescent(c,T,{id:'aircraft:'+p.id,x:p.x,y:p.y,s:Math.max(0,time/POD.impact),duration:POD.impact,height:10,body:1.5},reduced):null;
+  if(!reduced&&pose)c.translate(pose.x*T,pose.y*T);
   for(const side of [-1,1]){c.fillStyle='#53676e';c.strokeStyle='#e9c582';c.fillRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);c.strokeRect((side<0?-1-open:open)*T,-1.5*T,T,3*T);}
   // Aircraft arrive on an existing runway/deck: folded end caps stay inside
   // that delivery apron rather than laying permanent flooring over the runway.

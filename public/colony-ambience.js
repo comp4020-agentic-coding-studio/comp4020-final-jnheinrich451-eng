@@ -55,6 +55,17 @@ export function environmentAt(state, time = state?.time || 0) {
     weather, rain, cloud, wind: .22 + rain * .45 + cloud * .1, lightingPreset, weatherPreset };
 }
 
+/**
+ * The light a crew member lands in: the shared timeline's daylight, dusk warmth
+ * and weather, rounded for the admission reply that tints the menu's shuttle
+ * descent. Presentation only; nothing here advances or changes the garden.
+ * @param {any} state @param {number} [time]
+ */
+export function arrivalLight(state, time = state?.time || 0) {
+  const light = environmentAt(state, time), round = value => Math.round(value * 1000) / 1000;
+  return { daylight: round(light.daylight), warmth: round(light.warmth), cloud: round(light.cloud), rain: round(light.rain) };
+}
+
 export function cinemaPosition(state, time = state?.time || 0) {
   const cinema = state?.cinema;
   if (!cinema) return 0;

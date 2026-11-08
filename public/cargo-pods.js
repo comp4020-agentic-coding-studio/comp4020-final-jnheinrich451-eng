@@ -1,5 +1,6 @@
 import { CARGO_POD_DURATION, POD } from './pod.js';
 import { isCurve } from './track.js';
+import { runwaySize } from './runway.js';
 
 export const isRailDelivery=p=>['rail-line','rail-crate'].includes(p.layout);
 export function newRailDelivery(id,request,additions,rails){
@@ -13,19 +14,22 @@ export function newRailDelivery(id,request,additions,rails){
 }
 
 // A rectangular crate opens four walls, each the area of its payload floor.
-// Separate from damage hitboxes (an airbase's hangar is not its full runway).
-export function cargoSite(kind, x, y) {
-  const dimensions = { sentry:[1,1], 'aa-sentry':[1,1], recycler:[1,1], builder:[1,1], factory:[2,2], outpost:[2,2], uplink:[3,3], helipad:[3,3], missile:[4,4], artillery:[3,3], mac:[3,3], airbase:[6,10] };
+// Separate from damage hitboxes (an airbase's hangar is not its full runway). A double
+// airbase opens only its two long walls: four would need a clear cross 60 tiles long.
+export function cargoSite(kind, x, y, turned = false) {
+  if(kind==='airbase'){const {width,height}=runwaySize({runways:2,turned});return {x,y,w:width,h:height,walls:2};}
+  const dimensions = { sentry:[1,1], 'aa-sentry':[1,1], recycler:[1,1], builder:[1,1], factory:[2,2], outpost:[2,2], uplink:[3,3], helipad:[3,3], missile:[4,4], artillery:[3,3], mac:[3,3] };
   const size=dimensions[kind];if(!size)return null;
   return {x:x-(['artillery','mac'].includes(kind)?1:0),y:y-(['artillery','mac'].includes(kind)?1:0),w:size[0],h:size[1],...(['artillery','mac'].includes(kind)?{overRails:true}:{})};
 }
 export function cargoPanels(p) {
-  return [
+  const panels = [
     {x:p.x,y:p.y-p.h,w:p.w,h:p.h,side:0},
     {x:p.x+p.w,y:p.y,w:p.w,h:p.h,side:1},
     {x:p.x,y:p.y+p.h,w:p.w,h:p.h,side:2},
     {x:p.x-p.w,y:p.y,w:p.w,h:p.h,side:3},
   ];
+  return p.walls===2?panels.filter(r=>r.side%2===(p.w<p.h?1:0)):panels;
 }
 export function cargoCells(p, wallsOnly=false) {
   if(p.layout==='rail-crate')return wallsOnly?[]:[{x:p.x,y:p.y}];
@@ -37,7 +41,8 @@ export function cargoCells(p, wallsOnly=false) {
 export function cargoContains(p,x,y){
   if(p.layout==='rail-crate')return Math.floor(x)===p.x&&Math.floor(y)===p.y;
   if(p.layout==='rail-line')return cargoCells(p).some(cell=>cell.x===Math.floor(x)&&cell.y===Math.floor(y));
-  return (x>=p.x&&x<p.x+p.w&&y>=p.y-p.h&&y<p.y+p.h*2)||(y>=p.y&&y<p.y+p.h&&x>=p.x-p.w&&x<p.x+p.w*2);
+  const tall=x>=p.x&&x<p.x+p.w&&y>=p.y-p.h&&y<p.y+p.h*2,wide=y>=p.y&&y<p.y+p.h&&x>=p.x-p.w&&x<p.x+p.w*2;
+  return p.walls===2?(p.w<p.h?wide:tall):tall||wide;
 }
 export const incomingCargoAt=(world,x,y)=>(world.logistics?.cargoPods||[]).some(p=>!isRailDelivery(p)&&p.remaining>0&&cargoContains(p,x,y));
 export const newCargoPod=(id,site)=>({id,...site,remaining:CARGO_POD_DURATION,duration:CARGO_POD_DURATION});

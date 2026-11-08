@@ -28,7 +28,8 @@ import { slingLiftError, slingDropError, attachSling, beginSlingLower, tickSling
 import {transportOrderActive,planHelicopterOrder,startHelicopterOrder,tickHelicopterOrder} from './public/helicopter-orders.js';
 import { fieldExitPoint } from './public/helicopter-landing.js';
 import { isHelipad, isHelicopter, heliParking } from './public/helicopter.js';
-import { AIR, airbaseError, newAirbase, airbaseGate, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
+import { AIR, airbaseError, newAirbase, airbaseGate, parkingPoint, launchAircraft, tickAircraft, tickAirRepair, deliverAircraft } from './public/aircraft.js';
+import { runwayLayout } from './public/runway.js';
 import { seedConquest } from './public/conquest.js';
 import { seedAquaticHive } from './public/aquatic-hive.js';
 import { surfaced, resetDepth, restoreDepth, requestDepth, tickDepth } from './public/submarine-depth.js';
@@ -224,7 +225,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
     if(!Object.hasOwn(COSTS,kind))return 'Unknown deployment type.';
     const l=world.logistics, factory=data.method==='factory', local=factory||yardBuild;
     if(data.method!==undefined&&!['orbital','factory'].includes(data.method))return 'Choose orbital or factory construction.';
-    const podSite=!local?cargoSite(kind,object.x-(['recycler','builder'].includes(kind)?.5:0),object.y-(['recycler','builder'].includes(kind)?.5:0)):null;
+    const podSite=!local?cargoSite(kind,object.x-(['recycler','builder'].includes(kind)?.5:0),object.y-(['recycler','builder'].includes(kind)?.5:0),object.turned):null;
     const podError=cargoPlacementError(world,allBuildings(),[...groundPeople(),...groundEnemies()],podSite);
     if(podError)return podError;
     let workshop;
@@ -485,7 +486,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       world.artillery=world.artillery.filter(g=>g.id!==o.id);pendingDeletes.push(['artillery',o.id]);savedGuns.delete(o.id);
     }else if(f.kind==='airbase'){
       if(cancelled){world.airbases=world.airbases.filter(b=>b.id!==o.id);pendingDeletes.push(['airbases',o.id]);savedAirbases.delete(o.id);}
-      else {o.destroyed=true;for(const b of airRecords(world)){const p=b.aircraft;if(p.baseId===o.id&&['parked','delivering','landing'].includes(p.state)){
+      else {o.destroyed=true;for(const b of airRecords(world)){const p=b.aircraft;if([o.id,o.id+':2'].includes(p.baseId)&&['parked','delivering','landing'].includes(p.state)){
         if(isHelicopter(p)&&p.state!=='delivering'){
           p.rearm=0;if(p.state==='parked')p.fieldLanding={x:p.x,y:p.y};
           else if(!p.fieldLanding){p.state='flying';p.remaining=0;}
@@ -951,7 +952,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             }else{
               const storage=record||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
               if(!storage)return json(res,409,{error:'Replacement cargo is preparing.'});
-              const next=structuredClone(storage);next.aircraft=newAirbase(facility.id,player.id,facility.x,facility.y,data.kind,facility.kind).aircraft;
+              const next=structuredClone(storage);next.aircraft=newAirbase(facility.id,player.id,facility.x,facility.y,data.kind,facility.kind,runwayLayout(facility)).aircraft;
               const invalid=deliverAircraft({...facility,aircraft:next.aircraft},data.kind);if(invalid)return json(res,409,{error:invalid});
               next.aircraft.id=randomUUID();next.aircraft.angle=facility.angle||0;
               const payment=purchase('aircraft',{method:'orbital'},next,()=>{if(storage.aircraft.state==='destroyed')rememberRuin(world,storage.aircraft.id+(storage.aircraft.purchase?.id?':'+storage.aircraft.purchase.id:''),storage.aircraft.kind,storage.aircraft.x,storage.aircraft.y,storage.aircraft.angle);saveAirbase(next);},true,exchange);
@@ -1202,8 +1203,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(data.kind==='helicopter'&&data.facilityKind!=='helipad')return json(res,400,{error:'Helicopters require a helipad.'});
             if(data.facilityKind==='helipad'&&data.empty!==true)return json(res,400,{error:'Deploy an empty helipad, then order a helicopter.'});
             const old=world.airbases.find(b=>!b.destroyed&&b.owner===player.id&&b.x===data.x&&b.y===data.y);if(old)return json(res,200,{saved:true,airbase:old});
-            const error=airbaseError(world,allBuildings(),[...groundPeople(),...groundEnemies()],data.x,data.y,player.id,data.facilityKind);if(error)return json(res,409,{error});
-            const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber',data.facilityKind);if(data.empty===true)Object.assign(base.aircraft,{state:'vacant',health:0});else if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');if(data.empty!==true&&fleetCount(world)>=fleetCapacity(world)+1)return json(res,409,{error:'Restore fleet capacity or deploy an empty airbase first.'});const payment=purchase(isHelipad(base)?'helipad':'airbase',data,base,()=>saveAirbase(base));if(payment)return json(res,409,{error:payment});world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
+            const turned=data.turned===true&&data.facilityKind!=='helipad',error=airbaseError(world,allBuildings(),[...groundPeople(),...groundEnemies()],data.x,data.y,player.id,data.facilityKind,turned);if(error)return json(res,409,{error});
+            const base=newAirbase(randomUUID(),player.id,data.x,data.y,data.kind||'bomber',data.facilityKind,data.facilityKind==='helipad'?{}:runwayLayout({runways:2,turned}));if(data.empty===true)Object.assign(base.aircraft,{state:'vacant',health:0});else if(data.kind==='attack-jet')deliverAircraft(base,'attack-jet');if(data.empty!==true&&fleetCount(world)>=fleetCapacity(world)+1)return json(res,409,{error:'Restore fleet capacity or deploy an empty airbase first.'});const payment=purchase(isHelipad(base)?'helipad':'airbase',data,base,()=>saveAirbase(base));if(payment)return json(res,409,{error:payment});world.airbases.push(base);broadcast();return json(res,201,{saved:true,airbase:base});
           }
           if(url.pathname==='/api/aircraft/deliver'){
             const base=airfields(world).find(b=>b.id===data.id);
@@ -1214,7 +1215,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
             if(base.carrier&&!parked)ensureWing(base.carrier);
             const record=parked||airRecords(world).find(b=>!world.logistics.jobs[b.id]&&!liveAircraft(b.aircraft)&&(!b.aircraft.remaining||b.aircraft.remaining<=.001));
             if(!record)return json(res,409,{error:'Replacement cargo is preparing.'});
-            const next=structuredClone(record),replacement=newAirbase(base.id,player.id,base.x,base.y,data.kind,base.kind).aircraft;
+            const next=structuredClone(record),replacement=newAirbase(base.id,player.id,base.x,base.y,data.kind,base.kind,runwayLayout(base)).aircraft;
             // Retain the storage key; aircraft identity and physical destination are independent.
             next.aircraft={...replacement,id:randomUUID()};
             const invalid=deliverAircraft({...base,aircraft:next.aircraft},data.kind);if(invalid)return json(res,409,{error:invalid});
@@ -1632,7 +1633,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if (!filename.startsWith(publicDir + path.sep)) return json(res, 403, { error: 'Forbidden.' });
       const info = await stat(filename);
       if (!info.isFile()) return json(res, 404, { error: 'Not found.' });
-      // Movies are requested only by an active colony screen. Stream byte ranges
+      // Movies are requested only by an active colony screen and the entry opening loop. Stream byte ranges
       // so an MP4 with its index at the end can start/seek without buffering the
       // entire film in either server memory or every visitor's browser.
       if (path.extname(filename).toLowerCase() === '.mp4') {
@@ -1674,7 +1675,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
         movie.once('error', () => res.destroy());
         movie.pipe(res); return;
       }
-      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' }[path.extname(filename)] || 'application/octet-stream';
+      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.json': 'application/json', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' }[path.extname(filename)] || 'application/octet-stream';
       if (mime.startsWith('audio/')) res.setHeader('Content-Length', info.size);
       res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': accountPage ? 'no-store' : /^(image|font|audio)\//.test(mime) ? 'public, max-age=3600' : 'no-cache' });
       const content = req.method === 'HEAD' ? '' : await readFile(filename);
@@ -1744,7 +1745,7 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       if(plane.mission?.phase==='return'&&!runwayAvailable(world,destination,plane)){
         const alternate=freeAirbase(world,plane);if(alternate){plane.baseId=alternate.id;destination=flightBase(world,base);checkpoint();}
       }else if(!isHelicopter(plane)&&!missionActive(plane)&&plane.state==='flying'&&plane.leftBase&&plane.speed<=AIR.minSpeed+1){
-        const nearby=freeAirbase(world,plane);if(nearby&&Math.hypot(plane.x-(isHelipad(nearby)?nearby.x+1.5:nearby.x+2),plane.y-(isHelipad(nearby)?nearby.y+1.5:nearby.y+7.5))<=AIR.landingRange+1){plane.baseId=nearby.id;destination=flightBase(world,base);}
+        const nearby=freeAirbase(world,plane);if(nearby&&Math.hypot(plane.x-parkingPoint(nearby).x,plane.y-parkingPoint(nearby).y)<=AIR.landingRange+1){plane.baseId=nearby.id;destination=flightBase(world,base);}
       }
       const flightWorld=isHelicopter(plane)?(helicopterWorld ||= landingWorld()):world;
       if(plane.slingOperation){
@@ -2024,8 +2025,8 @@ function createWorldApp(dataDir, emailDelivery, options = {}) {
       const gun = controlledBy(p.id); if (gun) { gun.input = null; gun.inputTime = 0; }
     }
   }
-  function abandon(id) {
-    endPlayerAccess(id, 'Guest visit ended. Contributions remain with the host.');
+  function abandon(id, message = 'Guest visit ended. Contributions remain with the host.') {
+    endPlayerAccess(id, message);
     for (const vehicle of [...world.tanks, ...world.ships, ...world.logistics.recyclers]) if (vehicle.occupant === id) { vehicle.occupant = null; vehicle.speed = 0; vehicle.driveSpeed=0; vehicle.vx=0; vehicle.vy=0; }
     for (const base of airRecords(world)) if (base.aircraft.occupant === id) base.aircraft.occupant = null;
     checkpoint();

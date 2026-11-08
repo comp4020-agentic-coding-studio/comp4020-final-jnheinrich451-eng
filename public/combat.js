@@ -41,19 +41,22 @@ import { SHIP } from './ship.js';
 import { isSubmarine, submarineFireError, makeSubmarineBarrage, nextSubmarineGroup, spendSubmarineGroup } from './submarine.js';
 import { SWIMMER, navalSpawn, swimStep, canSwim } from './naval.js';
 import { hullHealth, hullDistance, hullPoint, operational, hurtVehicle } from './vehicle.js';
-import { canStand, findPath, tileAt } from './world.js';
+import { canStand, findPath, tileAt, TERRAIN } from './world.js';
 import { turnTurret, angleDelta, SENTRY_TURRET } from './turret.js';
-import { HE, APCR, FLAME, WEAPONS } from './weapons.js';
+import { HE, APCR, FLAME, LASER, WEAPONS } from './weapons.js';
 import { raycast } from './raycast.js';
 import { SURVIVAL, hurtRobot } from './survival.js';
 import { ARTILLERY_HE, ARTILLERY_SHELLS, RAIL_SHELLS, MAC } from './weapons.js';
 import { artilleryBlocks } from './footprints.js';
 import { guardStep } from './guard.js';
-import { fieldCapacityError, makeField, contactField, fireBlocked, heatSpeed, lureRoute, insideField } from './hazards.js';
+import { fieldCapacityError, makeField, contactField, fireBlocked, heatSpeed, lureRoute, insideField, FUEL_POOL, placePool, poolContact, gasExposure } from './hazards.js';
 import { makeBarrageField, landBarrageSector, tickField, keepField } from './missile-fields.js';
 import { MISSILE, MISSILE_HE, makeBarrage, inTargetBox } from './missile.js';
 
 export { HE, APCR } from './weapons.js';
+// Presentation labels travel with accepted projectiles, independently of damage.
+const ammoSound = (weapon, fallback) => weapon === 'INCENDIARY' ? 'incendiary-impact' : weapon === 'GAS' ? 'gas-impact' : fallback;
+const shotSound = Object.freeze({HE:'tank-shot',APCR:'machine-gun',NAVAL_APCR:'naval-side-shot',AA35:'aa-shot',LASER:'laser-shot',FLAME:'flame',HEAVY_FLAME:'heavy-flame'});
 /** @param {number} distance @param {{radius:number, lethalRadius:number, damage:number, edgeDamage:number}} profile */
 export function blastDamage(distance, profile = HE) {
   if (distance > profile.radius) return 0;
@@ -69,7 +72,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   const planetConquest = createPlanetConquest(world.sites, saved?.planetConquest);
   const damageTargets=(weapon=null)=>enemies.concat(director?.sleeping||[]).filter(e=>!weapon||canWeaponTarget(e,weapon));
   let serial = 0, now = 0, enemies = [], shells = [], impacts = [], status = 'ready', health = 100, kills = 0;
-  let shots = [], marks = [], jets = [], salvos = [], fields = [], barrages = [], charges = structuredClone(saved?.tankCharges || []);
+  let shots = [], marks = [], jets = [], salvos = [], fields = [], barrages = [], pools = [], charges = structuredClone(saved?.tankCharges || []);
   const acidShells = structuredClone(saved?.acidShells || []);
   const aerialShots = structuredClone(saved?.aerialShots || []);
   const aquaticClouds = structuredClone(saved?.aquaticClouds || []);
@@ -130,6 +133,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   if (saved) {
     if (saved.version !== 1) throw new Error('Unsupported combat checkpoint.');
     ({ serial, now, enemies, shells, status, health, kills, jets, salvos, fields, barrages, navalCooldown, navalStatus, objective } = saved);
+    pools = saved.pools || [];
     for (const entry of saved.cooldowns) cooldowns.set(...entry);
     for (const entry of saved.sentryMounts) sentryMounts.set(...entry);
   }
@@ -168,7 +172,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   const checkpoint = () => {
     conquestStatus();
     return JSON.parse(JSON.stringify({ version: 1, serial, now, sites: world.sites, planetConquest, ...(director?{director}:{}),
-    enemies, shells, status, health, kills, jets, salvos, tankCharges:charges.filter(c=>c.tankId&&!c.cancelled), fields:fields.filter(f=>!f.orbital), barrages, acidShells, aerialShots, aquaticClouds, flakShells, causes: [...causes],
+    enemies, shells, status, health, kills, jets, salvos, tankCharges:charges.filter(c=>c.tankId&&!c.cancelled), fields:fields.filter(f=>!f.orbital), barrages, pools, acidShells, aerialShots, aquaticClouds, flakShells, causes: [...causes],
     navalCooldown, navalStatus, objective, frenzy, cooldowns: [...cooldowns], sentryMounts: [...sentryMounts] }));
   };
   const frenzyRoster=()=>{
@@ -180,7 +184,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
   const frenzyView=()=>frenzy?{roster:frenzyRoster(),source:frenzy.source,medium:frenzy.medium,id:frenzy.id,phase:frenzy.phase,until:frenzy.until,outcome:frenzy.outcome,points:frenzy.points.map(p=>({...p})),count:enemies.filter(e=>e.hp>0&&frenzy.members.includes(e.id)).length,hunters:Object.values(frenzy.orders).filter(o=>o.role==='hunt').length,raiders:Object.values(frenzy.orders).filter(o=>o.role==='raid').length}:null;
   const snapshot = () => ({ conquest:conquestStatus(), encounters:director?{elapsed:director.elapsed,nextRaid:conquered()?null:director.nextRaid,sequence:director.sequence,sleeping:director.sleeping.length,centipedes:centipedeSpawnView(director,now)}:null, frenzy:frenzyView(), sites: structuredClone(world.sites), naval: {status:navalStatus,cooldown:navalCooldown,count:enemies.filter(e=>e.kind==='swimmer').length}, charges: charges.map(c => ({ ...c })), epoch, time: now, status, health, kills, objective: { ...objective }, weapon: 'HE', blastRadius: HE.radius, salvos: salvos.map(s => ({ ...s })),
     barrages: barrages.map(b => ({ ...b, ...(b.profile?{profile:{...b.profile}}:{}), box: { ...b.box }, missiles: b.missiles.map(m => ({ ...m, ...(m.sector?{sector:{...m.sector}}:{}) })) })), fields: fields.map(f => ({ ...f, ...(f.sectors ? { box: { ...f.box }, sectors: f.sectors.map(s => ({ ...s })) } : {}) })), enemies: damageTargets().map(({ path, reroute, lurePath, ...e }) => structuredClone(e)), shots: shots.map(s => ({ ...s })), marks: marks.map(m => ({ ...m })),
-    aquaticClouds:structuredClone(aquaticClouds),aerialShots:structuredClone(aerialShots),flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
+    aquaticClouds:structuredClone(aquaticClouds),aerialShots:structuredClone(aerialShots),flakShells: structuredClone(flakShells), acidShells: structuredClone(acidShells), jets: jets.map(j => ({ ...j })), pools: pools.map(p => ({ ...p })), shells: shells.map(s => ({ ...s })), impacts: impacts.map(i => ({ ...i, hits: i.hits.map(h => ({ ...h })) })), sentries: Object.fromEntries([...sentryMounts].map(([id, mount]) => [id, { ...mount }])) });
   function damage(enemy, amount, weapon) {
     if (enemy.hp > 0 && amount > 0) reportSectorAttack(world.sites, enemies, enemy.x, enemy.y, now, event => events.push(event));
     const blocked = !canDamageEnemy(enemy, weapon);
@@ -189,14 +193,20 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     if (!enemy.hp) { enemy.behavior = 'dead'; cancelMobileLaser(enemy); }
     return { id: enemy.id, x: enemy.x, y: enemy.y, angle: enemy.angle, kind:enemy.kind, blocked, killed: enemy.hp === 0 };
   }
-  function impact(weapon, x, y, hits, radius = 0, craterSize = 1.9, minorBlast = false) {
+  function leavePool(jet, x, y) {
+    const ground = tileAt(world, x, y);
+    if (ground === TERRAIN.WATER || ground === TERRAIN.ROCK) return;
+    pools = placePool(pools, { id: ++serial, x: Math.floor(x) + .5, y: Math.floor(y) + .5, at: now, until: now + FUEL_POOL.duration, owner: jet.owner, heavy: jet.weapon === 'HEAVY_FLAME' });
+  }
+  function impact(weapon, x, y, hits, radius = 0, craterSize = 1.9, minorBlast = false, sound = null, soundSource = null) {
     for (const hit of hits) if (hit.kind === 'station') reportSectorAttack(world.sites, enemies, hit.x, hit.y, now, event => events.push(event));
     if (weapon !== 'HE') for (const site of world.sites) if (site.state === 'hostile' && siteDistance(site, { x, y }) <= Math.max(.03, radius)) {
       reportSectorAttack(world.sites, enemies, x, y, now, event => events.push(event));
       site.blockedAt = now; site.blockedWeapon = weapon; site.alarmUntil = Math.max(site.alarmUntil || 0, now + ALERT.grace); site.awake = true;
       site.disturbance = { x, y, until: now + ALERT.grace };
     }
-    const event = { id: ++serial, weapon, x, y, at: now, ttl: weapon === 'HE' || minorBlast ? 1.6 : .45, minorBlast, radius, surface: tileAt(world, x, y), hits };
+    const event = { id: ++serial, weapon, x, y, at: now, ttl: weapon === 'HE' || minorBlast ? 1.6 : .45, minorBlast, radius, surface: tileAt(world, x, y), hits,
+      ...(sound ? {sound} : {}), ...(soundSource ? {soundSource} : {}) };
     if ((weapon === 'HE' || minorBlast) && event.surface !== 0) marks.push({ id: event.id, kind: 'crater', x, y, size: craterSize, at: now });
     for (const hit of hits) if (hit.killed && hit.kind !== 'station' && !world.logistics) marks.push({ ...hit, kind: 'remains', charred: ['FLAME', 'BURN', 'INCENDIARY'].includes(weapon), at: now });
     marks = marks.slice(-48); impacts.push(event); impacts = impacts.slice(-64);
@@ -229,7 +239,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         const lateral=(barrel?1:-1)*.16;
         const origin={x:source.x+Math.cos(bearing)*lateral,y:source.y+Math.sin(bearing)*lateral};
         shells.push({id,owner:source.id,weapon,domain:solution.domain,barrel,...origin,dx,dy,speed:profile.speed,remaining:profile.range,at:shotTime});
-        shots.push({id,owner:source.id,weapon,mount:'aa-35mm',barrel,...origin,angle,at:shotTime,domain:solution.domain});
+        shots.push({id,owner:source.id,weapon,mount:'aa-35mm',sound:'aa-shot',barrel,...origin,angle,at:shotTime,domain:solution.domain});
       }
       firingTank.aaNextBarrel=1-barrel;firingTank.timerDirty=true;
       cooldowns.set(cooldownKey,shotTime+profile.cooldown);shots=shots.slice(-64);
@@ -249,7 +259,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     const angle = Number.isFinite(source.turret) ? source.turret : Math.atan2(y - source.y, x - source.x) + Math.PI / 2;
     cooldowns.set(cooldownKey, now + profile.cooldown);
     const id = ++serial, dx = Math.sin(angle), dy = -Math.cos(angle);
-    const shot = { id, weapon, mount: source.mount || 'coax', owner: source.id, x: source.x, y: source.y, angle, at: now };
+    const shot = { id, weapon, mount: source.mount || 'coax', sound:shotSound[weapon], owner: source.id, x: source.x, y: source.y, angle, at: now };
     if (weapon === 'LASER') {
       const air=damageTargets().some(e=>e.hp>0&&isAirEnemy(e)&&Math.hypot(e.x-x,e.y-y)<=1.5);
       const hit = air?airRaycast(world,source,dx,dy,profile.range,damageTargets()):raycast(world, buildings, source, dx, dy, profile.range, damageTargets().filter(isGroundEnemy));
@@ -264,7 +274,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
           if (!wasBurning) { hit.enemy.path = []; hit.enemy.reroute = 0; }
         }
       }
-      if (hit.enemy || hit.blocked) impact('LASER', hit.x, hit.y, hits);
+      if (hit.enemy || hit.blocked) impact('LASER', hit.x, hit.y, hits, 0, 1.9, false, 'laser-impact');
     } else if (['FLAME', 'HEAVY_FLAME'].includes(weapon)) {
       const muzzle = source.mount === 'sentry' ? .5 / Math.max(Math.abs(dx), Math.abs(dy)) + .02 : 0;
       jets.push({ id, owner: source.id, weapon, speed: profile.speed, width: profile.width, x: source.x + dx * muzzle, y: source.y + dy * muzzle, dx, dy, remaining: profile.range - muzzle, at: now });
@@ -311,7 +321,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         y: building.y + .5 + Math.sin(bearing) * lateral };
       shells.push({ id, owner: building.id, weapon: 'AA35', domain: 'air', barrel, ...origin,
         dx: Math.sin(angle), dy: -Math.cos(angle), speed: profile.speed, remaining: profile.range, at: due });
-      shots.push({ id, owner: building.id, weapon: 'AA35', mount: 'aa-35mm', barrel, ...origin, angle, at: due, domain: 'air' });
+      shots.push({ id, owner: building.id, weapon: 'AA35', mount: 'aa-35mm', sound:'aa-shot', barrel, ...origin, angle, at: due, domain: 'air' });
       shots = shots.slice(-64); mount.nextBarrel = 1 - barrel; mount.nextShot = due + profile.cooldown;
       const key = building.id + ':AA35', detail = automatic.get(key);
       automatic.set(key, { sourceId: building.id, weapon: 'AA35', count: (detail?.count || 0) + 1,
@@ -329,9 +339,9 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     if (salvos.length >= HEAVY_SHELL_LIMIT) return 'Too many heavy shells in flight.';
     const limit = fieldCapacityError(fields.concat(aquaticClouds), salvos, weapon); if (limit) return limit;
     const id = ++serial, angle = Math.atan2(y - source.y, x - source.x) + Math.PI / 2;
-    salvos.push({ id, weapon, x: source.x, y: source.y, targetX: x, targetY: y, elapsed: 0, duration: trajectory?.duration ?? 1 + distance / 18,
+    salvos.push({ id, weapon, owner:source.id, impactSound:ammoSound(weapon,'railway-impact'), x: source.x, y: source.y, targetX: x, targetY: y, elapsed: 0, duration: trajectory?.duration ?? 1 + distance / 18,
       verticalSpeed: trajectory?.verticalSpeed, gravity: trajectory?.gravity, elevation: trajectory?.elevation, profile: { ...RAIL_SHELLS[weapon] } });
-    shots.push({ id, weapon, mount: 'artillery', owner: source.id, x: source.x, y: source.y, angle, elevation: trajectory?.elevation, at: now }); shots = shots.slice(-64);
+    shots.push({ id, weapon, mount: 'artillery', sound:'railway-shot', owner: source.id, x: source.x, y: source.y, angle, elevation: trajectory?.elevation, at: now }); shots = shots.slice(-64);
     return null;
   }
   function macFire(gun){
@@ -356,17 +366,17 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       s.x=hit.x;s.y=hit.y;s.remaining=Math.max(0,s.remaining-hit.distance);travel-=hit.distance;
       if(hit.enemy){
         s.hitIds.push(hit.enemy.id);
-        const result=damage(hit.enemy,s.profile.damage,'MAC');impact('MAC',hit.x,hit.y,[result]);
+        const result=damage(hit.enemy,s.profile.damage,'MAC');impact('MAC',hit.x,hit.y,[result],0,1.9,false,'mac-impact');
         if(hit.enemy.kind!=='swimmer')marks.push({id:++serial,kind:'mac-blood',x:hit.enemy.x,y:hit.enemy.y,angle:Math.atan2(s.dx,-s.dy),at:now});
         marks=marks.slice(-48);
       }else if(hit.blocked){
         const site=hostileAt(world,hit.x+s.dx*.001,hit.y+s.dy*.001);
         const hits=site?damageSites([site],hit.x+s.dx*.001,hit.y+s.dy*.001,{radius:.05,lethalRadius:.05,damage:s.profile.damage,edgeDamage:s.profile.damage},now,blastDamage):[];
-        objectiveHits(s,hits);impact('MAC',hit.x,hit.y,hits);s.remaining=0;break;
+        objectiveHits(s,hits);impact('MAC',hit.x,hit.y,hits,0,1.9,false,'mac-impact');s.remaining=0;break;
       }else break;
     }
     if(s.hitIds.length>=s.profile.penetration)s.remaining=0;
-    shots.push({id:++serial,weapon:'MAC',mount:'rail-mac',owner:s.owner,x:start.x,y:start.y,endX:s.x,endY:s.y,angle:Math.atan2(s.dx,-s.dy),at:now,first});shots=shots.slice(-64);
+    shots.push({id:++serial,weapon:'MAC',mount:'rail-mac',sound:first?'mac-shot':null,owner:s.owner,x:start.x,y:start.y,endX:s.x,endY:s.y,angle:Math.atan2(s.dx,-s.dy),at:now,first});shots=shots.slice(-64);
     if(s.remaining<=.000001)s.elapsed=s.duration;
   }
   function navalSalvo(ship,target,mode='salvo',targets=null) {
@@ -389,7 +399,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       if(r.targetX<0||r.targetY<0||r.targetX>=world.width||r.targetY>=world.height)return 'The complete salvo must land inside the battlefield.';
       const error=fieldCapacityError(fields.concat(aquaticClouds),reserved,weapon);if(error)return error;reserved.push({weapon});
     }
-    for(const r of rounds){const id=++serial;salvos.push({...r,id,weapon,elapsed:0,profile:{...ARTILLERY_SHELLS[weapon]}});shots.push({id,weapon,mount:'naval-main',owner:r.owner,x:r.x,y:r.y,angle:r.angle,at:now});}
+    for(const r of rounds){const id=++serial;salvos.push({...r,id,weapon,impactSound:ammoSound(weapon,'naval-main-impact'),elapsed:0,profile:{...ARTILLERY_SHELLS[weapon]}});shots.push({id,weapon,mount:'naval-main',sound:'naval-main-shot',owner:r.owner,x:r.x,y:r.y,angle:r.angle,at:now});}
     ship.mainReloads=Object.fromEntries(mainMounts(ship).map(m=>[m.id,mounts.includes(m)?SHIP.reload:mainReload(ship,m.id)]));
     ship.reload=Math.max(...Object.values(ship.mainReloads));
     const all=mainMounts(ship);ship.nextMainMount=all[(all.indexOf(mounts.at(-1))+1)%all.length].id;
@@ -413,8 +423,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         // Commit the complete pair and a broadside-wide cadence together.
         for(const r of rounds){
           const id=++serial;
-          shells.push({id,weapon:'NAVAL_APCR',speed:WEAPONS.NAVAL_APCR.speed,x:r.x,y:r.y,dx:Math.sin(r.angle),dy:-Math.cos(r.angle),remaining:r.remaining,blast:null,damage:TWIN_BATTERY.damage,owner:r.owner});
-          shots.push({id,weapon:'NAVAL_APCR',mount:'naval-secondary',muzzleAtTip:true,...r,at:now});
+          shells.push({id,weapon:'NAVAL_APCR',impactSound:'naval-secondary-impact',speed:WEAPONS.NAVAL_APCR.speed,x:r.x,y:r.y,dx:Math.sin(r.angle),dy:-Math.cos(r.angle),remaining:r.remaining,blast:null,damage:TWIN_BATTERY.damage,owner:r.owner});
+          shots.push({id,weapon:'NAVAL_APCR',mount:'naval-secondary',sound:'naval-secondary-shot',muzzleAtTip:true,...r,at:now});
         }
         cooldowns.set(key,now+TWIN_BATTERY.interval);
         ship.secondarySequence={...ship.secondarySequence,[side.id]:sequence+candidates.indexOf(mount)+1};
@@ -583,6 +593,33 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       if (!field) return false;
       impact(field.weapon, e.x, e.y, [damage(e, e.hp, field.weapon)]); e.attack = null; return true;
     }
+    // Gas wears down what it does not kill on contact; a cloud spends a kill only when
+    // the unit dies of the gas inside it. Breakers are also confused for a while.
+    function gasWear(e) {
+      const cloud = gasExposure(fields, e), role = enemyProfile(e);
+      if (!cloud) return false;
+      const hit = damage(e, role.gasDps * dt, 'GAS');
+      e.gassedUntil = now + 400;
+      if (role.gasConfusion) e.confusedUntil = now + role.gasConfusion;
+      if (hit.killed) { cloud.capacity = Math.max(0, cloud.capacity - 1); impact('GAS', e.x, e.y, [hit]); return true; }
+      if (now >= (e.gasFeedback || 0)) { impact('GAS', e.x, e.y, [hit]); e.gasFeedback = now + 500; }
+      return false;
+    }
+    // A burning fuel pool sets a Hunter or Breaker alight and fleeing, as the laser does.
+    function poolBurn(e) {
+      const pool = poolContact(pools, e, now);
+      if (!pool || enemyProfile(e).hazardImmune || !canDamageEnemy(e, 'BURN')) return;
+      const wasBurning = e.burnUntil > now;
+      Object.assign(e, { burnUntil: now + LASER.burnDuration, burnDps: LASER.burnDps, heatX: pool.x, heatY: pool.y, behavior: 'fleeing' });
+      if (!wasBurning) { e.path = []; e.reroute = 0; e.attack = null; }
+    }
+    // A confused Breaker forgets its target and stumbles about, at a slower pace.
+    function wander(e, role) {
+      if (!(e.wanderUntil > now)) { e.wanderHeading = Math.random() * Math.PI * 2; e.wanderUntil = now + 600 + Math.random() * 700; }
+      const step = dt * role.speed * .6 * heatSpeed(fields, e, pools, now);
+      const x = e.x + Math.cos(e.wanderHeading) * step, y = e.y + Math.sin(e.wanderHeading) * step;
+      if (canStand(world, buildings, x, y, null, .21)) { e.x = x; e.y = y; e.angle = e.wanderHeading + Math.PI / 2; } else e.wanderUntil = 0;
+    }
     impacts = impacts.filter(i => (i.ttl -= dt) > 0);
     shots = shots.filter(s => now - s.at < 1000);
     for (const [id, until] of cooldowns) if (until <= now) cooldowns.delete(id);
@@ -593,7 +630,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       sentryMounts.set(b.id, { angle: SENTRY_TURRET.restAngle, aim: SENTRY_TURRET.restAngle, targetId: null }); changed = true;
     }
     for(const e of director?.sleeping||[]){
-      if(e.hp<=0||fieldContact(e))continue;
+      if(e.hp<=0||fieldContact(e)||gasWear(e))continue;
       const burning=Math.min(dt,Math.max(0,((e.burnUntil||0)-(now-dt*1000))/1000));
       if(burning)damage(e,e.burnDps*burning,'BURN');
     }
@@ -603,6 +640,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       for (const e of enemies) {
         if (e.hp <= 0) continue;
         if (fieldContact(e)) continue;
+        if (gasWear(e)) continue;
+        if (e.kind !== 'swimmer') poolBurn(e);
         const burningTime = Math.min(dt, Math.max(0, ((e.burnUntil || 0) - (now - dt * 1000)) / 1000));
         if (burningTime) {
           const hit = damage(e, e.burnDps * burningTime, 'BURN');
@@ -613,6 +652,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         if(isAirEnemy(e))continue;
         const role = enemyProfile(e);
         if(e.frenzyRecoveryUntil>now){e.attack=null;e.path=[];cancelMobileLaser(e);continue;}
+        if (e.confusedUntil > now) { e.attack = null; e.path = []; e.targetId = null; wander(e, role); continue; }
         if (e.behavior === 'fleeing' && e.burnUntil <= now) { e.behavior = 'attacking'; e.reroute = 0; e.path = []; }
         const station = world.sites.find(s => s.id === e.siteId);
         // Survivors keep a local anchor after their home is conquered. Legacy
@@ -718,7 +758,9 @@ export function createCombat(world, saved = null, auditContext = null, encounter
           e.reroute = now + (routeResult?.status==='pending'?100:routeResult?.status==='limited'||routeResult?.status==='blocked'?LAND_AI.retry:e.behavior === 'fleeing' ? 750 : 1000);
         }
         // Carry unused travel through waypoints: no one-tick pause at each tile.
-        let travel = dt * (e.behavior === 'fleeing' ? Math.min(1.5, role.speed) : role.speed*(e.behavior==='patrolling'?LAND_AI.patrolSpeed:1)) * heatSpeed(fields, e);
+        const heat = heatSpeed(fields, e, pools, now);
+        if (heat < 1 && role.fireSlow) e.slowedUntil = now + 300;
+        let travel = dt * (e.behavior === 'fleeing' ? Math.min(1.5, role.speed) : role.speed*(e.behavior==='patrolling'?LAND_AI.patrolSpeed:1)) * heat;
         for (let steps = 0; steps < 8 && travel > 0 && e.path.length; steps++) {
           const target = e.path[0], dx = target.x - e.x, dy = target.y - e.y, d = Math.hypot(dx, dy);
           if (d < .0001) { e.path.shift(); continue; }
@@ -769,13 +811,14 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       const profile=orbitalImpactProfile(order,point);
       if(orbitalHazard(order.payload)){
         landOrbitalField(fields.find(f=>f.id===order.fieldId),point,order,now);hazardsLanded=true;
-        impact(order.payload,point.x,point.y,[],1.2,profile.craterSize,true);return;
+        impact(order.payload,point.x,point.y,[],1.2,profile.craterSize,true,ammoSound(order.payload,null));return;
       }
       const weapon=order.payload==='BEAM'?'BEAM':'HE',projectile={id:++serial,weapon},hits=[];
       causes.set(projectile.id,{...order.context,actorId:order.context?.actorId||order.callerId,sourceId:'orbital',projectileId:projectile.id,weapon});
       for(const e of damageTargets(weapon))if(e.hp>0){const amount=blastDamage(enemyDistance(e,point),profile);if(amount)hits.push(damage(e,amount,weapon));}
       hits.push(...damageSites(world.sites,point.x,point.y,profile,now,blastDamage));
-      objectiveHits(projectile,hits);impact(weapon,point.x,point.y,hits,profile.radius,profile.craterSize);causes.delete(projectile.id);
+      const sound=order.payload==='BEAM'?'orbital-beam':order.payload==='HEAVY'?'orbital-heavy-impact':order.payload==='CLUSTER'?'orbital-cluster-impact':'orbital-impact';
+      objectiveHits(projectile,hits);impact(weapon,point.x,point.y,hits,profile.radius,profile.craterSize,false,sound,'orbital:'+order.id);causes.delete(projectile.id);
     }) || changed;
     for (const barrage of barrages) {
       barrage.age += dt;
@@ -789,7 +832,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         if (barrage.weapon !== 'HE') {
           const field = fields.find(f => f.id === barrage.id);
           landBarrageSector(field, m, now); hazardsLanded = true;
-          impact(barrage.weapon, m.x, m.y, [], 1.2, m.craterSize, true);
+          impact(barrage.weapon, m.x, m.y, [], 1.2, m.craterSize, true, ammoSound(barrage.weapon,null));
           continue;
         }
         const profile=barrage.profile||MISSILE_HE;
@@ -799,7 +842,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         }
         hits.push(...damageSites(world.sites, m.x, m.y, profile, now, blastDamage));
         objectiveHits(barrage, hits);
-        impact('HE', m.x, m.y, hits, profile.radius, m.craterSize ?? MISSILE_HE.craterSize);
+        const sound=barrage.kind==='submarine'?'submarine-impact':barrage.kind==='bomber'?(barrage.payload==='HEAVY'?'heavy-bomb-impact':'bomb-impact'):'missile-impact';
+        impact('HE', m.x, m.y, hits, profile.radius, m.craterSize ?? MISSILE_HE.craterSize, false, sound);
       }
     }
     barrages = barrages.filter(b => b.missiles.some(m => !m.landed));
@@ -809,7 +853,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       if (salvo.elapsed < salvo.duration) continue;
       if (salvo.weapon !== 'HE') {
         fields.push(makeField(salvo.id, salvo.weapon, salvo.targetX, salvo.targetY, now));
-        impact(salvo.weapon, salvo.targetX, salvo.targetY, [], salvo.profile.radius);
+        impact(salvo.weapon, salvo.targetX, salvo.targetY, [], salvo.profile.radius, 1.9, false, ammoSound(salvo.weapon,salvo.impactSound));
         hazardsLanded = true;
         continue;
       }
@@ -820,7 +864,9 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       }
       hits.push(...damageSites(world.sites, salvo.targetX, salvo.targetY, salvo.profile, now, blastDamage));
       objectiveHits(salvo, hits);
-      impact('HE', salvo.targetX, salvo.targetY, hits, salvo.profile.radius, salvo.profile.craterSize, salvo.kind==='jet-burst');
+      // Older checkpoints lack presentation labels; preserve their broad family.
+      const sound=salvo.impactSound||(salvo.kind==='heli-rocket'?'rocket-impact':salvo.kind==='jet-burst'?'jet-30-impact':salvo.kind==='strafe'?'jet-40-impact':salvo.mount?'naval-main-impact':'railway-impact');
+      impact('HE', salvo.targetX, salvo.targetY, hits, salvo.profile.radius, salvo.profile.craterSize, salvo.kind==='jet-burst', sound);
     }
     salvos = salvos.filter(s => s.elapsed < s.duration);
     // Resolve all new regions together: simultaneous fire wins over gas.
@@ -831,26 +877,28 @@ export function createCombat(world, saved = null, auditContext = null, encounter
       jet.x = hit.x; jet.y = hit.y; jet.remaining -= travel;
       if (hit.enemy || hit.blocked) {
         if (hit.enemy) impact('FLAME', hit.x, hit.y, [damage(hit.enemy, hit.enemy.hp, jet.weapon)]);
-        else impact('FLAME', hit.x, hit.y, []);
+        else { impact('FLAME', hit.x, hit.y, []); leavePool(jet, hit.x - jet.dx * .3, hit.y - jet.dy * .3); }
         jet.remaining = 0;
-      }
+      } else if (jet.remaining <= .001) leavePool(jet, jet.x, jet.y);
     }
+    if (pools.length) { pools = pools.filter(p => p.until > now); changed = true; }
     jets = jets.filter(j => j.remaining > .001);
     for (const s of shells) {
       if(s.weapon==='AA35'){
         const travel=Math.min(dt*s.speed,s.remaining,s.at===undefined?Infinity:Math.max(0,now-s.at)/1000*s.speed);
         if(travel<=0)continue;
         const hit=s.domain==='air'?airRaycast(world,s,s.dx,s.dy,travel,damageTargets()):raycast(world,buildings,s,s.dx,s.dy,travel,damageTargets().filter(isGroundEnemy),.38);
-        shots.push({id:++serial,weapon:'AA35',mount:'aa-tracer',barrel:s.barrel,owner:s.owner,x:s.x,y:s.y,endX:hit.x,endY:hit.y,angle:Math.atan2(s.dx,-s.dy),at:now,domain:s.domain});shots=shots.slice(-64);
+        shots.push({id:++serial,weapon:'AA35',mount:'aa-tracer',sound:null,barrel:s.barrel,owner:s.owner,x:s.x,y:s.y,endX:hit.x,endY:hit.y,angle:Math.atan2(s.dx,-s.dy),at:now,domain:s.domain});shots=shots.slice(-64);
         s.x=hit.x;s.y=hit.y;s.remaining-=travel;
         if(hit.enemy||hit.blocked){s.remaining=0;impact('AA35',s.x,s.y,hit.enemy?[damage(hit.enemy,WEAPONS.AA35.damage,'AA35')]:[]);}
         continue;
       }
       if (s.weapon === 'MAGNETIC') {
+        const first=s.remaining===WEAPONS.MAGNETIC.range;
         const travel = Math.min(dt * s.speed, s.remaining), hit = raycast(world, buildings, s, s.dx, s.dy, travel, damageTargets('MAGNETIC'));
-        shots.push({ id: ++serial, weapon: 'MAGNETIC', owner: s.owner, x: s.x, y: s.y, endX: hit.x, endY: hit.y, angle: Math.atan2(s.dx, -s.dy), at: now }); shots = shots.slice(-64);
+        shots.push({ id: ++serial, weapon: 'MAGNETIC', sound:first?'magnetic-shot':null, first, owner: s.owner, x: s.x, y: s.y, endX: hit.x, endY: hit.y, angle: Math.atan2(s.dx, -s.dy), at: now }); shots = shots.slice(-64);
         s.x = hit.x; s.y = hit.y; s.remaining -= travel;
-        if (hit.enemy || hit.blocked) { impact('MAGNETIC', s.x, s.y, hit.enemy ? [damage(hit.enemy, WEAPONS.MAGNETIC.damage, 'MAGNETIC')] : []); s.remaining = 0; }
+        if (hit.enemy || hit.blocked) { impact('MAGNETIC', s.x, s.y, hit.enemy ? [damage(hit.enemy, WEAPONS.MAGNETIC.damage, 'MAGNETIC')] : [], 0, 1.9, false, 'magnetic-impact'); s.remaining = 0; }
         continue;
       }
       // Small substeps prevent fast shells tunnelling through a robot or a rock.
@@ -874,7 +922,7 @@ export function createCombat(world, saved = null, auditContext = null, encounter
         }
         if (s.weapon === 'HE') hits.push(...damageSites(world.sites, s.x, s.y, s.blast, now, blastDamage));
         objectiveHits(s, hits);
-        impact(s.weapon, s.x, s.y, hits, s.blast?.radius || 0);
+        impact(s.weapon, s.x, s.y, hits, s.blast?.radius || 0, 1.9, false, s.impactSound||(s.weapon==='HE'?'tank-impact':null));
       }
     }
     shells = shells.filter(s => s.remaining > 0);
@@ -924,8 +972,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     const error=helicopterFireError(world,plane,target,rocket);if(error)return error;
     if(salvos.length>=JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
     const profile=rocket?HELI_ROCKET:HELI_CANNON,point=helicopterPoint(world,plane,target,rocket),id=++serial;
-    salvos.push({id,kind:rocket?'heli-rocket':'strafe',weapon:'HE',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.turret,elapsed:0,duration:profile.flight,profile:{...profile}});
-    shots.push({id,weapon:rocket?'HE':'APCR',owner:plane.id,x:plane.x,y:plane.y,angle:plane.turret,at:now});
+    salvos.push({id,kind:rocket?'heli-rocket':'strafe',weapon:'HE',impactSound:rocket?'rocket-impact':'heli-cannon-impact',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.turret,elapsed:0,duration:profile.flight,profile:{...profile}});
+    shots.push({id,weapon:rocket?'HE':'APCR',sound:rocket?'rocket-shot':'heli-cannon-shot',owner:plane.id,x:plane.x,y:plane.y,angle:plane.turret,at:now});
     spendHelicopterShot(plane,rocket);return null;
   }
   function gunshipFire(plane,target,weapon){
@@ -933,8 +981,8 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     if(salvos.length>=JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
     const profile=GUNSHIP_GUNS[weapon],id=++serial,angle=Math.atan2(target.x-plane.x,plane.y-target.y);
     const x=plane.x-Math.cos(plane.angle)*.35,y=plane.y-Math.sin(plane.angle)*.35;
-    salvos.push({id,kind:weapon==='25'?'jet-burst':'strafe',weapon:'HE',owner:plane.id,x,y,targetX:target.x,targetY:target.y,angle,elapsed:0,duration:profile.flight,profile:{...profile}});
-    shots.push({id,weapon:'APCR',mount:'air-gunship-'+weapon,owner:plane.id,x,y,angle,at:now});shots=shots.slice(-64);
+    salvos.push({id,kind:weapon==='25'?'jet-burst':'strafe',weapon:'HE',impactSound:'gunship-'+weapon+'-impact',owner:plane.id,x,y,targetX:target.x,targetY:target.y,angle,elapsed:0,duration:profile.flight,profile:{...profile}});
+    shots.push({id,weapon:'APCR',mount:'air-gunship-'+weapon,sound:'gunship-'+weapon+'-shot',owner:plane.id,x,y,angle,at:now});shots=shots.slice(-64);
     plane.gunshipCooldowns ||= {};plane.gunshipCooldowns[weapon]=profile.cooldown;plane.gunshipWeapon=weapon;return null;
   }
   function strafe(plane,rapid=false){
@@ -944,9 +992,9 @@ export function createCombat(world, saved = null, auditContext = null, encounter
     if(salvos.length+points.length>JET.maxRounds)return 'Air-to-ground projectile capacity reached.';
     if(points.some(p=>p.x<profile.radius||p.y<profile.radius||p.x>world.width-profile.radius||p.y>world.height-profile.radius))return 'Keep every impact inside the map.';
     for(const point of points){const id=++serial;
-      salvos.push({id,kind:rapid?'jet-burst':'strafe',weapon:'HE',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.angle,elapsed:0,duration:profile.flight,profile:{...profile}});
+      salvos.push({id,kind:rapid?'jet-burst':'strafe',weapon:'HE',impactSound:rapid?'jet-30-impact':'jet-40-impact',owner:plane.id,x:plane.x,y:plane.y,targetX:point.x,targetY:point.y,angle:plane.angle,elapsed:0,duration:profile.flight,profile:{...profile}});
     }
-    shots.push({id:serial,weapon:'APCR',mount:rapid?'jet-30mm':'jet-cannon',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});shots=shots.slice(-64);
+    shots.push({id:serial,weapon:'APCR',mount:rapid?'jet-30mm':'jet-cannon',sound:rapid?'jet-30-shot':'jet-40-shot',owner:plane.id,x:plane.x,y:plane.y,angle:plane.angle,at:now});shots=shots.slice(-64);
     cooldowns.set(key,now+profile.cooldown);return null;
   }
   return { checkpoint, strikeRollback, drainEvents, startFrenzy, orbitalOrder, rollbackOrbital, gunshipFire:track(gunshipFire), helicopterFire:track(helicopterFire), strafe: track(strafe), bombRun: track(bombRun), snapshot, shoot: track(shoot), lob: track(lob), macFire: track(macFire), navalSalvo: track(navalSalvo), navalSecondary, submarineStrike: track(submarineStrike), barrage: track(barrage), start, contact, tick, cancelCharge: owner => { charges = charges.filter(c => c.owner !== owner); } };

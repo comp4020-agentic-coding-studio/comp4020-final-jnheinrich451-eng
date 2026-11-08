@@ -1,3 +1,4 @@
+import { runwayPoint, runwaySize } from './runway.js';
 // Static, deterministic wreckage: no particles, timers or extra saved entities.
 // Coordinates are centred rectangles, matching dock geometry and runway bounds.
 export function drawRuinedSlab(c,rect,T,zoom,metal=false){
@@ -26,12 +27,13 @@ export function drawRuinedSlab(c,rect,T,zoom,metal=false){
   c.restore();
 }
 
+// One strip at a time: a double airbase ruins as two runways, as it stood.
 export function drawRuinedAirfield(c,b,T,zoom,helipad=false){
-  const width=helipad?3:6,height=helipad?3:10;
-  drawRuinedSlab(c,{x:b.x+width/2,y:b.y+height/2,w:width,h:height},T,zoom);
-  c.save();c.translate(b.x*T,b.y*T);c.strokeStyle='#9b7159';c.lineWidth=.12*T;
+  const strip=helipad?{width:3,height:3}:runwaySize({turned:b.turned}),across=helipad?3:6;
+  drawRuinedSlab(c,{x:b.x+strip.width/2,y:b.y+strip.height/2,w:strip.width,h:strip.height},T,zoom);
+  c.save();c.strokeStyle='#9b7159';c.lineWidth=.12*T;
   // Closed-runway crosses replace the landing lights and healthy markings.
-  for(const y of helipad?[1.5]:[2,7.5]){const x=helipad?1.5:2;c.beginPath();c.moveTo((x-.65)*T,(y-.65)*T);c.lineTo((x+.65)*T,(y+.65)*T);c.moveTo((x+.65)*T,(y-.65)*T);c.lineTo((x-.65)*T,(y+.65)*T);c.stroke();}
+  for(const y of helipad?[1.5]:[2,7.5]){const p=helipad?{x:b.x+1.5,y:b.y+y}:runwayPoint(b,2,y),x=p.x*T,v=p.y*T,r=.65*T;c.beginPath();c.moveTo(x-r,v-r);c.lineTo(x+r,v+r);c.moveTo(x+r,v-r);c.lineTo(x-r,v+r);c.stroke();}
   c.restore();
-  if(!helipad)drawRuinedSlab(c,{x:b.x+5,y:b.y+2.5,w:2,h:3},T,zoom,true);
+  if(!helipad)drawRuinedSlab(c,{...runwayPoint(b,5,2.5),w:b.turned?3:2,h:b.turned?2:3},T,zoom,true);
 }

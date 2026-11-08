@@ -1,0 +1,15 @@
+{
+  "title": "Cuculidae drop pod, top view",
+  "author": "Project author's concept art, supplied 2 November 2026",
+  "license": "Used with the project author's permission for this game; not separately licensed",
+  "source": "Local design sheet output/video-frames/cuculidae-droppod-design-sheet-v1.png (ignored, 2172 x 724)",
+  "sourceSha256": "91c9a0d866a7a3c3efcdfc28e181b079a3a291d1b390add5cd780483f06a998e",
+  "export": "TOP view only, cut to its alpha bounds (origin 93,31, 569 x 574), centred on a square and scaled to 320 x 320 for the entry dive.",
+  "files": [
+    {
+      "file": "cuculidae-pod-top.png",
+      "sha256": "87bda1c2f3f47c4950c8b0667e78e1a212f2b189b8c21b1b2d18b2740e28fb9f",
+      "modified": true
+    }
+  ]
+}

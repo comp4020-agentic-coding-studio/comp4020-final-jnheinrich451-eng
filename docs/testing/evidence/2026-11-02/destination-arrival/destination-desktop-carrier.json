@@ -1,0 +1,73 @@
+{
+  "scale": {
+    "previousLength": 401.2,
+    "renderedLength": 320.96000000000004,
+    "ratio": 0.8000000000000002
+  },
+  "engines": [
+    {
+      "count": 38,
+      "strength": 2896
+    },
+    {
+      "count": 41,
+      "strength": 3125
+    },
+    {
+      "count": 40,
+      "strength": 3068
+    },
+    {
+      "count": 37,
+      "strength": 2872
+    },
+    {
+      "count": 39,
+      "strength": 3033
+    },
+    {
+      "count": 38,
+      "strength": 2923
+    },
+    {
+      "count": 39,
+      "strength": 3000
+    },
+    {
+      "count": 40,
+      "strength": 3022
+    },
+    {
+      "count": 38,
+      "strength": 2874
+    },
+    {
+      "count": 38,
+      "strength": 2826
+    },
+    {
+      "count": 37,
+      "strength": 2747
+    },
+    {
+      "count": 36,
+      "strength": 2680
+    },
+    {
+      "count": 38,
+      "strength": 2787
+    },
+    {
+      "count": 41,
+      "strength": 3011
+    },
+    {
+      "count": 41,
+      "strength": 3018
+    },
+    {
+      "count": 40,
+      "strength": 2998
+    }
+  ]
+}

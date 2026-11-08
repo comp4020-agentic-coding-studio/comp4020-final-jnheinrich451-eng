@@ -139,6 +139,11 @@ carrier launch, Escape, reload and phone landscape. Evidence is under
 `.local/remote-naval-*` and `.local/naval-remote-*`. Local functional checks do not
 establish sustained combat capacity on the Fly machine.
 
+## Dock visits, 2 November 2026
+
+RMB on a free friendly dock moors the ship there and changes no assignment
+([Join arrival and runways](JOIN_ARRIVAL_AND_RUNWAYS.md)). Return still goes home.
+
 ## Transport update, 24 October 2026
 
 The transport's single turret is now a stern triple turret

@@ -8,6 +8,7 @@ import { depthState, diveBattery, DIVE } from './submarine-depth.js';
 import { SHIP, hull, hullCells, shipName, shipKind, dockRects, dockComplete } from './ship.js';
 import { mainMounts, mainBarrels, SIDE_MOUNTS, secondaryMounts, secondaryAngle } from './ship-armament.js';
 import { hullPoint } from './vehicle.js';
+import { capsuleDescent } from './reentry-art.js';
 import { CoreEffects } from './core-effects.js';
 import { drawRuinedSlab } from './facility-ruins.js';
 import { drawShipWater, drawShipExhaust, drawDiveBubbles } from './ship-water-effects.js';
@@ -87,9 +88,11 @@ export class ShipEffects extends CoreEffects {
     if(s.dockStyle==='unfolding'){
       const T=this.tile;
       if(time<SHIP.impact){
-        const fall=1-clamp(time/SHIP.impact)**2;c.save();c.translate(s.dock.x*T,s.dock.y*T);
-        c.fillStyle='#112b3855';c.beginPath();c.ellipse(0,0,T*.6,T*.35,0,0,Math.PI*2);c.fill();if(!reduced)c.translate(fall*5*T,-fall*9*T);
-        if(!reduced){c.strokeStyle='#f3d89b77';c.lineWidth=T*.3;c.beginPath();c.moveTo(0,0);c.lineTo(fall*2*T,-fall*3*T);c.stroke();}
+        c.save();c.translate(s.dock.x*T,s.dock.y*T);
+        c.fillStyle='#112b3855';c.beginPath();c.ellipse(0,0,T*.6,T*.35,0,0,Math.PI*2);c.fill();
+        // Re-entry along the planet's orbital track, braking to a retro-rocket touchdown.
+        const pose=capsuleDescent(c,T,{id:'dock:'+s.id,x:s.dock.x,y:s.dock.y,s:clamp(time/SHIP.impact),duration:SHIP.impact,height:10,body:.5},reduced);
+        if(!reduced)c.translate(pose.x*T,pose.y*T);
         c.scale(1/3,1/3);this.box(c,0);c.restore();
       }else if(time<SHIP.impact+.7&&!reduced){
         const a=(time-SHIP.impact)/.7;c.save();c.strokeStyle=`rgba(226,206,162,${1-a})`;c.lineWidth=3;c.beginPath();c.ellipse(s.dock.x*T,s.dock.y*T,T*(.5+a*1.4),T*(.3+a*.7),0,0,Math.PI*2);c.stroke();c.restore();

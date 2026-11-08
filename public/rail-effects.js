@@ -3,6 +3,7 @@ import { MAC } from './weapons.js';
 import { turnTurret } from './turret.js';
 import { isCurve, isCompact, railPorts, CURVES, curveEnds } from './track.js';
 import { POD } from './pod.js';
+import { capsuleDescent } from './reentry-art.js';
 
 // Purely cosmetic: accepted rails retain their existing immediate availability.
 // The saved cargo clock prevents a new descent when a spectator joins/reloads.
@@ -13,9 +14,10 @@ export function drawRailDelivery(c,p,time,tile,cargo,reduced,rails) {
     if(time>=POD.impact){c.save();c.translate(p.x*tile,p.y*tile);cargo.metal(c,1,1);c.restore();}
     if(reveal>0){c.save();c.globalAlpha=reveal;drawRail(c,rail,tile);c.restore();}
     if(reveal<1){
-      const fall=time<POD.impact?1-Math.min(1,time/POD.impact)**2:0;
-      c.save();c.translate((p.x+.5)*tile,(p.y+.5)*tile);c.globalAlpha=1-reveal;
-      if(!reduced){c.translate(fall*5*tile,-fall*9*tile);c.scale(1+fall*.3,1+fall*.3);}
+      c.save();c.translate((p.x+.5)*tile,(p.y+.5)*tile);
+      const pose=time<POD.impact?capsuleDescent(c,tile,{id:'rail:'+p.id,x:p.x+.5,y:p.y+.5,s:Math.min(1,time/POD.impact),duration:POD.impact,height:10,body:.5,grow:.3},reduced):null;
+      c.globalAlpha=1-reveal;
+      if(!reduced&&pose){c.translate(pose.x*tile,pose.y*tile);c.scale(1+pose.a*.3,1+pose.a*.3);}
       c.scale(1/3,1/3);cargo.box(c,Math.max(0,time-POD.impact));c.restore();
     }
     const age=time-POD.impact;
@@ -41,9 +43,10 @@ export function drawRailDelivery(c,p,time,tile,cargo,reduced,rails) {
   }
   const open=smooth((time-POD.unfold)/POD.panelDuration);
   if(open<1){
-    const fall=time<POD.impact?1-Math.min(1,time/POD.impact)**2:0;
-    c.save();c.translate((p.x+.5)*tile,(p.y+.5)*tile);c.globalAlpha=1-open;
-    if(!reduced){c.translate(fall*5*tile,-fall*9*tile);c.scale(1+fall*.3,1+fall*.3);}
+    c.save();c.translate((p.x+.5)*tile,(p.y+.5)*tile);
+    const pose=time<POD.impact?capsuleDescent(c,tile,{id:'rail:'+p.id,x:p.x+.5,y:p.y+.5,s:Math.min(1,time/POD.impact),duration:POD.impact,height:10,body:.5,grow:.3},reduced):null;
+    c.globalAlpha=1-open;
+    if(!reduced&&pose){c.translate(pose.x*tile,pose.y*tile);c.scale(1+pose.a*.3,1+pose.a*.3);}
     c.scale(1/3,1/3);cargo.box(c,Math.max(0,time-POD.impact));c.restore();
   }
   if(!reduced)for(const at of [POD.impact,POD.unfold+POD.panelDuration,POD.unfold+2*POD.panelDuration]){

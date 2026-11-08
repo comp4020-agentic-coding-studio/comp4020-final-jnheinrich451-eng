@@ -4,7 +4,8 @@ export const HE = Object.freeze({ label: 'Cannon', radius: 2.1, lethalRadius: .6
 export const APCR = Object.freeze({ label: 'Machine gun', radius: 0, damage: 18, speed: 28, cooldown: 120, range: 14 });
 export const AA35 = Object.freeze({ label: 'Twin 35 mm', radius: 0, damage: 20, speed: 70, cooldown: 125, range: 26, burst: 1 });
 export const NAVAL_APCR = Object.freeze({label:'Side gun',radius:0,damage:10,speed:36,cooldown:180,range:8});
-export const FLAME = Object.freeze({ label: 'Fuel jet', radius: 0, range: 5, speed: 10, cooldown: 100, width: .16 });
+// The robot's jet reaches 7.5 tiles (author, 9 November 2026; 5 before). Heavy fuel keeps its own 8.
+export const FLAME = Object.freeze({ label: 'Fuel jet', radius: 0, range: 7.5, speed: 10, cooldown: 100, width: .16 });
 export const HEAVY_FLAME = Object.freeze({ ...FLAME, label: 'Heavy fuel jet', range: 8, speed: 14, width: .2 });
 export const LASER = Object.freeze({ label: 'Laser rifle', radius: 0, range: 32, damage: 24, cooldown: 300, burnDps: 10, burnDuration: 2400 });
 export const MAGNETIC = Object.freeze({ label: 'Magnetic cannon', radius: 0, range: 24, speed: 120, damage: 180, charge: 1000, cooldown: 2500 });

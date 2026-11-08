@@ -3,28 +3,30 @@
 import { colonyPlanetById } from './colony-planets.js';
 import { AMBIENCE, LIGHTING_PRESETS, WEATHER_PRESETS, defaultEnvironment, decorationItems,
   decorationCells, decorationAt, cinemaPosition, tickCinema } from './colony-ambience.js';
+import { INDUSTRY, industryItems, industryAt, machineCells, industryPlacementError,
+  isIndustryAction, industryAction, tickIndustry } from './colony-industry.js';
+import { CROPS, cropById, bedReady } from './colony-crops.js';
+import { industryStored } from './colony-industry.js';
+import { settlementDefinition, settlementItems, settlementCells, settlementAt, settlementPlacementError,
+  isSettlementAction, settlementAction, tickSettlement } from './colony-settlement.js';
+import { tickIrrigation } from './colony-machinery.js';
+import { createGround, groundPlacementError, tickGround } from './colony-ground.js';
+import { isPetAction, petAction } from './colony-pet.js';
+import { unloadCrates, collectCrate, cratePlacementError, tickCollectors } from './colony-crates.js';
+export { CROPS, cropById, bedReady } from './colony-crops.js';
 
 export const COLONY = Object.freeze({
   width: 72, height: 56, surveyRadius: 14,
   bedCost: 6, sprinklerCost: 12, sprinklerRadius: 5,
   waterDuration: 90, bedLimit: 16, sprinklerLimit: 8,
-  storageCapacity: 99, shipmentDuration: 8, shipmentReward: 16,
+  // A parcel earns 8 materials per crop and 12 per provision (two crops still make the
+  // original 16-material sample box). The 14 s trip leaves room for the launch and landing.
+  storageCapacity: 99, shipmentDuration: 14, shipmentReward: 16, cropReward: 8, provisionReward: 12,
   robotSpeed: 3.5, robotRadius: .24,
 });
 
-export const CROPS = Object.freeze([
-  Object.freeze({ id: 'sundrop', name: 'Sundrop', growTime: 45, yield: 2, regrows: false,
-    color: '#efac4e', description: 'Golden little bulbs. A quick first harvest for your orbital sample box.' }),
-  Object.freeze({ id: 'moonberry', name: 'Moonberry', growTime: 90, yield: 3, regrows: true,
-    color: '#ac8bc4', description: 'A soft purple shrub that grows another harvest after picking.' }),
-  Object.freeze({ id: 'cloudmelon', name: 'Cloudmelon', growTime: 150, yield: 5, regrows: false,
-    color: '#a5c781', description: 'A plump striped melon. Slow and sweet, with a generous harvest.' }),
-]);
-
 const planets = { 'caldera-v1': 'Caldera', 'vesper-v1': 'Vesper', 'sirocco-v1': 'Sirocco' };
 const reject = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
-export const cropById = id => CROPS.find(crop => crop.id === id) || null;
-export const bedReady = bed => !!bed && !!cropById(bed.crop) && bed.growth >= cropById(bed.crop).growTime - 1e-8;
 
 // The new civilian districts have separate geography, not recolored military
 // shorelines. Their starter clearing remains continuous and comfortably usable.
@@ -92,7 +94,7 @@ export function createColony(template = 'caldera-v1') {
     // Every template admits the same complete starter garden and walking room.
     if (Math.hypot(x + .5 - 36, y + .5 - 28) <= 16) terrain[i] = variant === 2 ? 1 : 2;
   }
-  return {
+  const state = {
     version: 1, mode: 'colonization', template, time: 0, revision: 0, nextId: 1,
     world: { version: 1, id: `colony-${template}`, template, name: civilian?.name || planets[template],
       district: civilian?.district || 'Firstlight Meadow', width, height, terrain, spawn: { x: 36.5, y: 31.5 } },
@@ -112,6 +114,8 @@ export function createColony(template = 'caldera-v1') {
     milestones: { firstPlant: false, firstHarvest: false, firstShipment: false },
     decorations: { pennant: false },
   };
+  // Ground is the last field: the starting clearing and every footprint begin conditioned.
+  return { ...state, ground: createGround(state) };
 }
 
 const hubCell = (state, x, y) => x >= state.hub.x - 1 && x < state.hub.x + 1 && y >= state.hub.y - 1 && y < state.hub.y + 1;
@@ -121,12 +125,12 @@ const land = (world, x, y) => x >= 0 && y >= 0 && x < world.width && y < world.h
 
 /** The ship always supplies the first bed, even after spending the starter kit. @param {any} state */
 export const colonyBuildCost = (state, kind) => kind === 'bed' ? state.beds.length === 0 ? 0 : COLONY.bedCost
-  : kind === 'sprinkler' ? COLONY.sprinklerCost : 0;
+  : kind === 'sprinkler' ? COLONY.sprinklerCost : settlementDefinition(kind)?.cost ?? INDUSTRY.kinds[kind]?.cost ?? 0;
 
 const routeCaches = new WeakMap();
 function reachableGround(state, added = []) {
   const { width, height } = state.world, visited = new Uint8Array(width * height), queue = new Int32Array(width * height);
-  const blocks = new Set([...decorationItems(state).flatMap(item => decorationCells(item.kind, item.x, item.y)), ...added].map(cell => cell.y * width + cell.x));
+  const blocks = new Set([...decorationItems(state).flatMap(item => decorationCells(item.kind, item.x, item.y)), ...industryItems(state).filter(item => item.kind !== 'belt').flatMap(item => machineCells(item.kind, item.x, item.y)), ...settlementItems(state).filter(item => settlementDefinition(item.kind)?.solid).flatMap(item => settlementCells(item)), ...added].map(cell => cell.y * width + cell.x));
   const sx = Math.floor(state.world.spawn.x), sy = Math.floor(state.world.spawn.y);
   const canVisit = (x, y) => land(state.world, x, y) && !hubCell(state, x, y) && !blocks.has(y * width + x);
   if (!canVisit(sx, sy)) return { count: 0, visited };
@@ -143,7 +147,7 @@ function reachableGround(state, added = []) {
 function blocksRoute(state, kind, x, y) {
   // The world is immutable. Cache repeated placement previews, invalidating
   // when any solid decoration changes. Moving workers are checked separately.
-  const signature = `${state.world.version}:` + decorationItems(state).map(d => `${d.kind}:${d.x}:${d.y}`).join('|');
+  const signature = `${state.world.version}:` + [...decorationItems(state), ...industryItems(state).filter(item => item.kind !== 'belt'), ...settlementItems(state)].map(d => `${d.kind}:${d.x}:${d.y}:${d.dir || 0}`).join('|');
   let cached = routeCaches.get(state.world);
   if (!cached || cached.signature !== signature) {
     cached = { signature, baseline: reachableGround(state), sites: new Map() }; routeCaches.set(state.world, cached);
@@ -160,6 +164,9 @@ function blocksRoute(state, kind, x, y) {
 
 /** @param {any} state */
 export function colonyPlacementError(state, kind, x, y) {
+  if (state.regionId && state.regionId !== 'home') return 'Return to your home district to build.';
+  if (settlementDefinition(kind)) return settlementPlacementError(state, kind, x, y);
+  if (Object.hasOwn(INDUSTRY.kinds, kind)) return industryPlacementError(state, kind, x, y);
   if (!['bed', 'sprinkler', 'campfire', 'cinema'].includes(kind)) return 'Choose a garden bed, sprinkler or camp item.';
   if (!Number.isInteger(x) || !Number.isInteger(y)) return 'Choose a whole tile inside the surveyed garden.';
   if (kind === 'bed' && state.beds.length >= COLONY.bedLimit) return `This expedition has room for ${COLONY.bedLimit} beds.`;
@@ -169,13 +176,18 @@ export function colonyPlacementError(state, kind, x, y) {
   const radius = kind === 'bed' ? 1 : 0;
   const cells = decorative ? decorationCells(kind, x, y) : Array.from({ length: (radius * 2 + 1) ** 2 }, (_, i) => ({ x: x - radius + i % (radius * 2 + 1), y: y - radius + Math.floor(i / (radius * 2 + 1)) }));
   for (const { x: tx, y: ty } of cells) {
-    if (Math.hypot(tx + .5 - state.hub.x, ty + .5 - state.hub.y) > COLONY.surveyRadius) return 'Keep the whole footprint inside the surveyed garden.';
+    // Camp items keep the survey radius; beds and sprinklers are bounded by conditioned ground instead.
+    if (decorative && Math.hypot(tx + .5 - state.hub.x, ty + .5 - state.hub.y) > COLONY.surveyRadius) return 'Keep the whole footprint inside the surveyed garden.';
     if (!land(state.world, tx, ty)) return 'Choose clear, firm ground for the whole footprint.';
-    if (hubCell(state, tx, ty) || padCell(state, tx, ty) || state.beds.some(b => bedCell(b, tx, ty)) || state.sprinklers.some(s => s.x === tx && s.y === ty) || decorationAt(state, tx, ty)) return 'Leave room around the hub, shuttle pad and existing garden equipment.';
+    if (hubCell(state, tx, ty) || padCell(state, tx, ty) || state.beds.some(b => bedCell(b, tx, ty)) || state.sprinklers.some(s => s.x === tx && s.y === ty) || decorationAt(state, tx, ty) || industryAt(state, tx, ty) || settlementAt(state, tx, ty)) return 'Leave room around the hub, shuttle pad and existing garden equipment.';
     if (decorative && Math.abs(tx + .5 - state.world.spawn.x) < 1.5 && Math.abs(ty + .5 - state.world.spawn.y) < 1.5) return 'Leave the arrival area clear.';
     if (decorative && (state.players || []).some(p => Math.abs(p.x - (tx + .5)) < .5 + COLONY.robotRadius && Math.abs(p.y - (ty + .5)) < .5 + COLONY.robotRadius)) return 'Move the worker clear of this camp site.';
   }
   if (decorative && blocksRoute(state, kind, x, y)) return 'Keep a walking route open around the camp.';
+  const crateError = cratePlacementError(state, cells);
+  if (crateError) return crateError;
+  const groundError = groundPlacementError(state, cells);
+  if (groundError) return groundError;
   const cost = colonyBuildCost(state, kind);
   return state.materials < cost ? `You need ${cost} materials. Send a sample box to request more.` : null;
 }
@@ -194,6 +206,21 @@ export const colonyStored = state => CROPS.reduce((sum, crop) => sum + (state.st
 export function colonyAction(state, actor, action, data = {}) {
   if (!actor || typeof actor.id !== 'string' || !actor.id.trim()) reject('Join the expedition before tending its garden.', 403);
   if (!data || typeof data !== 'object' || Array.isArray(data)) reject('Use a valid garden command.', 400);
+  if (isSettlementAction(action)) {
+    const result = settlementAction(state, actor, action, data);
+    state.revision++;
+    return result;
+  }
+  if (isPetAction(action)) {
+    const result = petAction(state, actor, action, data);
+    state.revision++;
+    return result;
+  }
+  if (isIndustryAction(action)) {
+    const result = industryAction(state, actor, action, data);
+    state.revision++;
+    return result;
+  }
   let message, targetId;
   if (action === 'set-environment') {
     if (!actor.isHost) reject('Only the expedition host can change the shared atmosphere.', 403);
@@ -210,7 +237,7 @@ export function colonyAction(state, actor, action, data = {}) {
     if (error) reject(error);
     targetId = `${kind}-${state.nextId++}`;
     state.decorations ||= { pennant: false }; state.decorations.items ||= [];
-    state.decorations.items.push({ id: targetId, kind, x: data.x, y: data.y, lit: true, revision: 0 });
+    state.decorations.items.push({ id: targetId, kind, x: data.x, y: data.y, lit: true, revision: 0, builtAt: state.time });
     if (kind === 'cinema') state.cinema = { revision: 0, playing: false, position: 0, startedAt: state.time };
     message = kind === 'campfire' ? 'A warm place to gather.' : 'Outdoor cinema ready. Choose Play in Camp.';
   } else if (action === 'toggle-campfire' || action === 'remove-decoration') {
@@ -242,10 +269,10 @@ export function colonyAction(state, actor, action, data = {}) {
     const cost = colonyBuildCost(state, kind);
     targetId = `${kind}-${state.nextId++}`;
     if (kind === 'bed') {
-      state.beds.push({ id: targetId, x: data.x, y: data.y, crop: null, growth: 0, water: 0, harvests: 0, revision: 0 });
+      state.beds.push({ id: targetId, x: data.x, y: data.y, crop: null, growth: 0, water: 0, harvests: 0, revision: 0, builtAt: state.time });
       state.materials -= cost; message = 'Your new bed is ready for seeds.';
     } else {
-      state.sprinklers.push({ id: targetId, x: data.x, y: data.y });
+      state.sprinklers.push({ id: targetId, x: data.x, y: data.y, builtAt: state.time });
       state.materials -= COLONY.sprinklerCost; message = 'Sprinkler installed. Nearby beds will stay watered.';
     }
   } else if (['plant', 'water', 'harvest', 'clear'].includes(action)) {
@@ -281,19 +308,49 @@ export function colonyAction(state, actor, action, data = {}) {
     }
     bed.revision++;
   } else if (action === 'ship') {
-    if (state.shipment) reject('Your shuttle is already carrying a sample box.');
-    // A simple repeatable starter order keeps the loop renewable. Every crop
-    // can supply two samples, so a mature shrub cannot strand a full store.
-    const selected = data.crop === undefined ? CROPS.find(c => state.storage[c.id] >= 2) : cropById(data.crop);
-    if (!selected || state.storage[selected.id] < 2) reject('Harvest two matching crops for a sample box.');
+    if (state.shipment) reject('Your shuttle is already carrying a parcel.');
+    const cargo = parcel(state, data);
     targetId = `shipment-${state.nextId++}`;
-    state.storage[selected.id] -= 2;
-    state.shipment = { id: targetId, remaining: COLONY.shipmentDuration, duration: COLONY.shipmentDuration,
-      cargo: { [selected.id]: 2 }, reward: COLONY.shipmentReward };
-    message = 'Sample box sent. Your shuttle will return with building materials.';
+    let reward = 0, count = 0;
+    for (const [item, amount] of Object.entries(cargo)) {
+      if (item === 'provisions') state.industry.storage.provisions -= amount; else state.storage[item] -= amount;
+      reward += amount * (item === 'provisions' ? COLONY.provisionReward : COLONY.cropReward); count += amount;
+    }
+    state.shipment = { id: targetId, remaining: COLONY.shipmentDuration, duration: COLONY.shipmentDuration, cargo, reward };
+    message = `Parcel launched with ${count} ${count === 1 ? 'item' : 'items'}. The shuttle will return with ${reward} materials.`;
+  } else if (action === 'collect-crate') {
+    if (typeof data.crateId !== 'string') reject('Choose a crate to collect.', 400);
+    targetId = data.crateId;
+    message = collectCrate(state, actor, data.crateId).message;
   } else reject('Unknown garden command.', 400);
   state.revision++;
   return { ok: true, message, targetId };
+}
+
+/** What can ride the shuttle: every crop and the industry's provisions. */
+export const SHIPPABLE = Object.freeze([...CROPS.map(crop => crop.id), 'provisions']);
+/**
+ * The parcel a ship order asks for. No cargo means everything in the reserve; `cargo`
+ * names an amount per item (0 to all stored); an old client's `crop` sends two of it.
+ * @param {any} state @param {any} data
+ */
+export function parcel(state, data = {}) {
+  /** @type {Record<string, number>} */
+  const cargo = {};
+  if (data.cargo !== undefined) {
+    if (!data.cargo || typeof data.cargo !== 'object' || Array.isArray(data.cargo)) reject('Choose what to send.', 400);
+    for (const [item, amount] of Object.entries(data.cargo)) {
+      if (!SHIPPABLE.includes(item) || !Number.isInteger(amount) || amount < 0) reject('Choose a valid amount of each cargo.', 400);
+      if (amount > industryStored(state, item)) reject('The reserve does not hold that much. Please try again.');
+      if (amount) cargo[item] = amount;
+    }
+  } else if (data.crop !== undefined) {
+    const crop = cropById(data.crop);
+    if (!crop || state.storage[crop.id] < 2) reject('Harvest two matching crops for a sample box.');
+    cargo[crop.id] = 2;
+  } else for (const item of SHIPPABLE) { const stored = industryStored(state, item); if (stored > 0) cargo[item] = stored; }
+  if (!Object.keys(cargo).length) reject(data.cargo === undefined ? 'Harvest some crops or make provisions to fill a parcel.' : 'Choose at least one item to send.');
+  return cargo;
 }
 
 /**
@@ -305,17 +362,24 @@ export function tickColony(state, dt) {
   if (!Number.isFinite(dt) || dt <= 0) return false;
   state.time += dt;
   tickCinema(state);
-  for (const bed of state.beds) {
-    const irrigated = state.sprinklers.some(s => Math.hypot(s.x - bed.x, s.y - bed.y) <= COLONY.sprinklerRadius);
-    const wetTime = irrigated ? dt : Math.min(dt, bed.water);
-    const crop = cropById(bed.crop);
-    if (crop) bed.growth = Math.min(crop.growTime, bed.growth + wetTime);
-    bed.water = irrigated ? COLONY.waterDuration : Math.max(0, bed.water - dt);
+  const steps = state.industry || state.template === 'morrow-v1' ? Math.ceil(dt / .25) : 1, interval = dt / steps;
+  for (let step = 0; step < steps; step++) {
+    const wetTimes = tickIrrigation(state, interval);
+    for (const bed of state.beds) {
+      const wetTime = wetTimes.get(bed.id) || 0;
+      const crop = cropById(bed.crop);
+      if (crop) bed.growth = Math.min(crop.growTime, bed.growth + wetTime);
+    }
+    tickIndustry(state, interval, CROPS);
   }
+  tickSettlement(state, dt);
+  tickGround(state, dt);
+  tickCollectors(state, dt);
   if (state.shipment) {
     state.shipment.remaining = Math.max(0, state.shipment.remaining - dt);
     if (state.shipment.remaining === 0) {
-      state.materials += state.shipment.reward;
+      // The reward lands as crates beside the pad; whatever cannot land is credited at once.
+      unloadCrates(state, state.shipment.reward);
       state.shipments++;
       state.milestones.firstShipment = true;
       state.decorations.pennant = true;
@@ -330,7 +394,8 @@ export function colonyCanStand(state, x, y) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   const r = COLONY.robotRadius;
   for (let ty = Math.floor(y - r); ty <= Math.floor(y + r); ty++) for (let tx = Math.floor(x - r); tx <= Math.floor(x + r); tx++) {
-    if (!land(state.world, tx, ty) || hubCell(state, tx, ty) || decorationAt(state, tx, ty)) return false;
+    const machine = industryAt(state, tx, ty);
+    if (!land(state.world, tx, ty) || hubCell(state, tx, ty) || decorationAt(state, tx, ty) || settlementAt(state, tx, ty, { solidOnly: true }) || (machine && machine.kind !== 'belt')) return false;
   }
   return true;
 }

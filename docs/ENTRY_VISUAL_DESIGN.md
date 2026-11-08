@@ -93,7 +93,8 @@ Escape backs out of a view without submitting forms or silently signing out.
 
 Selecting an existing save always uses that save's planet, identity and progress.
 Do not reinterpret a Caldera save as Vesper because the last viewed globe changed.
-The current account limit is three owned campaigns, not three slots per planet;
+The account limit is three owned saves per mode (war zone and colonization,
+since 8 November 2026), not three slots per planet;
 the save presentation must explain the existing limit without deleting anything.
 Room-full, owner-offline, unavailable save and expired-session states stay on the
 appropriate view with a useful recovery action.
@@ -641,6 +642,11 @@ measurement yet.
   with no page errors.
 - The game was ready about 430 to 480 ms after navigation on localhost. Over the
   network this gap is unmeasured; the words on the cover appear after 3 seconds.
+
+### Join arrival and top-down pod: 2 November 2026
+
+[Join arrival and runways](JOIN_ARRIVAL_AND_RUNWAYS.md) adds a warp to Join and
+replaces the side-on canister and comet tail below with a top-down pod and heat ring.
 
 ### Ship size and dive frame pacing: 31 October 2026
 

@@ -1,5 +1,6 @@
 import { CORE } from './core.js';
 import { podCells } from './pod.js';
+import { altitude, capsuleDescent } from './reentry-art.js';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
@@ -39,16 +40,12 @@ export class CoreEffects {
     const T = this.tile, size = this.size, length = this.length, half = size / 2, cx = (core.x + half) * T, cy = (core.y + half) * T;
     c.save(); c.translate(cx, cy);
     if (time < CORE.impact) {
-      const descent = clamp(time / CORE.impact);
+      // Re-entry along the planet's orbital track: plasma, braking, retro burn.
+      const s = clamp(time / CORE.impact), descent = 1 - altitude('pod', s);
       c.fillStyle = `rgba(12,27,28,${.1 + descent * .25})`; c.beginPath(); c.ellipse(0, 0, T * (2.4 - descent), T * (1.9 - descent * .6), 0, 0, Math.PI * 2); c.fill();
       c.strokeStyle = '#f1ca7c'; c.lineWidth = 2; c.setLineDash([8, 8]); c.strokeRect(-(half + .2) * T, -(half + .2) * T, (size + .4) * T, (size + .4) * T); c.setLineDash([]);
-      const fall = 1 - descent * descent;
-      const px = fall * 5 * T, py = -fall * 9 * T;
-      if (!reduced) {
-        c.lineCap = 'round';
-        for (let i = 3; i >= 1; i--) { c.strokeStyle = ['','#fff1b4aa','#f49b4577','#dc592e33'][i]; c.lineWidth = i * 20; c.beginPath(); c.moveTo(px, py); c.lineTo(px + fall * 2 * T, py - fall * 4 * T); c.stroke(); }
-      }
-      c.translate(px, py); c.scale(1 + fall * 1.1, 1 + fall * 1.1);
+      const pose = capsuleDescent(c, T, { id: 'core:' + core.id, x: core.x + half, y: core.y + half, s, duration: CORE.impact, height: 10, body: size / 2, grow: 1.1 }, reduced);
+      c.translate(pose.x * T, pose.y * T); c.scale(1 + pose.a * 1.1, 1 + pose.a * 1.1);
       this.box(c, 0); c.restore(); return;
     }
     // Four independent hinges: each outer edge gets a separate ground strike.

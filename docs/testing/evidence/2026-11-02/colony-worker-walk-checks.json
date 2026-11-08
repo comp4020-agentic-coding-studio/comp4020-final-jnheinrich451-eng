@@ -1,0 +1,14 @@
+{
+  "movingChanges": true,
+  "settledStable": true,
+  "reducedStable": true,
+  "phaseOverridesClock": true,
+  "cardinalFinite": true,
+  "commandCounts": {
+    "beginPath": 222,
+    "fill": 155,
+    "stroke": 207,
+    "lineTo": 649
+  },
+  "pageErrors": []
+}

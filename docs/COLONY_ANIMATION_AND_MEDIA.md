@@ -48,6 +48,14 @@ is shared, while **Sound on** affects only the current viewer.
 
 ## Existing animation
 
+Later author requirement, 2 November: machinery moves only while doing a task
+and remains mechanically still when idle or blocked. The
+[casual expansion plan](COLONY_CASUAL_EXPANSION.md#machinery-motion-must-follow-work)
+defines that refinement, including demand-based sprinklers and moving conveyor
+treads. The later [industry stage](COLONY_INDUSTRY_STAGE.md) already adds cargo
+and some work-driven motion; the historical deferred-industry row below records
+this atmosphere stage's earlier scope. The full new rule is not yet implemented.
+
 The current irrigator in `public/colony-art.js` already rotates its two arms and
 draws moving water droplets. Plants sway, the shuttle animates during orbital
 deliveries, harvests have short visual bursts, and the tracked worker has rolling

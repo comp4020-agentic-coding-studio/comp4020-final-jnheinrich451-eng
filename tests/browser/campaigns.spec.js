@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom, skipArrival } from './room-helper.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -58,7 +59,7 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await page.locator('#room-invite').click(); await expect(page.locator('#room-code')).toHaveValue(/^[A-F0-9-]{27}$/); const code = await page.locator('#room-code').inputValue();
     await page.screenshot({ path: info.outputPath('campaign-room.png') });
     await visitor.goto(base + '/campaigns/'); await expect(visitor.locator('#create-panel')).toBeHidden();
-    await visitor.locator('#join input').fill(code); await visitor.locator('#join button').click();
+    await visitor.locator('#join input').fill(code); await visitor.locator('#join button').click(); await skipArrival(visitor);
     await expect(visitor.locator('#connection')).toContainText('live');
     await expect(page.locator('#room-status')).toContainText('resumed');
     await page.locator('#room-resume').click();
@@ -66,7 +67,7 @@ for (const mobile of [false, true]) test(`campaign create, invite, pause and sav
     await expect.poll(async () => (await state()).me.deploying, { timeout: 12000 }).toBe(false);
     await page.locator('#world-canvas').focus(); await page.keyboard.down('w'); await page.waitForTimeout(350); await page.keyboard.up('w');
     await page.locator('#hud-menu-button').click().then(()=>page.locator('#room-button').click()); await page.locator('#room-leave').click();
-    await expect(page).toHaveURL(/\/campaigns\//); await expect(visitor).toHaveURL(/\/campaigns\//);
+    await expect(page).toHaveURL(/\/campaigns\//); await leaveClosedRoom(visitor);
     await expect(page.locator('#create-panel')).toBeHidden();
     await page.locator('#continue-game').click();
     await page.locator('.campaign-card').filter({ hasText: 'Operation First Light' }).getByRole('button', { name: 'Enter Operation First Light', exact: true }).click(); await page.keyboard.press('Shift');

@@ -1,0 +1,44 @@
+{
+  "stage": "Gravitational-lens wormhole for the War Zone / Colonization branch change",
+  "date": "2026-11-09",
+  "status": "Built and checked locally; author playtest pending; not deployed",
+  "machine": "Author's Windows workstation, Chrome 155.0.8059.86, ANGLE D3D11 on NVIDIA GeForce RTX 5070 Ti (WebGL2 available headless)",
+  "sources": {
+    "public/wormhole-lens.js": "fec274bb88c3db0be82d756b6f7ae33592e0c5231a6837a905339d19ca74beaf",
+    "public/entry-scene.js": "c4374755675118e97bda29f5e3105211fbc2c032fa6085da9ab63eabddd86694",
+    "spec/wormhole-lens.test.ts": "a3571e9eec2c3346d769594f716c6756549e0698b743179e2a4a3385ef8414c1",
+    "tests/browser/colony-voyage.spec.js": "0cb049bab10ab3a7df7e5779775aff225dc1548ce04845cfff586c11ab1b3aa8",
+    "tests/browser/colony-rotation-continuity.spec.js": "f4f5b989c2866a0b2aacb09ca2ac77832d58e769c83a58db0536052fb868687e"
+  },
+  "checks": {
+    "vitest spec/wormhole-lens.test.ts + spec/colony-system.test.ts": "14 passed",
+    "tsc --noEmit": "passed",
+    "playwright colony-rotation-continuity + colony-voyage": "10 passed, first run, no retries",
+    "playwright entry, entry-alignment, colony-transitions, colonization-lobby, colony-arrival, colony-destination-arrival": "30 passed, first run, no retries"
+  },
+  "rotationHandoff": {
+    "note": "Live destination layer uploads to WebGL during expansion, and the sphere raster at the last lens frame against the first live frame",
+    "gold-desktop": { "expansionUploads": 108, "distinctSphereSamples": 8, "lastSampleAgeMs": 78, "screenPartMatchesBacking": true, "handoffSampledRgbDelta": 0 },
+    "gold-phone": { "expansionUploads": 108, "distinctSphereSamples": 9, "lastSampleAgeMs": 31, "screenPartMatchesBacking": true, "handoffSampledRgbDelta": 0 },
+    "blue-desktop": { "expansionUploads": 108, "distinctSphereSamples": 8, "lastSampleAgeMs": 57, "screenPartMatchesBacking": true, "handoffSampledRgbDelta": 0 },
+    "blue-phone": { "expansionUploads": 108, "distinctSphereSamples": 8, "lastSampleAgeMs": 59, "screenPartMatchesBacking": true, "handoffSampledRgbDelta": 0 }
+  },
+  "wholeScreenHandoff": {
+    "method": "Mean absolute RGB difference (0-255 levels) of the full canvas: last frame before the effect vs its first frame, and last lens frame vs first live frame, each compared with an ordinary consecutive-frame step. Measured with per-frame getImageData, which slows frames; two repeated runs agreed.",
+    "start": "0.000-0.004 at the start in every case (exact to rounding)",
+    "end": {
+      "gold-desktop": { "handoff": 0.118, "ordinaryStep": 0.012, "pixelsOver8Levels": 204, "pixelsOver8InOrdinaryStep": 220 },
+      "blue-desktop": { "handoff": 0.031, "ordinaryStep": 0.022 },
+      "gold-phone": { "handoff": 0.078, "ordinaryStep": 0.002, "pixelsOver8Levels": 134, "maxLevels": 40 },
+      "blue-phone": { "handoff": 0.072, "ordinaryStep": 0.008, "pixelsOver8Levels": 249, "maxLevels": 33 }
+    },
+    "reading": "The residual mean sits in the sun's gradient region at under 8 levels; pixels changing by more than 8 levels are as few as an ordinary frame step on desktop and a few hundred on the phone. Not yet judged by the author."
+  },
+  "captures": [
+    "wormhole-lens-desktop-gold.jpg",
+    "wormhole-lens-desktop-blue.jpg",
+    "wormhole-lens-phone-gold.jpg",
+    "wormhole-lens-phone-blue.jpg"
+  ],
+  "fixtures": "Disposable accounts and temporary DATA_DIR worlds only; no developer save was opened, changed or reset."
+}

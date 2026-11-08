@@ -1,6 +1,6 @@
 import { readyFactory, LOGISTICS_SIZE, LOCAL_KINDS } from './logistics.js';
 import { POD } from './pod.js';
-import { AIR } from './aircraft.js';
+import { runwaySize } from './runway.js';
 import { MISSILE } from './missile.js';
 import { dockDimensions } from './naval-scale.js';
 
@@ -28,7 +28,7 @@ export function constructionError(world, kind, x, y, ship = null) {
   if (!cores.length) return 'Deploy a friendly core and wait for its panels to open.';
   let points;
   if(kind==='helipad') points=corners(x+1.5,y+1.5,3,3);
-  else if (kind === 'airbase') points = corners(x + AIR.width / 2, y + AIR.height / 2, AIR.width, AIR.height);
+  else if (kind === 'airbase') { const { width, height } = runwaySize({ runways: 2, turned: !!ship?.turned }); points = corners(x + width / 2, y + height / 2, width, height); }
   else if (kind === 'missile') points = corners(x + MISSILE.size / 2, y + MISSILE.size / 2, MISSILE.size, MISSILE.size);
   else if (['artillery','mac'].includes(kind)) points = corners(x + .5, y + .5, 3, 3);
   else if (LOGISTICS_SIZE[kind]) points = corners(x + LOGISTICS_SIZE[kind]/2, y + LOGISTICS_SIZE[kind]/2, LOGISTICS_SIZE[kind], LOGISTICS_SIZE[kind]);

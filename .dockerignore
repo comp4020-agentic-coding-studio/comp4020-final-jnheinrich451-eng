@@ -14,6 +14,8 @@ mise.local.toml
 
 # Local source library; deployed assets must live in the tracked game directory.
 assets/
+audio/
+soundeffect/
 .local/
 test-results/
 playwright-report/

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom } from './room-helper.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -88,7 +89,7 @@ for (const mobile of [false, true]) test(`planet conquest ribbon follows the sha
     await page.screenshot({ path: info.outputPath('planet-conquered.png') });
     await page.reload(); await expect(page.locator('#planet-conquest')).toBeVisible();
     await post(owner, '/api/campaigns/leave', {});
-    await expect(page).toHaveURL(/\/campaigns\//); await expect(peerPage).toHaveURL(/\/campaigns\//);
+    await leaveClosedRoom(page, peerPage);
     await Promise.all([page.goto('about:blank'), peerPage.goto('about:blank')]); await app.close();
     app = createApp({ dataDir: dir, logSink: () => {} });
     await new Promise(resolve => app.server.listen(port, '127.0.0.1', resolve));

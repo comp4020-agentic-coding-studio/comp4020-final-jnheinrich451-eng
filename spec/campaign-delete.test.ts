@@ -198,3 +198,28 @@ it('rechecks credentials after receiving a delayed deletion body', async () => f
     expect(await listed(owner, id)).toMatchObject({ canDelete: true });
   } finally { request!.destroy(); await completed.catch(() => {}); }
 }), 15000);
+
+it('keeps three war-zone and three peaceful saves per account, each mode freed only by its own deletion', async () => fixture(async h => {
+  const owner = await h.account('per-mode-owner');
+  const make = (name: string, mode: string) => owner.request('/api/campaigns/create', { name, mode });
+  const war: string[] = [], peaceful: string[] = [];
+  for (let i = 0; i < 3; i++) { const r = await make(`War ${i}`, 'combat'); expect(r.status).toBe(200); war.push(r.data.id); }
+  const fourthWar = await make('War 3', 'combat');
+  expect(fourthWar.status).toBe(409); expect(fourthWar.data.error).toContain('war-zone');
+  // A full war zone does not block peaceful expeditions, which have their own three.
+  for (let i = 0; i < 3; i++) { const r = await make(`Garden ${i}`, 'colonization'); expect(r.status).toBe(200); peaceful.push(r.data.id); }
+  const fourthPeace = await make('Garden 3', 'colonization');
+  expect(fourthPeace.status).toBe(409); expect(fourthPeace.data.error).toContain('expedition');
+  const listing = (await owner.request('/api/campaigns/list')).data;
+  expect(listing.saveLimit).toBe(3);
+  expect(listing.campaigns.filter((c: any) => c.owner && c.mode === 'combat')).toHaveLength(3);
+  expect(listing.campaigns.filter((c: any) => c.owner && c.mode === 'colonization')).toHaveLength(3);
+  // Deleting an expedition frees an expedition slot only.
+  expect((await deletion(owner, peaceful[0])).status).toBe(200);
+  expect((await make('War 4', 'combat')).status).toBe(409);
+  expect((await make('Garden 4', 'colonization')).status).toBe(200);
+  // And deleting a war-zone campaign frees a war-zone slot only.
+  expect((await deletion(owner, war[0])).status).toBe(200);
+  expect((await make('Garden 5', 'colonization')).status).toBe(409);
+  expect((await make('War 5', 'combat')).status).toBe(200);
+}), 20000);

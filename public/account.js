@@ -98,6 +98,14 @@ $('guest').onclick = () => perform('guest');
 $('logout').onclick = () => perform('logout');
 $('open-inbox').onclick = () => perform('open-inbox');
 $('refresh-inbox').onclick = () => inbox().catch(error => message(error.message, true));
+// Back to the battlefield through black; the game page fades in from its own black cover.
+$('return-battle').addEventListener('click', event => {
+  const href = $('return-battle').href;
+  if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !/[?&](campaign|legacy)=/.test(href)) return;
+  event.preventDefault(); document.documentElement.dataset.opening = 'leave';
+  setTimeout(() => location.assign(href), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
+});
+addEventListener('pageshow', event => { if (event.persisted && document.documentElement.dataset.opening === 'leave') delete document.documentElement.dataset.opening; });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !event.isComposing && !busy && !$('back').hidden) {
     event.preventDefault(); location.assign($('back').href);
@@ -105,7 +113,12 @@ document.addEventListener('keydown', event => {
 });
 try {
   const state = await request('status');
-  if (page === 'login' && state.account) location.replace('/campaigns/');
+  // The opening loop (entry-opening.js) may hold the first visit; leave from its black.
+  if (page === 'login' && state.account) {
+    const opening = window.frontierOpening;
+    if (opening?.active) { await opening.done; opening.navigating = true; }
+    location.replace('/campaigns/');
+  }
   $('inbox-link').hidden = !state.demoInboxAvailable;
   smtpAvailable = !!state.smtpAvailable; renderMode();
   if (page === 'account') {

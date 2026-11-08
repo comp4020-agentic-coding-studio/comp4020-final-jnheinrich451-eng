@@ -57,6 +57,21 @@ async function fixture(browser, mobile, run) {
         }
         return draw.apply(this, arguments);
       };
+      // The WebGL lens uploads the live destination layer instead of drawing it.
+      // Its sky margin is excluded: the screen part must match the display.
+      if (window.WebGL2RenderingContext) for (const name of ['texImage2D', 'texSubImage2D']) {
+        const upload = WebGL2RenderingContext.prototype[name];
+        WebGL2RenderingContext.prototype[name] = function() {
+          const source = arguments[arguments.length - 1], capture = source instanceof HTMLCanvasElement && captures.get(source);
+          const screen = document.querySelector('canvas.entry-scene');
+          if (capture && screen) {
+            window.rotationFrames.push({ kind: 'snapshot', phase: document.body.dataset.entryWormhole || null, at: performance.now(),
+              sourceWidth: source.width - 2 * Number(source.dataset.marginX || 0), sourceHeight: source.height - 2 * Number(source.dataset.marginY || 0),
+              screenWidth: screen.width, screenHeight: screen.height, ...capture });
+          }
+          return upload.apply(this, arguments);
+        };
+      }
     });
     const page = await context.newPage(), errors = [];
     // Optional saved source allows proving the regression against its original

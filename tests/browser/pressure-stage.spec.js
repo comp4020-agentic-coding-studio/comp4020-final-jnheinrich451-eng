@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom } from './room-helper.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -54,7 +55,7 @@ test('two players receive the same roaming warning and arrivals across a battlef
     const invitation = await post(owner, '/api/campaigns/invite', { id });
     await post(peer, '/api/campaigns/join', { code: invitation.code });
     const initial = await read(owner), peerInitial = await read(peer);
-    await post(owner, '/api/campaigns/leave', {}); await expect(page).toHaveURL(/\/campaigns\//); await page.goto('about:blank');
+    await post(owner, '/api/campaigns/leave', {}); await leaveClosedRoom(page); await page.goto('about:blank');
 
     // This disposable save retains real terrain and an existing remote source.
     // Only its initial roaming deadline is shortened; normal warning, admission,

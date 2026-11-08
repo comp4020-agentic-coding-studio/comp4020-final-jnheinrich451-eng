@@ -1,43 +1,20 @@
-import { terrainColor, mountainAt, inlandWaterAt } from './terrain-rules.js';
+import { inlandWaterAt } from './terrain-rules.js';
 
-// Pure overhead decoration. Dunes and mesas are baked with the terrain chunks;
-// their drawing never supplies collision or changes the saved terrain masks.
+// Small hand-drawn details over Sirocco's smooth ground. ground-art.js paints the
+// firm ground, the dunes of the sand sea, the oases and the mesas; nothing here
+// supplies collision or changes the saved terrain masks.
 const hash=(x,y)=>{let n=Math.imul(x+331,374761393)^Math.imul(y+197,668265263);n=Math.imul(n^(n>>>13),1274126177);return(n^(n>>>16))>>>0;};
 const TAU=Math.PI*2;
-export function drawSiroccoTile(c,w,x,y,T,kind){
- const peak=mountainAt(w,x,y),h=hash(x,y);
- c.save();c.translate(x*T,y*T);c.fillStyle=terrainColor(w,x,y,kind);c.fillRect(0,0,T,T);
+export function drawSiroccoDetail(c,w,x,y,T,kind){
+ const h=hash(x,y),at=(dx,dy)=>w.terrain[(y+dy)*w.width+x+dx];
+ c.save();c.translate(x*T,y*T);
  const line=(p,color,width=.025)=>{c.strokeStyle=color;c.lineWidth=width*T;c.beginPath();p.forEach(([a,b],i)=>i?c.lineTo(a*T,b*T):c.moveTo(a*T,b*T));c.stroke();};
- const shape=(p,color)=>{c.fillStyle=color;c.beginPath();p.forEach(([a,b],i)=>i?c.lineTo(a*T,b*T):c.moveTo(a*T,b*T));c.closePath();c.fill();};
- if(peak){
-  // Flat mesa tops, dark cliff collars and horizontal strata, not alpine peaks.
-  c.beginPath();c.rect(0,0,T,T);c.clip();c.translate(-(x%5)*T,-(y%5)*T);c.scale(5,5);
-  shape([[0,.55],[.15,.16],[.47,.07],[.82,.19],[1,.55],[.85,.91],[.4,.99],[.05,.82]],'#633d35');
-  shape([[.04,.52],[.19,.19],[.46,.13],[.8,.23],[.92,.52],[.78,.74],[.39,.83],[.11,.72]],peak>1?'#aa6c4c':'#92573f');
-  shape([[.14,.47],[.28,.25],[.48,.21],[.74,.3],[.8,.49],[.68,.64],[.36,.68],[.21,.59]],peak===3?'#d6ad7a':'#c38c60');
-  line([[.13,.73],[.4,.88],[.8,.79],[.93,.59]],'#d496653b',.018);
-  line([[.2,.6],[.37,.73],[.7,.69],[.83,.5]],'#efc08a77',.012);
-  line([[.26,.4],[.5,.34],[.72,.42]],'#f0c89477',.008);
- }else if(kind===0&&!inlandWaterAt(w,x,y)){
-  // Broad connected slip faces make the naval sand immediately distinct from
-  // flat pale construction ground. Global coordinates keep crests continuous.
-  c.beginPath();c.rect(0,0,T,T);c.clip();
-  for(let band=Math.floor((y-1)/3);band<=Math.ceil((y+2)/3);band++){
-   const ridge=[];
-   for(let i=0;i<=8;i++){const q=i/8;ridge.push([q,band*3+Math.sin((x+q)*.22+band*.9)*.62-y]);}
-   shape([...ridge,...ridge.slice().reverse().map(([a,b])=>[a,b+.44])],'#7f45254d');
-   line(ridge,'#f1bd747a',.035);
-   line(ridge.map(([a,b])=>[a,b-.09]),'#e0a55a33',.06);
-  }
-  if(h%5===0)line([[.15,.48],[.36,.43],[.7,.47]],'#f3ca8428',.014);
- }else if(kind===0){
-  line([[.1,.34],[.35,.29],[.68,.35],[.86,.3]],'#b3eee066',.025);
-  if(h%2===0)line([[.22,.73],[.5,.68],[.78,.72]],'#b4e6ce44',.018);
- }else if(kind===3){
-  shape([[.09,.57],[.27,.22],[.6,.16],[.86,.49],[.75,.81],[.32,.88]],'#795843');
-  shape([[.16,.5],[.3,.26],[.59,.23],[.75,.44],[.47,.51]],'#c9a77a');
-  line([[.29,.65],[.53,.6],[.75,.49]],'#e5c99a66',.035);
- }else if(kind!==4){
+ if(kind===0){
+  // Oasis ripples stay well inside the water, clear of the rounded shoreline.
+  const open=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].every(([dx,dy])=>at(dx,dy)===0);
+  c.translate(((h>>5)%21-10)/60*T,((h>>9)%21-10)/60*T);
+  if(open&&inlandWaterAt(w,x,y)&&h%3===0){line([[.1,.34],[.35,.29],[.68,.35],[.86,.3]],'#b3eee066',.025);if(h%2===0)line([[.22,.73],[.5,.68],[.78,.72]],'#b4e6ce44',.018);}
+ }else if(kind!==3&&kind!==4){
   if(h%4===0)line([[.08,.48],[.32,.38],[.58,.45],[.88,.37]],'#f3dfb244',.018);
   if(kind===2&&h%11===0){
    line([[.12,.75],[.35,.58],[.56,.69],[.83,.57]],'#7b624638',.018);

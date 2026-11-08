@@ -90,7 +90,7 @@ it('backs up an old registry once and preserves combat identity and unrelated re
   expect((await h.request('list')).data.campaigns[0].mode).toBe('combat');
 }, true));
 
-it('persists explicit peaceful mode, routes invites to it and retains the shared save limit', async () => fixture(async h => {
+it('persists explicit peaceful mode, routes invites to it and keeps three saves per mode', async () => fixture(async h => {
   for (const mode of ['peace', '', null, {}, 1]) expect((await h.request('create', { name: 'Rejected', mode })).status).toBe(400);
   const peaceful = await h.request('create', { name: 'Meadowlight', template: 'sirocco-v1', mode: 'colonization' });
   expect(peaceful.status).toBe(200);
@@ -106,8 +106,13 @@ it('persists explicit peaceful mode, routes invites to it and retains the shared
   const combat = await h.request('create', { name: 'Default combat' });
   expect((await h.request('enter', { id: combat.data.id })).data.next).toBe('/?campaign=' + combat.data.id);
   await h.request('leave', {});
+  // Three saves per mode (author, 8 November 2026): the third expedition is accepted,
+  // the fourth is refused, and a full peaceful quota never blocks a war-zone save.
   expect((await h.request('create', { name: 'Third', mode: 'colonization' })).status).toBe(200);
-  expect((await h.request('create', { name: 'Fourth', mode: 'colonization' })).status).toBe(409);
+  expect((await h.request('create', { name: 'Fourth', mode: 'colonization' })).status).toBe(200);
+  const refused = await h.request('create', { name: 'Fifth', mode: 'colonization' });
+  expect(refused.status).toBe(409); expect(refused.data.error).toMatch(/three peaceful expeditions/);
+  expect((await h.request('create', { name: 'Second combat' })).status).toBe(200);
   await h.restart();
   const listing = (await h.request('list')).data;
   expect(listing.campaigns.find((c: any) => c.id === id)).toMatchObject({ mode: 'colonization', name: 'Meadowlight', template: 'sirocco-v1' });

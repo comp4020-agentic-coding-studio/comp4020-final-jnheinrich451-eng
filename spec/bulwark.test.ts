@@ -3,7 +3,7 @@ import { createWorld, SPEED } from '../public/world.js';
 import { createCombat } from '../public/combat.js';
 import { freshLife } from '../public/survival.js';
 import { newGroundEnemy, assignBulwarkGuards } from '../public/enemy-profiles.js';
-import { makeField, contactField, heatSpeed, lureRoute } from '../public/hazards.js';
+import { makeField, contactField, heatSpeed, lureRoute, gasExposure } from '../public/hazards.js';
 import { createEnemyNavigator, NAVIGATION } from '../public/enemy-navigation.js';
 import { guardStep } from '../public/guard.js';
 import { freshLogistics } from '../public/logistics.js';
@@ -57,13 +57,36 @@ it('keeps orbital lasers ineffective while orbital HE can damage the armored uni
   }
 });
 
-it('ignores gas lure and heat while leaving normal enemies vulnerable', () => {
+// 9 November 2026: hazards still never kill a Bulwark on contact or lure it, but fire
+// halves its speed and gas wears it down; gas wears Breakers down too, and only a
+// Hunter dies on contact and spends a kill at once.
+it('slows in fire, is worn by gas and never lured, while hunters still die on contact', () => {
   const w = world(), e = newGroundEnemy('bulwark', 1, { x: 20.5, y: 18.5 });
   const gas = makeField(1, 'GAS', e.x, e.y, 0), fire = makeField(2, 'INCENDIARY', e.x, e.y, 0);
   expect(contactField([gas, fire], e)).toBeNull(); expect(gas.capacity).toBe(gas.initialCapacity);
-  expect(heatSpeed([fire], e)).toBe(1); expect(lureRoute(w, [], e, [gas], () => false)).toBeNull();
-  expect(contactField([gas], { ...e, kind: 'breaker' })).toBe(gas);
+  expect(heatSpeed([fire], e)).toBe(.5); expect(heatSpeed([], e)).toBe(1); expect(lureRoute(w, [], e, [gas], () => false)).toBeNull();
+  expect(gasExposure([gas], e)).toBe(gas); expect(gasExposure([gas], { ...e, kind: 'breaker' })).toBe(gas);
+  expect(contactField([gas], { ...e, kind: 'breaker' })).toBeNull(); expect(gas.capacity).toBe(gas.initialCapacity);
+  expect(contactField([gas], { ...e, kind: 'hunter' })).toBe(gas);
   expect(gas.capacity).toBe(gas.initialCapacity! - 1);
+});
+it('loses 20 hp a second in gas without spending the cloud, and slows through fire without harm or panic', () => {
+  const w = world(), base = createCombat(w).checkpoint(); base.serial = 1;
+  base.enemies = [{ ...newGroundEnemy('bulwark', 1, { x: 20.5, y: 18.5 }), eventSpawn: true }];
+  const gassed = createCombat(w, structuredClone(base)), e = gassed.snapshot().enemies[0];
+  expect(gassed.lob({ id: 'gun', x: e.x - 8, y: e.y }, e.x, e.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, 'GAS')).toBeNull();
+  gassed.tick(.01, []);
+  for (let i = 0; i < 10; i++) gassed.tick(.1, []);
+  const worn = gassed.snapshot().enemies[0];
+  expect(worn.hp).toBeGreaterThan(425); expect(worn.hp).toBeLessThan(435);
+  expect(worn.confusedUntil ?? 0).toBe(0);
+  expect(gassed.snapshot().fields[0].capacity).toBe(gassed.snapshot().fields[0].initialCapacity);
+  const burned = createCombat(w, structuredClone(base)), b = burned.snapshot().enemies[0];
+  expect(burned.lob({ id: 'gun', x: b.x - 8, y: b.y }, b.x, b.y, { duration: .01, verticalSpeed: 1, gravity: 12, elevation: 75 }, 'INCENDIARY')).toBeNull();
+  for (let i = 0; i < 10; i++) burned.tick(.1, []);
+  const hot = burned.snapshot().enemies[0];
+  expect(hot.hp).toBe(450); expect(hot.behavior).not.toBe('fleeing');
+  expect(hot.slowedUntil).toBeGreaterThan(burned.snapshot().time);
 });
 
 it('shares route budgets while crossing heat and still respects water and rocks', () => {

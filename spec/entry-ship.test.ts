@@ -1,7 +1,24 @@
 import { expect, it } from 'vitest';
-import { DROP, JUMP, dropCamera, dropState, jumpPose, jumpState, podPose, shipDeparture, shipPose } from '../public/entry-ship.js';
+import { DROP, JUMP, WARP, dropCamera, dropState, jumpPose, jumpState, podPose, shipDeparture, shipPose, warpPose, warpState } from '../public/entry-ship.js';
 
 const globe = { x: 800, y: 500, r: 360 };
+
+it('holds the warp until the host\'s world has arrived, then ends exactly on the hover pose', () => {
+  const { approach, line, expand, hold, total } = WARP;
+  expect(approach + line + expand + hold).toBe(total);
+  expect(warpState(0)).toMatchObject({ phase: 'approach', line: 0, expand: 0, done: false });
+  expect(warpState(approach)).toMatchObject({ phase: 'line', line: 0, expand: 0 });
+  expect(warpState(approach + line)).toMatchObject({ phase: 'expand', line: 1, expand: 0 });
+  expect(warpState(total - 1).done).toBe(false);
+  expect(warpState(total)).toMatchObject({ expand: 1, stretch: 1, flash: 0, done: true });
+  const pose = shipPose(globe, 0), settled = warpPose(pose, warpState(total));
+  expect(settled.x).toBeCloseTo(pose.x); expect(settled.y).toBeCloseTo(pose.y);
+  // The stretched hull trails behind the nose, which never moves.
+  const early = warpState(approach + line + 40), trailing = warpPose(pose, early);
+  expect(early.stretch).toBeGreaterThan(10);
+  expect(trailing.x + Math.cos(pose.angle) * pose.length * early.stretch / 2).toBeCloseTo(pose.x + Math.cos(pose.angle) * pose.length / 2);
+  expect(trailing.y + Math.sin(pose.angle) * pose.length * early.stretch / 2).toBeCloseTo(pose.y + Math.sin(pose.angle) * pose.length / 2);
+});
 
 it('keeps the hovering ship near its sketched spot with only minor swings, and follows the globe', () => {
   for (let time = 0; time < 30000; time += 137) {

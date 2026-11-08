@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { createColony, colonyAction, colonyPlacementError, colonyCanStand, tickColony } from '../public/colonization.js';
-import { AMBIENCE, environmentAt, decorationItems, cinemaPosition } from '../public/colony-ambience.js';
+import { AMBIENCE, arrivalLight, environmentAt, decorationItems, cinemaPosition } from '../public/colony-ambience.js';
+import { descentGrade } from '../public/colony-entry-ship.js';
 
 const host = { id: 'host', isHost: true }, guest = { id: 'guest' };
 const garden = (): any => createColony('morrow-v1');
@@ -113,4 +114,28 @@ it('shares durable play/pause/restart timing, rejects stale controls and finishe
   colonyAction(reopened, host, 'remove-decoration', { decorationId: screen.targetId, revision: 0 });
   expect(reopened.cinema).toBeNull();
   expect(() => colonyAction(reopened, guest, 'cinema-play', { revision: 5 })).toThrow('screen first');
+});
+
+it('names the light a crew member lands in, from the shared timeline, without changing the garden', () => {
+  const state = garden(), before = JSON.stringify(state);
+  const light = arrivalLight(state, 400), full = environmentAt(state, 400);
+  expect(JSON.stringify(state)).toBe(before);
+  expect(Object.keys(light).sort()).toEqual(['cloud', 'daylight', 'rain', 'warmth']);
+  for (const key of ['daylight', 'warmth', 'cloud', 'rain'] as const) expect(Math.abs(light[key] - full[key])).toBeLessThanOrEqual(.0005);
+  state.environment = { ...(state.environment || {}), lighting: 'night', weather: 'clear' };
+  expect(arrivalLight(state).daylight).toBeLessThan(.1);
+  state.environment.lighting = 'day';
+  expect(arrivalLight(state).daylight).toBeGreaterThan(.9);
+});
+
+it('grades the descent by that light: the original daylit veil without one, deep blue by night, gold at dusk', () => {
+  expect(descentGrade(null)).toMatchObject({ night: 0, warm: 0, veil: 'rgba(218,237,231,.47)' });
+  const night = descentGrade({ daylight: 0, warmth: 0, cloud: 0, rain: 0 }), day = descentGrade({ daylight: 1, warmth: 0, cloud: 0, rain: 0 });
+  const dusk = descentGrade({ daylight: .4, warmth: 1, cloud: 0, rain: 0 }), wet = descentGrade({ daylight: 1, warmth: 0, cloud: .9, rain: 1 });
+  const rgb = (grade: any) => grade.veil.match(/\d+/g).slice(0, 3).map(Number);
+  expect(night.night).toBe(1); expect(day.night).toBe(0);
+  expect(rgb(night).reduce((a: number, b: number) => a + b)).toBeLessThan(rgb(day).reduce((a: number, b: number) => a + b) / 3);
+  expect(rgb(dusk)[0] - rgb(dusk)[2]).toBeGreaterThan(30);
+  expect(wet.rain).toBe(1); expect(night.streaks).toBeLessThan(day.streaks);
+  expect(descentGrade({ daylight: 'bright', warmth: null } as any)).toMatchObject({ day: 0, warm: 0 });
 });

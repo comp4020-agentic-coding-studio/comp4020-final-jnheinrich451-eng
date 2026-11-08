@@ -1,0 +1,10 @@
+Generator: built-in image_gen edit
+Reference: scene-03-cuculidae-armed-v1
+Output: 1672 x 941, no expansion or resizing
+Removed: ship, drop pods, flame trails; generated reconstruction of occluded background.
+
+Use case: precise-object-edit, clean background plate for video compositing.
+Edit the supplied image by REMOVING the entire spacecraft, including its giant downward fin, turrets, cannons, ammunition belt, gold lettering, lights, all protrusions and ship-specific glints. Also remove ALL descending cube drop pods, their entire orange flame trails, smoke and any local warm glow associated with the pods. The resulting image must contain ONLY the original natural space-and-planet environment, with no spacecraft, pods, machinery or lettering anywhere.
+Seamlessly reconstruct the previously occluded background: fine stars and deep blue nebula behind the hull; hazy blue atmosphere, continuous bright atmospheric rim, clouds and planetary terrain behind the fin; continuous sky, terrain and clouds behind the pods and their trails. Continue visible neighboring patterns naturally with no silhouettes, smudges, repeated patches or residual outlines.
+STRICT PRESERVATION: Keep all already-visible background as close to pixel-identical as possible. Preserve exactly the composition, camera, field of view, diagonal horizon angle and shallow curvature, huge close foreground planet, mountain and cloud formations, water and sunlight reflections, smaller upper-left planet with illuminated right side and dark left side, blue nebula placement, stars, dazzling white-blue sun at upper right and its light shafts, exposure and cool blue color grade. This is a matching plate to put beneath the existing ship in animation, not a new interpretation of the environment.
+Keep original 1672 x 941 landscape canvas and aspect ratio. Do not expand, crop, zoom, move the camera, add objects or shift any celestial bodies. Opaque full-image background, not transparency. No text, watermark, borders or overlays.

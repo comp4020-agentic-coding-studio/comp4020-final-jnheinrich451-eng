@@ -96,6 +96,36 @@ for(const kind of ['gunship','transport','carrier'])it('returns '+kind+' along a
  expect(s.remoteOrder.phase).toBe('docked');expect(mooredDock(w,s)).toEqual(s.dock);expect(s.speed).toBe(0);
  expect(recallShipError(w,s,[],true)).toBeNull();
 });
+it('moors at another free friendly dock without changing the ship\'s home, and reports a taken berth',()=>{
+ const {w,s}=fixture();
+ Object.assign(s,{x:36.5,y:36.5,angle:Math.PI/2,berthX:33.5,berthY:80.5,dock:{x:30.5,y:83.5,angle:0},dockStyle:'unfolding'});
+ const yard:any={id:'visited',owner:'teammate',x:33.5,y:20.5,berthX:33.5,berthY:20.5,dock:{x:30.5,y:23.5,angle:0},dockStyle:'unfolding',dockReady:true,elapsed:SHIP.duration};
+ w.logistics.shipyards.push(yard);
+ const plan=planNavalOrder(w,[],[],s,{action:'dock',dockId:'visited'});expect(plan.error).toBeUndefined();expect(plan.order?.yardId).toBe('visited');s.remoteOrder=plan.order;
+ advance(w,s,180);
+ expect(s.remoteOrder.phase).toBe('docked');expect(mooredDock(w,s)).toBe(yard.dock);expect(s.remoteOrder.reason).toContain('Dock services ready');
+ expect(s.yardId).toBeUndefined();expect(s.dock).toEqual({x:30.5,y:83.5,angle:0});
+ // The berth is now taken for anyone else, and Return still goes to the ship's own dock.
+ const second:any={...s,id:'second',x:90.5,y:40.5,remoteOrder:null};w.ships.push(second);
+ expect(planNavalOrder(w,[],[],second,{action:'dock',dockId:'visited'}).error).toContain('taken');
+ expect(planNavalOrder(w,[],[],second,{action:'dock',dockId:'missing'}).error).toContain('intact friendly dock');
+ w.ships.pop();const home=planNavalOrder(w,[],[],s,{action:'dock'});expect(home.error).toBeUndefined();expect(home.order?.yardId).toBe('ship');
+});
+it('holds a visited berth for the ship already sailing to it, and stops if that dock is lost',()=>{
+ const {w,s}=fixture();
+ const yard:any={id:'visited',owner:'pilot',x:33.5,y:20.5,berthX:33.5,berthY:20.5,dock:{x:30.5,y:23.5,angle:0},dockStyle:'unfolding',dockReady:true,elapsed:SHIP.duration};
+ w.logistics.shipyards.push(yard);
+ s.remoteOrder=planNavalOrder(w,[],[],s,{action:'dock',dockId:'visited'}).order;
+ const second:any={...s,id:'second',x:90.5,y:40.5,remoteOrder:null};w.ships.push(second);
+ expect(planNavalOrder(w,[],[],second,{action:'dock',dockId:'visited'}).error).toContain('taken');
+ yard.dockDestroyed=true;tickNavalOrder(w,[],[],s,.05,()=>null);
+ expect(s.remoteOrder.phase).toBe('blocked');expect(s.remoteOrder.reason).toContain('Dock unavailable');
+});
+it('keeps a large hull out of a legacy berth',()=>{
+ const {w,s}=fixture();s.navalScale=2;
+ w.logistics.shipyards.push({id:'small',owner:'pilot',x:33.5,y:20.5,berthX:33.5,berthY:20.5,dock:{x:30.5,y:23.5,angle:0},dockStyle:'unfolding',dockReady:true,elapsed:SHIP.duration});
+ expect(planNavalOrder(w,[],[],s,{action:'dock',dockId:'small'}).error).toContain('too large');
+});
 it('rejects an occupied or ruined home berth and stops if the dock is lost en route',()=>{
  const {w,s}=fixture();s.dockDestroyed=true;expect(planNavalOrder(w,[],[],s,{action:'dock'}).error).toContain('lost');s.dockDestroyed=false;
  w.ships.push({...s,id:'visitor',x:s.berthX,y:s.berthY});expect(planNavalOrder(w,[],[],s,{action:'dock'}).error).toContain('obstructed');w.ships.pop();

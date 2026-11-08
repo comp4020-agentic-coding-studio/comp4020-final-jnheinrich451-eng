@@ -1,7 +1,8 @@
 # Colony industry, settlement life and a meaningful ending
 
-2 November 2026. Design proposal for review, not implemented gameplay or a
-commitment to every feature below. The author requests discussion of conveyors,
+2 November 2026. Original design proposal. The implementation update below
+records what is now playable; the rest remains a roadmap, not a commitment to
+every feature. The author initially requests discussion of conveyors,
 food processing, bio-power and robot charging, with mild pressure and a clearer
 long-term purpose for the separate peaceful expedition.
 
@@ -11,7 +12,21 @@ These form the proposed settlement-life branch below. Recipes, pacing and the
 individual implementation stages still need playable validation; recording the
 ideas does not mean their functionality has been implemented.
 
-## Current game, verified in code
+## Implementation update, 2 November
+
+The author has now approved the first production chain. The
+[industry stage](COLONY_INDUSTRY_STAGE.md) implements conveyors, harvest outlets,
+food processors, bio-generators and provision exports, with bounded local
+inventories and shared power. It records provisional costs and recipes. Robot
+charging, commissioning, timed orders, fishing, ponds and cabins remain proposed.
+The [mechanical spider pet](COLONY_MECHANICAL_SPIDER_PET.md) is recorded for later
+design together with a richer exploration world.
+
+Shared daylight/weather, campfires and the licensed outdoor cinema are also
+implemented; see the [atmosphere stage](COLONY_ANIMATION_AND_MEDIA.md). Earlier
+proposal wording below describes the initial discussion, before these changes.
+
+## Game at the initial design discussion
 
 `public/colonization.js` implements planting, free watering, sprinklers, harvests
 and shared produce storage. Sending two matching crops consumes them once and
@@ -302,8 +317,8 @@ or added to the project in this discussion.
 Follow-up: the author has now supplied the official-source Big Buck Bunny file.
 The [animation and media record](COLONY_ANIMATION_AND_MEDIA.md) documents its
 actual playback check, credits, delivery requirements and the proposed visual
-effects. The film remains a prepared source asset; the movie-screen feature
-has not been implemented.
+effects. The subsequent implementation adds shared movie-screen playback; see
+that record for the current tested behavior.
 
 ### Validation before release
 

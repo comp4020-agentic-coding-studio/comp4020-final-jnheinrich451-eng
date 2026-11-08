@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { leaveClosedRoom } from './room-helper.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -80,7 +81,7 @@ for (const mobile of [false, true]) test(`mortar shared warning, dodge, hit and 
     await page.screenshot({ path: info.outputPath('mortar-conquered.png') });
     const completed = (await state()).combat.sites.find(s => s.kind === 'mortar').conqueredAt;
     await post(owner, '/api/campaigns/leave', {});
-    await expect(page).toHaveURL(/\/campaigns\//); await expect(peer).toHaveURL(/\/campaigns\//);
+    await leaveClosedRoom(page, peer);
     await Promise.all([page.goto('about:blank'), peer.goto('about:blank')]);
     await app.close();
     app = createApp({ dataDir: dir, logSink: line => logs.push(JSON.parse(line)) });

@@ -1,6 +1,7 @@
 import {isSubmarine,submarineAim,submarineBox,submarineTargetError,nextSubmarineGroup,submarineGroupsReady,submarineMagazineLabel} from './submarine.js';
 import {depthState,diveBattery,depthError} from './submarine-depth.js';
-import {SHIP,shipName} from './ship.js';
+import {SHIP,shipName,dockRects,hull,rectanglesOverlap} from './ship.js';
+import {dockRecords} from './shipyard.js';
 import {mainMounts} from './ship-armament.js';
 import {shipStopped} from './ship-motion.js';
 import {remoteShipError,returnDockError} from './naval-orders.js';
@@ -58,9 +59,13 @@ export function remoteNavalUI({state,api,notify,changed}){
    const d=Math.hypot(x-s.x,y-s.y);if(d<SHIP.minRange||d>SHIP.range){notify(`Choose a target ${SHIP.minRange}–${SHIP.range} tiles from the ship.`);return;}
    if(!shipStopped(s)){notify('The ship fires once it has stopped.');return;}
    await send('bombard',{targets:mainMounts(s).map(()=>({x,y})),ammo:shell});
-  }else await send(mode,{target:{x,y}});
+  }else if(mode==='move')await sail(x,y);
+  else await send(mode,{target:{x,y}});
  }
- function order(x,y){if(active()&&!busy)void send('move',{target:{x,y}});}
+ // Moving onto a dock moors there. The pier and its berth both count as the dock.
+ const dockUnder=(x,y)=>dockRecords(state().world).find(yard=>!yard.dockDestroyed&&[...dockRects(yard),hull(yard,true)].some(r=>rectanglesOverlap(r,{x,y,w:.1,h:.1,angle:0})));
+ function sail(x,y){const yard=dockUnder(x,y);return yard?send('dock',{dockId:yard.id}):send('move',{target:{x,y}});}
+ function order(x,y){if(active()&&!busy)void sail(x,y);}
  function nearestBank(s){
   const {world}=state(),land=(x,y)=>tileAt(world,x,y)>0&&tileAt(world,x,y)!==3;
   if(hover&&Math.hypot(hover.x-s.x,hover.y-s.y)<=REACH&&land(Math.floor(hover.x),Math.floor(hover.y)))return hover;
@@ -88,7 +93,7 @@ export function remoteNavalUI({state,api,notify,changed}){
   const s=ship();if(!active()||!s)return;c.save();c.lineWidth=1/zoom;c.strokeStyle='#efd387';c.fillStyle='#efd387';c.font=`bold ${12/zoom}px monospace`;
   if(mode==='strike'&&hover){const target=submarineAim(s,state().world,hover,rotated),b=submarineBox(target,rotated);c.strokeStyle=nextSubmarineGroup(s)<0||submarineTargetError(s,state().world,target,rotated)?'#ff7777':'#efd387';c.strokeRect(b.x*T,b.y*T,b.width*T,b.height*T);c.restore();return;}
   if(armed(s)){c.setLineDash([6/zoom,5/zoom]);c.strokeStyle='#efd38766';for(const r of [SHIP.minRange,SHIP.range]){c.beginPath();c.arc(s.x*T,s.y*T,r*T,0,Math.PI*2);c.stroke();}c.setLineDash([]);c.strokeStyle='#efd387';}
-  if(hover){c.beginPath();c.arc(hover.x*T,hover.y*T,9/zoom,0,Math.PI*2);c.stroke();c.fillText(mode==='bombard'?'FIRE':'MOVE',hover.x*T+12/zoom,hover.y*T);}
+  if(hover){c.beginPath();c.arc(hover.x*T,hover.y*T,9/zoom,0,Math.PI*2);c.stroke();c.fillText(mode==='bombard'?'FIRE':dockUnder(hover.x,hover.y)?'MOOR':'MOVE',hover.x*T+12/zoom,hover.y*T);}
   const o=s.remoteOrder;if(o?.path?.length){c.setLineDash([4/zoom,5/zoom]);c.beginPath();c.moveTo(s.x*T,s.y*T);for(const p of o.path.slice(o.index))c.lineTo(p.x*T,p.y*T);c.stroke();}c.restore();
  }
  return {active,open,close,update,aim,pick,order,ramp,slot,run,draw,rotate,depth,isSub:()=>active()&&isSubmarine(ship())};

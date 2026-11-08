@@ -2,6 +2,7 @@ import { SLING } from './helicopter-sling.js';
 import {flightLineClear} from './terrain-rules.js';
 import { fieldLandingError } from './helicopter-landing.js';
 import { angleDelta } from './turret.js';
+import { runwaySize } from './runway.js';
 
 export const HELI = Object.freeze({ size:3, max:8, speed:4, acceleration:4, braking:6, turn:2.2, turretSpeed:3.5,
   rounds:120, rockets:40, burst:5, recovery:8, rearm:8, transition:2 });
@@ -9,7 +10,7 @@ export const HELI_CANNON = Object.freeze({ range:9, cooldown:.18, flight:.25, ra
 export const HELI_ROCKET = Object.freeze({ range:12, cooldown:.25, flight:.65, radius:1.1, lethalRadius:0, damage:42, edgeDamage:8, craterSize:1.2 });
 export const isHelicopter = p => p?.kind === 'helicopter';
 export const isHelipad = b => b?.kind === 'helipad';
-export const airSize = b => isHelipad(b) ? {width:3,height:3} : {width:6,height:10};
+export const airSize = b => isHelipad(b) ? {width:3,height:3} : runwaySize(b);
 export const compatibleAirfield = (b,p) => !!b && isHelipad(b) === isHelicopter(p);
 export const heliParking = b => ({x:b.x+1.5,y:b.y+1.5});
 export const helicopterLoad = () => ({rounds:HELI.rounds,rockets:HELI.rockets,cannonCooldown:0,rocketCooldown:0,rocketWindow:0,rocketRecovery:0,rocketBurstShots:0,vx:0,vy:0,turret:0});

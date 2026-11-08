@@ -1,4 +1,4 @@
-import { DROP } from './entry-ship.js';
+import { DROP, WARP } from './entry-ship.js';
 import { COLONY_ENTRY } from './colony-entry-ship.js';
 import { PLANETS } from './planets.js';
 import { COLONY_PLANETS, colonyPlanetById, colonySavePlanetId } from './colony-planets.js';
@@ -132,7 +132,8 @@ function render() {
   if (!pendingPlanetTravel) displayedPlanet = selectedPlanet;
   const planet = planets.find(p => p.id === displayedPlanet) || target;
   const travelling = !!pendingPlanetTravel;
-  const owned = state.campaigns.filter(c => c.owner).length;
+  // Each mode has its own owned slots: war-zone campaigns and peaceful expeditions.
+  const owned = state.campaigns.filter(c => c.owner && c.mode === selectedMode).length, limit = state.saveLimit || 3;
   const peaceful = selectedMode === 'colonization';
   document.body.dataset.entryView = view; document.body.dataset.entryPlanet = selectedPlanet; document.body.dataset.entryMode = selectedMode;
   document.body.dataset.entryDisplayedPlanet = planet.id;
@@ -174,15 +175,16 @@ function render() {
   $('campaign-name').placeholder = peaceful ? 'Meadowlight' : 'Operation First Light';
   $('create-detail').textContent = `${planet.name} · ${peaceful ? 'peaceful gardening · ' : ''}1–${state.roomLimit} players · saved automatically`;
   $('create-room-help').hidden = !state.active;
-  $('save-limit').textContent = owned >= 3 ? 'All three owned save slots are in use. Continue or delete a closed save.' : `${owned} / 3 owned saves used across all planets and modes.`;
-  $('owned-count').textContent = `${owned} / 3 owned saves · joined campaigns do not use your slots.`;
+  const kind = peaceful ? 'expedition' : 'war-zone';
+  $('save-limit').textContent = owned >= limit ? `All ${limit} ${kind} slots are in use. Continue or delete a closed save.` : `${owned} / ${limit} ${kind} saves used across all planets.`;
+  $('owned-count').textContent = `${owned} / ${limit} ${kind} saves · joined campaigns do not use your slots.`;
   $('saves-heading').textContent = peaceful ? 'Saved expeditions' : 'Save slots';
   $('save-kind').textContent = peaceful ? 'PEACEFUL EXPEDITIONS' : 'PERSISTENT CAMPAIGNS';
   $('empty-new').textContent = peaceful ? 'New expedition ↗' : 'New Game ↗';
   $('join-heading').textContent = peaceful ? 'Join an expedition.' : 'Join a frontier.';
   for (const button of document.querySelectorAll('#lobby button')) button.disabled = busy;
-  $('select-planet').disabled = busy || travelling || chosen || owned >= 3;
-  $('create-submit').disabled = busy || travelling || guest || owned >= 3 || !!state.active;
+  $('select-planet').disabled = busy || travelling || chosen || owned >= limit;
+  $('create-submit').disabled = busy || travelling || guest || owned >= limit || !!state.active;
   $('campaign-name').disabled = busy || travelling;
   $('join-submit').disabled = busy || !!state.active;
   for (const id of ['new-game', 'continue-game', 'colonization-game', 'new-expedition', 'continue-expedition', 'war-zone']) $(id).disabled = busy || guest;
@@ -239,15 +241,22 @@ async function request(action, data) {
   if (!response.ok) { if (response.status === 401) $('signin').hidden = false; throw new Error(value.error || 'Command unavailable. Please try again.'); }
   return value;
 }
+// The opening loop (entry-opening.js) holds the first visit of a tab session. A
+// redirect waits for its black-out and keeps the screen black for the next page.
+async function afterOpening() {
+  const opening = window.frontierOpening; if (!opening?.active) return;
+  await opening.done; opening.navigating = true;
+}
 async function refresh() {
   const version = ++refreshVersion, result = await request('list'); if (version !== refreshVersion) return;
   state = result;
-  if (state.identity.kind === 'guest' && location.pathname === '/' && !state.active) { location.replace('/login/'); return; }
+  if (state.identity.kind === 'guest' && location.pathname === '/' && !state.active) { await afterOpening(); location.replace('/login/'); return; }
   if (state.identity.kind === 'guest') view = 'join'; render();
 }
 // The arrival is cosmetic. The craft only leaves once the server has admitted the player,
 // and a stopped animation (hidden tab, no canvas) can never hold up entry.
-function startDive(civilian = false) {
+// A joining guest has no ship above a planet yet, so `planet` adds the warp to the host's world.
+function startDive(civilian = false, planet = null) {
   const body = document.body, hint = $('dive-skip'), started = performance.now();
   const animated = body.dataset.sceneReady === 'canvas' && !body.classList.contains('entry-motion-paused') && (!civilian || body.dataset.entryColonyShip === 'ready');
   let skipped = false, cancelled = false, goDark = null, limit = 0, finish = 0, settle = null;
@@ -256,7 +265,8 @@ function startDive(civilian = false) {
   if (animated) {
     body.classList.add('entry-diving'); hint.hidden = false;
     addEventListener('pointerdown', skip, true); addEventListener('keydown', skip, true);
-    document.dispatchEvent(new CustomEvent('frontier:drop-start'));
+    if (planet) Object.assign(body.dataset, { entryMode: 'combat', entryPlanet: planet, entryView: 'arrival' });
+    document.dispatchEvent(new CustomEvent(planet ? 'frontier:warp-start' : 'frontier:drop-start'));
   }
   return {
     cancel() {
@@ -265,7 +275,7 @@ function startDive(civilian = false) {
       body.classList.remove('entry-diving', 'entry-dark', 'entry-fast');
       document.dispatchEvent(new CustomEvent('frontier:drop-cancel')); settle?.(false);
     },
-    land: () => new Promise(resolve => {
+    land: (light = null) => new Promise(resolve => {
       if (cancelled) { resolve(false); return; }
       settle = resolve;
       let dark = false;
@@ -276,11 +286,11 @@ function startDive(civilian = false) {
         body.classList.toggle('entry-fast', skipped); body.classList.add('entry-dark');
         finish = setTimeout(() => resolve(true), !animated ? 120 : skipped ? 450 : 1000);
       };
-      document.dispatchEvent(new CustomEvent('frontier:drop-accept'));
+      document.dispatchEvent(new CustomEvent('frontier:drop-accept', { detail: { light } }));
       if (!animated || skipped) { goDark(); return; }
       // Allow the complete post-admission flight even after a slow server reply.
-      const timing = civilian ? COLONY_ENTRY : DROP;
-      limit = setTimeout(goDark, Math.max(timing.total - timing.zoom + 1500, timing.total + 1500 - (performance.now() - started)));
+      const timing = civilian ? COLONY_ENTRY : DROP, lead = planet ? WARP.total : 0;
+      limit = setTimeout(goDark, Math.max(lead + timing.total - timing.zoom + 1500, lead + timing.total + 1500 - (performance.now() - started)));
       document.addEventListener('frontier:drop-dark', goDark, { once: true });
     }),
   };
@@ -288,7 +298,7 @@ function startDive(civilian = false) {
 async function perform(action, data = {}) {
   if (busy || (pendingPlanetTravel && ['create', 'enter', 'delete'].includes(action))) return;
   const targetMode = action === 'create' ? data.mode : modeOf(state.campaigns.find(c => c.id === data.id));
-  const dive = action === 'create' || (action === 'enter' && data.id !== state.active) ? startDive(targetMode === 'colonization') : null;
+  let dive = action === 'create' || (action === 'enter' && data.id !== state.active) ? startDive(targetMode === 'colonization') : null;
   activeArrival = dive;
   busy = true; ++refreshVersion; render(); message('Connecting…');
   let created = false, navigating = false;
@@ -299,7 +309,9 @@ async function perform(action, data = {}) {
       created = true; selectedPlanet = data.template; chosen = false; message('Campaign saved. Establishing uplink…');
       result = await request('enter', { id: result.id });
     }
-    if (result.next && action !== 'leave') { navigating = true; if (await dive?.land() === false) { navigating = false; return; } location.assign(result.next); return; }
+    // Join only learns the host's planet from this reply, so its arrival starts here.
+    if (action === 'join' && result.room?.mode === 'combat' && PLANETS.some(planet => planet.id === result.planet)) activeArrival = dive = startDive(false, result.planet);
+    if (result.next && action !== 'leave') { navigating = true; if (await dive?.land(result.light) === false) { navigating = false; return; } location.assign(result.next); return; }
     await refresh();
     if (action === 'leave') { showView('continue', { clearMessage: false }); message('Room left. Progress saved.'); }
     if (action === 'delete') { pendingDelete = null; message('Save deleted. Slot available.'); $('saves-heading').focus({ preventScroll: true }); }
@@ -358,6 +370,8 @@ try {
   if (state && !(state.identity.kind === 'guest' && location.pathname === '/' && !state.active)) {
     const route = locationView(); selectedPlanet = destinationForMode(route.planet, selectedMode);
     showView(route.view, { replace: true, focus: false });
+    // Why a room closed stays readable here until the player's next action.
+    try { const reason = sessionStorage.getItem('frontier-room-ended'); if (reason) { sessionStorage.removeItem('frontier-room-ended'); message(reason, true); } } catch { /* The room's dialog has already said it. */ }
     try { if (sessionStorage.getItem('frontier-entry-login') === '1') { sessionStorage.removeItem('frontier-entry-login'); document.body.classList.add('signal-arrival'); setTimeout(() => document.body.classList.remove('signal-arrival'), 300); } } catch { /* Cosmetic cue only; storage is optional. */ }
   }
 } catch (error) { message(error.message || 'Could not reach command. Reload to retry.', true); $('signin').hidden = false; $('lobby').setAttribute('aria-busy', 'false'); }

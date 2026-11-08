@@ -1,0 +1,39 @@
+{
+  "stage": "Re-entry from orbit: capsules, robot pod and orbital strikes",
+  "date": "2026-11-09",
+  "status": "Built and checked locally; author playtest pending; not deployed",
+  "machine": "Author's Windows workstation, Chrome 155.0.8059.86, NVIDIA GeForce RTX 5070 Ti",
+  "sources": {
+    "public/reentry-art.js": "9005aa9d5759a3c87c895c44325aa5447f705b2e06b552cf49331925d0c7cc7c",
+    "public/orbital-ui.js": "86a3803fb4a9931dc849a89f3a0d6813a154cf837af90e58a5ff0b45b8d00553",
+    "public/core-effects.js": "2dfc51a038198e6721d1482e1319516ef557c3b28219ab63dc88377a429e48dc",
+    "public/cargo-effects.js": "174b4cb23fbd9158402d8265658f0d1672d5310a87baef94ae040b17fbe139aa",
+    "public/rail-effects.js": "1935959e1bb9c67f300c37355152203a8efc4e7e3eb73d2af2498133318d4f1b",
+    "public/construction-effects.js": "b516c903dcbadeb8cd51fe0723682b6dbd1e47ab5395ca54cb0e591da190ef8a",
+    "public/aircraft-effects.js": "4b2350b767be5e51f9bdc559433f75c87065423c0bd5f2c53e80170c32ed37f0",
+    "public/ship-effects.js": "f364502e351e8986bb8fa0a5cab58522df1a2c112d964c9c650a705c54d2ad16",
+    "public/survival-effects.js": "b049990ee9cfa93a46ac114582ce2d7bce7e3863ba9ecb0ca6bf03f5f5e22c0e",
+    "public/app.js": "e69b4fc8891f35b1881228c6ab9395d6698577b9b348b3071e3b051243ad29b0",
+    "spec/reentry-art.test.ts": "902117dab2e6a156e55e06f12911779bb81c5e07a769b9b89096cf9b4d5e09d5"
+  },
+  "checks": {
+    "vitest spec/reentry-art.test.ts": "6 passed",
+    "vitest cargo-pods, orbital-entry, world-sound-events (with the new file)": "39 passed",
+    "tsc --noEmit": "passed",
+    "playwright orbital, orbital-panels, deployment-flow, starting-core, survival, world-sound, gpu-reset": "33 passed, first run, no retries"
+  },
+  "frameCost": {
+    "method": "Sustained barrage (31 shells over 15 s), 1920x1080, measured 9-17 s after the order with Chrome CPU throttling at 10x as a proxy for a slow device. The comparison serves a copy of reentry-art.js whose smoke and plasma drawing return immediately; everything else is identical.",
+    "throttle10_fullEffects": { "fps": 56.5, "meanMs": 17.7, "p95Ms": 27.8 },
+    "throttle10_fullEffects_repeat": { "fps": 55.6, "meanMs": 18.0, "p95Ms": 34.7 },
+    "throttle10_withoutReentryDrawing": { "fps": 71.5, "meanMs": 14.0, "p95Ms": 27.8 },
+    "throttle4": "Both the full run and the earlier reduced-effects comparison held the 144 Hz display rate",
+    "reading": "About 3.8 ms per frame at 10x throttle, roughly 0.4 ms unthrottled on this machine, in the worst case measured. Before trimming gradient stops and samples and adding off-screen culling it was about 6.3 ms at 10x. Not measured on phones or low-end hardware."
+  },
+  "captures": [
+    "reentry-core-desktop.jpg", "reentry-crate-desktop.jpg", "reentry-he-desktop.jpg", "reentry-he-linger-desktop.jpg",
+    "reentry-heavy-desktop.jpg", "reentry-cluster-desktop.jpg", "reentry-barrage-desktop.jpg", "reentry-beam-desktop.jpg",
+    "reentry-beam-smoke-desktop.jpg", "reentry-he-phone.jpg"
+  ],
+  "fixtures": "Disposable worlds in temporary DATA_DIRs via the legacy route; no developer save was opened, changed or reset."
+}

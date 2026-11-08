@@ -38,12 +38,3 @@ export function drawContaminationMap(c, sites, sx, sy, time) {
     c.ellipse((site.x + 1.5) * sx, (site.y + 1.5) * sy, r * sx, r * sy, 0, 0, Math.PI * 2); c.fill();
   }
 }
-export function drawContaminatorBody(c, site) {
-  const dead = site.state === 'conquered';
-  c.fillStyle = dead ? '#453340' : '#652d43'; c.beginPath(); c.ellipse(0, 0, 1.25, 1.05, 0, 0, Math.PI * 2); c.fill();
-  for (let i = 0; i < 5; i++) {
-    const a = i * Math.PI * 2 / 5, x = Math.cos(a) * .65, y = Math.sin(a) * .55;
-    c.fillStyle = dead ? '#594350' : '#ad6276'; c.beginPath(); c.ellipse(x, y, .38, .5, a, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#271e2d'; c.beginPath(); c.ellipse(x, y - .08, .22, .3, a, 0, Math.PI * 2); c.fill();
-  }
-}

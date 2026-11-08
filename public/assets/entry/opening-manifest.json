@@ -1,0 +1,20 @@
+{
+  "title": "Opening idle loop (scene 04, robot deployment)",
+  "author": "Project author's generated concept frame; idle animation rendered for the project, 8 November 2026",
+  "license": "Used with the project author's permission for this game; not separately licensed",
+  "source": "Local frame output/video-frames/scene-04-robot-deployment-v1.png (ignored, 1672 x 941; built-in image generation, prompt beside it)",
+  "sourceSha256": "5e8e2c64d9aaa8947c7bd3585ae6c6cd68217c1d2d6207ceae156efb50cb5264",
+  "export": "Layered 2D animation of the still, cropped to 1672 x 940: robot masked with SAM ViT-L, sky and distant ground with SegFormer-B2 (ADE20K), background behind the robot inpainted. Every motion repeats a whole number of times in 10 s, so the clip loops without a seam: robot breathing, weight shift and limb micro-motion with planted feet; visor pulse; grass sway; cloud and fog thinning and rebuilding in place; sun twinkle. H.264 High, yuv420p, 30 fps, CRF 17, one keyframe, faststart, no audio. The poster is frame 0.",
+  "files": [
+    {
+      "file": "opening-loop.mp4",
+      "sha256": "00e38fc16dfdcdf08a3bd790464ecb37b469a7e803583e8e61ba7fd0cfd22356",
+      "modified": true
+    },
+    {
+      "file": "opening-poster.jpg",
+      "sha256": "2f67c298f4c94f72b14473d2528dad722c4f065528972207004c78963b706a82",
+      "modified": true
+    }
+  ]
+}

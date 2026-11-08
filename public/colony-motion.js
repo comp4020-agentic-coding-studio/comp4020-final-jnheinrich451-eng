@@ -21,8 +21,10 @@ export function receiveColonyPlayers(rendered, records, now, reset = false) {
     let vy = interval > 1 ? 0 : (record.y - previous.targetY) / interval;
     const speed = Math.hypot(vx, vy);
     if (speed > COLONY.robotSpeed) { vx *= COLONY.robotSpeed / speed; vy *= COLONY.robotSpeed / speed; }
+    // Activities (sitting, charging, brewing, fishing) change without a jump, so each packet
+    // carries them over too; otherwise a worker that sat down kept drawing as standing.
     Object.assign(previous, { targetX: record.x, targetY: record.y, receivedAt: now,
-      angle: record.angle, name: record.name, vx, vy });
+      angle: record.angle, name: record.name, activity: record.activity ?? null, vx, vy });
   }
   for (const id of rendered.keys()) if (!present.has(id)) rendered.delete(id);
 }

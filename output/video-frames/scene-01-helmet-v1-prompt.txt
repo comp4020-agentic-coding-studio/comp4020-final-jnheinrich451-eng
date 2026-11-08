@@ -1,0 +1,10 @@
+Generator: built-in image_gen
+
+Use case: stylized-concept
+Asset type: opening cinematic frame for a game video, a single widescreen 16:9 film still.
+Scene/backdrop: Inside a dark concave spherical steel chamber that visibly curves around a central helmet. The chamber wall is built from highly ordered layered metal panels, fine channels and geometric routing inspired by an enormous microchip layout; restrained, precise and architectural. Curvature must be readable, not a flat backdrop.
+Subject: One heavily armored, fully enclosed helmet centered in the image, viewed exactly straight on at eye level. A human head is implied inside but completely hidden: no skin, no visible face or eyes, no transparent shell. Dense protective plating surrounds the helmet. Integrated tubes and cable conduits nest within protected recesses around its temples and lower edges, with machined radiator fins and small functional status indicators in red, orange and lemon green. An opaque dark faceplate, impersonal industrial design.
+Composition/framing: Strict frontal symmetry, locked camera, cinematic medium close-up, entire helmet visible with breathing room above and at both sides; spherical chamber wraps around it. Helmet is the clear focal point. No other people or props.
+Lighting/mood: Cinematic controlled low-key lighting and deep shadows with enough detail to read the engineering. Cold faint steel-blue fill outlines the form; red light cascades downward across successive helmet plates in carefully spaced bands. Tiny orange and lemon-green indicator accents remain subordinate to the red lighting. Atmosphere is rigidly ordered, clinical, emotionless, oppressive and cold.
+Materials/textures: Smooth finely frosted matte steel, charcoal and dark gunmetal; immaculate satin-matte microtexture with broad soft light falloff. No mirror reflections, glossy chrome or shiny wet surfaces. High-end photorealistic film production design.
+Constraints: One image, no collage, no text, no logos, no watermark. Preserve completely concealed head and direct front camera.

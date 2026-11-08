@@ -1,4 +1,4 @@
-﻿import { drawLensCrawler } from './mobile-laser-effects.js';
+﻿import { drawEnemyCrawler } from './enemy-art.js';
 import { aaEffectBorn, aaTracerDashes } from './aa-tracer-effects.js';
 import { sandSeaAt } from './biome.js';
 // Client-only presentation: the server sends outcomes, never individual particles.
@@ -10,66 +10,10 @@ function cloud(inner, outer) {
   return sprite(96, (c, s) => { const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, inner); g.addColorStop(.45, inner); g.addColorStop(1, outer); c.fillStyle = g; c.fillRect(0, 0, s, s); });
 }
 
-export function drawCrawler(c, e, time, hit = 0, dead = false) {
-  if(['twin-lens','heavy-lens'].includes(e.kind))return drawLensCrawler(c,e,time,hit,dead);
+export function drawCrawler(c, e, time, hit = 0, dead = false, reduced = false) {
   c.save(); c.translate(e.x, e.y); c.rotate(e.angle || 0);
-  const bulwark = e.kind === 'bulwark', breaker = e.kind === 'breaker' || bulwark;
-  if (bulwark) c.scale(1.2, 1.15);
-  if (breaker) c.scale(1.28, 1.22);
-  const gait = dead ? 0 : Math.sin(time * (breaker ? 7 : 13) + e.id) * (breaker ? 2 : 4);
-  ellipse(c, 3, 5, 22, 27, '#1c231944');
-  // Six articulated limbs, with alternating strides and pale claws.
-  for (let side = -1; side <= 1; side += 2) for (let leg = 0; leg < 3; leg++) {
-    const y = -9 + leg * 10, stride = gait * ((leg % 2) * 2 - 1) * side;
-    const knee = side * (21 + (dead ? -4 : 0)), foot = side * (25 + (dead ? -8 : 0));
-    c.strokeStyle = '#432823'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(side * 7, y); c.lineTo(knee, y + 4 + stride); c.lineTo(foot, y - 4 + stride); c.stroke();
-    c.strokeStyle = dead ? '#592e32' : '#a3513e'; c.lineWidth = 3; c.beginPath(); c.moveTo(side * 8, y - 1); c.lineTo(knee, y + 3 + stride); c.stroke();
-    c.strokeStyle = '#ba9d76'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(foot, y - 4 + stride); c.lineTo(foot + side * 2, y - 8 + stride); c.stroke();
-  }
-  ellipse(c, 0, 10, 11, 15, dead ? '#48282c' : '#6e302b');
-  ellipse(c, 0, -1, 14, 19, dead ? '#542c32' : hit ? '#d49d7e' : '#a34b38');
-  ellipse(c, -3, -3, 8, 16, dead ? '#63343d' : '#c16a47');
-  for (let i = 0; i < 4; i++) { c.strokeStyle = dead ? '#341f27' : '#5e3029'; c.lineWidth = 2; c.beginPath(); c.moveTo(-9 + i, 1 + i * 5); c.quadraticCurveTo(0, 5 + i * 5, 9 - i, 1 + i * 5); c.stroke(); }
-  // Two necks and skulls remain readable from directly overhead.
-  for (const side of [-1, 1]) {
-    const x = side * 8, bob = dead ? 4 : side * gait * .25;
-    ellipse(c, x, -20 + bob, 8, 11, dead ? '#572e36' : '#79362e', side * .18);
-    ellipse(c, x - 2, -23 + bob, 5, 7, dead ? '#62343c' : hit ? '#edbd98' : '#be694d', side * .18);
-    if (!dead) {
-      ellipse(c, x + side * 3, -25 + bob, 1.6, 2.3, '#f2d087');
-      c.strokeStyle = '#d5ba8d'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 4, -28 + bob); c.lineTo(x - 2, -32 + bob); c.moveTo(x + 4, -28 + bob); c.lineTo(x + 2, -32 + bob); c.stroke();
-    }
-  }
-  if (breaker) {
-    // Broad overlapping chitin plates and two heavy forelimbs distinguish the
-    // role by silhouette even without color or particle effects.
-    for (let i = 0; i < 3; i++) {
-      const y = -10 + i * 10;
-      c.fillStyle = dead ? '#493535' : hit ? '#e0b690' : '#663b32';
-      c.strokeStyle = '#b79269'; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(-16, y - 5); c.lineTo(0, y - 9); c.lineTo(16, y - 5);
-      c.lineTo(12, y + 6); c.lineTo(0, y + 9); c.lineTo(-12, y + 6); c.closePath(); c.fill(); c.stroke();
-    }
-    for (const side of [-1, 1]) {
-      ellipse(c, side * 24, -20 + gait, 9, 15, dead ? '#493535' : '#773c30', side * -.25);
-      c.strokeStyle = '#d4b98b'; c.lineWidth = 3;
-      c.beginPath(); c.moveTo(side * 27, -27 + gait); c.lineTo(side * 25, -39 + gait); c.stroke();
-    }
-  }
-  if (bulwark) {
-    // A wide sealed carapace and lateral spikes distinguish the cannon target.
-    for (let i = 0; i < 4; i++) {
-      const y = -19 + i * 11, width = i === 3 ? 15 : 22;
-      c.fillStyle = dead ? '#3b3a36' : hit ? '#c4c9b4' : i % 2 ? '#41473f' : '#555b4c';
-      c.strokeStyle = '#c9b98b'; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(0, y - 7); c.lineTo(width, y - 1);
-      c.lineTo(width + 5, y - 5); c.lineTo(width, y + 7);
-      c.lineTo(0, y + 10); c.lineTo(-width, y + 7);
-      c.lineTo(-width - 5, y - 5); c.lineTo(-width, y - 1); c.closePath(); c.fill(); c.stroke();
-    }
-    c.strokeStyle = '#9e5740'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(0, -24); c.lineTo(0, 20); c.stroke();
-  }
+  // Creature art and its state-driven poses live in enemy-art.js.
+  drawEnemyCrawler(c, e, time, hit, dead, reduced);
   if (e.behavior === 'fleeing' && !dead) {
     ellipse(c, 0, 0, 11, 18, '#202324aa');
     for (let i = 0; i < 3; i++) {

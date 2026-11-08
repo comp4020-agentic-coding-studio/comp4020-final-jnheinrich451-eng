@@ -1,6 +1,7 @@
 import { CoreEffects } from './core-effects.js';
 import { POD } from './pod.js';
-import { cargoCells } from './cargo-pods.js';
+import { cargoCells, cargoPanels } from './cargo-pods.js';
+import { capsuleDescent } from './reentry-art.js';
 
 const clamp=n=>Math.max(0,Math.min(1,n));
 const smooth=n=>{n=clamp(n);return n*n*(3-2*n);};
@@ -19,7 +20,7 @@ export class CargoEffects extends CoreEffects {
     const T=this.tile,open=smooth((time-POD.unfold)/POD.panelDuration),projected=Math.sin(open*Math.PI/2);
     c.save();c.translate((p.x+p.w/2)*T,(p.y+p.h/2)*T);
     if(time>=POD.impact){
-      for(let side=0;side<4;side++){
+      for(const {side} of cargoPanels(p)){
         const w=side%2?p.h:p.w,h=side%2?p.w:p.h;
         if(projected>0){
           c.save();c.rotate(side*Math.PI/2);c.translate(-w*T/2,-h*T/2);
@@ -35,9 +36,11 @@ export class CargoEffects extends CoreEffects {
       if(!reduced&&time-POD.impact<.7)this.dust(c,0,0,time-POD.impact,.7,12,7,Math.min(2,Math.sqrt(p.w*p.h)*.4));
     }
     if(open<1){
-      const fall=time<POD.impact?1-clamp(time/POD.impact)**2:0;
-      c.save();c.globalAlpha=1-open;
-      if(!reduced){c.translate(fall*5*T,-fall*9*T);c.scale(1+fall*.3,1+fall*.3);}
+      c.save();
+      // Re-entry along the planet's orbital track, braking to a retro-rocket touchdown.
+      const pose=time<POD.impact?capsuleDescent(c,T,{id:'cargo:'+p.id,x:p.x+p.w/2,y:p.y+p.h/2,s:clamp(time/POD.impact),duration:POD.impact,height:10,body:Math.max(p.w,p.h)/2,grow:.3},reduced):null;
+      c.globalAlpha=1-open;
+      if(!reduced&&pose){c.translate(pose.x*T,pose.y*T);c.scale(1+pose.a*.3,1+pose.a*.3);}
       c.scale(p.w/3,p.h/3);this.box(c,Math.max(0,time-POD.impact));c.restore();
     }
     c.restore();

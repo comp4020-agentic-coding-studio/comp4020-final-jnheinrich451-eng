@@ -1,0 +1,82 @@
+/* Opening loop: the title screen in front of the entry pages, once per tab session.
+   entry-opening.js decides before first paint (html[data-opening]); see docs/OPENING_LOOP.md. */
+:root { --opening-gold: #d8b25e; --opening-gold-ink: #ffdd8a; --opening-shine: #ffffff; }
+
+/* First paint, before the overlay exists: the poster already fills the screen. */
+html[data-opening="play"]::after {
+  content: ""; position: fixed; inset: 0; z-index: 2147483000;
+  background: #000 url(/assets/entry/opening-poster.jpg) 46% 50% / cover no-repeat;
+}
+/* Arriving from the opening on another page: start black, then fade in. */
+html[data-opening="arrive"]::after {
+  content: ""; position: fixed; inset: 0; z-index: 2147483000; background: #000; pointer-events: none;
+  animation: opening-arrive .7s ease .12s forwards;
+}
+@keyframes opening-arrive { to { opacity: 0; visibility: hidden; } }
+/* Leaving for the battlefield, which starts black: fade out into it. */
+html[data-opening="leave"]::after {
+  content: ""; position: fixed; inset: 0; z-index: 2147483000; background: #000; pointer-events: none;
+  animation: opening-leave .5s ease-in forwards;
+}
+@keyframes opening-leave { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html[data-opening="leave"]::after { animation: none; } }
+
+.opening {
+  position: fixed; inset: 0; z-index: 2147483001; display: grid; place-items: end center;
+  background: #000; overflow: hidden; outline: none; cursor: pointer;
+  transition: opacity .6s ease;
+}
+.opening.opening-revealing { opacity: 0; pointer-events: none; }
+.opening-picture {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 46% 50%;
+}
+/* A soft floor shade so the line reads over bright grass highlights. */
+.opening::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 30%; pointer-events: none;
+  background: linear-gradient(to top, rgba(3, 6, 12, .66), rgba(3, 6, 12, 0));
+}
+.opening-skip {
+  position: relative; z-index: 1; margin: 0 16px max(5.5vh, 28px);
+  font: 600 clamp(14px, 1.3vw, 22px)/1.2 'IBM Plex Sans', system-ui, sans-serif;
+  letter-spacing: .32em; text-transform: uppercase; text-align: center;
+}
+/* Solid gold letters with a text-shadow halo that breathes. Chrome draws text
+   inside a filter layer, or as a gradient clip, about 11% darker, so the glow is
+   a text-shadow and the shine is a separate copy on top: a white band sweeping
+   left to right. Its gradient is three text-widths wide; 100% -> 0% carries it. */
+.opening-skip span {
+  position: relative; color: var(--opening-gold-ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .85), 0 0 6px rgba(255, 214, 120, .6), 0 0 20px rgba(232, 182, 84, .45);
+  animation: opening-breathe 3.3s ease-in-out infinite;
+}
+.opening-skip span::after {
+  content: attr(data-text) / ""; position: absolute; inset: 0; pointer-events: none; text-shadow: none;
+  background: linear-gradient(105deg, transparent 0 43%, var(--opening-shine) 50%, transparent 57% 100%) no-repeat;
+  background-size: 300% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: opening-shine 3.3s ease-in-out infinite;
+}
+.opening-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .opening-keys { display: none; }
+  .opening-touch { display: inline; }
+}
+/* The letters stay fully lit; only the halo breathes. */
+@keyframes opening-breathe {
+  0%, 100% { text-shadow: 0 1px 2px rgba(0, 0, 0, .85), 0 0 4px rgba(255, 214, 120, .4), 0 0 14px rgba(232, 182, 84, .3); }
+  50% { text-shadow: 0 1px 2px rgba(0, 0, 0, .85), 0 0 8px rgba(255, 214, 120, .85), 0 0 26px rgba(232, 182, 84, .65); }
+}
+@keyframes opening-shine { 0%, 15% { background-position: 100% 0; } 70%, 100% { background-position: 0 0; } }
+
+.opening-black {
+  position: absolute; inset: 0; z-index: 2; background: #000; opacity: 0; pointer-events: none;
+  transition: opacity .7s ease;
+}
+.opening-leaving .opening-black { opacity: 1; }
+.opening-leaving { cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-skip span, .opening-skip span::after { animation: none; }
+  .opening-skip span::after { display: none; }
+  .opening-black { transition-duration: .35s; }
+}

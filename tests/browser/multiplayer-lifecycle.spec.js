@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { skipArrival } from './room-helper.js';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -66,7 +67,7 @@ test('a/b/d/e/f: late join, rendered propagation, real tab close/return and room
     // d: this participant did not exist when the construction was accepted.
     const { code } = await post(owner, '/api/campaigns/invite', { id });
     let peer = await guest.newPage(); peer.on('pageerror', e => errors.push(e.message));
-    await peer.goto(base + '/campaigns/'); await peer.locator('#join input').fill(code); await peer.locator('#join button').click();
+    await peer.goto(base + '/campaigns/'); await peer.locator('#join input').fill(code); await peer.locator('#join button').click(); await skipArrival(peer);
     await expect(peer.locator('#connection')).toContainText('live');
     const guestPilot = (await state(guest)).me.id;
     expect(guestPilot).not.toBe(pilot);

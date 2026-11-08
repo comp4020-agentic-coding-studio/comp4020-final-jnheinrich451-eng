@@ -4,24 +4,20 @@ Generative agents turn a few words into detailed work. My position is that the
 detail they add drifts towards what is usual, and that this helps a designer with
 no target and harms one who has a target. Good practice therefore starts with
 knowing which case you are in. If you have a target, keep it where the agent cannot
-reword it: a sketch for form, a rule or test for behaviour.
+reword it: a sketch for form, a rule or test for behaviour, your own words for a sound.
 
 ## The drift enters early
 
 Hintze et al. (2026) left image and caption models feeding each other for 700 runs
 and found "just 12 dominant motifs with commercially safe aesthetics". Their loops
-had no human, so they show a tendency, not what happens under direction. The
-authors say only that training data "likely" explains it, and no experiment varied
-that data.
+had no human, so they show a tendency, not what happens under direction. They
+attribute it only "likely" to training data, and tested no other cause.
 
-My evidence is one game spacecraft, made with Codex and an image tool. I drew a
+My first evidence is a game spacecraft, made with Codex and an image tool. I drew a
 scythe-shaped bow. The prompt Codex wrote asked for a "subtle swept
 upper bow ridge" and to "avoid an enormous blade fin", so my drawing was softened
-before any image existed. The first render was a smooth teardrop. I had also asked
-for an open shuttle bay. It came back closed three ways, by a deck, a rear wall and
-a bar under the shuttle, and each needed a new sketch or correction. Reviewing
-outputs is therefore not enough. A designer should also read what the agent told
-the tool.
+before any image existed. The first render was a smooth teardrop. Reviewing outputs
+is therefore not enough. A designer should also read what the agent told the tool.
 
 ![First sketch](docs/evidence/mycorrhizal-carrier/sketch-1-first.png)
 ![First render](docs/evidence/mycorrhizal-carrier/terraforming-carrier-concept-v1.png)
@@ -30,17 +26,15 @@ the tool.
 
 ## Does the pull reach the person?
 
-Wadinambiarachchi et al. (2024) suggest it does. Sixty students sketched chatbot
+Wadinambiarachchi et al. (2024) suggest it does: sixty students sketched chatbot
 avatars, and those using Midjourney copied more features from a supplied example
-than those with no tool, though effects on originality were negligible. I first
-disagreed: for me, an image is a compromise for my poor drawing, not a change of
-mind. That study tested inventing from nothing, and I began with a drawing.
-
-But my feeling is weak evidence. METR's developers believed AI had sped them up by
-20% when they took 19% longer (Becker et al., 2025). METR now calls that out of
-date, and its later data suggests a speed-up, with "only very weak evidence for the
-size of this increase" (Becker et al., 2026). The finding moved, but the gap between
-belief and measurement is why I rely on dated sketches and prompts, not memory.
+than those without, though originality barely changed. I first disagreed, since
+that study tested inventing from nothing and I began with a drawing. But my feeling
+is weak evidence. METR's developers believed AI had sped them up by 20% when they took 19%
+longer (Becker et al., 2025). METR now calls that out of date, and its later data
+suggests a speed-up, with "only very weak evidence for the size of this increase"
+(Becker et al., 2026). The finding moved; the gap between belief and measurement is
+why I rely on dated sketches and prompts, not memory.
 
 ## The case against me
 
@@ -51,23 +45,36 @@ judged that better and adopted it. A generated image changed my design, by accid
 
 So a target is not a fixed answer. It is what lets a designer separate a useful
 surprise from drift. Schön (1983, as quoted in Keer, 2018) describes materials
-"continually talking back", and code does too. My game's anti-air tracers first
-followed ballistic physics, as a slow salvo the frame rate broke up. Only after
-seeing that did I replace them with a fixed firing line lit in short segments.
-Targets should change, but the designer should change them on purpose.
+"continually talking back", and code does too: my anti-air tracers followed
+ballistic physics until I saw the frame rate break the salvo up, and replaced them
+with a lit firing line. Targets should change, but the designer should change them
+on purpose.
+
+## The same split in sound
+
+Sound showed both halves without an image. Codex drafted short prompts for 52
+weapon effects ([generation record](soundeffect/GENERATION.md)), and ElevenLabs
+returned a burst where I wanted one machine-gun shot. I know what a tank sounds
+like, so I rewrote the vehicle prompts, and the record keeps them: "zero revving,
+zero acceleration", "zero doppler", "single isolated impact event with zero
+bounces". Each negation names a default the generator kept reaching for. In the
+carrier prompt the agent's negation softened my target; here mine defended it.
+The colony's cues went differently. The generator understood Codex's "small
+friendly robot pet" at once, and I kept its prompts almost as written. I have no
+target for how a mechanical spider purrs, so its convention became the design.
 
 ## With no target, convention is a loan
 
-Without a target, the same habit helps. I know little about factory games. I named
-machines for a peaceful colony mode, and Codex joined them into a production chain
-with a choice between food and fuel. I could not have designed that, and I cannot
-yet judge it: it is unbuilt, and I cannot say where the pattern came from.
+The colony's economy went the same way. I know little about factory games: I named
+its machines, and Codex joined them into a production chain trading food against
+fuel. I could not have designed that, or judged it until it was built; playing it,
+I found the power chain "a dead loop", because making fuel needed power.
 
 Naur (1985) argued that a program's theory lives in its people, and that rebuilding
 it from documents alone is "strictly impossible". Goedecke (2026) adds that agents
 "can't retain theories of the codebase". If neither of us holds the theory, nobody
 does. An agent's convention is a useful loan, but the designer must learn enough to
-turn it into a target before building on it.
+turn it into a target; I learned it only by playing what the loan built.
 
 ## Where targets live
 
@@ -78,9 +85,8 @@ if the human didn't clearly specify what they wanted in the first place." That
 answers the obvious objection that better models will remove the drift. They may
 drift less, but no model can check work against a target nobody stated.
 
-This is one designer's record of one project, and prompts are my only window on
-Codex's reasoning. A skilled artist may need sketches less. Still, the practice is
-cheap: decide whether you hold a target, then store it outside the chat.
+This is one designer's record of one project, and a skilled artist may need
+sketches less. Still, the practice is cheap: decide whether you hold a target, then store it outside the chat.
 
 ## References
 
