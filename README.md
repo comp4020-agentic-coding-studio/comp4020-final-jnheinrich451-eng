@@ -2,15 +2,18 @@
 
 Frontier is a cooperative overhead 2D war game for one to four friends. You land
 a robot on an alien planet, build a base, then take the planet with tanks, ships,
-aircraft, rail guns and orbital strikes. You can also play it alone.
+aircraft, rail guns and orbital strikes. If you prefer peace, **Colonization** on
+the same account grows a garden world with no enemies and no ending.
 
 ## Start playing
 
-Open [the game](https://comp4020-final-jnheinrich451-eng.fly.dev/), choose **Demo
-account**, then **Create account** with any `@frontier.test` address. Verify it in
-your private Demo inbox; no real email is sent. Choose **New Game**, pick a planet,
-name the campaign and enter. Place your support core and your robot lands. **WASD**
-moves, the mouse aims, **B** opens Deploy and **F1** lists the controls.
+Open [the game](https://comp4020-final-jnheinrich451-eng.fly.dev/) and create an
+account. **Email account** sends a verification link to your own address. If you
+would rather not give one, **Demo account** takes any `@frontier.test` address and
+shows the link in a private inbox; nothing is sent. Choose **New Game**, pick a
+planet and enter. Place your support core and your robot lands. **WASD** moves,
+the mouse aims, **B** opens Deploy and **F1** lists the controls. **Colonization**
+on the same menu starts a peaceful expedition.
 
 To add a second player, open **Room** and **Create invitation code**. They choose
 **Play as guest** in another browser and paste the code. To return later, use
@@ -24,15 +27,14 @@ spending and the sites you conquered all stay.
 
 With permanent death, one bad fight ends a long campaign. With free respawns,
 nothing you lose matters. Juul (2009) found that players who failed some and then
-finished a game rated it highest, and that players prefer to feel responsible for
-failing. The first result only neared significance (p=0.06), so I take it as a
-reason, not proof. It fits Frontier's warned attacks: a loss should feel like your
-own mistake.
+finished a game rated it highest, and prefer to feel responsible for failing. The
+first result only neared significance (p=0.06), so I take it as a reason, not
+proof. It fits Frontier's warned attacks: a loss should feel like your own mistake.
 
 Frontier is also small on purpose. Sloan (2020) writes that software freed from
 being "professional and scalable" becomes "a different activity altogether". A room
-holds four people, a campaign belongs to its host, and a friend needs no account to
-join. Helldivers 2 gave me the cooperative war, but I left out friendly fire.
+holds four, a campaign belongs to its host, and a friend needs no account to join.
+Helldivers 2 gave me the cooperative war, but I left out friendly fire.
 
 ## What is enforced
 
@@ -42,9 +44,11 @@ These claims are rules in [CLAUDE.md](CLAUDE.md), and each has a check:
 | --- | --- |
 | No defeat ends a campaign: with no cores and no money, you still get a core, an HE tank and your robot | [Recovery](spec/logistics.test.ts#L141) |
 | Losses stay: ruins remain and conquest is permanent | [Ruins](spec/infrastructure-repair-ui.test.ts#L27), [conquest](spec/conquest.test.ts#L57) |
-| Bulwarks take only explosives and charged magnetic shots, and warn before striking | [Bulwarks](spec/bulwark.test.ts#L29) |
+| Bulwarks take damage only from explosives, magnetic weapons and gas; fire slows them, and they warn before striking | [Bulwarks](spec/bulwark.test.ts) |
 | Friendly weapons never hurt your side | [Friendly damage](spec/vehicle-survival.test.ts#L10) |
 | Two people share one world, and it survives a restart | [Restart](spec/wreck-recovery-http.test.ts#L17) |
+| A colony never loses what it built, however long it is left | [Neglect](spec/colony-ground.test.ts#L235) |
+| Each account keeps three war campaigns and three peaceful expeditions | [Saves](spec/campaign-mode.test.ts#L113) |
 
 ## What is judged
 
@@ -54,6 +58,9 @@ I judged these by playing each stage and correcting it:
 - The HUD reads in one second, and you learn by playing. Dead Space led me to put
   information on the unit, not in corner panels.
 - The three planets and their transitions make arriving feel like an event.
+- Each weapon sounds like its own shot, from effects I generated and chose, and
+  each planet has its own music.
+- Two friends fight the same battle at the same moment.
 
 This is only my own judgement. I have no recorded test with outside players, and
 sustained four-player combat on Fly is unmeasured. In a local
@@ -63,10 +70,10 @@ players in under 0.2 s (median) and 0.55 s at worst, inside its one-second limit
 ## What I chose not to build
 
 - Friendly fire, and any loss that ends a campaign.
-- Large public servers.
+- Large public servers: Fly gives one shared CPU and 256 MB, so a room holds four
+  and a planet 24 living enemies.
 - Per-shot costs and offline income.
-- Farms in the war. **Colonization** is a separate peaceful mode for people who
-  prefer not to fight. It shares accounts and multiplayer, but it is unfinished.
+- Farms in the war: growing belongs to Colonization.
 - Isometric or 3D art: [Kenney's tank pack](https://kenney.nl/assets/top-down-tanks-remastered)
   showed that overhead silhouettes stay readable.
 
